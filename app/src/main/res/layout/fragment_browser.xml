@@ -24,13 +24,13 @@
             android:paddingVertical="6dp">
 
             <ImageButton
-                android:id="@+id/newTabButton"
+                android:id="@+id/homeButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_add"
+                android:src="@drawable/ic_home"
                 android:tint="@color/ff_muted"
-                android:contentDescription="@string/action_new_tab" />
+                android:contentDescription="@string/action_home" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
@@ -96,18 +96,19 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Reload/Stop toggle: same button swaps its icon+action between
-                 reload (idle) and stop (page actively loading), Chrome-style,
-                 instead of a reload button that does nothing useful mid-load. -->
+            <!-- New tab: was the reload button's spot. Manual reload now
+                 lives as pull-to-refresh (see webViewSwipeRefresh below) and
+                 a "Refresh" item in the overflow menu, Chrome-gesture-style
+                 instead of a dedicated button. -->
             <ImageButton
-                android:id="@+id/reloadButton"
+                android:id="@+id/newTabButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_refresh"
+                android:src="@drawable/ic_add"
                 android:tint="@color/ff_muted"
-                android:contentDescription="@string/action_reload" />
+                android:contentDescription="@string/action_new_tab" />
 
             <FrameLayout
                 android:id="@+id/tabsButton"
@@ -164,11 +165,22 @@
                  see BrowserFragment). Each tab's WebView is added here and
                  shown/hidden (with a crossfade) on switch instead of a single
                  shared WebView being re-pointed, so switching tabs is an
-                 instant view swap rather than a reload/restoreState. -->
-            <FrameLayout
-                android:id="@+id/webViewContainer"
+                 instant view swap rather than a reload/restoreState.
+
+                 Wrapped in SwipeRefreshLayout for Chrome-style pull-to-
+                 refresh; BrowserFragment gates the gesture to only fire
+                 when the active WebView is already scrolled to the top
+                 (setOnChildScrollUpCallback), same as Chrome. -->
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/webViewSwipeRefresh"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent">
+
+                <FrameLayout
+                    android:id="@+id/webViewContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
             <!-- Speed-dial "new tab" page -->
             <LinearLayout

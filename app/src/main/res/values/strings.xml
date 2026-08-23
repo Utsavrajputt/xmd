@@ -89,6 +89,7 @@
     <string name="action_reload">Reload</string>
     <string name="action_stop">Stop</string>
     <string name="action_new_tab">New Tab</string>
+    <string name="action_home">Home</string>
     <string name="action_tabs">Tabs</string>
     <string name="action_more">More Options</string>
     <string name="action_add_to_downloads">Add to Downloads</string>
@@ -111,6 +112,7 @@
     <string name="browser_menu_title">Browser</string>
     <string name="browser_menu_private_dns">Private DNS</string>
     <string name="browser_menu_history">History</string>
+    <string name="browser_menu_refresh">Refresh</string>
 
     <!-- DNS -->
     <string name="dns_settings_title">Private DNS</string>

@@ -486,12 +486,17 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         popup.menuInflater.inflate(R.menu.browser_overflow_menu, popup.menu)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                R.id.menu_refresh -> { reloadBrowserTab(); true }
                 R.id.menu_private_dns -> { showDnsSettingsDialog(); true }
                 R.id.menu_history -> { openHistoryScreen(); true }
                 else -> false
             }
         }
         popup.show()
+    }
+
+    private fun reloadBrowserTab() {
+        (supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment)?.reloadActiveTab()
     }
 
     private fun showDnsSettingsDialog() {

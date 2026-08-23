@@ -26,6 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.invictus.xmd.R
@@ -116,14 +117,15 @@ class BrowserFragment : Fragment() {
     )
 
     private lateinit var newTabButton: ImageButton
+    private lateinit var homeButton: ImageButton
     private lateinit var urlInput: EditText
-    private lateinit var reloadButton: ImageButton
     private lateinit var tabsButton: FrameLayout
     private lateinit var tabsCount: android.widget.TextView
     private lateinit var overflowButton: ImageButton
     private lateinit var pageProgress: ProgressBar
     private lateinit var siteSecurityIcon: ImageView
     private lateinit var bookmarkStarButton: ImageButton
+    private lateinit var webViewSwipeRefresh: SwipeRefreshLayout
     private lateinit var webViewContainer: FrameLayout
     private lateinit var navLoadingVeil: View
     private lateinit var speedDialContainer: View
@@ -238,14 +240,15 @@ class BrowserFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         newTabButton = view.findViewById(R.id.newTabButton)
+        homeButton = view.findViewById(R.id.homeButton)
         urlInput = view.findViewById(R.id.urlInput)
-        reloadButton = view.findViewById(R.id.reloadButton)
         tabsButton = view.findViewById(R.id.tabsButton)
         tabsCount = view.findViewById(R.id.tabsCount)
         overflowButton = view.findViewById(R.id.overflowButton)
         pageProgress = view.findViewById(R.id.pageProgress)
         siteSecurityIcon = view.findViewById(R.id.siteSecurityIcon)
         bookmarkStarButton = view.findViewById(R.id.bookmarkStarButton)
+        webViewSwipeRefresh = view.findViewById(R.id.webViewSwipeRefresh)
         webViewContainer = view.findViewById(R.id.webViewContainer)
         navLoadingVeil = view.findViewById(R.id.navLoadingVeil)
         speedDialContainer = view.findViewById(R.id.speedDialContainer)
@@ -257,8 +260,10 @@ class BrowserFragment : Fragment() {
         setupSpeedDial()
         setupAddressBar()
         setupSuggestions()
+        setupPullToRefresh()
 
         newTabButton.setOnClickListener { addNewTab() }
+        homeButton.setOnClickListener { goHome() }
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
         addLinkFab.setOnClickListener { onAddLinkClicked() }
@@ -267,6 +272,43 @@ class BrowserFragment : Fragment() {
         // Start on the speed-dial ("new tab") page.
         showSpeedDial()
         updateTabsCount()
+    }
+
+    /**
+     * Chrome-style pull-to-refresh: only fires when the active WebView is
+     * already scrolled to the top (setOnChildScrollUpCallback), same as
+     * Chrome -- otherwise a downward scroll mid-page would trigger a
+     * refresh instead of just scrolling. Replaces the old dedicated reload
+     * button; manual reload also still available via the overflow menu's
+     * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
+     */
+    private fun setupPullToRefresh() {
+        webViewSwipeRefresh.setColorSchemeResources(R.color.ff_accent)
+        webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            tabs.getOrNull(currentTabIndex)?.webView?.canScrollVertically(-1) == true
+        }
+        webViewSwipeRefresh.setOnRefreshListener {
+            val webView = tabs.getOrNull(currentTabIndex)?.webView
+            if (webView == null) {
+                webViewSwipeRefresh.isRefreshing = false
+            } else {
+                webView.reload()
+            }
+        }
+    }
+
+    /** Called from MainActivity's overflow menu "Refresh" item. */
+    fun reloadActiveTab() {
+        tabs.getOrNull(currentTabIndex)?.webView?.reload()
+    }
+
+    /** Home button: returns the *current* tab to the speed dial (unlike New
+     *  Tab, which opens an additional tab) -- reuses the existing tab slot
+     *  instead of growing the tab count. */
+    private fun goHome() {
+        val tab = tabs.getOrNull(currentTabIndex) ?: return
+        resetTabToBlank(tab)
+        showSpeedDial()
     }
 
     // ── WebView pool ─────────────────────────────────────────────────────
@@ -357,7 +399,6 @@ class BrowserFragment : Fragment() {
                     pageProgress.progress = 0
                     urlInput.setText(url)
                     updateSecurityIcon(tab)
-                    reloadButton.setImageResource(R.drawable.ic_stop)
                     clearDetectedLink()
                 }
             }
@@ -372,7 +413,7 @@ class BrowserFragment : Fragment() {
                 }
                 if (isCurrentTab(tab)) {
                     pageProgress.visibility = View.GONE
-                    reloadButton.setImageResource(R.drawable.ic_refresh)
+                    webViewSwipeRefresh.isRefreshing = false
                     hideNavLoadingVeil()
                     url?.let { checkPageForLinks(it) }
                 }
@@ -390,7 +431,7 @@ class BrowserFragment : Fragment() {
                 tab.isLoading = false
                 if (request.isForMainFrame && isCurrentTab(tab)) {
                     hideNavLoadingVeil()
-                    reloadButton.setImageResource(R.drawable.ic_refresh)
+                    webViewSwipeRefresh.isRefreshing = false
                 }
             }
 
@@ -482,20 +523,6 @@ class BrowserFragment : Fragment() {
     // ── Address bar ──────────────────────────────────────────────────────
 
     private fun setupAddressBar() {
-        reloadButton.setOnClickListener {
-            val tab = tabs.getOrNull(currentTabIndex) ?: return@setOnClickListener
-            val view = tab.webView ?: return@setOnClickListener
-            if (tab.isLoading) {
-                view.stopLoading()
-                tab.isLoading = false
-                reloadButton.setImageResource(R.drawable.ic_refresh)
-                pageProgress.visibility = View.GONE
-                hideNavLoadingVeil()
-            } else {
-                view.reload()
-            }
-        }
-
         urlInput.setOnEditorActionListener { _, actionId, event ->
             val isGo = actionId == EditorInfo.IME_ACTION_GO ||
                 (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
@@ -621,7 +648,7 @@ class BrowserFragment : Fragment() {
         updateBookmarkStar(tab)
         pageProgress.visibility = if (tab.isLoading) View.VISIBLE else View.GONE
         pageProgress.progress = tab.progress
-        reloadButton.setImageResource(if (tab.isLoading) R.drawable.ic_stop else R.drawable.ic_refresh)
+        webViewSwipeRefresh.isRefreshing = false
         val url = tab.url
         if (url != null) checkPageForLinks(url) else clearDetectedLink()
     }
@@ -696,7 +723,7 @@ class BrowserFragment : Fragment() {
         siteSecurityIcon.visibility = View.GONE
         bookmarkStarButton.visibility = View.GONE
         pageProgress.visibility = View.GONE
-        reloadButton.setImageResource(R.drawable.ic_refresh)
+        webViewSwipeRefresh.isRefreshing = false
         hideSuggestions()
         clearDetectedLink()
         hideNavLoadingVeil()
