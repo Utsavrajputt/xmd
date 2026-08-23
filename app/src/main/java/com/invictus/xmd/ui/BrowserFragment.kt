@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit
  * Mini in-app browser: address bar + WebView pool, with a Chrome-style
  * speed-dial grid shown in place of the WebView on "new tab" (i.e.
  * whenever there's no URL loaded). Typing in the address bar shows
- * generic DuckDuckGo suggest results (see SuggestApi) -- no site list is
+ * generic Google suggest results (see SuggestApi) -- no site list is
  * bundled with this app. Auto-detects fuckingfast/fitgirl links on the
  * current page and surfaces a FAB to send them to the Home download
  * queue; also intercepts any file download the page itself triggers
@@ -123,6 +123,7 @@ class BrowserFragment : Fragment() {
     private lateinit var overflowButton: ImageButton
     private lateinit var pageProgress: ProgressBar
     private lateinit var siteSecurityIcon: ImageView
+    private lateinit var bookmarkStarButton: ImageButton
     private lateinit var webViewContainer: FrameLayout
     private lateinit var navLoadingVeil: View
     private lateinit var speedDialContainer: View
@@ -135,6 +136,10 @@ class BrowserFragment : Fragment() {
     private lateinit var suggestionAdapter: SuggestionAdapter
     private var lastDetectedLink: String? = null
     private var suggestJob: Job? = null
+    // Mirrors BookmarkRepository.bookmarks (URLs only) so the address-bar
+    // star can flip filled/outline instantly without a DB round-trip on
+    // every tab switch -- kept in sync by the observer in setupSpeedDial().
+    private var bookmarkedUrls: Set<String> = emptySet()
 
     private val tabs = mutableListOf(BrowserTab(id = 0L))
     private var currentTabIndex = 0
@@ -240,6 +245,7 @@ class BrowserFragment : Fragment() {
         overflowButton = view.findViewById(R.id.overflowButton)
         pageProgress = view.findViewById(R.id.pageProgress)
         siteSecurityIcon = view.findViewById(R.id.siteSecurityIcon)
+        bookmarkStarButton = view.findViewById(R.id.bookmarkStarButton)
         webViewContainer = view.findViewById(R.id.webViewContainer)
         navLoadingVeil = view.findViewById(R.id.navLoadingVeil)
         speedDialContainer = view.findViewById(R.id.speedDialContainer)
@@ -256,6 +262,7 @@ class BrowserFragment : Fragment() {
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
         addLinkFab.setOnClickListener { onAddLinkClicked() }
+        bookmarkStarButton.setOnClickListener { onBookmarkStarTapped() }
 
         // Start on the speed-dial ("new tab") page.
         showSpeedDial()
@@ -536,8 +543,9 @@ class BrowserFragment : Fragment() {
     /**
      * 2-3 letters is enough to start querying, debounced ~300ms so we're not
      * firing a network request on every keystroke. Query text and results
-     * come entirely from DuckDuckGo's public suggest endpoint -- nothing
-     * here is a list this app ships or maintains (see SuggestApi's doc).
+     * come entirely from Google's public suggest endpoint (filtered to
+     * search-phrase results, see SuggestApi) -- nothing here is a list this
+     * app ships or maintains.
      */
     private fun scheduleSuggest(query: String) {
         suggestJob?.cancel()
@@ -575,12 +583,42 @@ class BrowserFragment : Fragment() {
         )
     }
 
+    /** Filled star when the loaded page's URL is already a saved shortcut,
+     *  outline otherwise; hidden entirely on the speed dial (no page yet). */
+    private fun updateBookmarkStar(tab: BrowserTab) {
+        val url = tab.url
+        if (url.isNullOrBlank() || !url.startsWith("http")) {
+            bookmarkStarButton.visibility = View.GONE
+            return
+        }
+        bookmarkStarButton.visibility = View.VISIBLE
+        bookmarkStarButton.setImageResource(
+            if (url in bookmarkedUrls) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+        )
+    }
+
+    /** Star tapped: adds the current page as a shortcut (via the existing
+     *  Add Shortcut dialog, prefilled) if it isn't one yet, or removes it
+     *  in one tap if it already is -- Chrome-style toggle. */
+    private fun onBookmarkStarTapped() {
+        val tab = tabs.getOrNull(currentTabIndex) ?: return
+        val url = tab.url ?: return
+        val existing = BookmarkRepository.bookmarks.value?.firstOrNull { it.url == url }
+        if (existing != null) {
+            BookmarkRepository.remove(existing)
+            Toast.makeText(requireContext(), R.string.bookmark_removed_toast, Toast.LENGTH_SHORT).show()
+        } else {
+            showAddBookmarkDialog(prefillUrl = url, prefillTitle = tab.title)
+        }
+    }
+
     /** Syncs the shared toolbar (address text, lock icon, progress, reload/
      *  stop icon, download-link FAB) from [tab]'s own state. Call whenever
      *  [tab] becomes the active one. */
     private fun applyTabUiState(tab: BrowserTab) {
         urlInput.setText(tab.url)
         updateSecurityIcon(tab)
+        updateBookmarkStar(tab)
         pageProgress.visibility = if (tab.isLoading) View.VISIBLE else View.GONE
         pageProgress.progress = tab.progress
         reloadButton.setImageResource(if (tab.isLoading) R.drawable.ic_stop else R.drawable.ic_refresh)
@@ -647,6 +685,8 @@ class BrowserFragment : Fragment() {
 
         BookmarkRepository.bookmarks.observe(viewLifecycleOwner) { list ->
             adapter.submitList(list)
+            bookmarkedUrls = list.map { it.url }.toSet()
+            tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
         }
     }
 
@@ -654,6 +694,7 @@ class BrowserFragment : Fragment() {
         speedDialContainer.visibility = View.VISIBLE
         urlInput.setText("")
         siteSecurityIcon.visibility = View.GONE
+        bookmarkStarButton.visibility = View.GONE
         pageProgress.visibility = View.GONE
         reloadButton.setImageResource(R.drawable.ic_refresh)
         hideSuggestions()
@@ -683,11 +724,12 @@ class BrowserFragment : Fragment() {
         navLoadingVeil.visibility = View.GONE
     }
 
-    private fun showAddBookmarkDialog(prefillUrl: String?) {
+    private fun showAddBookmarkDialog(prefillUrl: String?, prefillTitle: String? = null) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_bookmark, null)
         val titleInput = dialogView.findViewById<EditText>(R.id.bookmarkTitleInput)
         val urlField = dialogView.findViewById<EditText>(R.id.bookmarkUrlInput)
         urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
+        titleInput.setText(prefillTitle)
 
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.add_bookmark_title)

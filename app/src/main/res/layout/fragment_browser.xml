@@ -68,7 +68,7 @@
                         android:layout_weight="1"
                         android:background="@null"
                         android:paddingStart="14dp"
-                        android:paddingEnd="14dp"
+                        android:paddingEnd="4dp"
                         android:hint="@string/hint_url"
                         android:textColorHint="@color/ff_muted"
                         android:textColor="@color/ff_text"
@@ -78,6 +78,21 @@
                         android:imeOptions="actionGo"
                         android:inputType="textUri"
                         android:selectAllOnFocus="true" />
+
+                    <!-- Bookmark-this-page toggle: outline when the loaded page
+                         isn't saved as a shortcut, filled once it is. Hidden on
+                         the speed dial (no page to bookmark yet). -->
+                    <ImageButton
+                        android:id="@+id/bookmarkStarButton"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="2dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_star_outline"
+                        android:tint="@color/ff_muted"
+                        android:visibility="gone"
+                        android:contentDescription="@string/action_add_shortcut" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

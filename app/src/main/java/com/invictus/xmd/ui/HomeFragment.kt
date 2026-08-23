@@ -124,7 +124,8 @@ class HomeFragment : Fragment() {
     /**
      * Clipboard reads only work while the app is in the foreground (Android 10+
      * privacy restriction). We show a banner so the user can tap to add the link
-     * rather than auto-adding it silently.
+     * rather than auto-adding it silently. YouTube links are deliberately
+     * excluded -- no clipboard prompt for those, add them manually instead.
      */
     private fun checkClipboard() {
         val clip = clipboardManager.primaryClip ?: return
@@ -132,7 +133,7 @@ class HomeFragment : Fragment() {
         val text = clip.getItemAt(0).coerceToText(requireContext())
             ?.toString()?.trim().orEmpty()
         if (text.isEmpty() || text == lastHandledClipboardText) return
-        if (!LinkParser.isShareLink(text) && !LinkParser.isFitgirlPage(text) && !LinkParser.isYoutubeLink(text)) return
+        if (!LinkParser.isShareLink(text) && !LinkParser.isFitgirlPage(text)) return
         if (linksInput.text?.toString()?.contains(text) == true) return
         if (QueueRepository.current().any { it.sourceUrl == text }) return
 

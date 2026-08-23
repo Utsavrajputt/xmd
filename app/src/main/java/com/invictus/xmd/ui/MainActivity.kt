@@ -23,9 +23,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
+import com.invictus.xmd.core.BookmarkRepository
 import com.invictus.xmd.core.DownloadCategory
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.LinkParser
@@ -42,6 +45,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -835,6 +839,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val concurrentInput = view.findViewById<EditText>(R.id.maxConcurrentInput)
         val autoRetrySwitch = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.autoRetrySwitch)
         val saveToDownloadsSwitch = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saveToDownloadsSwitch)
+        val importWebsitesButton = view.findViewById<MaterialButton>(R.id.importWebsitesButton)
         val ytdlpDivider    = view.findViewById<android.view.View>(R.id.ytdlpDivider)
         val ytdlpSection    = view.findViewById<android.view.View>(R.id.ytdlpSection)
         val ytdlpStatus     = view.findViewById<android.widget.TextView>(R.id.ytdlpStatus)
@@ -952,6 +957,8 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         autoRetrySwitch.isChecked = Settings.autoRetryEnabled()
         saveToDownloadsSwitch.isChecked = Settings.saveToDownloadsFolder()
 
+        importWebsitesButton.setOnClickListener { startWebImportFlow() }
+
         AlertDialog.Builder(this)
             .setTitle(R.string.settings_title)
             .setView(view)
@@ -968,6 +975,51 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    // ── Website source pack import (Settings -> Import Websites) ────────
+
+    /**
+     * Scans for any xmdweb source-pack file and lets the user pick which
+     * one to import -- no auto-popup on launch, and no file picker either;
+     * just a scan + list. Called only from the "Import Now" button in
+     * Settings. Scoped to Downloads, Xmd, and WhatsApp Documents (incl.
+     * subfolders) rather than all of storage, so it can take a moment on a
+     * phone with a lot of WhatsApp history -- a quick toast sets that
+     * expectation before the scan starts.
+     */
+    private fun startWebImportFlow() {
+        Toast.makeText(this, R.string.import_websites_scanning, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            val files = withContext(Dispatchers.IO) { BookmarkRepository.findImportCandidates() }
+            if (files.isEmpty()) {
+                Toast.makeText(this@MainActivity, R.string.import_websites_not_found, Toast.LENGTH_LONG).show()
+            } else {
+                showImportCandidatesDialog(files)
+            }
+        }
+    }
+
+    private fun showImportCandidatesDialog(files: List<File>) {
+        val storageRoot = Environment.getExternalStorageDirectory().path
+        val labels = files.map { it.path.removePrefix(storageRoot).trimStart('/') }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.import_websites_title)
+            .setItems(labels) { _, which -> runWebImport(files[which]) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun runWebImport(file: File) {
+        lifecycleScope.launch {
+            val result = BookmarkRepository.importWebsites(file)
+            val message = if (result.imported > 0) {
+                getString(R.string.import_websites_success, result.imported)
+            } else {
+                getString(R.string.import_websites_none_new)
+            }
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     // ── Constants ─────────────────────────────────────────────────────────

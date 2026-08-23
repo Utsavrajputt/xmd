@@ -71,6 +71,16 @@
     <string name="settings_ytdlp_channel_stable">Channel: Stable</string>
     <string name="settings_ytdlp_channel_nightly">Channel: Nightly</string>
     <string name="settings_save">Save</string>
+    <string name="settings_import_websites">Website Sources</string>
+    <string name="settings_import_websites_hint">Scans Downloads, Xmd, and WhatsApp Documents (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
+    <string name="settings_import_websites_button">Import Now</string>
+
+    <!-- Website Import -->
+    <string name="import_websites_title">Import Websites</string>
+    <string name="import_websites_scanning">Scanning Downloads, Xmd, and WhatsApp Documents for xmdweb files…</string>
+    <string name="import_websites_success">Imported %1$d website(s).</string>
+    <string name="import_websites_none_new">No new websites to import — everything in that file is already added.</string>
+    <string name="import_websites_not_found">No xmdweb source-pack file found in Downloads, Xmd, or WhatsApp Documents.</string>
 
     <!-- Browser -->
     <string name="hint_url">Search or type a URL</string>
@@ -95,6 +105,7 @@
     <string name="download_confirm_title">Add to Downloads?</string>
     <string name="download_confirm_message">%1$s</string>
     <string name="bookmark_added_toast">Shortcut added.</string>
+    <string name="bookmark_removed_toast">Shortcut removed.</string>
 
     <!-- Browser Menu -->
     <string name="browser_menu_title">Browser</string>

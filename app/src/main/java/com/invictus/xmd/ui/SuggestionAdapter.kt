@@ -9,7 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.invictus.xmd.R
 
 /**
- * Row = a phrase from SuggestApi (DuckDuckGo). Tapping the row loads it
+ * Row = a phrase from SuggestApi (Google). Tapping the row loads it
  * (as a search or URL, same normalization as manual address-bar entry);
  * tapping the trailing "+" saves it as a bookmark without navigating.
  */
