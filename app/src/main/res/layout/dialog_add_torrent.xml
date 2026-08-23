@@ -32,14 +32,35 @@
     </LinearLayout>
 
     <!-- Link label -->
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/torrent_dialog_link_label"
-        android:textColor="@color/m3_on_surface_variant"
-        android:textSize="11sp"
-        android:letterSpacing="0.05"
-        android:layout_marginBottom="6dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/torrent_dialog_link_label"
+            android:textColor="@color/m3_on_surface_variant"
+            android:textSize="11sp"
+            android:letterSpacing="0.05" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/torrentCopyLinkButton"
+            style="@style/Widget.Xmd.IconButton.Tonal"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            app:icon="@drawable/ic_link"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="14dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:contentDescription="@string/torrent_dialog_copy_link" />
+    </LinearLayout>
 
     <!-- Link input card -->
     <com.google.android.material.card.MaterialCardView
@@ -90,15 +111,97 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="6dp" />
 
-    <TextView
-        android:id="@+id/torrentNameText"
+    <!-- Editable (was a read-only TextView) so the user can rename the
+         download before it starts, same as ADM/other external downloaders
+         let you retitle a magnet before hitting Start. Still auto-filled
+         from the magnet's dn= param via updateNamePreview() in
+         HomeFragment, just no longer locked once filled. -->
+    <EditText
+        android:id="@+id/torrentNameInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/torrent_dialog_name_placeholder"
+        android:background="@null"
+        android:padding="0dp"
+        android:hint="@string/torrent_dialog_name_placeholder"
+        android:textColorHint="@color/m3_on_surface_variant"
         android:textColor="@color/m3_on_surface"
         android:textSize="14sp"
         android:maxLines="2"
-        android:ellipsize="middle" />
+        android:inputType="text" />
+
+    <!-- Advanced: collapsed by default, expands to a save-folder override.
+         Chevron rotates on toggle to hint expand/collapse state. -->
+    <LinearLayout
+        android:id="@+id/torrentAdvancedHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?attr/selectableItemBackground"
+        android:paddingVertical="10dp"
+        android:layout_marginTop="14dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/torrent_dialog_advanced_label"
+            android:textColor="@color/m3_on_surface_variant"
+            android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/torrentAdvancedChevron"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_arrow_forward"
+            android:rotation="90"
+            android:tint="@color/m3_on_surface_variant"
+            android:contentDescription="@null" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/torrentAdvancedContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:paddingTop="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/torrent_dialog_save_to_label"
+            android:textColor="@color/m3_on_surface_variant"
+            android:textSize="11sp"
+            android:letterSpacing="0.05"
+            android:layout_marginBottom="6dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/torrentSaveToPathText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/torrent_dialog_save_to_default"
+                android:textColor="@color/m3_on_surface"
+                android:textSize="13sp"
+                android:maxLines="2"
+                android:ellipsize="start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/torrentChangePathButton"
+                style="@style/Widget.Xmd.Button.Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/torrent_dialog_change_path"
+                android:textColor="@color/m3_primary" />
+        </LinearLayout>
+    </LinearLayout>
 
     <!-- Divider -->
     <View

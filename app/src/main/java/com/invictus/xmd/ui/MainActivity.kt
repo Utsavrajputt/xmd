@@ -350,12 +350,28 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         bottomNav.selectedItemId = R.id.nav_home
 
+        // Magnet links and direct .torrent file URLs get the Editor dialog
+        // first (rename / check link / change save folder), same as ADM's
+        // "external download manager" popup -- instead of downloading
+        // immediately. Everything else (share links, fitgirl pages,
+        // generic direct URLs) keeps going straight to prepare/download,
+        // unchanged.
+        if (LinkParser.isTorrentLink(url)) {
+            showIncomingTorrentDialog(url)
+            return
+        }
+
         val needsPrepare = LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url)
         if (needsPrepare) {
             triggerPrepare(listOf(url))
         } else {
             triggerDownloadDirect(listOf(url))
         }
+    }
+
+    private fun showIncomingTorrentDialog(link: String) {
+        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
+            ?.showAddTorrentDialogForIncomingLink(link)
     }
 
     /**
@@ -452,6 +468,29 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         if (item != null) {
             QueueRepository.update(item.id) {
                 it.copy(directUrl = link, status = ItemStatus.READY, fileName = displayName ?: it.fileName)
+            }
+        }
+        DownloadService.start(this)
+        showDownloadStartedSnackbar()
+    }
+
+    /**
+     * From the Editor dialog (HomeFragment.showAddTorrentDialog) -- both the
+     * manual "+" button and an incoming external magnet/.torrent link go
+     * through here once the user hits Start, carrying whatever they
+     * customized (rename, save-folder override) along with it.
+     */
+    override fun triggerDownloadTorrentMagnet(link: String, name: String?, customSaveDirPath: String?) {
+        QueueRepository.setLinks(listOf(link))
+        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
+        if (item != null) {
+            QueueRepository.update(item.id) {
+                it.copy(
+                    directUrl = link,
+                    status = ItemStatus.READY,
+                    fileName = name ?: it.fileName,
+                    customSaveDirPath = customSaveDirPath
+                )
             }
         }
         DownloadService.start(this)

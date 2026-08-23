@@ -228,7 +228,7 @@ class DownloadService : LifecycleService() {
             val item = QueueRepository.claimNextReady() ?: break
             when {
                 item.platform == MediaPlatform.YOUTUBE -> downloadYoutube(item)
-                LinkParser.isTorrentLink(item.sourceUrl) -> downloadTorrentOne(item.id, item.sourceUrl)
+                LinkParser.isTorrentLink(item.sourceUrl) -> downloadTorrentOne(item.id, item.sourceUrl, item.customSaveDirPath)
                 else -> downloadOne(item.id, item.sourceUrl, item.directUrl, item.category)
             }
             kotlinx.coroutines.delay(BETWEEN_CLAIM_DELAY_MS)
@@ -329,7 +329,7 @@ class DownloadService : LifecycleService() {
      * that aren't wired up to Settings) -- straightforward "download it and
      * report progress" for now, mirroring downloadOne()'s status handling.
      */
-    private suspend fun downloadTorrentOne(itemId: String, sourceUrl: String) {
+    private suspend fun downloadTorrentOne(itemId: String, sourceUrl: String, customSaveDirPath: String?) {
         val engine = TorrentEngine(
             progress = { done, total, speed ->
                 QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
@@ -340,7 +340,12 @@ class DownloadService : LifecycleService() {
         torrentEngines[itemId] = engine
 
         try {
-            val baseDir = if (Settings.saveToDownloadsFolder()) {
+            val baseDir = if (!customSaveDirPath.isNullOrBlank()) {
+                // Picked via the Editor dialog's Advanced -> Change (see
+                // HomeFragment/MainActivity) -- overrides both the settings
+                // default and the Torrents-subfolder convention below.
+                File(customSaveDirPath)
+            } else if (Settings.saveToDownloadsFolder()) {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             } else {
                 // Own subfolder rather than DownloadCategory.folderName -- a
