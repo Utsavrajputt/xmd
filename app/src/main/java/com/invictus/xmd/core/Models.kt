@@ -87,6 +87,17 @@ data class QueueItem(
     var downloadStartedAtMs: Long = 0L,
     var category: DownloadCategory = DownloadCategory.default(),
 
+    /**
+     * Torrent-only: an absolute save-folder path picked via the "Editor"
+     * dialog's Advanced -> Change (see HomeFragment.showAddTorrentDialog,
+     * MainActivity.triggerDownloadTorrentMagnet) that overrides the normal
+     * Settings-driven default when set. Resolved from the SAF folder-picker
+     * tree URI to a real filesystem path at pick time -- see
+     * HomeFragment.resolveTreeUriToPath -- since libtorrent4j needs an
+     * actual path, not a content:// tree URI. Null means "use the default".
+     */
+    var customSaveDirPath: String? = null,
+
     // ── YouTube (yt-dlp) specific fields, unused for MediaPlatform.DIRECT ──
     var platform: MediaPlatform = MediaPlatform.DIRECT,
     /** yt-dlp `-f` format selector chosen in the quality picker, e.g. "bestvideo[height<=1080]+bestaudio/best[height<=1080]". */
