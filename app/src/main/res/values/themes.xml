@@ -1,10 +1,270 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Xmd" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/ff_accent</item>
-        <item name="colorPrimaryDark">@color/ff_bg</item>
-        <item name="colorAccent">@color/ff_accent</item>
-        <item name="android:windowBackground">@color/ff_bg</item>
-        <item name="android:statusBarColor">@color/ff_bg</item>
+
+    <style name="Theme.Xmd" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- Core M3 color roles -->
+        <item name="colorPrimary">@color/m3_primary</item>
+        <item name="colorOnPrimary">@color/m3_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_on_primary_container</item>
+
+        <item name="colorSecondary">@color/m3_secondary</item>
+        <item name="colorOnSecondary">@color/m3_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/m3_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/m3_tertiary</item>
+        <item name="colorOnTertiary">@color/m3_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/m3_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_on_tertiary_container</item>
+
+        <item name="colorError">@color/m3_error</item>
+        <item name="colorOnError">@color/m3_on_error</item>
+        <item name="colorErrorContainer">@color/m3_error_container</item>
+        <item name="colorOnErrorContainer">@color/m3_on_error_container</item>
+
+        <item name="android:colorBackground">@color/m3_background</item>
+        <item name="colorOnBackground">@color/m3_on_background</item>
+        <item name="colorSurface">@color/m3_surface</item>
+        <item name="colorOnSurface">@color/m3_on_surface</item>
+        <item name="colorSurfaceDim">@color/m3_surface_dim</item>
+        <item name="colorSurfaceBright">@color/m3_surface_bright</item>
+        <item name="colorSurfaceContainerLowest">@color/m3_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/m3_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/m3_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_surface_container_highest</item>
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
+        <item name="colorOutline">@color/m3_outline</item>
+        <item name="colorOutlineVariant">@color/m3_outline_variant</item>
+
+        <item name="colorSurfaceVariant">@color/m3_surface_container_high</item>
+        <item name="colorSurfaceInverse">@color/m3_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/m3_inverse_on_surface</item>
+        <item name="colorPrimaryInverse">@color/m3_inverse_primary</item>
+
+        <!-- Legacy attrs some views/older widgets still read -->
+        <item name="colorPrimaryDark">@color/m3_background</item>
+        <item name="colorAccent">@color/m3_primary</item>
+        <item name="android:windowBackground">@color/m3_background</item>
+        <item name="android:statusBarColor">@color/m3_background</item>
+        <item name="android:navigationBarColor">@color/m3_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- ==========================================================
+             Material 3 Expressive shape system — bigger, bolder,
+             more varied corner rounding than baseline M3, applied
+             through the theme's shape-appearance slots so every
+             component built on them (cards, buttons, dialogs, sheets,
+             text fields) picks it up automatically.
+             ========================================================== -->
+        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Xmd.ExtraSmall</item>
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Xmd.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Xmd.ExtraLarge</item>
+
+        <!-- Expressive typography: slightly bolder, friendlier titles -->
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Xmd.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.Xmd.TitleMedium</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Xmd.LabelLarge</item>
+
+        <!-- Component defaults -->
+        <item name="materialButtonStyle">@style/Widget.Xmd.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.Xmd.Button.Outlined</item>
+        <item name="borderlessButtonStyle">@style/Widget.Xmd.Button.Text</item>
+        <item name="materialCardViewStyle">@style/Widget.Xmd.CardView</item>
+        <item name="chipStyle">@style/Widget.Xmd.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.Xmd.BottomNavigationView</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Xmd.FloatingActionButton</item>
+        <item name="toolbarStyle">@style/Widget.Xmd.Toolbar</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Xmd.AlertDialog</item>
+        <item name="textInputStyle">@style/Widget.Xmd.TextInputLayout</item>
+        <item name="linearProgressIndicatorStyle">@style/Widget.Xmd.ProgressIndicator</item>
+        <item name="switchStyle">@style/Widget.Xmd.Switch</item>
+        <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
     </style>
+
+    <!-- ==============================================================
+         Expressive corner-radius scale. M3 Expressive leans into
+         larger, more confident rounding than classic M3 — cards read
+         as soft rounded rectangles, buttons trend toward full pill
+         shapes, and small elements (chips, dialogs' corner accents)
+         stay noticeably round rather than sharp.
+         ============================================================== -->
+    <style name="ShapeAppearance.Xmd.ExtraSmall" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Xmd.Small" parent="ShapeAppearance.Material3.Corner.Small">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">14dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Xmd.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Xmd.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Xmd.ExtraLarge" parent="ShapeAppearance.Material3.Corner.ExtraLarge">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">36dp</item>
+    </style>
+
+    <!-- A fully-pill shape, used for the "expressive" FAB and hero buttons -->
+    <style name="ShapeAppearance.Xmd.Full" parent="ShapeAppearance.Material3.Corner.Full">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Typography -->
+    <style name="TextAppearance.Xmd.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.0</item>
+    </style>
+
+    <style name="TextAppearance.Xmd.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.Xmd.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style>
+
+    <!-- Buttons: filled = pill-shaped hero action, outlined/text follow suit -->
+    <style name="Widget.Xmd.Button" parent="Widget.Material3.Button">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:letterSpacing">0.0</item>
+    </style>
+
+    <style name="Widget.Xmd.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="strokeColor">@color/m3_outline</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.Xmd.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <!-- Filled-tonal secondary action button — sits between outlined and
+         filled in visual weight, the classic M3 Expressive "step 2" action -->
+    <style name="Widget.Xmd.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/m3_secondary_container</item>
+        <item name="android:textColor">@color/m3_on_secondary_container</item>
+    </style>
+
+    <!-- Cards: generous, soft corners with a subtle outline instead of shadow,
+         which reads better against the app's dark surfaces -->
+    <style name="Widget.Xmd.CardView" parent="Widget.Material3.CardView.Outlined">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="cardBackgroundColor">@color/m3_surface_container</item>
+        <item name="strokeColor">@color/m3_outline_variant</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <style name="Widget.Xmd.Chip" parent="Widget.Material3.Chip.Assist">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="chipBackgroundColor">@color/m3_secondary_container</item>
+        <item name="android:textColor">@color/m3_on_secondary_container</item>
+    </style>
+
+    <style name="Widget.Xmd.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/m3_surface_container_low</item>
+        <item name="itemIconTint">@color/bottom_nav_colors</item>
+        <item name="itemTextColor">@color/bottom_nav_colors</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Xmd.BottomNavigationView.ActiveIndicator</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.Xmd.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">@color/m3_primary_container</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+    </style>
+
+    <!-- Expressive FAB: bold squircle-ish large shape rather than a plain circle -->
+    <style name="Widget.Xmd.FloatingActionButton" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="backgroundTint">@color/m3_primary_container</item>
+        <item name="tint">@color/m3_on_primary_container</item>
+    </style>
+
+    <style name="Widget.Xmd.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/m3_surface_container_low</item>
+        <item name="titleTextColor">@color/m3_on_surface</item>
+        <item name="titleTextAppearance">@style/TextAppearance.Xmd.TitleLarge</item>
+    </style>
+
+    <style name="ThemeOverlay.Xmd.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
+    </style>
+
+    <style name="Widget.Xmd.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="boxStrokeColor">@color/m3_outline</item>
+        <item name="hintTextColor">@color/m3_on_surface_variant</item>
+    </style>
+
+    <style name="Widget.Xmd.ProgressIndicator" parent="Widget.Material3.LinearProgressIndicator">
+        <item name="trackColor">@color/m3_surface_container_high</item>
+        <item name="indicatorColor">@color/m3_primary</item>
+        <item name="trackCornerRadius">8dp</item>
+    </style>
+
+    <style name="Widget.Xmd.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbTint">@color/m3_on_primary</item>
+        <item name="trackTint">@color/m3_primary</item>
+    </style>
+
+    <!-- ==============================================================
+         Expressive "filled tonal" icon buttons — a soft tonal-container
+         circle behind icon-only actions (toolbar/browser controls, list
+         row actions) instead of a bare icon on transparent background.
+         Two flavors: secondary (default, most icon actions) and primary
+         (single hero action on a screen, e.g. the main FAB-adjacent icon).
+         ============================================================== -->
+    <style name="Widget.Xmd.IconButton.Tonal" parent="Widget.Material3.Button.IconButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="backgroundTint">@color/m3_secondary_container</item>
+        <item name="iconTint">@color/m3_on_secondary_container</item>
+        <item name="rippleColor">@color/m3_on_secondary_container</item>
+    </style>
+
+    <style name="Widget.Xmd.IconButton.Tonal.Primary" parent="Widget.Xmd.IconButton.Tonal">
+        <item name="backgroundTint">@color/m3_primary_container</item>
+        <item name="iconTint">@color/m3_on_primary_container</item>
+        <item name="rippleColor">@color/m3_on_primary_container</item>
+    </style>
+
+    <!-- Status / count pill — small filled-tonal capsule used for badges
+         like download counts, active-torrent status, etc. -->
+    <style name="Widget.Xmd.StatusPill" parent="">
+        <item name="android:background">@drawable/bg_status_pill</item>
+        <item name="android:textColor">@color/m3_on_tertiary_container</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:paddingHorizontal">12dp</item>
+        <item name="android:paddingVertical">4dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
 </resources>

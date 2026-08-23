@@ -7,6 +7,7 @@
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
+    <string name="section_add_new_download">ADD NEW DOWNLOAD</string>
     <string name="action_download">Download Ready Files</string>
     <string name="action_pick_torrent_file">Pick .torrent file</string>
     <string name="action_add_torrent">Add torrent</string>

@@ -1,7 +1,6 @@
 package com.invictus.xmd.ui
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -506,6 +505,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val optionOff = dialogView.findViewById<RadioButton>(R.id.dnsOptionOff)
         val optionCustom = dialogView.findViewById<RadioButton>(R.id.dnsOptionCustom)
         val customUrlInput = dialogView.findViewById<EditText>(R.id.dnsCustomUrlInput)
+        val customUrlLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.dnsCustomUrlLayout)
 
         when (Settings.dnsMode()) {
             Settings.DnsMode.ADGUARD -> optionAdguard.isChecked = true
@@ -513,14 +513,14 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             Settings.DnsMode.CUSTOM -> optionCustom.isChecked = true
         }
         customUrlInput.setText(Settings.dnsCustomUrl())
-        customUrlInput.visibility = if (optionCustom.isChecked) android.view.View.VISIBLE else android.view.View.GONE
+        customUrlLayout.visibility = if (optionCustom.isChecked) android.view.View.VISIBLE else android.view.View.GONE
 
         group.setOnCheckedChangeListener { _, checkedId ->
-            customUrlInput.visibility =
+            customUrlLayout.visibility =
                 if (checkedId == R.id.dnsOptionCustom) android.view.View.VISIBLE else android.view.View.GONE
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.dns_settings_title)
             .setView(dialogView)
             .setPositiveButton(R.string.settings_save) { _, _ ->
@@ -621,7 +621,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      * one) -- looping back into this same check if it expires again.
      */
     private fun showExpiredLinkDialog(item: QueueItem) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Link Expired")
             .setMessage(
                 "${item.fileName ?: item.sourceUrl}\n\n" +
@@ -710,7 +710,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      */
     private suspend fun resolveYoutube(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("YouTube not supported in this build")
                 .setMessage("This is the Lite build, which doesn't include YouTube downloads. Download the Full build from the app's Releases page to use this.")
                 .setPositiveButton(android.R.string.ok, null)
@@ -722,7 +722,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
         if (!YtDlpManager.isInstalled(this)) {
             val openSettings = suspendCancellableCoroutine<Boolean> { cont ->
-                val dialog = AlertDialog.Builder(this)
+                val dialog = MaterialAlertDialogBuilder(this)
                     .setTitle("yt-dlp not installed")
                     .setMessage("YouTube downloads need the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
                     .setPositiveButton("Install now") { _, _ -> cont.resume(true) }
@@ -742,7 +742,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val options = YtDlpManager.standardQualityOptions()
         val chosen = suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
             val labels = options.map { it.label }.toTypedArray()
-            val dialog = AlertDialog.Builder(this)
+            val dialog = MaterialAlertDialogBuilder(this)
                 .setTitle(item.fileName ?: "Choose quality")
                 .setItems(labels) { _, which -> cont.resume(options[which]) }
                 .setOnCancelListener { cont.resume(null) }
@@ -779,7 +779,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     private fun checkStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                     .setTitle("Storage Permission Required")
                     .setMessage(
                         "This app needs 'All files access' to save downloads to the " +
@@ -842,8 +842,8 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val group           = view.findViewById<RadioGroup>(R.id.connectionsGroup)
         val speedInput      = view.findViewById<EditText>(R.id.speedLimitInput)
         val concurrentInput = view.findViewById<EditText>(R.id.maxConcurrentInput)
-        val autoRetrySwitch = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.autoRetrySwitch)
-        val saveToDownloadsSwitch = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.saveToDownloadsSwitch)
+        val autoRetrySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.autoRetrySwitch)
+        val saveToDownloadsSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.saveToDownloadsSwitch)
         val importWebsitesButton = view.findViewById<MaterialButton>(R.id.importWebsitesButton)
         val ytdlpDivider    = view.findViewById<android.view.View>(R.id.ytdlpDivider)
         val ytdlpSection    = view.findViewById<android.view.View>(R.id.ytdlpSection)
@@ -964,7 +964,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         importWebsitesButton.setOnClickListener { startWebImportFlow() }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.settings_title)
             .setView(view)
             .setPositiveButton(R.string.settings_save) { _, _ ->

@@ -4,7 +4,6 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@color/ff_surface"
     android:padding="20dp">
 
     <!-- Title row -->
@@ -19,7 +18,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/ic_magnet"
-            android:tint="@color/ff_accent"
+            android:tint="@color/m3_primary"
             android:layout_marginEnd="10dp"
             android:contentDescription="@null" />
 
@@ -28,9 +27,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/torrent_dialog_title"
-            android:textColor="@color/ff_text"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textColor="@color/m3_on_surface"
+            android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
     </LinearLayout>
 
     <!-- Link label -->
@@ -38,7 +36,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/torrent_dialog_link_label"
-        android:textColor="@color/ff_muted"
+        android:textColor="@color/m3_on_surface_variant"
         android:textSize="11sp"
         android:letterSpacing="0.05"
         android:layout_marginBottom="6dp" />
@@ -47,11 +45,10 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardBackgroundColor="@color/ff_surface_2"
-        app:cardCornerRadius="10dp"
+        app:cardBackgroundColor="@color/m3_surface_container_high"
+        app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
         app:cardElevation="0dp"
-        app:strokeColor="@color/ff_divider"
-        app:strokeWidth="1dp">
+        app:strokeWidth="0dp">
 
         <EditText
             android:id="@+id/torrentLinkInput"
@@ -64,8 +61,8 @@
             android:background="@null"
             android:padding="12dp"
             android:hint="@string/torrent_dialog_link_hint"
-            android:textColorHint="@color/ff_muted"
-            android:textColor="@color/ff_text"
+            android:textColorHint="@color/m3_on_surface_variant"
+            android:textColor="@color/m3_on_surface"
             android:textSize="13sp" />
     </com.google.android.material.card.MaterialCardView>
 
@@ -76,8 +73,9 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="@string/torrent_dialog_pick_file"
-        android:textColor="@color/ff_accent"
+        android:textColor="@color/m3_primary"
         android:textSize="13sp"
+        android:textStyle="bold"
         android:background="?attr/selectableItemBackground"
         android:padding="4dp" />
 
@@ -86,7 +84,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/torrent_dialog_name_label"
-        android:textColor="@color/ff_muted"
+        android:textColor="@color/m3_on_surface_variant"
         android:textSize="11sp"
         android:letterSpacing="0.05"
         android:layout_marginTop="16dp"
@@ -97,7 +95,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/torrent_dialog_name_placeholder"
-        android:textColor="@color/ff_text"
+        android:textColor="@color/m3_on_surface"
         android:textSize="14sp"
         android:maxLines="2"
         android:ellipsize="middle" />
@@ -106,7 +104,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/ff_divider"
+        android:background="@color/m3_outline_variant"
         android:layout_marginTop="18dp"
         android:layout_marginBottom="4dp" />
 
@@ -120,19 +118,20 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/torrentCancelButton"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.Xmd.Button.Text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/action_cancel"
-            android:textColor="@color/ff_muted" />
+            android:textColor="@color/m3_on_surface_variant" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/torrentStartButton"
+            style="@style/Widget.Xmd.Button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:text="@string/action_start"
-            app:backgroundTint="@color/ff_accent"
-            android:textColor="@color/ff_bg" />
+            app:backgroundTint="@color/m3_primary"
+            android:textColor="@color/m3_on_primary" />
     </LinearLayout>
 </LinearLayout>

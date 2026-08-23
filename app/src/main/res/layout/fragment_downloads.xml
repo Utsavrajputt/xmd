@@ -4,19 +4,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/ff_bg">
+    android:background="@color/m3_background">
 
-    <!-- Summary bar: "2 downloading  •  3 done  •  1 failed" -->
-    <TextView
-        android:id="@+id/queueSummary"
+    <!-- Summary bar: horizontally-scrolling row of stat pills, e.g.
+         "2 downloading"  "3 done"  "1 failed" -->
+    <HorizontalScrollView
+        android:id="@+id/queueSummaryBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="10dp"
-        android:textColor="@color/ff_muted"
-        android:textSize="12sp"
-        android:background="@color/ff_surface"
-        android:visibility="gone" />
+        android:background="@color/m3_surface_container_low"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/queueSummaryChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            app:singleLine="true"
+            app:chipSpacingHorizontal="8dp" />
+    </HorizontalScrollView>
 
     <!-- Main content area: recycler OR empty label -->
     <FrameLayout
@@ -41,30 +49,37 @@
             android:gravity="center"
             android:visibility="gone">
 
-            <ImageView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:src="@drawable/ic_downloads"
-                android:tint="@color/ff_divider"
-                android:contentDescription="@null"
-                android:layout_marginBottom="16dp" />
+            <FrameLayout
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:background="@drawable/bg_icon_button_tonal"
+                android:layout_marginBottom="18dp">
+
+                <ImageView
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_downloads"
+                    android:tint="@color/m3_on_secondary_container"
+                    android:contentDescription="@null" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/emptyLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="No downloads yet"
-                android:textColor="@color/ff_muted"
-                android:textSize="15sp" />
+                android:textColor="@color/m3_on_surface"
+                android:textStyle="bold"
+                android:textSize="16sp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="Add links in the Home tab"
-                android:textColor="@color/ff_muted"
-                android:textSize="12sp"
-                android:alpha="0.6" />
+                android:textColor="@color/m3_on_surface_variant"
+                android:textSize="12sp" />
         </LinearLayout>
     </FrameLayout>
 
@@ -77,23 +92,21 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/cancelButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/Widget.Xmd.Button.Outlined"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/action_cancel_all"
-            app:strokeColor="@color/ff_error"
-            android:textColor="@color/ff_error"
+            app:strokeColor="@color/m3_error"
+            android:textColor="@color/m3_error"
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/clearAllButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/Widget.Xmd.Button.Tonal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/action_clear_all"
-            app:strokeColor="@color/ff_muted"
-            android:textColor="@color/ff_muted"
             android:visibility="gone" />
     </LinearLayout>
 

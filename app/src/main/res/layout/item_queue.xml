@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
     app:cardBackgroundColor="@color/ff_surface"
-    app:cardCornerRadius="10dp"
+    app:cardCornerRadius="18dp"
     app:cardElevation="0dp"
     app:strokeColor="@color/ff_divider"
     app:strokeWidth="1dp">
@@ -81,16 +81,17 @@
                 android:visibility="gone" />
 
             <!-- Progress bar -->
-            <ProgressBar
+            <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/itemProgress"
-                style="?android:attr/progressBarStyleHorizontal"
+                style="@style/Widget.Xmd.ProgressIndicator"
                 android:layout_width="match_parent"
-                android:layout_height="5dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:max="100"
                 android:visibility="gone"
-                android:progressTint="@color/ff_accent"
-                android:progressBackgroundTint="@color/ff_divider" />
+                app:trackThickness="6dp"
+                app:indicatorColor="@color/m3_primary"
+                app:trackColor="@color/m3_surface_container_highest" />
 
             <!-- Speed + ETA: "2.1 MB/s  •  ETA 3:42" -->
             <TextView

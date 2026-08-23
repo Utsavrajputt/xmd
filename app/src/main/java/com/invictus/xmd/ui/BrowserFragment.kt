@@ -21,6 +21,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -758,7 +759,7 @@ class BrowserFragment : Fragment() {
         urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
         titleInput.setText(prefillTitle)
 
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.add_bookmark_title)
             .setView(dialogView)
             .setPositiveButton(R.string.action_add) { _, _ ->
@@ -775,7 +776,7 @@ class BrowserFragment : Fragment() {
     }
 
     private fun showBookmarkOptionsDialog(bookmark: Bookmark) {
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(bookmark.title)
             .setItems(arrayOf(getString(R.string.edit_bookmark_title), getString(R.string.action_delete))) { _, which ->
                 when (which) {
@@ -793,7 +794,7 @@ class BrowserFragment : Fragment() {
         titleInput.setText(bookmark.title)
         urlField.setText(bookmark.url)
 
-        AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.edit_bookmark_title)
             .setPositiveButton(R.string.settings_save) { _, _ ->
                 val url = urlField.text?.toString()?.trim().orEmpty()
@@ -1014,7 +1015,7 @@ class BrowserFragment : Fragment() {
         }
         refreshRows()
 
-        dialog = AlertDialog.Builder(context)
+        dialog = MaterialAlertDialogBuilder(context)
             .setTitle(R.string.action_tabs)
             .setView(rowsContainer)
             .setPositiveButton(R.string.action_new_tab) { _, _ -> addNewTab() }
@@ -1049,7 +1050,7 @@ class BrowserFragment : Fragment() {
         val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
         var resolvedName = guessedName
 
-        val dialog = AlertDialog.Builder(requireContext())
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.download_confirm_title)
             .setMessage(getString(R.string.download_confirm_message, guessedName))
             .setPositiveButton(R.string.action_add_to_downloads) { _, _ ->

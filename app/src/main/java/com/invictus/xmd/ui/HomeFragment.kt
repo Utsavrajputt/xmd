@@ -1,6 +1,6 @@
 package com.invictus.xmd.ui
 
-import android.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
@@ -237,7 +237,7 @@ class HomeFragment : Fragment() {
         val startButton = dialogView.findViewById<MaterialButton>(R.id.torrentStartButton)
         val cancelButton = dialogView.findViewById<MaterialButton>(R.id.torrentCancelButton)
 
-        val dialog = AlertDialog.Builder(requireContext())
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setView(dialogView)
             .setCancelable(true)
             .create()

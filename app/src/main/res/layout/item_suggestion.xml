@@ -5,24 +5,31 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:background="?attr/selectableItemBackground"
-    android:paddingStart="14dp"
+    android:paddingStart="12dp"
     android:paddingEnd="4dp"
-    android:paddingVertical="10dp">
+    android:paddingVertical="8dp">
 
-    <ImageView
-        android:layout_width="16dp"
-        android:layout_height="16dp"
+    <FrameLayout
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:layout_marginEnd="12dp"
-        android:src="@drawable/ic_link"
-        android:tint="@color/ff_muted"
-        android:contentDescription="@null" />
+        android:background="@drawable/bg_icon_button_tonal">
+
+        <ImageView
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_link"
+            android:tint="@color/m3_on_secondary_container"
+            android:contentDescription="@null" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/suggestionText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="@color/ff_text"
+        android:textColor="@color/m3_on_surface"
         android:textSize="14sp"
         android:maxLines="1"
         android:ellipsize="end" />
@@ -33,7 +40,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_add"
-        android:tint="@color/ff_accent"
+        android:tint="@color/m3_primary"
         android:contentDescription="@string/action_add_shortcut" />
 
 </LinearLayout>

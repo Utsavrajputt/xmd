@@ -3,21 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="@color/m3_background">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
+        style="@style/Widget.Xmd.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/ff_surface" />
+        android:layout_height="?attr/actionBarSize" />
 
     <TextView
         android:id="@+id/challengeStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/ff_surface"
+        android:background="@color/m3_surface_container_low"
         android:padding="12dp"
-        android:textColor="@color/ff_muted" />
+        android:textColor="@color/m3_on_surface_variant"
+        android:textSize="12sp" />
 
     <WebView
         android:id="@+id/challengeWebView"

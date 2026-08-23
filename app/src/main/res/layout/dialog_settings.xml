@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -9,26 +10,29 @@
     android:orientation="vertical"
     android:padding="20dp">
 
+    <!-- ===================== Connections group ===================== -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/settings_connections"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
+        android:textColor="@color/m3_on_surface"
+        android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
     <RadioGroup
         android:id="@+id/connectionsGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="16dp">
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="20dp">
 
         <RadioButton
             android:id="@+id/conn2"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:buttonTint="@color/m3_primary"
+            android:textColor="@color/m3_on_surface"
             android:text="2" />
 
         <RadioButton
@@ -36,6 +40,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:buttonTint="@color/m3_primary"
+            android:textColor="@color/m3_on_surface"
             android:text="4" />
 
         <RadioButton
@@ -43,6 +49,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:buttonTint="@color/m3_primary"
+            android:textColor="@color/m3_on_surface"
             android:text="8" />
 
         <RadioButton
@@ -50,104 +58,126 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:buttonTint="@color/m3_primary"
+            android:textColor="@color/m3_on_surface"
             android:text="16" />
     </RadioGroup>
 
-    <TextView
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/settings_speed_limit"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
+        android:hint="@string/settings_speed_limit"
+        app:boxBackgroundMode="outline">
 
-    <EditText
-        android:id="@+id/speedLimitInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="number"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="16dp" />
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/speedLimitInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number" />
+    </com.google.android.material.textfield.TextInputLayout>
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/settings_max_concurrent"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
-
-    <EditText
-        android:id="@+id/maxConcurrentInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="number"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="16dp" />
-
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/autoRetrySwitch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/settings_auto_retry"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="@string/settings_auto_retry_hint"
-        android:textColor="@color/ff_muted"
-        android:textSize="12sp" />
-
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/saveToDownloadsSwitch"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/settings_save_to_downloads"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
+        android:hint="@string/settings_max_concurrent"
+        app:boxBackgroundMode="outline">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:text="@string/settings_save_to_downloads_hint"
-        android:textColor="@color/ff_muted"
-        android:textSize="12sp" />
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/maxConcurrentInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number" />
+    </com.google.android.material.textfield.TextInputLayout>
 
-    <TextView
+    <!-- ===================== Behavior group ===================== -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
+        app:cardBackgroundColor="@color/m3_surface_container_low"
+        app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/autoRetrySwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_auto_retry"
+                android:textColor="@color/m3_on_surface"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/settings_auto_retry_hint"
+                android:textColor="@color/m3_on_surface_variant"
+                android:textSize="12sp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="14dp"
+                android:background="@color/m3_outline_variant" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/saveToDownloadsSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_save_to_downloads"
+                android:textColor="@color/m3_on_surface"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/settings_save_to_downloads_hint"
+                android:textColor="@color/m3_on_surface_variant"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- ===================== Import group ===================== -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
         android:text="@string/settings_import_websites"
-        android:textColor="@color/ff_text"
-        android:textStyle="bold" />
+        android:textColor="@color/m3_on_surface"
+        android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:text="@string/settings_import_websites_hint"
-        android:textColor="@color/ff_muted"
+        android:textColor="@color/m3_on_surface_variant"
         android:textSize="12sp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/importWebsitesButton"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        style="@style/Widget.Xmd.Button.Outlined"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:text="@string/settings_import_websites_button" />
 
     <View
         android:id="@+id/ytdlpDivider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        android:background="@color/ff_muted" />
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="@color/m3_outline_variant" />
 
+    <!-- ===================== yt-dlp group ===================== -->
     <LinearLayout
         android:id="@+id/ytdlpSection"
         android:layout_width="match_parent"
@@ -158,15 +188,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/settings_ytdlp_title"
-            android:textColor="@color/ff_text"
-            android:textStyle="bold" />
+            android:textColor="@color/m3_on_surface"
+            android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="@string/settings_ytdlp_hint"
-            android:textColor="@color/ff_muted"
+            android:textColor="@color/m3_on_surface_variant"
             android:textSize="12sp" />
 
         <LinearLayout
@@ -174,14 +204,14 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
+            android:layout_marginTop="12dp">
 
             <TextView
                 android:id="@+id/ytdlpStatus"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="@color/ff_text" />
+                android:textColor="@color/m3_on_surface" />
 
             <ProgressBar
                 android:id="@+id/ytdlpProgress"
@@ -196,6 +226,7 @@
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textColor="@color/m3_primary"
                 android:text="@string/settings_ytdlp_update"
                 android:visibility="gone" />
 
@@ -204,6 +235,7 @@
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textColor="@color/m3_primary"
                 android:text="@string/settings_ytdlp_install" />
         </LinearLayout>
 
@@ -220,7 +252,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/settings_ytdlp_use_nightly"
-            android:textColor="@color/ff_muted"
+            android:textColor="@color/m3_on_surface_variant"
             android:visibility="gone" />
     </LinearLayout>
 

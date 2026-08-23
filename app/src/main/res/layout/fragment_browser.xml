@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ff_bg">
+    android:background="@color/m3_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +18,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="@color/ff_surface"
+            android:background="@color/m3_surface_container_low"
             android:paddingStart="4dp"
             android:paddingEnd="4dp"
             android:paddingVertical="6dp">
@@ -29,7 +29,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_home"
-                android:tint="@color/ff_muted"
+                android:tint="@color/m3_on_surface_variant"
                 android:contentDescription="@string/action_home" />
 
             <com.google.android.material.card.MaterialCardView
@@ -37,8 +37,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="4dp"
-                app:cardBackgroundColor="@color/ff_surface_2"
-                app:cardCornerRadius="20dp"
+                app:cardBackgroundColor="@color/m3_surface_container_high"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Full"
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp">
 
@@ -57,7 +57,7 @@
                         android:layout_height="16dp"
                         android:layout_marginStart="12dp"
                         android:src="@drawable/ic_lock"
-                        android:tint="@color/ff_muted"
+                        android:tint="@color/m3_on_surface_variant"
                         android:visibility="gone"
                         android:contentDescription="@null" />
 
@@ -70,8 +70,8 @@
                         android:paddingStart="14dp"
                         android:paddingEnd="4dp"
                         android:hint="@string/hint_url"
-                        android:textColorHint="@color/ff_muted"
-                        android:textColor="@color/ff_text"
+                        android:textColorHint="@color/m3_on_surface_variant"
+                        android:textColor="@color/m3_on_surface"
                         android:textSize="14sp"
                         android:singleLine="true"
                         android:ellipsize="end"
@@ -90,7 +90,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:padding="8dp"
                         android:src="@drawable/ic_star_outline"
-                        android:tint="@color/ff_muted"
+                        android:tint="@color/m3_on_surface_variant"
                         android:visibility="gone"
                         android:contentDescription="@string/action_add_shortcut" />
                 </LinearLayout>
@@ -107,7 +107,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_add"
-                android:tint="@color/ff_muted"
+                android:tint="@color/m3_on_surface_variant"
                 android:contentDescription="@string/action_new_tab" />
 
             <FrameLayout
@@ -122,7 +122,7 @@
                     android:layout_height="24dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_tabs"
-                    android:tint="@color/ff_muted" />
+                    android:tint="@color/m3_on_surface_variant" />
 
                 <TextView
                     android:id="@+id/tabsCount"
@@ -131,7 +131,7 @@
                     android:layout_gravity="center"
                     android:layout_marginTop="1dp"
                     android:text="1"
-                    android:textColor="@color/ff_muted"
+                    android:textColor="@color/m3_on_surface_variant"
                     android:textSize="10sp"
                     android:textStyle="bold" />
             </FrameLayout>
@@ -142,17 +142,17 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_more_vert"
-                android:tint="@color/ff_muted"
+                android:tint="@color/m3_on_surface_variant"
                 android:contentDescription="@string/action_more" />
         </LinearLayout>
 
         <ProgressBar
             android:id="@+id/pageProgress"
-            style="?android:attr/progressBarStyleHorizontal"
+            style="@style/Widget.Xmd.ProgressIndicator"
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:max="100"
-            android:progressTint="@color/ff_accent"
+            android:progressTint="@color/m3_primary"
             android:visibility="gone" />
 
         <!-- Content area: WebView underneath, speed-dial shown on top for new tab -->
@@ -188,17 +188,31 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:background="@color/ff_bg"
+                android:background="@color/m3_background"
                 android:visibility="visible">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/label_shortcuts"
-                    android:textColor="@color/ff_muted"
-                    android:textSize="10sp"
-                    android:letterSpacing="0.15"
-                    android:layout_margin="16dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_margin="16dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="14dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_section_accent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_shortcuts"
+                        android:textColor="@color/m3_on_surface_variant"
+                        android:textStyle="bold"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.12" />
+                </LinearLayout>
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/speedDialGrid"
@@ -218,8 +232,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="top"
                 android:layout_margin="8dp"
-                app:cardBackgroundColor="@color/ff_surface"
-                app:cardCornerRadius="12dp"
+                app:cardBackgroundColor="@color/m3_surface_container_high"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
                 app:cardElevation="6dp"
                 android:visibility="gone">
 
@@ -240,7 +254,7 @@
                 android:id="@+id/navLoadingVeil"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@color/ff_bg"
+                android:background="@color/m3_background"
                 android:clickable="true"
                 android:focusable="true"
                 android:visibility="gone">
@@ -249,7 +263,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:indeterminateTint="@color/ff_accent" />
+                    android:indeterminateTint="@color/m3_primary" />
             </FrameLayout>
         </FrameLayout>
     </LinearLayout>
@@ -257,13 +271,12 @@
     <!-- Auto-detect FAB: appears when a downloadable link is found on the page -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/addLinkFab"
+        style="@style/Widget.Xmd.FloatingActionButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="20dp"
         android:src="@drawable/ic_download_link"
-        app:backgroundTint="@color/ff_accent"
-        app:tint="@color/ff_bg"
         android:contentDescription="@string/action_add_to_downloads"
         android:visibility="gone" />
 

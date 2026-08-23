@@ -4,14 +4,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/ff_bg">
+    android:background="@color/m3_background">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
+        style="@style/Widget.Xmd.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/ff_surface"
-        app:titleTextColor="@color/ff_text" />
+        android:layout_height="?attr/actionBarSize" />
 
     <FrameLayout
         android:id="@+id/fragmentContainer"
@@ -21,13 +20,11 @@
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
+        style="@style/Widget.Xmd.BottomNavigationView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/ff_surface"
         app:menu="@menu/bottom_nav_menu"
-        app:itemIconTint="@color/bottom_nav_colors"
-        app:itemTextColor="@color/bottom_nav_colors"
         app:labelVisibilityMode="labeled"
-        app:elevation="8dp" />
+        app:elevation="0dp" />
 
 </LinearLayout>

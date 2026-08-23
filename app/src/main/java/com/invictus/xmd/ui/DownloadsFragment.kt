@@ -8,7 +8,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
-import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -16,6 +15,8 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.QueueItem
@@ -50,7 +51,8 @@ class DownloadsFragment : Fragment() {
 
         val recycler       = view.findViewById<RecyclerView>(R.id.queueRecycler)
         val emptyContainer = view.findViewById<View>(R.id.emptyContainer)
-        val summary        = view.findViewById<TextView>(R.id.queueSummary)
+        val summaryBar     = view.findViewById<View>(R.id.queueSummaryBar)
+        val summaryChips   = view.findViewById<ChipGroup>(R.id.queueSummaryChips)
         val cancelBtn       = view.findViewById<MaterialButton>(R.id.cancelButton)
         val clearAllBtn     = view.findViewById<MaterialButton>(R.id.clearAllButton)
 
@@ -67,7 +69,7 @@ class DownloadsFragment : Fragment() {
             emptyContainer.visibility = if (isEmpty) View.VISIBLE else View.GONE
 
             if (isEmpty) {
-                summary.visibility = View.GONE
+                summaryBar.visibility = View.GONE
                 cancelBtn.visibility = View.GONE
                 clearAllBtn.visibility = View.GONE
                 return@observe
@@ -87,7 +89,7 @@ class DownloadsFragment : Fragment() {
                 hasActive -> {
                     cancelBtn.visibility = View.VISIBLE
                     cancelBtn.text = getString(R.string.action_cancel_all)
-                    val errorColor = ContextCompat.getColor(requireContext(), R.color.ff_error)
+                    val errorColor = ContextCompat.getColor(requireContext(), R.color.m3_error)
                     cancelBtn.setTextColor(errorColor)
                     cancelBtn.strokeColor = ColorStateList.valueOf(errorColor)
                     cancelBtn.setOnClickListener { DownloadService.cancelAll(requireContext()) }
@@ -95,7 +97,7 @@ class DownloadsFragment : Fragment() {
                 hasFailed -> {
                     cancelBtn.visibility = View.VISIBLE
                     cancelBtn.text = getString(R.string.action_retry_all)
-                    val accentColor = ContextCompat.getColor(requireContext(), R.color.ff_accent)
+                    val accentColor = ContextCompat.getColor(requireContext(), R.color.m3_primary)
                     cancelBtn.setTextColor(accentColor)
                     cancelBtn.strokeColor = ColorStateList.valueOf(accentColor)
                     cancelBtn.setOnClickListener { (activity as? Callbacks)?.retryAll() }
@@ -128,9 +130,27 @@ class DownloadsFragment : Fragment() {
             if (done > 0)        parts += "$done done"
             if (failed > 0)      parts += "$failed failed"
 
-            summary.text = parts.joinToString("  •  ")
-            summary.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
+            summaryChips.removeAllViews()
+            parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
+            summaryBar.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         }
+    }
+
+    /** Small filled-tonal stat chip, e.g. "2 downloading", for the queue summary row. */
+    private fun buildStatChip(label: String): Chip {
+        val chip = Chip(requireContext())
+        chip.text = label
+        chip.isClickable = false
+        chip.isCheckable = false
+        chip.isFocusable = false
+        chip.chipStrokeWidth = 0f
+        chip.setEnsureMinTouchTargetSize(false)
+        val tonalBg = ContextCompat.getColor(requireContext(), R.color.m3_secondary_container)
+        val tonalFg = ContextCompat.getColor(requireContext(), R.color.m3_on_secondary_container)
+        chip.chipBackgroundColor = ColorStateList.valueOf(tonalBg)
+        chip.setTextColor(tonalFg)
+        chip.textSize = 12f
+        return chip
     }
 
     private fun onItemPauseResume(item: QueueItem) {

@@ -1,29 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingHorizontal="24dp"
     android:paddingTop="8dp">
 
-    <EditText
-        android:id="@+id/bookmarkTitleInput"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/hint_bookmark_title"
-        android:textColorHint="@color/ff_muted"
-        android:textColor="@color/ff_text"
-        android:singleLine="true" />
+        app:boxBackgroundMode="outline">
 
-    <EditText
-        android:id="@+id/bookmarkUrlInput"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/bookmarkTitleInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="14dp"
         android:hint="@string/hint_url"
-        android:textColorHint="@color/ff_muted"
-        android:textColor="@color/ff_text"
-        android:inputType="textUri"
-        android:singleLine="true" />
+        app:boxBackgroundMode="outline">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/bookmarkUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textUri"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>
