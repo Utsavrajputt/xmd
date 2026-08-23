@@ -125,9 +125,10 @@
 
     <!-- Typography -->
     <style name="TextAppearance.Xmd.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
-        <item name="fontFamily">sans-serif-medium</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">@font/space_grotesk_semibold</item>
+        <item name="android:fontFamily">@font/space_grotesk_semibold</item>
         <item name="android:letterSpacing">0.0</item>
+        <item name="android:textSize">18sp</item>
     </style>
 
     <style name="TextAppearance.Xmd.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
@@ -265,6 +266,22 @@
         <item name="android:paddingHorizontal">12dp</item>
         <item name="android:paddingVertical">4dp</item>
         <item name="android:gravity">center</item>
+    </style>
+
+    <!-- Tonal choice row — a RadioButton restyled as a full-width tappable
+         card: the default radio dot is hidden, the row itself fills with
+         a tonal color and a trailing checkmark fades in when selected. Used
+         for DNS mode, quality picker, and similar single-choice lists where
+         a bare RadioButton list reads as flat/dated. -->
+    <style name="Widget.Xmd.RadioRow" parent="Widget.AppCompat.CompoundButton.RadioButton">
+        <item name="android:button">@null</item>
+        <item name="android:background">@drawable/bg_radio_row_selector</item>
+        <item name="android:drawableEnd">@drawable/ic_check_selector</item>
+        <item name="android:textColor">@color/text_radio_row</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingVertical">14dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:gravity">center_vertical</item>
     </style>
 
 </resources>

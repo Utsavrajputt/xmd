@@ -64,6 +64,8 @@
             android:text="@string/history_empty"
             android:textColor="@color/m3_on_surface_variant"
             android:textSize="14sp"
+            android:drawableTop="@drawable/ic_history_empty"
+            android:drawablePadding="14dp"
             android:visibility="gone" />
     </FrameLayout>
 

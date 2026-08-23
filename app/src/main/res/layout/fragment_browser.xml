@@ -12,31 +12,42 @@
 
         <!-- Address bar: gesture back handles page/tab navigation now, so no
              back/forward buttons; just new-tab, the search field, reload,
-             tabs, and overflow. -->
+             tabs, and overflow. Floats slightly off the edges with its own
+             rounded surface + elevation (rather than a flat bar flush with
+             the screen edges) for the Expressive "floating toolbar" look. -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            app:cardBackgroundColor="@color/m3_surface_container_low"
+            app:shapeAppearance="@style/ShapeAppearance.Xmd.Large"
+            app:cardElevation="3dp"
+            app:strokeWidth="0dp">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="@color/m3_surface_container_low"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp"
-            android:paddingVertical="6dp">
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingVertical="8dp">
 
             <ImageButton
                 android:id="@+id/homeButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
+                android:background="@drawable/bg_icon_button_tonal"
+                android:padding="9dp"
                 android:src="@drawable/ic_home"
-                android:tint="@color/m3_on_surface_variant"
+                android:tint="@color/m3_on_secondary_container"
                 android:contentDescription="@string/action_home" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="6dp"
                 app:cardBackgroundColor="@color/m3_surface_container_high"
                 app:shapeAppearance="@style/ShapeAppearance.Xmd.Full"
                 app:cardElevation="0dp"
@@ -104,7 +115,7 @@
                 android:id="@+id/newTabButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:layout_marginStart="4dp"
+                android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_add"
                 android:tint="@color/m3_on_surface_variant"
@@ -117,22 +128,20 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/action_tabs">
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                <View
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
                     android:layout_gravity="center"
-                    android:src="@drawable/ic_tabs"
-                    android:tint="@color/m3_on_surface_variant" />
+                    android:background="@drawable/bg_tabs_counter" />
 
                 <TextView
                     android:id="@+id/tabsCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:layout_marginTop="1dp"
                     android:text="1"
                     android:textColor="@color/m3_on_surface_variant"
-                    android:textSize="10sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
             </FrameLayout>
 
@@ -145,6 +154,7 @@
                 android:tint="@color/m3_on_surface_variant"
                 android:contentDescription="@string/action_more" />
         </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <ProgressBar
             android:id="@+id/pageProgress"

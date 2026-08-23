@@ -1,12 +1,10 @@
 package com.invictus.xmd.ui
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,7 +12,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
@@ -27,7 +24,6 @@ import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.QueueRepository
-import java.io.File
 
 class HomeFragment : Fragment() {
 
@@ -37,19 +33,12 @@ class HomeFragment : Fragment() {
         fun triggerDownloadReady()
         fun triggerDownloadDirect(lines: List<String>)
         fun triggerDownloadTorrentFile(uri: Uri, displayName: String?)
-        fun triggerDownloadTorrentMagnet(link: String, name: String?, customSaveDirPath: String?)
     }
 
     // ── State ─────────────────────────────────────────────────────────────
     private lateinit var linksInput: EditText
     private var lastHandledClipboardText: String? = null
     private var pendingClipboardLink: String? = null
-
-    // Set only while the Editor dialog (showAddTorrentDialog) is open, so
-    // the folder-picker launcher's callback (which fires after the dialog's
-    // own click handlers were set up) knows which dialog's path field to
-    // update -- null the rest of the time.
-    private var pendingSaveDirCallback: ((String) -> Unit)? = null
 
     private val clipboardManager by lazy {
         requireContext().getSystemService(ClipboardManager::class.java)
@@ -65,23 +54,6 @@ class HomeFragment : Fragment() {
     private val pickTorrentFileLauncher: ActivityResultLauncher<Array<String>> =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) onTorrentFilePicked(uri)
-        }
-
-    // Editor dialog's Advanced -> Change: lets the user override where a
-    // torrent gets saved. Resolved from the returned tree URI to a real
-    // filesystem path (see resolveTreeUriToPath) since libtorrent4j needs
-    // an actual path, not a content:// URI.
-    private val pickSaveDirLauncher: ActivityResultLauncher<Uri?> =
-        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
-            val callback = pendingSaveDirCallback
-            pendingSaveDirCallback = null
-            if (treeUri == null || callback == null) return@registerForActivityResult
-            val path = resolveTreeUriToPath(treeUri)
-            if (path == null) {
-                Toast.makeText(requireContext(), R.string.torrent_dialog_path_unsupported, Toast.LENGTH_LONG).show()
-            } else {
-                callback(path)
-            }
         }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
@@ -247,37 +219,23 @@ class HomeFragment : Fragment() {
     // ── Add Torrent dialog ───────────────────────────────────────────────
 
     /**
-     * Reused for two entry points: the manual "+" torrent button (empty
-     * link field, user pastes) and an incoming magnet link tapped in
-     * another app -- MainActivity hands it here via
-     * showAddTorrentDialogForIncomingLink() instead of downloading it
-     * immediately, so the user gets a chance to rename it, check the link,
-     * or change the save folder first, same as ADM's "Editor" popup does.
-     * "Pick .torrent file instead" re-launches the existing SAF picker;
-     * picking a file dismisses this dialog and hands off to the same
+     * Single entry point for both torrent paths (magnet link or a local
+     * .torrent file): a confirmation dialog so tapping the magnet icon
+     * doesn't silently start a download, matching how Prepare/Download
+     * already ask before doing anything. "Pick .torrent file instead"
+     * inside the dialog re-launches the existing SAF picker; picking a
+     * file dismisses this dialog and hands off to the same
      * triggerDownloadTorrentFile callback as before.
      */
-    private fun showAddTorrentDialog(prefillLink: String? = null) {
+    private fun showAddTorrentDialog() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_add_torrent, null)
 
         val linkInput = dialogView.findViewById<EditText>(R.id.torrentLinkInput)
-        val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.torrentCopyLinkButton)
-        val nameInput = dialogView.findViewById<EditText>(R.id.torrentNameInput)
+        val nameText = dialogView.findViewById<TextView>(R.id.torrentNameText)
         val pickFileText = dialogView.findViewById<TextView>(R.id.torrentPickFileText)
-        val advancedHeader = dialogView.findViewById<View>(R.id.torrentAdvancedHeader)
-        val advancedChevron = dialogView.findViewById<ImageView>(R.id.torrentAdvancedChevron)
-        val advancedContent = dialogView.findViewById<View>(R.id.torrentAdvancedContent)
-        val saveToPathText = dialogView.findViewById<TextView>(R.id.torrentSaveToPathText)
-        val changePathButton = dialogView.findViewById<MaterialButton>(R.id.torrentChangePathButton)
         val startButton = dialogView.findViewById<MaterialButton>(R.id.torrentStartButton)
         val cancelButton = dialogView.findViewById<MaterialButton>(R.id.torrentCancelButton)
-
-        var customSaveDirPath: String? = null
-        // Only auto-fill the name from the link's dn= param until the user
-        // types their own -- otherwise every keystroke in the link field
-        // would stomp over a name they'd already customized.
-        var nameManuallyEdited = false
 
         val dialog = MaterialAlertDialogBuilder(requireContext())
             .setView(dialogView)
@@ -285,39 +243,12 @@ class HomeFragment : Fragment() {
             .create()
 
         fun updateNamePreview() {
-            if (nameManuallyEdited) return
             val link = linkInput.text?.toString()?.trim().orEmpty()
-            nameInput.setText(magnetDisplayName(link))
+            nameText.text = magnetDisplayName(link)
+                ?: getString(R.string.torrent_dialog_name_placeholder)
         }
         linkInput.doAfterTextChanged { updateNamePreview() }
-        nameInput.doAfterTextChanged { nameManuallyEdited = true }
-
-        if (!prefillLink.isNullOrBlank()) {
-            linkInput.setText(prefillLink)
-            nameManuallyEdited = false
-            updateNamePreview()
-        }
-
-        copyLinkButton.setOnClickListener {
-            val link = linkInput.text?.toString()?.trim().orEmpty()
-            if (link.isEmpty()) return@setOnClickListener
-            clipboardManager.setPrimaryClip(ClipData.newPlainText("Magnet link", link))
-            Toast.makeText(requireContext(), R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
-        }
-
-        advancedHeader.setOnClickListener {
-            val expanding = advancedContent.visibility != View.VISIBLE
-            advancedContent.visibility = if (expanding) View.VISIBLE else View.GONE
-            advancedChevron.animate().rotation(if (expanding) 270f else 90f).setDuration(150).start()
-        }
-
-        changePathButton.setOnClickListener {
-            pendingSaveDirCallback = { path ->
-                customSaveDirPath = path
-                saveToPathText.text = path
-            }
-            pickSaveDirLauncher.launch(null)
-        }
+        updateNamePreview()
 
         pickFileText.setOnClickListener {
             dialog.dismiss()
@@ -330,7 +261,7 @@ class HomeFragment : Fragment() {
 
         startButton.setOnClickListener {
             val link = linkInput.text?.toString()?.trim().orEmpty()
-            if (!LinkParser.isTorrentLink(link)) {
+            if (!LinkParser.isMagnetLink(link)) {
                 Toast.makeText(
                     requireContext(),
                     R.string.torrent_dialog_invalid_link,
@@ -338,44 +269,11 @@ class HomeFragment : Fragment() {
                 ).show()
                 return@setOnClickListener
             }
-            val name = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
             dialog.dismiss()
-            (activity as? Callbacks)?.triggerDownloadTorrentMagnet(link, name, customSaveDirPath)
+            (activity as? Callbacks)?.triggerDownloadDirect(listOf(link))
         }
 
         dialog.show()
-    }
-
-    /**
-     * Called from MainActivity when a magnet link arrives from outside the
-     * app (another browser's "external download manager" flow, a torrent
-     * search app's Share, etc.) -- shows the same Editor dialog as the
-     * manual "+" button, prefilled with the incoming link, instead of
-     * downloading it immediately.
-     */
-    fun showAddTorrentDialogForIncomingLink(link: String) {
-        showAddTorrentDialog(prefillLink = link)
-    }
-
-    /**
-     * Resolves a SAF folder-picker tree URI to a real filesystem path.
-     * Only works for the primary shared-storage volume (covers the
-     * overwhelming majority of picks -- internal storage, which is what
-     * "Download", a custom folder under it, etc. all live on); returns
-     * null for a secondary SD card, which this app's plain File-based
-     * download path (relies on MANAGE_EXTERNAL_STORAGE, not SAF) can't
-     * reliably address as a raw path anyway.
-     */
-    private fun resolveTreeUriToPath(treeUri: Uri): String? {
-        return runCatching {
-            val docId = DocumentsContract.getTreeDocumentId(treeUri)
-            val parts = docId.split(":", limit = 2)
-            val volume = parts.getOrNull(0)
-            val relativePath = parts.getOrNull(1).orEmpty()
-            if (!volume.equals("primary", ignoreCase = true)) return@runCatching null
-            val base = android.os.Environment.getExternalStorageDirectory()
-            (if (relativePath.isBlank()) base else File(base, relativePath)).absolutePath
-        }.getOrNull()
     }
 
     /** Best-effort display name for a magnet link, taken from its dn= param. */

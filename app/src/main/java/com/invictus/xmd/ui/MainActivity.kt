@@ -20,6 +20,7 @@ import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.appcompat.widget.AppCompatRadioButton
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
@@ -184,7 +185,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
         toolbar.visibility = android.view.View.VISIBLE
         val downloadsVisible = fm.findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
-        supportActionBar?.title = if (downloadsVisible) "Downloads" else getString(R.string.app_name)
+        supportActionBar?.title = if (downloadsVisible) "Downloads" else getString(R.string.app_header_title)
     }
 
     // ── onCreate ──────────────────────────────────────────────────────────
@@ -196,7 +197,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         this.toolbar = toolbar
         setSupportActionBar(toolbar)
-        supportActionBar?.title = getString(R.string.app_name)
+        supportActionBar?.title = getString(R.string.app_header_title)
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
@@ -226,7 +227,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.nav_home -> {
                     showFragment(TAG_HOME)
                     toolbar.visibility = android.view.View.VISIBLE
-                    supportActionBar?.title = getString(R.string.app_name)
+                    supportActionBar?.title = getString(R.string.app_header_title)
                 }
                 R.id.nav_browser -> {
                     showFragment(TAG_BROWSER)
@@ -350,28 +351,12 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         bottomNav.selectedItemId = R.id.nav_home
 
-        // Magnet links and direct .torrent file URLs get the Editor dialog
-        // first (rename / check link / change save folder), same as ADM's
-        // "external download manager" popup -- instead of downloading
-        // immediately. Everything else (share links, fitgirl pages,
-        // generic direct URLs) keeps going straight to prepare/download,
-        // unchanged.
-        if (LinkParser.isTorrentLink(url)) {
-            showIncomingTorrentDialog(url)
-            return
-        }
-
         val needsPrepare = LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url)
         if (needsPrepare) {
             triggerPrepare(listOf(url))
         } else {
             triggerDownloadDirect(listOf(url))
         }
-    }
-
-    private fun showIncomingTorrentDialog(link: String) {
-        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
-            ?.showAddTorrentDialogForIncomingLink(link)
     }
 
     /**
@@ -468,29 +453,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         if (item != null) {
             QueueRepository.update(item.id) {
                 it.copy(directUrl = link, status = ItemStatus.READY, fileName = displayName ?: it.fileName)
-            }
-        }
-        DownloadService.start(this)
-        showDownloadStartedSnackbar()
-    }
-
-    /**
-     * From the Editor dialog (HomeFragment.showAddTorrentDialog) -- both the
-     * manual "+" button and an incoming external magnet/.torrent link go
-     * through here once the user hits Start, carrying whatever they
-     * customized (rename, save-folder override) along with it.
-     */
-    override fun triggerDownloadTorrentMagnet(link: String, name: String?, customSaveDirPath: String?) {
-        QueueRepository.setLinks(listOf(link))
-        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
-        if (item != null) {
-            QueueRepository.update(item.id) {
-                it.copy(
-                    directUrl = link,
-                    status = ItemStatus.READY,
-                    fileName = name ?: it.fileName,
-                    customSaveDirPath = customSaveDirPath
-                )
             }
         }
         DownloadService.start(this)
@@ -780,10 +742,54 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         val options = YtDlpManager.standardQualityOptions()
         val chosen = suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
-            val labels = options.map { it.label }.toTypedArray()
+            val dialogView = layoutInflater.inflate(R.layout.dialog_quality_picker, null)
+            val group = dialogView.findViewById<RadioGroup>(R.id.qualityGroup)
+
+            options.forEach { option ->
+                // AppCompatRadioButton, not the platform RadioButton -- it
+                // handles its own compound-button tinting internally, so it
+                // can be constructed programmatically like this safely. A
+                // plain platform RadioButton() built with an AppCompat-
+                // lineage style (Widget.Xmd.RadioRow extends
+                // Widget.AppCompat.CompoundButton.RadioButton) as its
+                // defStyleRes bypasses AppCompatViewInflater entirely
+                // (that only runs for XML-inflated views) and crashes with
+                // "requires Theme.AppCompat" the moment it's measured/drawn.
+                // Styling that Widget.Xmd.RadioRow would have applied via
+                // XML is replicated by hand below instead.
+                val row = AppCompatRadioButton(this)
+                row.id = android.view.View.generateViewId()
+                row.text = option.label
+                row.isClickable = true
+                row.buttonDrawable = null
+                row.setBackgroundResource(R.drawable.bg_radio_row_selector)
+                row.setTextColor(ContextCompat.getColorStateList(this, R.color.text_radio_row))
+                row.textSize = 14f
+                row.gravity = android.view.Gravity.CENTER_VERTICAL
+                val density = resources.displayMetrics.density
+                row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
+                val startIcon = if (option.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
+                row.setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
+                row.compoundDrawablePadding = (12 * density).toInt()
+                row.tag = option
+                row.layoutParams = RadioGroup.LayoutParams(
+                    RadioGroup.LayoutParams.MATCH_PARENT,
+                    RadioGroup.LayoutParams.WRAP_CONTENT
+                )
+                group.addView(row)
+            }
+            // Default selection: the option one below the top of the ladder
+            // (1440p) reads as a sane, non-extreme default rather than
+            // pre-selecting either end of the quality range.
+            (group.getChildAt(1) as? RadioButton)?.isChecked = true
+
             val dialog = MaterialAlertDialogBuilder(this)
                 .setTitle(item.fileName ?: "Choose quality")
-                .setItems(labels) { _, which -> cont.resume(options[which]) }
+                .setView(dialogView)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val checked = group.findViewById<RadioButton>(group.checkedRadioButtonId)
+                    cont.resume(checked?.tag as? YtDlpManager.QualityOption)
+                }
                 .setOnCancelListener { cont.resume(null) }
                 .setNegativeButton(R.string.action_cancel) { d, _ -> d.cancel() }
                 .create()

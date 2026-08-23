@@ -11,7 +11,7 @@ import com.invictus.xmd.core.Bookmark
 import com.invictus.xmd.core.HistoryEntry
 import com.invictus.xmd.core.QueueItem
 
-@Database(entities = [QueueItem::class, Bookmark::class, HistoryEntry::class], version = 7, exportSchema = false)
+@Database(entities = [QueueItem::class, Bookmark::class, HistoryEntry::class], version = 6, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -91,16 +91,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // v6 -> v7: adds customSaveDirPath to queue_items -- an optional
-        // per-item save-folder override for magnet/torrent downloads, set
-        // via the Editor dialog's Advanced -> Change (folder picker) when
-        // adding a torrent, instead of always using the Settings default.
-        private val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE queue_items ADD COLUMN customSaveDirPath TEXT")
-            }
-        }
-
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -108,7 +98,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ff_queue.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).
                     .fallbackToDestructiveMigration()

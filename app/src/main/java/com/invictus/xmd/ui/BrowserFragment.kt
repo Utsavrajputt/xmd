@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
+import androidx.core.content.ContextCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Bookmark
@@ -284,7 +285,7 @@ class BrowserFragment : Fragment() {
      * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
      */
     private fun setupPullToRefresh() {
-        webViewSwipeRefresh.setColorSchemeResources(R.color.ff_accent)
+        webViewSwipeRefresh.setColorSchemeResources(R.color.m3_primary)
         webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
             tabs.getOrNull(currentTabIndex)?.webView?.canScrollVertically(-1) == true
         }
@@ -931,13 +932,16 @@ class BrowserFragment : Fragment() {
 
     private fun showTabsDialog() {
         val context = requireContext()
+        fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
+
         val rowsContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 8, 8, 8)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
         }
-        val rippleBg = android.util.TypedValue().also {
-            context.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-        }.resourceId
+        val scrollView = android.widget.ScrollView(context).apply {
+            isVerticalScrollBarEnabled = false
+            addView(rowsContainer)
+        }
 
         lateinit var dialog: AlertDialog
 
@@ -945,55 +949,86 @@ class BrowserFragment : Fragment() {
             rowsContainer.removeAllViews()
             tabs.forEachIndexed { index, tab ->
                 val isActive = index == currentTabIndex
-                val row = LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = android.view.Gravity.CENTER_VERTICAL
-                    setBackgroundResource(rippleBg)
-                    if (isActive) {
-                        setBackgroundColor(context.getColor(R.color.ff_surface_2))
-                    }
+                val tonalColor = ContextCompat.getColor(
+                    context,
+                    if (isActive) R.color.m3_secondary_container else R.color.m3_surface_container_high
+                )
+                val onTonalColor = ContextCompat.getColor(
+                    context,
+                    if (isActive) R.color.m3_on_secondary_container else R.color.m3_on_surface
+                )
+
+                // A MaterialCardView per row instead of a raw LinearLayout gives
+                // the rounded-corner + ripple + tonal-fill treatment for free,
+                // matching the rest of the app's list rows.
+                val row = MaterialCardView(context).apply {
+                    radius = dp(16).toFloat()
+                    cardElevation = 0f
+                    strokeWidth = 0
+                    setCardBackgroundColor(tonalColor)
                     isClickable = true
                     isFocusable = true
+                    rippleColor = android.content.res.ColorStateList.valueOf(onTonalColor)
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(0, 0, 0, dp(8)) }
                     alpha = 0f
-                    translationY = 16f
+                    translationY = dp(14).toFloat()
                 }
-                val faviconSizePx = (24 * context.resources.displayMetrics.density).toInt()
-                val favicon = ImageView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(faviconSizePx, faviconSizePx).apply {
-                        marginStart = 8
-                        marginEnd = 12
+
+                val innerRow = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(dp(10), dp(8), dp(6), dp(8))
+                }
+
+                val faviconBox = FrameLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dp(36), dp(36)).apply {
+                        marginEnd = dp(12)
                     }
-                    setImageResource(R.drawable.ic_tabs)
-                    setColorFilter(context.getColor(R.color.ff_muted))
+                    setBackgroundResource(R.drawable.bg_icon_button_tonal)
                 }
-                row.addView(favicon)
+                val favicon = ImageView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(dp(17), dp(17)).apply {
+                        gravity = android.view.Gravity.CENTER
+                    }
+                    setImageResource(R.drawable.ic_link)
+                    setColorFilter(ContextCompat.getColor(context, R.color.m3_on_secondary_container))
+                }
+                faviconBox.addView(favicon)
                 tab.url?.let { url ->
                     viewLifecycleOwner.lifecycleScope.launch {
                         val bitmap = withContext(Dispatchers.IO) { FaviconLoader.load(url) }
                         if (bitmap != null) {
                             favicon.clearColorFilter()
+                            favicon.layoutParams = FrameLayout.LayoutParams(dp(20), dp(20)).apply {
+                                gravity = android.view.Gravity.CENTER
+                            }
                             favicon.setImageBitmap(bitmap)
                         }
                     }
                 }
+
                 val label = android.widget.TextView(context).apply {
                     text = tab.title.ifBlank { tab.url ?: "New tab" }
-                    setTextColor(context.getColor(if (isActive) R.color.ff_accent else R.color.ff_text))
-                    textSize = 15f
+                    setTextColor(onTonalColor)
+                    textSize = 14f
                     maxLines = 1
                     ellipsize = android.text.TextUtils.TruncateAt.END
-                    setPadding(0, 28, 16, 28)
                     layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 }
+
                 val closeBtn = ImageButton(context).apply {
                     setImageResource(R.drawable.ic_close)
                     background = null
-                    setPadding(16, 16, 16, 16)
+                    setColorFilter(onTonalColor)
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                    contentDescription = getString(R.string.action_dismiss)
                     // Every tab is closable, including the last one -- closeTab()
                     // resets it to a fresh "New tab" (speed dial) in that case,
                     // so a new tab effectively opens automatically.
                     setOnClickListener {
-                        row.animate().alpha(0f).translationX(40f).setDuration(120).withEndAction {
+                        row.animate().alpha(0f).translationX(dp(40).toFloat()).setDuration(120).withEndAction {
                             closeTab(index)
                             refreshRows()
                         }.start()
@@ -1003,8 +1038,10 @@ class BrowserFragment : Fragment() {
                     switchToTab(index)
                     dialog.dismiss()
                 }
-                row.addView(label)
-                row.addView(closeBtn)
+                innerRow.addView(faviconBox)
+                innerRow.addView(label)
+                innerRow.addView(closeBtn)
+                row.addView(innerRow)
                 rowsContainer.addView(row)
                 // Small staggered fade+rise entrance so the list doesn't just pop in.
                 row.animate().alpha(1f).translationY(0f)
@@ -1017,7 +1054,7 @@ class BrowserFragment : Fragment() {
 
         dialog = MaterialAlertDialogBuilder(context)
             .setTitle(R.string.action_tabs)
-            .setView(rowsContainer)
+            .setView(scrollView)
             .setPositiveButton(R.string.action_new_tab) { _, _ -> addNewTab() }
             .setNegativeButton(android.R.string.cancel, null)
             .create()

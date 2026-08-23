@@ -3,7 +3,8 @@
 
     <!-- App -->
     <string name="app_name">Xmd</string>
-    <string name="hint_links">Paste FuckingFast share links, direct links, or a FitGirl Repacks page URL — one per line.</string>
+    <string name="app_header_title">Xtreme Media Downloader</string>
+    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string>
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
@@ -18,13 +19,6 @@
     <string name="torrent_dialog_name_placeholder">Detected from link</string>
     <string name="torrent_dialog_pick_file">Pick .torrent file instead</string>
     <string name="torrent_dialog_invalid_link">Paste a valid magnet link, or pick a .torrent file</string>
-    <string name="torrent_dialog_copy_link">Copy link</string>
-    <string name="torrent_dialog_advanced_label">Advanced (save location)</string>
-    <string name="torrent_dialog_save_to_label">Save to</string>
-    <string name="torrent_dialog_save_to_default">Default location</string>
-    <string name="torrent_dialog_change_path">Change</string>
-    <string name="torrent_dialog_link_copied_toast">Link copied.</string>
-    <string name="torrent_dialog_path_unsupported">That folder isn\'t supported -- pick one on internal storage instead.</string>
     <string name="action_download_direct">Download</string>
     <string name="action_pause">Pause</string>
     <string name="action_resume">Resume</string>

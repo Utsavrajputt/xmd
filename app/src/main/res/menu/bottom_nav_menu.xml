@@ -2,14 +2,14 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_home"
-        android:icon="@drawable/ic_home"
+        android:icon="@drawable/ic_tab_home"
         android:title="Home" />
     <item
         android:id="@+id/nav_browser"
-        android:icon="@drawable/ic_browser"
+        android:icon="@drawable/ic_tab_browser"
         android:title="Browser" />
     <item
         android:id="@+id/nav_downloads"
-        android:icon="@drawable/ic_downloads"
+        android:icon="@drawable/ic_tab_downloads"
         android:title="Downloads" />
 </menu>

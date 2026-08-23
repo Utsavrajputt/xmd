@@ -4,48 +4,45 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingHorizontal="24dp"
-    android:paddingTop="8dp">
+    android:paddingHorizontal="20dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
 
     <RadioGroup
         android:id="@+id/dnsModeGroup"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:showDividers="middle"
+        android:divider="@drawable/divider_row_gap">
 
         <RadioButton
             android:id="@+id/dnsOptionAdguard"
+            style="@style/Widget.Xmd.RadioRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/dns_mode_adguard"
-            android:textColor="@color/m3_on_surface"
-            android:buttonTint="@color/m3_primary"
-            android:paddingVertical="8dp" />
+            android:text="@string/dns_mode_adguard" />
 
         <RadioButton
             android:id="@+id/dnsOptionOff"
+            style="@style/Widget.Xmd.RadioRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/dns_mode_off"
-            android:textColor="@color/m3_on_surface"
-            android:buttonTint="@color/m3_primary"
-            android:paddingVertical="8dp" />
+            android:text="@string/dns_mode_off" />
 
         <RadioButton
             android:id="@+id/dnsOptionCustom"
+            style="@style/Widget.Xmd.RadioRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/dns_mode_custom"
-            android:textColor="@color/m3_on_surface"
-            android:buttonTint="@color/m3_primary"
-            android:paddingVertical="8dp" />
+            android:text="@string/dns_mode_custom" />
     </RadioGroup>
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/dnsCustomUrlLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginTop="12dp"
         android:hint="@string/dns_custom_url_hint"
         app:boxBackgroundMode="outline"
         android:visibility="gone">
