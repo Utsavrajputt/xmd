@@ -3,8 +3,8 @@
 
     <!-- App -->
     <string name="app_name">Xmd</string>
-    <string name="app_header_title">Xmd Settings</string>
-    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string>
+    <string name="app_header_title">Xtreme Media Downloader</string>
+    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links.</string>
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
@@ -50,7 +50,7 @@
 
     <!-- Settings -->
     <string name="menu_settings">Settings</string>
-    <string name="settings_title">Download Settings</string>
+    <string name="settings_title">Xmd Settings</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_hint">Tap a theme to apply it immediately.</string>
     <string name="theme_default">Default</string>
