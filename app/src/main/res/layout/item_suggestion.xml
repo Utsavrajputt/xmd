@@ -20,7 +20,7 @@
             android:layout_height="15dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_link"
-            android:tint="@color/m3_on_secondary_container"
+            android:tint="?attr/colorOnSecondaryContainer"
             android:contentDescription="@null" />
     </FrameLayout>
 
@@ -29,7 +29,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="@color/m3_on_surface"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="14sp"
         android:maxLines="1"
         android:ellipsize="end" />
@@ -40,7 +40,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_add"
-        android:tint="@color/m3_primary"
+        android:tint="?attr/colorPrimary"
         android:contentDescription="@string/action_add_shortcut" />
 
 </LinearLayout>

@@ -38,6 +38,7 @@ import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.core.ResolutionError
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.YtDlpManager
+import com.invictus.xmd.ui.theme.AppTheme
 import com.invictus.xmd.service.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -191,6 +192,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     // ── onCreate ──────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate() -- Activity.setTheme() only takes
+        // effect if called before the window/decor is created.
+        setTheme(Settings.appTheme().styleRes)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -884,6 +888,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     private fun showSettingsDialog() {
         val view            = layoutInflater.inflate(R.layout.dialog_settings, null)
+        setupThemePicker(view.findViewById(R.id.themeSwatchContainer))
         val group           = view.findViewById<RadioGroup>(R.id.connectionsGroup)
         val speedInput      = view.findViewById<EditText>(R.id.speedLimitInput)
         val concurrentInput = view.findViewById<EditText>(R.id.maxConcurrentInput)
@@ -1025,6 +1030,77 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    /**
+     * Fills the horizontal theme picker row in the settings dialog with one
+     * swatch per [AppTheme]. Tapping a swatch applies it immediately --
+     * saves the pick, dismisses the settings dialog (it belongs to this
+     * Activity instance and would be torn down by recreate() anyway), and
+     * recreates the Activity so the new colorPrimary/colorSurface/etc.
+     * actually take effect (a theme is only read in onCreate, before
+     * super.onCreate()).
+     */
+    private fun setupThemePicker(container: android.widget.LinearLayout) {
+        container.removeAllViews()
+        val current = Settings.appTheme()
+        val dp8 = (8 * resources.displayMetrics.density).toInt()
+
+        fun circleDrawable(colorHex: String) = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.OVAL
+            setColor(android.graphics.Color.parseColor(colorHex))
+        }
+
+        fun roundRectDrawable(colorHex: String, radiusDp: Float, strokeColor: Int? = null, strokeWidthPx: Int = 0) =
+            android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = radiusDp * resources.displayMetrics.density
+                setColor(android.graphics.Color.parseColor(colorHex))
+                if (strokeColor != null) setStroke(strokeWidthPx, strokeColor)
+            }
+
+        AppTheme.entries.forEach { theme ->
+            val item = layoutInflater.inflate(R.layout.item_theme_swatch, container, false)
+            val ring = item.findViewById<android.widget.FrameLayout>(R.id.swatchRing)
+            val box = item.findViewById<android.widget.FrameLayout>(R.id.swatchBox)
+            val dotPrimary = item.findViewById<android.view.View>(R.id.dotPrimary)
+            val dotSecondary = item.findViewById<android.view.View>(R.id.dotSecondary)
+            val dotTertiary = item.findViewById<android.view.View>(R.id.dotTertiary)
+            val checkIcon = item.findViewById<android.widget.ImageView>(R.id.checkIcon)
+            val nameView = item.findViewById<android.widget.TextView>(R.id.themeName)
+
+            val isSelected = theme == current
+            val ringStrokePx = (2 * resources.displayMetrics.density).toInt()
+            ring.background = roundRectDrawable(
+                colorHex = "#00000000",
+                radiusDp = 16f,
+                strokeColor = if (isSelected) android.graphics.Color.parseColor(theme.swatchPrimary) else android.graphics.Color.TRANSPARENT,
+                strokeWidthPx = ringStrokePx,
+            )
+            box.background = roundRectDrawable(theme.swatchBackground, 13f)
+            dotPrimary.background = circleDrawable(theme.swatchPrimary)
+            dotSecondary.background = circleDrawable(theme.swatchSecondary)
+            dotTertiary.background = circleDrawable(theme.swatchTertiary)
+            checkIcon.visibility = if (isSelected) android.view.View.VISIBLE else android.view.View.GONE
+            checkIcon.setColorFilter(android.graphics.Color.parseColor(theme.swatchPrimary))
+
+            nameView.text = getString(theme.titleRes)
+            nameView.setTextColor(ContextCompat.getColor(this, R.color.m3_on_surface))
+            nameView.setTypeface(nameView.typeface, if (isSelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+
+            item.setOnClickListener {
+                if (theme != Settings.appTheme()) {
+                    Settings.setAppTheme(theme)
+                    Toast.makeText(this, getString(theme.titleRes), Toast.LENGTH_SHORT).show()
+                    recreate()
+                }
+            }
+
+            container.addView(item, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { marginEnd = dp8 })
+        }
     }
 
     // ── Website source pack import (Settings -> Import Websites) ────────

@@ -4,6 +4,6 @@
     <solid android:color="@android:color/transparent" />
     <stroke
         android:width="1.6dp"
-        android:color="@color/m3_on_surface_variant" />
+        android:color="?attr/colorOnSurfaceVariant" />
     <corners android:radius="6dp" />
 </shape>

@@ -9,7 +9,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -89,7 +88,7 @@ class DownloadsFragment : Fragment() {
                 hasActive -> {
                     cancelBtn.visibility = View.VISIBLE
                     cancelBtn.text = getString(R.string.action_cancel_all)
-                    val errorColor = ContextCompat.getColor(requireContext(), R.color.m3_error)
+                    val errorColor = resolveThemeColor(com.google.android.material.R.attr.colorError)
                     cancelBtn.setTextColor(errorColor)
                     cancelBtn.strokeColor = ColorStateList.valueOf(errorColor)
                     cancelBtn.setOnClickListener { DownloadService.cancelAll(requireContext()) }
@@ -97,7 +96,7 @@ class DownloadsFragment : Fragment() {
                 hasFailed -> {
                     cancelBtn.visibility = View.VISIBLE
                     cancelBtn.text = getString(R.string.action_retry_all)
-                    val accentColor = ContextCompat.getColor(requireContext(), R.color.m3_primary)
+                    val accentColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
                     cancelBtn.setTextColor(accentColor)
                     cancelBtn.strokeColor = ColorStateList.valueOf(accentColor)
                     cancelBtn.setOnClickListener { (activity as? Callbacks)?.retryAll() }
@@ -145,8 +144,8 @@ class DownloadsFragment : Fragment() {
         chip.isFocusable = false
         chip.chipStrokeWidth = 0f
         chip.setEnsureMinTouchTargetSize(false)
-        val tonalBg = ContextCompat.getColor(requireContext(), R.color.m3_secondary_container)
-        val tonalFg = ContextCompat.getColor(requireContext(), R.color.m3_on_secondary_container)
+        val tonalBg = resolveThemeColor(com.google.android.material.R.attr.colorSecondaryContainer)
+        val tonalFg = resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer)
         chip.chipBackgroundColor = ColorStateList.valueOf(tonalBg)
         chip.setTextColor(tonalFg)
         chip.textSize = 12f
@@ -203,5 +202,15 @@ class DownloadsFragment : Fragment() {
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(requireContext(), R.string.open_file_no_app, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** Resolves a color from the current *theme* (whichever Theme.Xmd.* is
+     *  active), not a static @color resource -- so button accents like
+     *  "Retry All" follow the selected app theme instead of always being
+     *  Default's blue. */
+    private fun resolveThemeColor(attrResId: Int): Int {
+        val tv = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(attrResId, tv, true)
+        return tv.data
     }
 }

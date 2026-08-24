@@ -62,7 +62,7 @@ class QueueAdapter(
 
         holder.title.text = item.fileName ?: item.sourceUrl
         holder.category.text = item.category.label
-        holder.indicator.setBackgroundColor(context.getColor(colorForStatus(item.status)))
+        holder.indicator.setBackgroundColor(colorForStatus(context, item.status))
 
         // ── Status text ───────────────────────────────────────────────────
         holder.status.text = when (item.status) {
@@ -257,17 +257,27 @@ class QueueAdapter(
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private fun colorForStatus(status: ItemStatus): Int = when (status) {
+    /** Resolves theme-reactive status colors from the current active theme
+     *  attribute (so they follow Theme.Xmd.*); the two roles with no
+     *  matching M3 attr (warning/success) stay fixed static colors, same
+     *  across every theme by design. */
+    private fun colorForStatus(context: android.content.Context, status: ItemStatus): Int = when (status) {
         ItemStatus.PENDING,
         ItemStatus.RESOLVING,
-        ItemStatus.NEEDS_CHALLENGE -> R.color.ff_muted
-        ItemStatus.READY           -> R.color.ff_accent
-        ItemStatus.DOWNLOADING     -> R.color.ff_accent
-        ItemStatus.PAUSED          -> R.color.ff_warning
-        ItemStatus.RETRYING        -> R.color.ff_warning
-        ItemStatus.SAVING          -> R.color.ff_accent
-        ItemStatus.DONE            -> R.color.ff_success
-        ItemStatus.FAILED          -> R.color.ff_error
+        ItemStatus.NEEDS_CHALLENGE -> resolveThemeColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant)
+        ItemStatus.READY,
+        ItemStatus.DOWNLOADING,
+        ItemStatus.SAVING          -> resolveThemeColor(context, com.google.android.material.R.attr.colorPrimary)
+        ItemStatus.PAUSED,
+        ItemStatus.RETRYING        -> context.getColor(R.color.ff_warning)
+        ItemStatus.DONE            -> context.getColor(R.color.ff_success)
+        ItemStatus.FAILED          -> resolveThemeColor(context, com.google.android.material.R.attr.colorError)
+    }
+
+    private fun resolveThemeColor(context: android.content.Context, attrResId: Int): Int {
+        val tv = android.util.TypedValue()
+        context.theme.resolveAttribute(attrResId, tv, true)
+        return tv.data
     }
 
     /** "2.1 MB/s  •  ETA 3:42" */

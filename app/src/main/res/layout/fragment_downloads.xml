@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/m3_background">
+    android:background="?android:attr/colorBackground">
 
     <!-- Summary bar: horizontally-scrolling row of stat pills, e.g.
          "2 downloading"  "3 done"  "1 failed" -->
@@ -12,7 +12,7 @@
         android:id="@+id/queueSummaryBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/m3_surface_container_low"
+        android:background="?attr/colorSurfaceContainerLow"
         android:scrollbars="none"
         android:visibility="gone">
 
@@ -60,7 +60,7 @@
                     android:layout_height="36dp"
                     android:layout_gravity="center"
                     android:src="@drawable/ic_downloads"
-                    android:tint="@color/m3_on_secondary_container"
+                    android:tint="?attr/colorOnSecondaryContainer"
                     android:contentDescription="@null" />
             </FrameLayout>
 
@@ -69,7 +69,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="No downloads yet"
-                android:textColor="@color/m3_on_surface"
+                android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold"
                 android:textSize="16sp" />
 
@@ -78,7 +78,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
                 android:text="Add links in the Home tab"
-                android:textColor="@color/m3_on_surface_variant"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp" />
         </LinearLayout>
     </FrameLayout>
@@ -87,25 +87,28 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:layout_margin="12dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/cancelButton"
             style="@style/Widget.Xmd.Button.Outlined"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
             android:text="@string/action_cancel_all"
-            app:strokeColor="@color/m3_error"
-            android:textColor="@color/m3_error"
+            app:strokeColor="?attr/colorError"
+            android:textColor="?attr/colorError"
             android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/clearAllButton"
             style="@style/Widget.Xmd.Button.Tonal"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
+            android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginStart="4dp"
             android:text="@string/action_clear_all"
             android:visibility="gone" />
     </LinearLayout>

@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import com.invictus.xmd.R
+import com.invictus.xmd.core.Settings
 
 /**
  * Shows the share page in a visible WebView so the user can clear Cloudflare
@@ -43,6 +44,7 @@ class ChallengeActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(Settings.appTheme().styleRes)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_challenge)
 
@@ -51,7 +53,7 @@ class ChallengeActivity : AppCompatActivity() {
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         toolbar.title = getString(R.string.challenge_title)
-        toolbar.setTitleTextColor(getColor(R.color.ff_text))
+        toolbar.setTitleTextColor(resolveThemeColor(com.google.android.material.R.attr.colorOnSurface))
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         toolbar.setNavigationOnClickListener { finishCancelled() }
@@ -120,6 +122,15 @@ class ChallengeActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         finishCancelled()
+    }
+
+    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
+     *  of a static @color resource, so the toolbar title follows the
+     *  selected app theme. */
+    private fun resolveThemeColor(attrResId: Int): Int {
+        val tv = android.util.TypedValue()
+        theme.resolveAttribute(attrResId, tv, true)
+        return tv.data
     }
 }
 

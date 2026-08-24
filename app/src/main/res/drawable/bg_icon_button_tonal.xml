@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="@color/m3_on_secondary_container">
+    android:color="?attr/colorOnSecondaryContainer">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/m3_secondary_container" />
+            <solid android:color="?attr/colorSecondaryContainer" />
         </shape>
     </item>
 </ripple>

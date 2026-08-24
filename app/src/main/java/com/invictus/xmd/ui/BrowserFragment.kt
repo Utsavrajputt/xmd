@@ -29,7 +29,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
-import androidx.core.content.ContextCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Bookmark
@@ -285,7 +284,7 @@ class BrowserFragment : Fragment() {
      * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
      */
     private fun setupPullToRefresh() {
-        webViewSwipeRefresh.setColorSchemeResources(R.color.m3_primary)
+        webViewSwipeRefresh.setColorSchemeColors(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
         webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
             tabs.getOrNull(currentTabIndex)?.webView?.canScrollVertically(-1) == true
         }
@@ -949,13 +948,13 @@ class BrowserFragment : Fragment() {
             rowsContainer.removeAllViews()
             tabs.forEachIndexed { index, tab ->
                 val isActive = index == currentTabIndex
-                val tonalColor = ContextCompat.getColor(
-                    context,
-                    if (isActive) R.color.m3_secondary_container else R.color.m3_surface_container_high
+                val tonalColor = resolveThemeColor(
+                    if (isActive) com.google.android.material.R.attr.colorSecondaryContainer
+                    else com.google.android.material.R.attr.colorSurfaceContainerHigh
                 )
-                val onTonalColor = ContextCompat.getColor(
-                    context,
-                    if (isActive) R.color.m3_on_secondary_container else R.color.m3_on_surface
+                val onTonalColor = resolveThemeColor(
+                    if (isActive) com.google.android.material.R.attr.colorOnSecondaryContainer
+                    else com.google.android.material.R.attr.colorOnSurface
                 )
 
                 // A MaterialCardView per row instead of a raw LinearLayout gives
@@ -993,7 +992,7 @@ class BrowserFragment : Fragment() {
                         gravity = android.view.Gravity.CENTER
                     }
                     setImageResource(R.drawable.ic_link)
-                    setColorFilter(ContextCompat.getColor(context, R.color.m3_on_secondary_container))
+                    setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer))
                 }
                 faviconBox.addView(favicon)
                 tab.url?.let { url ->
@@ -1136,5 +1135,14 @@ class BrowserFragment : Fragment() {
         (activity as? Callbacks)?.triggerPrepare(listOf(link))
         Toast.makeText(requireContext(), R.string.link_found_toast, Toast.LENGTH_LONG).show()
         clearDetectedLink()
+    }
+
+    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
+     *  of a static @color resource, so tab-switcher rows, the favicon tint,
+     *  and the pull-to-refresh spinner all follow the selected app theme. */
+    private fun resolveThemeColor(attrResId: Int): Int {
+        val tv = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(attrResId, tv, true)
+        return tv.data
     }
 }

@@ -86,6 +86,183 @@
     </style>
 
     <!-- ==============================================================
+         Alternate color themes. Each inherits every non-color item from
+         Theme.Xmd (shapes, typography, widget styles) and overrides only
+         the M3 color roles below with theme-specific literal colors, so
+         switching theme never has to touch component styling. Applied at
+         runtime via Activity.setTheme(theme.styleRes) before
+         super.onCreate(); see AppTheme.kt / Settings.appTheme().
+         ============================================================== -->
+
+    <style name="Theme.Xmd.Aurora" parent="Theme.Xmd">
+        <item name="colorPrimary">#5B93FF</item>
+        <item name="colorOnPrimary">#051C48</item>
+        <item name="colorPrimaryContainer">#093688</item>
+        <item name="colorOnPrimaryContainer">#7CA9FF</item>
+
+        <item name="colorSecondary">#9FAEC9</item>
+        <item name="colorOnSecondary">#29303F</item>
+        <item name="colorSecondaryContainer">#4E5B77</item>
+        <item name="colorOnSecondaryContainer">#B2BED4</item>
+
+        <item name="colorTertiary">#97A8FF</item>
+        <item name="colorOnTertiary">#18204B</item>
+        <item name="colorTertiaryContainer">#2E3D8D</item>
+        <item name="colorOnTertiaryContainer">#ACB9FF</item>
+
+        <item name="android:colorBackground">#04070F</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#04070F</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#04070E</item>
+        <item name="colorSurfaceBright">#3B4356</item>
+        <item name="colorSurfaceContainerLowest">#03060D</item>
+        <item name="colorSurfaceContainerLow">#070C17</item>
+        <item name="colorSurfaceContainer">#090F1D</item>
+        <item name="colorSurfaceContainerHigh">#0D1527</item>
+        <item name="colorSurfaceContainerHighest">#101B31</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#949FB4</item>
+        <item name="colorOutlineVariant">#46597B</item>
+
+        <item name="colorSurfaceVariant">#0D1527</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#0A3C98</item>
+        <item name="colorPrimaryDark">#04070F</item>
+        <item name="colorAccent">#5B93FF</item>
+        <item name="android:windowBackground">#04070F</item>
+        <item name="android:statusBarColor">#04070F</item>
+        <item name="android:navigationBarColor">#04070F</item>
+    </style>
+
+    <style name="Theme.Xmd.Nord" parent="Theme.Xmd">
+        <item name="colorPrimary">#88C0D0</item>
+        <item name="colorOnPrimary">#2A3A4D</item>
+        <item name="colorPrimaryContainer">#506E92</item>
+        <item name="colorOnPrimaryContainer">#A0CDD9</item>
+
+        <item name="colorSecondary">#D8DEE9</item>
+        <item name="colorOnSecondary">#222730</item>
+        <item name="colorSecondaryContainer">#41495A</item>
+        <item name="colorOnSecondaryContainer">#E0E5ED</item>
+
+        <item name="colorTertiary">#D8A9C4</item>
+        <item name="colorOnTertiary">#51404E</item>
+        <item name="colorTertiaryContainer">#997993</item>
+        <item name="colorOnTertiaryContainer">#E0BAD0</item>
+
+        <item name="android:colorBackground">#2E3440</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#2E3440</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#2C313D</item>
+        <item name="colorSurfaceBright">#5E6973</item>
+        <item name="colorSurfaceContainerLowest">#282D37</item>
+        <item name="colorSurfaceContainerLow">#313945</item>
+        <item name="colorSurfaceContainer">#333C49</item>
+        <item name="colorSurfaceContainerHigh">#37424E</item>
+        <item name="colorSurfaceContainerHighest">#3B4854</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#AEB5C2</item>
+        <item name="colorOutlineVariant">#4F6272</item>
+
+        <item name="colorSurfaceVariant">#37424E</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#597BA3</item>
+        <item name="colorPrimaryDark">#2E3440</item>
+        <item name="colorAccent">#88C0D0</item>
+        <item name="android:windowBackground">#2E3440</item>
+        <item name="android:statusBarColor">#2E3440</item>
+        <item name="android:navigationBarColor">#2E3440</item>
+    </style>
+
+    <style name="Theme.Xmd.Dracula" parent="Theme.Xmd">
+        <item name="colorPrimary">#BD93F9</item>
+        <item name="colorOnPrimary">#2C334A</item>
+        <item name="colorPrimaryContainer">#53618B</item>
+        <item name="colorOnPrimaryContainer">#CAA9FA</item>
+
+        <item name="colorSecondary">#FF79C6</item>
+        <item name="colorOnSecondary">#1F2028</item>
+        <item name="colorSecondaryContainer">#3A3C4C</item>
+        <item name="colorOnSecondaryContainer">#FF94D1</item>
+
+        <item name="colorTertiary">#8BE9FD</item>
+        <item name="colorOnTertiary">#247037</item>
+        <item name="colorTertiaryContainer">#44D469</item>
+        <item name="colorOnTertiaryContainer">#A2EDFD</item>
+
+        <item name="android:colorBackground">#282A36</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#282A36</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#262833</item>
+        <item name="colorSurfaceBright">#605C71</item>
+        <item name="colorSurfaceContainerLowest">#22242E</item>
+        <item name="colorSurfaceContainerLow">#2D2E3D</item>
+        <item name="colorSurfaceContainer">#313042</item>
+        <item name="colorSurfaceContainerHigh">#37344A</item>
+        <item name="colorSurfaceContainerHighest">#3D3951</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#BF87B3</item>
+        <item name="colorOutlineVariant">#5A597A</item>
+
+        <item name="colorSurfaceVariant">#37344A</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#5D6C9C</item>
+        <item name="colorPrimaryDark">#282A36</item>
+        <item name="colorAccent">#BD93F9</item>
+        <item name="android:windowBackground">#282A36</item>
+        <item name="android:statusBarColor">#282A36</item>
+        <item name="android:navigationBarColor">#282A36</item>
+    </style>
+
+    <style name="Theme.Xmd.Catppuccin" parent="Theme.Xmd">
+        <item name="colorPrimary">#9BA8CF</item>
+        <item name="colorOnPrimary">#223045</item>
+        <item name="colorPrimaryContainer">#415B83</item>
+        <item name="colorOnPrimaryContainer">#AFB9D9</item>
+
+        <item name="colorSecondary">#D4A5B8</item>
+        <item name="colorOnSecondary">#523040</item>
+        <item name="colorSecondaryContainer">#9C5B7A</item>
+        <item name="colorOnSecondaryContainer">#DDB7C6</item>
+
+        <item name="colorTertiary">#8AB8A8</item>
+        <item name="colorOnTertiary">#53351C</item>
+        <item name="colorTertiaryContainer">#9C6435</item>
+        <item name="colorOnTertiaryContainer">#A1C6B9</item>
+
+        <item name="android:colorBackground">#1E1E2E</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#1E1E2E</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#1C1C2C</item>
+        <item name="colorSurfaceBright">#555666</item>
+        <item name="colorSurfaceContainerLowest">#1A1A28</item>
+        <item name="colorSurfaceContainerLow">#222334</item>
+        <item name="colorSurfaceContainer">#252638</item>
+        <item name="colorSurfaceContainerHigh">#2A2C3E</item>
+        <item name="colorSurfaceContainerHighest">#303145</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#AC9BAC</item>
+        <item name="colorOutlineVariant">#535D71</item>
+
+        <item name="colorSurfaceVariant">#2A2C3E</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#486692</item>
+        <item name="colorPrimaryDark">#1E1E2E</item>
+        <item name="colorAccent">#9BA8CF</item>
+        <item name="android:windowBackground">#1E1E2E</item>
+        <item name="android:statusBarColor">#1E1E2E</item>
+        <item name="android:navigationBarColor">#1E1E2E</item>
+    </style>
+
+    <!-- ==============================================================
          Expressive corner-radius scale. M3 Expressive leans into
          larger, more confident rounding than classic M3 — cards read
          as soft rounded rectangles, buttons trend toward full pill
@@ -154,7 +331,7 @@
     <style name="Widget.Xmd.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
         <item name="android:textAllCaps">false</item>
-        <item name="strokeColor">@color/m3_outline</item>
+        <item name="strokeColor">?attr/colorOutline</item>
         <item name="strokeWidth">1dp</item>
     </style>
 
@@ -168,28 +345,28 @@
     <style name="Widget.Xmd.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
         <item name="android:textAllCaps">false</item>
-        <item name="backgroundTint">@color/m3_secondary_container</item>
-        <item name="android:textColor">@color/m3_on_secondary_container</item>
+        <item name="backgroundTint">?attr/colorSecondaryContainer</item>
+        <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
     </style>
 
     <!-- Cards: generous, soft corners with a subtle outline instead of shadow,
          which reads better against the app's dark surfaces -->
     <style name="Widget.Xmd.CardView" parent="Widget.Material3.CardView.Outlined">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
-        <item name="cardBackgroundColor">@color/m3_surface_container</item>
-        <item name="strokeColor">@color/m3_outline_variant</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
         <item name="strokeWidth">1dp</item>
         <item name="cardElevation">0dp</item>
     </style>
 
     <style name="Widget.Xmd.Chip" parent="Widget.Material3.Chip.Assist">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
-        <item name="chipBackgroundColor">@color/m3_secondary_container</item>
-        <item name="android:textColor">@color/m3_on_secondary_container</item>
+        <item name="chipBackgroundColor">?attr/colorSecondaryContainer</item>
+        <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
     </style>
 
     <style name="Widget.Xmd.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
-        <item name="android:background">@color/m3_surface_container_low</item>
+        <item name="android:background">?attr/colorSurfaceContainerLow</item>
         <item name="itemIconTint">@color/bottom_nav_colors</item>
         <item name="itemTextColor">@color/bottom_nav_colors</item>
         <item name="itemActiveIndicatorStyle">@style/Widget.Xmd.BottomNavigationView.ActiveIndicator</item>
@@ -197,43 +374,42 @@
     </style>
 
     <style name="Widget.Xmd.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:color">@color/m3_primary_container</item>
+        <item name="android:color">?attr/colorPrimaryContainer</item>
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
     </style>
 
     <!-- Expressive FAB: bold squircle-ish large shape rather than a plain circle -->
     <style name="Widget.Xmd.FloatingActionButton" parent="Widget.Material3.FloatingActionButton.Primary">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
-        <item name="backgroundTint">@color/m3_primary_container</item>
-        <item name="tint">@color/m3_on_primary_container</item>
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="tint">?attr/colorOnPrimaryContainer</item>
     </style>
 
     <style name="Widget.Xmd.Toolbar" parent="Widget.Material3.Toolbar">
-        <item name="android:background">@color/m3_surface_container_low</item>
-        <item name="titleTextColor">@color/m3_on_surface</item>
+        <item name="android:background">?attr/colorSurfaceContainerLow</item>
+        <item name="titleTextColor">?attr/colorOnSurface</item>
         <item name="titleTextAppearance">@style/TextAppearance.Xmd.TitleLarge</item>
     </style>
 
     <style name="ThemeOverlay.Xmd.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Xmd.Large</item>
-        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
     </style>
 
     <style name="Widget.Xmd.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
-        <item name="boxStrokeColor">@color/m3_outline</item>
-        <item name="hintTextColor">@color/m3_on_surface_variant</item>
+        <item name="boxStrokeColor">?attr/colorOutline</item>
+        <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <style name="Widget.Xmd.ProgressIndicator" parent="Widget.Material3.LinearProgressIndicator">
-        <item name="trackColor">@color/m3_surface_container_high</item>
-        <item name="indicatorColor">@color/m3_primary</item>
+        <item name="trackColor">?attr/colorSurfaceContainerHigh</item>
+        <item name="indicatorColor">?attr/colorPrimary</item>
         <item name="trackCornerRadius">8dp</item>
     </style>
 
     <style name="Widget.Xmd.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
-        <item name="thumbTint">@color/m3_on_primary</item>
-        <item name="trackTint">@color/m3_primary</item>
+        <item name="thumbTint">?attr/colorOnPrimary</item>
+        <item name="trackTint">?attr/colorPrimary</item>
     </style>
 
     <!-- ==============================================================
@@ -245,22 +421,22 @@
          ============================================================== -->
     <style name="Widget.Xmd.IconButton.Tonal" parent="Widget.Material3.Button.IconButton">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
-        <item name="backgroundTint">@color/m3_secondary_container</item>
-        <item name="iconTint">@color/m3_on_secondary_container</item>
-        <item name="rippleColor">@color/m3_on_secondary_container</item>
+        <item name="backgroundTint">?attr/colorSecondaryContainer</item>
+        <item name="iconTint">?attr/colorOnSecondaryContainer</item>
+        <item name="rippleColor">?attr/colorOnSecondaryContainer</item>
     </style>
 
     <style name="Widget.Xmd.IconButton.Tonal.Primary" parent="Widget.Xmd.IconButton.Tonal">
-        <item name="backgroundTint">@color/m3_primary_container</item>
-        <item name="iconTint">@color/m3_on_primary_container</item>
-        <item name="rippleColor">@color/m3_on_primary_container</item>
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="iconTint">?attr/colorOnPrimaryContainer</item>
+        <item name="rippleColor">?attr/colorOnPrimaryContainer</item>
     </style>
 
     <!-- Status / count pill — small filled-tonal capsule used for badges
          like download counts, active-torrent status, etc. -->
     <style name="Widget.Xmd.StatusPill" parent="">
         <item name="android:background">@drawable/bg_status_pill</item>
-        <item name="android:textColor">@color/m3_on_tertiary_container</item>
+        <item name="android:textColor">?attr/colorOnTertiaryContainer</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textSize">12sp</item>
         <item name="android:paddingHorizontal">12dp</item>

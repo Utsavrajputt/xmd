@@ -10,12 +10,49 @@
     android:orientation="vertical"
     android:padding="20dp">
 
+    <!-- ===================== Appearance / theme group ===================== -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/settings_appearance"
+        android:textColor="?attr/colorOnSurface"
+        android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/settings_theme_hint"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="12sp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:scrollbars="none"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:id="@+id/themeSwatchContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
+        android:background="?attr/colorOutlineVariant" />
+
     <!-- ===================== Connections group ===================== -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/settings_connections"
-        android:textColor="@color/m3_on_surface"
+        android:textColor="?attr/colorOnSurface"
         android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
     <RadioGroup
@@ -31,8 +68,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:buttonTint="@color/m3_primary"
-            android:textColor="@color/m3_on_surface"
+            android:buttonTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnSurface"
             android:text="2" />
 
         <RadioButton
@@ -40,8 +77,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:buttonTint="@color/m3_primary"
-            android:textColor="@color/m3_on_surface"
+            android:buttonTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnSurface"
             android:text="4" />
 
         <RadioButton
@@ -49,8 +86,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:buttonTint="@color/m3_primary"
-            android:textColor="@color/m3_on_surface"
+            android:buttonTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnSurface"
             android:text="8" />
 
         <RadioButton
@@ -58,8 +95,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:buttonTint="@color/m3_primary"
-            android:textColor="@color/m3_on_surface"
+            android:buttonTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnSurface"
             android:text="16" />
     </RadioGroup>
 
@@ -95,7 +132,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        app:cardBackgroundColor="@color/m3_surface_container_low"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
         app:strokeWidth="0dp">
 
         <LinearLayout
@@ -109,7 +146,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/settings_auto_retry"
-                android:textColor="@color/m3_on_surface"
+                android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold" />
 
             <TextView
@@ -117,21 +154,21 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="@string/settings_auto_retry_hint"
-                android:textColor="@color/m3_on_surface_variant"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="14dp"
-                android:background="@color/m3_outline_variant" />
+                android:background="?attr/colorOutlineVariant" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/saveToDownloadsSwitch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/settings_save_to_downloads"
-                android:textColor="@color/m3_on_surface"
+                android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold" />
 
             <TextView
@@ -139,7 +176,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="@string/settings_save_to_downloads_hint"
-                android:textColor="@color/m3_on_surface_variant"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="12sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -150,7 +187,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:text="@string/settings_import_websites"
-        android:textColor="@color/m3_on_surface"
+        android:textColor="?attr/colorOnSurface"
         android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
     <TextView
@@ -158,7 +195,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:text="@string/settings_import_websites_hint"
-        android:textColor="@color/m3_on_surface_variant"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
     <com.google.android.material.button.MaterialButton
@@ -175,7 +212,7 @@
         android:layout_height="1dp"
         android:layout_marginTop="20dp"
         android:layout_marginBottom="20dp"
-        android:background="@color/m3_outline_variant" />
+        android:background="?attr/colorOutlineVariant" />
 
     <!-- ===================== yt-dlp group ===================== -->
     <LinearLayout
@@ -188,7 +225,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/settings_ytdlp_title"
-            android:textColor="@color/m3_on_surface"
+            android:textColor="?attr/colorOnSurface"
             android:textAppearance="@style/TextAppearance.Xmd.TitleMedium" />
 
         <TextView
@@ -196,7 +233,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="@string/settings_ytdlp_hint"
-            android:textColor="@color/m3_on_surface_variant"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp" />
 
         <LinearLayout
@@ -211,7 +248,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="@color/m3_on_surface" />
+                android:textColor="?attr/colorOnSurface" />
 
             <ProgressBar
                 android:id="@+id/ytdlpProgress"
@@ -226,7 +263,7 @@
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/m3_primary"
+                android:textColor="?attr/colorPrimary"
                 android:text="@string/settings_ytdlp_update"
                 android:visibility="gone" />
 
@@ -235,7 +272,7 @@
                 style="?android:attr/buttonBarButtonStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/m3_primary"
+                android:textColor="?attr/colorPrimary"
                 android:text="@string/settings_ytdlp_install" />
         </LinearLayout>
 
@@ -252,7 +289,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="@string/settings_ytdlp_use_nightly"
-            android:textColor="@color/m3_on_surface_variant"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="gone" />
     </LinearLayout>
 

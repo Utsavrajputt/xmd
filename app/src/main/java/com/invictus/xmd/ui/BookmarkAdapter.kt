@@ -97,7 +97,7 @@ class BookmarkAdapter(
         holder.favicon.setImageResource(R.drawable.ic_link)
         holder.favicon.setPadding(holder.faviconDefaultPadding, holder.faviconDefaultPadding, holder.faviconDefaultPadding, holder.faviconDefaultPadding)
         holder.favicon.imageTintList = android.content.res.ColorStateList.valueOf(
-            holder.favicon.context.getColor(R.color.ff_accent)
+            resolveThemeColor(holder.favicon.context, com.google.android.material.R.attr.colorPrimary)
         )
 
         holder.faviconJob = scope.launch {
@@ -110,6 +110,15 @@ class BookmarkAdapter(
                 holder.favicon.setImageBitmap(bitmap)
             }
         }
+    }
+
+    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
+     *  of a static @color resource, so the favicon fallback tint follows
+     *  the selected app theme. */
+    private fun resolveThemeColor(context: android.content.Context, attrResId: Int): Int {
+        val tv = android.util.TypedValue()
+        context.theme.resolveAttribute(attrResId, tv, true)
+        return tv.data
     }
 
     class BookmarkViewHolder(view: View) : RecyclerView.ViewHolder(view) {

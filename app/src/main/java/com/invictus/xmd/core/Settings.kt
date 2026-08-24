@@ -2,6 +2,7 @@ package com.invictus.xmd.core
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.invictus.xmd.ui.theme.AppTheme
 
 /**
  * Simple SharedPreferences-backed settings, initialized once from FfApp.
@@ -9,6 +10,7 @@ import android.content.SharedPreferences
 object Settings {
     private const val PREFS = "ff_settings"
     private const val KEY_CONNECTIONS = "connections_per_download"
+    private const val KEY_APP_THEME = "app_theme"
     private const val KEY_SPEED_LIMIT_KBPS = "speed_limit_kbps"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
@@ -18,6 +20,13 @@ object Settings {
 
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    }
+
+    /** The active app color theme. Read `setTheme()`d onto every Activity before
+     *  `super.onCreate()`, so a change here needs `recreate()` to take effect. */
+    fun appTheme(): AppTheme = AppTheme.fromKey(prefs.getString(KEY_APP_THEME, null))
+    fun setAppTheme(theme: AppTheme) {
+        prefs.edit().putString(KEY_APP_THEME, theme.storageKey).apply()
     }
 
     fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 16)

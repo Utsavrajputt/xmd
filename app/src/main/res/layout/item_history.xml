@@ -20,7 +20,7 @@
             android:layout_height="17dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_link"
-            android:tint="@color/m3_on_secondary_container"
+            android:tint="?attr/colorOnSecondaryContainer"
             android:contentDescription="@null" />
     </FrameLayout>
 
@@ -34,7 +34,7 @@
             android:id="@+id/historyItemTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@color/m3_on_surface"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -44,7 +44,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="@color/m3_on_surface_variant"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -57,7 +57,7 @@
         android:layout_marginStart="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_delete"
-        android:tint="@color/m3_on_surface_variant"
+        android:tint="?attr/colorOnSurfaceVariant"
         android:contentDescription="@string/action_delete" />
 
 </LinearLayout>

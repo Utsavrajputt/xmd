@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/m3_background">
+    android:background="?android:attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,7 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
-            app:cardBackgroundColor="@color/m3_surface_container_low"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
             app:shapeAppearance="@style/ShapeAppearance.Xmd.Large"
             app:cardElevation="3dp"
             app:strokeWidth="0dp">
@@ -37,10 +37,10 @@
                 android:id="@+id/homeButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:background="@drawable/bg_icon_button_tonal"
+                android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="9dp"
                 android:src="@drawable/ic_home"
-                android:tint="@color/m3_on_secondary_container"
+                android:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="@string/action_home" />
 
             <com.google.android.material.card.MaterialCardView
@@ -48,7 +48,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
-                app:cardBackgroundColor="@color/m3_surface_container_high"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:shapeAppearance="@style/ShapeAppearance.Xmd.Full"
                 app:cardElevation="0dp"
                 app:strokeWidth="0dp">
@@ -68,7 +68,7 @@
                         android:layout_height="16dp"
                         android:layout_marginStart="12dp"
                         android:src="@drawable/ic_lock"
-                        android:tint="@color/m3_on_surface_variant"
+                        android:tint="?attr/colorOnSurfaceVariant"
                         android:visibility="gone"
                         android:contentDescription="@null" />
 
@@ -81,8 +81,8 @@
                         android:paddingStart="14dp"
                         android:paddingEnd="4dp"
                         android:hint="@string/hint_url"
-                        android:textColorHint="@color/m3_on_surface_variant"
-                        android:textColor="@color/m3_on_surface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:textColor="?attr/colorOnSurface"
                         android:textSize="14sp"
                         android:singleLine="true"
                         android:ellipsize="end"
@@ -101,7 +101,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:padding="8dp"
                         android:src="@drawable/ic_star_outline"
-                        android:tint="@color/m3_on_surface_variant"
+                        android:tint="?attr/colorOnSurfaceVariant"
                         android:visibility="gone"
                         android:contentDescription="@string/action_add_shortcut" />
                 </LinearLayout>
@@ -118,7 +118,7 @@
                 android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_add"
-                android:tint="@color/m3_on_surface_variant"
+                android:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="@string/action_new_tab" />
 
             <FrameLayout
@@ -140,7 +140,7 @@
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
                     android:text="1"
-                    android:textColor="@color/m3_on_surface_variant"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </FrameLayout>
@@ -151,7 +151,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_more_vert"
-                android:tint="@color/m3_on_surface_variant"
+                android:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="@string/action_more" />
         </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -162,7 +162,7 @@
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:max="100"
-            android:progressTint="@color/m3_primary"
+            android:progressTint="?attr/colorPrimary"
             android:visibility="gone" />
 
         <!-- Content area: WebView underneath, speed-dial shown on top for new tab -->
@@ -198,7 +198,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:background="@color/m3_background"
+                android:background="?android:attr/colorBackground"
                 android:visibility="visible">
 
                 <LinearLayout
@@ -218,7 +218,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/label_shortcuts"
-                        android:textColor="@color/m3_on_surface_variant"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:textStyle="bold"
                         android:textSize="11sp"
                         android:letterSpacing="0.12" />
@@ -242,7 +242,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="top"
                 android:layout_margin="8dp"
-                app:cardBackgroundColor="@color/m3_surface_container_high"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
                 app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
                 app:cardElevation="6dp"
                 android:visibility="gone">
@@ -264,7 +264,7 @@
                 android:id="@+id/navLoadingVeil"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@color/m3_background"
+                android:background="?android:attr/colorBackground"
                 android:clickable="true"
                 android:focusable="true"
                 android:visibility="gone">
@@ -273,7 +273,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:indeterminateTint="@color/m3_primary" />
+                    android:indeterminateTint="?attr/colorPrimary" />
             </FrameLayout>
         </FrameLayout>
     </LinearLayout>

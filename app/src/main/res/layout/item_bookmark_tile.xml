@@ -11,7 +11,7 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="52dp"
         android:layout_height="52dp"
-        app:cardBackgroundColor="@color/m3_primary_container"
+        app:cardBackgroundColor="?attr/colorPrimaryContainer"
         app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
         app:cardElevation="0dp"
         app:strokeWidth="0dp">
@@ -22,7 +22,7 @@
             android:layout_height="match_parent"
             android:padding="12dp"
             android:src="@drawable/ic_link"
-            android:tint="@color/m3_on_primary_container"
+            android:tint="?attr/colorOnPrimaryContainer"
             android:scaleType="fitCenter"
             android:contentDescription="@null" />
     </com.google.android.material.card.MaterialCardView>
@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/label_bookmark_placeholder"
-        android:textColor="@color/m3_on_surface"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="11sp"
         android:maxLines="1"
         android:ellipsize="end"

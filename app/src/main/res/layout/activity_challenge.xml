@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/m3_background">
+    android:background="?android:attr/colorBackground">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
@@ -16,9 +16,9 @@
         android:id="@+id/challengeStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/m3_surface_container_low"
+        android:background="?attr/colorSurfaceContainerLow"
         android:padding="12dp"
-        android:textColor="@color/m3_on_surface_variant"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
     <WebView

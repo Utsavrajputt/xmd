@@ -4,14 +4,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/m3_background">
+    android:background="?android:attr/colorBackground">
 
     <!-- Clipboard detection banner -->
     <LinearLayout
         android:id="@+id/clipboardBanner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/m3_surface_container_high"
+        android:background="?attr/colorSurfaceContainerHigh"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
@@ -23,7 +23,7 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:src="@drawable/ic_link"
-            android:tint="@color/m3_primary"
+            android:tint="?attr/colorPrimary"
             android:layout_marginEnd="10dp"
             android:contentDescription="@null" />
 
@@ -32,7 +32,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/m3_on_surface"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="middle" />
@@ -43,7 +43,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/action_add"
-            android:textColor="@color/m3_primary"
+            android:textColor="?attr/colorPrimary"
             android:minWidth="0dp"
             android:paddingHorizontal="8dp" />
 
@@ -54,7 +54,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/action_dismiss"
             android:src="@drawable/ic_close"
-            android:tint="@color/m3_on_surface_variant" />
+            android:tint="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
     <!-- Scrollable content area -->
@@ -88,7 +88,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/section_add_new_download"
-                    android:textColor="@color/m3_on_surface_variant"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textStyle="bold"
                     android:textSize="11sp"
                     android:letterSpacing="0.12" />
@@ -119,7 +119,7 @@
                             android:layout_marginTop="11dp"
                             android:layout_marginEnd="12dp"
                             android:src="@drawable/ic_link"
-                            android:tint="@color/m3_primary"
+                            android:tint="?attr/colorPrimary"
                             android:contentDescription="@null" />
 
                         <EditText
@@ -133,8 +133,8 @@
                             android:inputType="textMultiLine"
                             android:background="@null"
                             android:hint="@string/hint_links"
-                            android:textColorHint="@color/m3_on_surface_variant"
-                            android:textColor="@color/m3_on_surface"
+                            android:textColorHint="?attr/colorOnSurfaceVariant"
+                            android:textColor="?attr/colorOnSurface"
                             android:textSize="14sp"
                             android:lineSpacingMultiplier="1.3" />
                     </LinearLayout>
@@ -143,7 +143,7 @@
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="@color/m3_outline_variant"
+                        android:background="?attr/colorOutlineVariant"
                         android:layout_marginTop="14dp"
                         android:layout_marginBottom="12dp" />
 
@@ -163,8 +163,8 @@
                             app:iconGravity="textStart"
                             app:iconPadding="0dp"
                             app:iconSize="18dp"
-                            android:insetTop="0dp"
-                            android:insetBottom="0dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
                             android:contentDescription="@string/action_add_torrent" />
 
                         <View
@@ -186,8 +186,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/action_download"
-                            app:backgroundTint="@color/m3_primary"
-                            android:textColor="@color/m3_on_primary" />
+                            app:backgroundTint="?attr/colorPrimary"
+                            android:textColor="?attr/colorOnPrimary" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -214,7 +214,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Paste links above to start downloading"
-                    android:textColor="@color/m3_on_surface_variant"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="13sp"
                     android:gravity="center" />
 
@@ -223,7 +223,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
                     android:text="Direct links · FuckingFast · yt-dlp"
-                    android:textColor="@color/m3_on_surface_variant"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="11sp"
                     android:gravity="center"
                     android:alpha="0.7" />
