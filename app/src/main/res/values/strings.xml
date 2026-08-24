@@ -4,7 +4,7 @@
     <!-- App -->
     <string name="app_name">Xmd</string>
     <string name="app_header_title">Xtreme Media Downloader</string>
-    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links.</string>
+    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string>
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
@@ -58,6 +58,8 @@
     <string name="theme_nord">Nord</string>
     <string name="theme_dracula">Dracula</string>
     <string name="theme_catppuccin">Catppuccin</string>
+    <string name="theme_mode_dark">Dark mode</string>
+    <string name="theme_mode_light">Light mode</string>
     <string name="settings_connections">Connections per Download</string>
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>

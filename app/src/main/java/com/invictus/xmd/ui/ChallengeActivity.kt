@@ -44,7 +44,7 @@ class ChallengeActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(Settings.appTheme().styleRes)
+        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_challenge)
 

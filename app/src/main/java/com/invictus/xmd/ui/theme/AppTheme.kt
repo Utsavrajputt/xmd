@@ -5,19 +5,24 @@ import androidx.annotation.StyleRes
 import com.invictus.xmd.R
 
 /**
- * The app's selectable color themes. Each one maps to a `Theme.Xmd.*` style
- * in themes.xml (applied at runtime via `Activity.setTheme()` before
- * `super.onCreate()`) plus a handful of swatch colors used to draw the
- * little preview card in the theme picker -- no need to inflate the real
- * style just to show what it looks like.
+ * The app's selectable color themes. Each one maps to a dark `Theme.Xmd.*`
+ * and a light `Theme.Xmd.*.Light` style in themes.xml (applied at runtime
+ * via `Activity.setTheme()` before `super.onCreate()`, resolved through
+ * [resolvedStyleRes] against the separately-stored dark/light mode flag)
+ * plus a handful of swatch colors used to draw the little preview card in
+ * the theme picker -- no need to inflate the real style just to show what
+ * it looks like.
  *
  * Stored in [com.invictus.xmd.core.Settings] by [storageKey], so renaming an
- * enum entry is safe but changing [storageKey] is not.
+ * enum entry is safe but changing [storageKey] is not. Dark/light mode is
+ * orthogonal, stored separately via `Settings.isDarkMode()` and toggled by
+ * double-tapping the app header; see MainActivity.toggleDarkMode().
  */
 enum class AppTheme(
     val storageKey: String,
     @StringRes val titleRes: Int,
-    @StyleRes val styleRes: Int,
+    @StyleRes val styleResDark: Int,
+    @StyleRes val styleResLight: Int,
     val swatchBackground: String,
     val swatchPrimary: String,
     val swatchSecondary: String,
@@ -26,7 +31,8 @@ enum class AppTheme(
     DEFAULT(
         storageKey = "default",
         titleRes = R.string.theme_default,
-        styleRes = R.style.Theme_Xmd,
+        styleResDark = R.style.Theme_Xmd,
+        styleResLight = R.style.Theme_Xmd_Light,
         swatchBackground = "#0E1521",
         swatchPrimary = "#7CD4FF",
         swatchSecondary = "#B7CAD6",
@@ -35,7 +41,8 @@ enum class AppTheme(
     AURORA(
         storageKey = "aurora",
         titleRes = R.string.theme_aurora,
-        styleRes = R.style.Theme_Xmd_Aurora,
+        styleResDark = R.style.Theme_Xmd_Aurora,
+        styleResLight = R.style.Theme_Xmd_Aurora_Light,
         swatchBackground = "#04070F",
         swatchPrimary = "#5B93FF",
         swatchSecondary = "#9FAEC9",
@@ -44,7 +51,8 @@ enum class AppTheme(
     NORD(
         storageKey = "nord",
         titleRes = R.string.theme_nord,
-        styleRes = R.style.Theme_Xmd_Nord,
+        styleResDark = R.style.Theme_Xmd_Nord,
+        styleResLight = R.style.Theme_Xmd_Nord_Light,
         swatchBackground = "#2E3440",
         swatchPrimary = "#88C0D0",
         swatchSecondary = "#D8DEE9",
@@ -53,7 +61,8 @@ enum class AppTheme(
     DRACULA(
         storageKey = "dracula",
         titleRes = R.string.theme_dracula,
-        styleRes = R.style.Theme_Xmd_Dracula,
+        styleResDark = R.style.Theme_Xmd_Dracula,
+        styleResLight = R.style.Theme_Xmd_Dracula_Light,
         swatchBackground = "#282A36",
         swatchPrimary = "#BD93F9",
         swatchSecondary = "#FF79C6",
@@ -62,13 +71,18 @@ enum class AppTheme(
     CATPPUCCIN(
         storageKey = "catppuccin",
         titleRes = R.string.theme_catppuccin,
-        styleRes = R.style.Theme_Xmd_Catppuccin,
+        styleResDark = R.style.Theme_Xmd_Catppuccin,
+        styleResLight = R.style.Theme_Xmd_Catppuccin_Light,
         swatchBackground = "#1E1E2E",
         swatchPrimary = "#9BA8CF",
         swatchSecondary = "#D4A5B8",
         swatchTertiary = "#8AB8A8",
     ),
     ;
+
+    /** Resolves this color theme against the current dark/light mode. */
+    @StyleRes
+    fun resolvedStyleRes(isDark: Boolean): Int = if (isDark) styleResDark else styleResLight
 
     companion object {
         fun fromKey(key: String?): AppTheme = entries.firstOrNull { it.storageKey == key } ?: DEFAULT

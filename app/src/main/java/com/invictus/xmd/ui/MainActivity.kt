@@ -194,7 +194,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() -- Activity.setTheme() only takes
         // effect if called before the window/decor is created.
-        setTheme(Settings.appTheme().styleRes)
+        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -202,6 +202,19 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         this.toolbar = toolbar
         setSupportActionBar(toolbar)
         supportActionBar?.title = getString(R.string.app_header_title)
+
+        // Double-tap the header to flip dark/light mode for whichever color
+        // theme is active. The Toolbar's title isn't a separately clickable
+        // view, so a plain OnClickListener on the Toolbar itself already
+        // catches taps anywhere across it (including over the title text);
+        // a GestureDetector on top of that turns it into a double-tap.
+        val headerDoubleTapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                toggleDarkMode()
+                return true
+            }
+        })
+        toolbar.setOnTouchListener { _, event -> headerDoubleTapDetector.onTouchEvent(event) }
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
@@ -1041,6 +1054,23 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      * actually take effect (a theme is only read in onCreate, before
      * super.onCreate()).
      */
+    /**
+     * Flips dark/light mode for whichever [AppTheme] color theme is
+     * currently active (double-tap the app header). Same pattern as picking
+     * a new color theme: save the pick, then `recreate()` since a theme is
+     * only read in `onCreate()`, before `super.onCreate()`.
+     */
+    private fun toggleDarkMode() {
+        val nowDark = !Settings.isDarkMode()
+        Settings.setDarkMode(nowDark)
+        Toast.makeText(
+            this,
+            if (nowDark) getString(R.string.theme_mode_dark) else getString(R.string.theme_mode_light),
+            Toast.LENGTH_SHORT,
+        ).show()
+        recreate()
+    }
+
     private fun setupThemePicker(container: android.widget.LinearLayout) {
         container.removeAllViews()
         val current = Settings.appTheme()

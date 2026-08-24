@@ -11,6 +11,7 @@ object Settings {
     private const val PREFS = "ff_settings"
     private const val KEY_CONNECTIONS = "connections_per_download"
     private const val KEY_APP_THEME = "app_theme"
+    private const val KEY_DARK_MODE = "app_dark_mode"
     private const val KEY_SPEED_LIMIT_KBPS = "speed_limit_kbps"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
@@ -27,6 +28,15 @@ object Settings {
     fun appTheme(): AppTheme = AppTheme.fromKey(prefs.getString(KEY_APP_THEME, null))
     fun setAppTheme(theme: AppTheme) {
         prefs.edit().putString(KEY_APP_THEME, theme.storageKey).apply()
+    }
+
+    /** Dark/light mode, orthogonal to [appTheme]. Defaults to dark (the app's
+     *  original look). Toggled by double-tapping the app header; read
+     *  `setTheme()`d onto every Activity before `super.onCreate()` alongside
+     *  the color theme, so a change here also needs `recreate()`. */
+    fun isDarkMode(): Boolean = prefs.getBoolean(KEY_DARK_MODE, true)
+    fun setDarkMode(isDark: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
     }
 
     fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 16)
