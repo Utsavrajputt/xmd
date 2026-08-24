@@ -48,8 +48,8 @@ object Settings {
     /** Auto-retry a failed download up to 3 times when it fails on a plain
      *  network error (timeout, connection dropped, DNS failure etc.) --
      *  never for server/link-level failures like an expired share link,
-     *  those still need a manual Retry. Default ON. */
-    fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, true)
+     *  those still need a manual Retry. Default OFF. */
+    fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, false)
     fun setAutoRetryEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_RETRY, value).apply()
     }

@@ -160,9 +160,34 @@ class DownloadService : LifecycleService() {
                 updateNotification()
             }
             ACTION_RESUME_ITEM -> intent.getStringExtra(EXTRA_ITEM_ID)?.let { id ->
-                engines[id]?.resume()
-                torrentEngines[id]?.resume()
-                QueueRepository.update(id) { it.copy(status = ItemStatus.DOWNLOADING) }
+                val liveEngine = engines[id] != null || torrentEngines[id] != null
+                if (liveEngine) {
+                    // Same app session, engine's coroutine is still alive and
+                    // just spinning in its pause-checkpoint loop -- flip the
+                    // flag and it picks the exact same connection back up.
+                    engines[id]?.resume()
+                    torrentEngines[id]?.resume()
+                    QueueRepository.update(id) { it.copy(status = ItemStatus.DOWNLOADING) }
+                } else {
+                    // No live engine -- the process was killed while this item
+                    // sat paused (very possible over "long hours": Doze,
+                    // battery optimization, user swipe-kill). There's no
+                    // coroutine left to un-pause. Route it back through READY
+                    // instead of marking DOWNLOADING with nothing behind it --
+                    // a fresh worker claims it and downloadAuto() picks the
+                    // temp file back up via Range: bytes=<existingSize>-, so
+                    // already-downloaded bytes aren't wasted.
+                    val current = QueueRepository.current().firstOrNull { it.id == id }
+                    if (current?.directUrl != null) {
+                        QueueRepository.update(id) { it.copy(status = ItemStatus.READY, error = null) }
+                        startForeground(NOTIFICATION_ID, buildNotification())
+                        topUpWorkers()
+                    } else {
+                        // No resolved direct link cached either -- needs a
+                        // full re-resolve, not just a restarted download.
+                        QueueRepository.update(id) { it.copy(status = ItemStatus.PENDING, error = null) }
+                    }
+                }
                 updateNotification()
             }
             ACTION_CANCEL_ITEM -> intent.getStringExtra(EXTRA_ITEM_ID)?.let { id ->
@@ -174,11 +199,17 @@ class DownloadService : LifecycleService() {
                     engines[id]?.cancel()
                     torrentEngines[id]?.cancel()
                 }
-                // During an auto-retry backoff wait there's no live engine (it was
-                // removed before the delay), so there's nothing for .cancel() above
-                // to interrupt -- mark it cancelled directly; the retry loop checks
-                // this right after its delay and bails instead of trying again.
-                if (current?.status == ItemStatus.RETRYING) {
+                // No live engine to interrupt above -- either mid an auto-retry
+                // backoff wait (engine was removed before the delay), or a
+                // PAUSED item whose process was killed hours ago and never
+                // came back. Either way .cancel() above was a no-op, so mark
+                // it cancelled directly here instead of leaving it stuck with
+                // a Cancel button that visibly does nothing.
+                val noLiveEngine = engines[id] == null && torrentEngines[id] == null
+                if (current != null && current.platform != MediaPlatform.YOUTUBE && noLiveEngine &&
+                    current.status != ItemStatus.DONE && current.status != ItemStatus.FAILED &&
+                    current.status != ItemStatus.READY
+                ) {
                     QueueRepository.update(id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
                 }
                 updateNotification()
