@@ -15,6 +15,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 🧭 **Chrome-style toolbar rework** — new tab / search / reload / tabs / overflow — fixing it from reappearing over content after a background-kill activity recreation.
 - 🎨 **Material 3 Expressive redesign** across the entire UI — dialogs, switches, buttons, and layouts rebuilt with Material 3 components.
 - 🌈 **5 built-in themes** — Default, Aurora, Nord, Dracula, and Catppuccin — with app colors migrated to theme attributes for consistent dynamic theming.
+- ☀️ **Light theme** — every color theme now has a light variant; flip it from the new Dark Mode switch in Settings > Appearance, or with a single tap on the app header.
 
 ### 🛠 Fixed
 - ⏯️ Manual Resume/Cancel now survive a killed process over long pauses; auto-retry defaults to **off**.

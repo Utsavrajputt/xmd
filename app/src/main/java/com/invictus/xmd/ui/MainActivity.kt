@@ -24,6 +24,7 @@ import androidx.appcompat.widget.AppCompatRadioButton
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.invictus.xmd.R
@@ -203,18 +204,11 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         setSupportActionBar(toolbar)
         supportActionBar?.title = getString(R.string.app_header_title)
 
-        // Double-tap the header to flip dark/light mode for whichever color
-        // theme is active. The Toolbar's title isn't a separately clickable
-        // view, so a plain OnClickListener on the Toolbar itself already
-        // catches taps anywhere across it (including over the title text);
-        // a GestureDetector on top of that turns it into a double-tap.
-        val headerDoubleTapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                toggleDarkMode()
-                return true
-            }
-        })
-        toolbar.setOnTouchListener { _, event -> headerDoubleTapDetector.onTouchEvent(event) }
+        // Tap the header to flip dark/light mode for whichever color theme
+        // is active. The Toolbar's title isn't a separately clickable view,
+        // so a plain OnClickListener on the Toolbar itself already catches
+        // taps anywhere across it (including over the title text).
+        toolbar.setOnClickListener { toggleDarkMode() }
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
@@ -905,6 +899,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val group           = view.findViewById<RadioGroup>(R.id.connectionsGroup)
         val speedInput      = view.findViewById<EditText>(R.id.speedLimitInput)
         val concurrentInput = view.findViewById<EditText>(R.id.maxConcurrentInput)
+        val darkModeSwitch  = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.darkModeSwitch)
         val autoRetrySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.autoRetrySwitch)
         val saveToDownloadsSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.saveToDownloadsSwitch)
         val importWebsitesButton = view.findViewById<MaterialButton>(R.id.importWebsitesButton)
@@ -1025,6 +1020,16 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         autoRetrySwitch.isChecked = Settings.autoRetryEnabled()
         saveToDownloadsSwitch.isChecked = Settings.saveToDownloadsFolder()
 
+        // Applies immediately (like the color swatches above it) instead of
+        // waiting for Save, since flipping it needs a recreate() anyway --
+        // the guard against the initial isChecked assignment re-triggering
+        // itself is redundant here (setChecked before the listener is
+        // attached doesn't fire it), kept only for safety.
+        darkModeSwitch.isChecked = Settings.isDarkMode()
+        darkModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != Settings.isDarkMode()) toggleDarkMode()
+        }
+
         importWebsitesButton.setOnClickListener { startWebImportFlow() }
 
         MaterialAlertDialogBuilder(this)
@@ -1056,9 +1061,10 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      */
     /**
      * Flips dark/light mode for whichever [AppTheme] color theme is
-     * currently active (double-tap the app header). Same pattern as picking
-     * a new color theme: save the pick, then `recreate()` since a theme is
-     * only read in `onCreate()`, before `super.onCreate()`.
+     * currently active -- tap the app header, or use the Dark Mode switch
+     * in Settings > Appearance. Same pattern as picking a new color theme:
+     * save the pick, then `recreate()` since a theme is only read in
+     * `onCreate()`, before `super.onCreate()`.
      */
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
@@ -1115,7 +1121,12 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             checkIcon.setColorFilter(android.graphics.Color.parseColor(theme.swatchPrimary))
 
             nameView.text = getString(theme.titleRes)
-            nameView.setTextColor(ContextCompat.getColor(this, R.color.m3_on_surface))
+            // Was hardcoded to R.color.m3_on_surface (a light-on-dark gray),
+            // so it went near-invisible against a light-theme dialog
+            // background. Resolve colorOnSurface from whichever theme is
+            // actually active instead, same as everything else in this
+            // dialog.
+            nameView.setTextColor(MaterialColors.getColor(nameView, com.google.android.material.R.attr.colorOnSurface))
             nameView.setTypeface(nameView.typeface, if (isSelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
 
             item.setOnClickListener {

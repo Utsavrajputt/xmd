@@ -60,6 +60,8 @@
     <string name="theme_catppuccin">Catppuccin</string>
     <string name="theme_mode_dark">Dark mode</string>
     <string name="theme_mode_light">Light mode</string>
+    <string name="settings_dark_mode">Dark Mode</string>
+    <string name="settings_dark_mode_hint">Switch between the dark and light variant of the selected theme. Tapping the header once does the same thing.</string>
     <string name="settings_connections">Connections per Download</string>
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>
@@ -112,7 +114,7 @@
     <string name="hint_bookmark_title">Name</string>
     <string name="add_bookmark_title">Add Shortcut</string>
     <string name="edit_bookmark_title">Edit Shortcut</string>
-    <string name="link_found_toast">Link added to Home. Switch to Downloads to start downloading.</string>
+    <string name="link_added_snackbar">Link added to your queue</string>
     <string name="bookmark_needs_url">Enter a valid URL.</string>
     <string name="download_confirm_title">Add to Downloads?</string>
     <string name="download_confirm_message">%1$s</string>
