@@ -26,6 +26,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_retry">Retry</string>
     <string name="action_open">Open</string>
+    <string name="link_found_toast">Link found — tap to add to downloads</string>
     <string name="open_file_missing">File not found — it may have been moved or deleted.</string>
     <string name="open_file_no_app">No app found that can open this file.</string>
     <string name="action_clear">Clear</string>
