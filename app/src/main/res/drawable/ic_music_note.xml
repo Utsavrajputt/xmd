@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols "music_note" (Filled) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="20dp"
     android:height="20dp"
@@ -6,5 +7,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="?attr/colorPrimary"
-        android:pathData="M9,17.5c0,1.66 -1.57,3 -3.5,3S2,19.16 2,17.5 3.57,14.5 5.5,14.5c0.55,0 1.06,0.11 1.5,0.31V6.5C7,5.67 7.67,5 8.5,5L18,3.3C18.65,3.18 19.25,3.68 19.25,4.34V6.13C19.25,6.66 18.87,7.11 18.35,7.2L9,8.9V17.5z"/>
+        android:pathData="M12,3V13.55C11.41,13.21 10.73,13 10,13C7.79,13 6,14.79 6,17C6,19.21 7.79,21 10,21C12.21,21 14,19.21 14,17V7H18V3H12Z"/>
 </vector>
