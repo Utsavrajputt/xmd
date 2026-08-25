@@ -582,31 +582,29 @@
      instead of the stock flat/full-width Material bar. Margins that
      lift it off the screen edges (and above the bottom nav) are added
      programmatically in code, since shapeAppearance alone can't add
-     outer spacing. Background/text/action colors are pulled from
-     ?attr/colorSurfaceContainerHigh, ?attr/colorOnSurface, and
-     ?attr/colorPrimary rather than hardcoded @color/m3_* values.
-     Every theme variant (Aurora/Nord/Dracula/Catppuccin/Light/base)
-     overrides those same attrs, so the snackbar automatically follows
-     whichever theme is active instead of only matching the base dark
-     theme. android:maxWidth caps how wide it can stretch on phones so
-     it reads as a compact floating card rather than a near-edge-to-edge
-     bar.
+     outer spacing. Background is ?attr/colorPrimary (so it reads as
+     the app's accent color rather than a neutral surface) with white
+     text/action on top for contrast; colorPrimary is themed per
+     variant, so the snackbar automatically follows whichever theme
+     (Aurora/Nord/Dracula/Catppuccin/Light/base) is active. android:maxWidth
+     caps how wide it can stretch on phones so it reads as a compact
+     floating card rather than a near-edge-to-edge bar.
      ============================================================== -->
     <style name="Widget.Xmd.Snackbar" parent="Widget.Material3.Snackbar">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
         <item name="android:elevation">6dp</item>
-        <item name="backgroundTint">?attr/colorSurfaceInverse</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
         <item name="android:maxWidth">420dp</item>
         <item name="snackbarTextViewStyle">@style/TextAppearance.Xmd.Snackbar</item>
         <item name="snackbarButtonStyle">@style/Widget.Xmd.Snackbar.ActionButton</item>
     </style>
 
     <style name="TextAppearance.Xmd.Snackbar" parent="TextAppearance.Material3.BodyMedium">
-        <item name="android:textColor">?attr/colorOnSurfaceInverse</item>
+        <item name="android:textColor">@android:color/white</item>
     </style>
 
     <style name="Widget.Xmd.Snackbar.ActionButton" parent="Widget.Material3.Button.TextButton.Snackbar">
-        <item name="android:textColor">?attr/colorPrimaryInverse</item>
+        <item name="android:textColor">@android:color/white</item>
     </style>
 
     <!-- Typography -->
