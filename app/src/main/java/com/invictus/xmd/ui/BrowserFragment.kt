@@ -18,7 +18,6 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -30,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Bookmark
 import com.invictus.xmd.core.BookmarkRepository
@@ -123,7 +123,7 @@ class BrowserFragment : Fragment() {
     private lateinit var tabsButton: FrameLayout
     private lateinit var tabsCount: android.widget.TextView
     private lateinit var overflowButton: ImageButton
-    private lateinit var pageProgress: ProgressBar
+    private lateinit var pageProgress: LinearProgressIndicator
     private lateinit var siteSecurityIcon: ImageView
     private lateinit var bookmarkStarButton: ImageButton
     private lateinit var webViewSwipeRefresh: SwipeRefreshLayout
@@ -396,8 +396,8 @@ class BrowserFragment : Fragment() {
                 tab.isLoading = true
                 tab.progress = 0
                 if (isCurrentTab(tab)) {
-                    pageProgress.visibility = View.VISIBLE
-                    pageProgress.progress = 0
+                    pageProgress.setProgressCompat(0, false)
+                    pageProgress.show()
                     urlInput.setText(url)
                     updateSecurityIcon(tab)
                     clearDetectedLink()
@@ -413,7 +413,7 @@ class BrowserFragment : Fragment() {
                     HistoryRepository.record(url, title)
                 }
                 if (isCurrentTab(tab)) {
-                    pageProgress.visibility = View.GONE
+                    pageProgress.hide()
                     webViewSwipeRefresh.isRefreshing = false
                     hideNavLoadingVeil()
                     url?.let { checkPageForLinks(it) }
@@ -490,7 +490,16 @@ class BrowserFragment : Fragment() {
         webView.webChromeClient = object : android.webkit.WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 tab.progress = newProgress
-                if (isCurrentTab(tab)) pageProgress.progress = newProgress
+                if (isCurrentTab(tab)) {
+                    // Fade out the instant the bar hits 100%, rather than
+                    // waiting for onPageFinished (which can lag behind on
+                    // pages that keep loading subresources after DOM-ready).
+                    if (newProgress >= 100) {
+                        pageProgress.hide()
+                    } else {
+                        pageProgress.setProgressCompat(newProgress, true)
+                    }
+                }
             }
         }
     }
@@ -647,8 +656,8 @@ class BrowserFragment : Fragment() {
         urlInput.setText(tab.url)
         updateSecurityIcon(tab)
         updateBookmarkStar(tab)
-        pageProgress.visibility = if (tab.isLoading) View.VISIBLE else View.GONE
-        pageProgress.progress = tab.progress
+        pageProgress.setProgressCompat(tab.progress, false)
+        if (tab.isLoading) pageProgress.show() else pageProgress.hide()
         webViewSwipeRefresh.isRefreshing = false
         val url = tab.url
         if (url != null) checkPageForLinks(url) else clearDetectedLink()
@@ -723,7 +732,7 @@ class BrowserFragment : Fragment() {
         urlInput.setText("")
         siteSecurityIcon.visibility = View.GONE
         bookmarkStarButton.visibility = View.GONE
-        pageProgress.visibility = View.GONE
+        pageProgress.hide()
         webViewSwipeRefresh.isRefreshing = false
         hideSuggestions()
         clearDetectedLink()
@@ -1091,7 +1100,6 @@ class BrowserFragment : Fragment() {
             .setMessage(getString(R.string.download_confirm_message, guessedName))
             .setPositiveButton(R.string.action_add_to_downloads) { _, _ ->
                 (activity as? Callbacks)?.triggerPrepare(listOf(url))
-                Toast.makeText(requireContext(), R.string.link_found_toast, Toast.LENGTH_LONG).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -1133,7 +1141,6 @@ class BrowserFragment : Fragment() {
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return
         (activity as? Callbacks)?.triggerPrepare(listOf(link))
-        Toast.makeText(requireContext(), R.string.link_found_toast, Toast.LENGTH_LONG).show()
         clearDetectedLink()
     }
 

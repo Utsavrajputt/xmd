@@ -512,17 +512,42 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     /**
      * Downloads kick off in the background with no screen change, so without
      * this the user has no confirmation anything happened. Mirrors the
-     * "Starting download… VIEW" pattern from stock browsers: a brief
-     * Snackbar with a VIEW action that jumps straight to the Downloads tab.
+     * "Starting download… VIEW" pattern from stock browsers, but as a
+     * rounded, floating M3 card (Widget.Xmd.Snackbar shape/theme) instead
+     * of the stock flat full-width bar: hugs its text instead of stretching
+     * edge-to-edge, and sits clear of the bottom nav.
+     *
+     * fragmentContainer is a CoordinatorLayout (not a plain FrameLayout)
+     * specifically so Snackbar.make() finds it while walking up the view
+     * tree — otherwise Material falls back to the Activity's root content
+     * view, which spans behind the bottom nav and produces a full-width bar
+     * that overlaps it. With a real CoordinatorLayout anchor, the bar is
+     * naturally confined above the nav with no manual bottom-margin hack
+     * needed. Used for every download entry point — direct links,
+     * torrents/magnets, FuckingFast, and in-app browser — since they all
+     * funnel through this one helper.
      */
     private fun showDownloadStartedSnackbar() {
-        Snackbar.make(
+        val snackbar = Snackbar.make(
             findViewById(R.id.fragmentContainer),
             R.string.download_started_toast,
             Snackbar.LENGTH_LONG
         ).setAction(R.string.action_view) {
             findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_downloads
-        }.show()
+        }
+
+        val sideMargin = (16 * resources.displayMetrics.density).toInt()
+        val bottomGap = (16 * resources.displayMetrics.density).toInt()
+        val snackbarView = snackbar.view
+        (snackbarView.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.let { params ->
+            params.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            params.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+            params.setMargins(sideMargin, params.topMargin, sideMargin, bottomGap)
+            snackbarView.layoutParams = params
+        }
+        snackbarView.elevation = 6 * resources.displayMetrics.density
+
+        snackbar.show()
     }
 
     // ── BrowserFragment.Callbacks ───────────────────────────────────────────
@@ -662,6 +687,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             resolveOne(refreshed)
         } else {
             DownloadService.start(this@MainActivity)
+            showDownloadStartedSnackbar()
         }
     }
 
@@ -715,6 +741,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             // generated links, etc.) got stuck on "Ready to download" while
             // share links (which do call this) downloaded fine.
             DownloadService.start(this@MainActivity)
+            showDownloadStartedSnackbar()
             return
         }
         if (!LinkParser.isShareLink(item.sourceUrl)) {
@@ -745,6 +772,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             // to claim it. Re-poking the service tops workers back up to the configured
             // max so a newly-resolved link starts downloading right away.
             DownloadService.start(this@MainActivity)
+            showDownloadStartedSnackbar()
         } else {
             QueueRepository.update(item.id) {
                 it.copy(status = ItemStatus.FAILED, error = error ?: "Could not resolve link")

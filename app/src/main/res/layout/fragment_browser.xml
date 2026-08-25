@@ -15,6 +15,13 @@
              tabs, and overflow. Floats slightly off the edges with its own
              rounded surface + elevation (rather than a flat bar flush with
              the screen edges) for the Expressive "floating toolbar" look. -->
+        <!-- Wraps just the address bar card so the progress line below can
+             overlay its bottom edge (layout_gravity="bottom") rather than
+             sitting in a separate row with a gap underneath it. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -156,14 +163,28 @@
         </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <ProgressBar
-            android:id="@+id/pageProgress"
-            style="@style/Widget.Xmd.ProgressIndicator"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:max="100"
-            android:progressTint="?attr/colorPrimary"
-            android:visibility="gone" />
+            <!-- Chrome-style thin progress line, sitting right on the
+                 address bar card's own bottom edge (same 8dp margins as the
+                 card so it spans the same width). Track is transparent so
+                 only the moving indicator line shows on top of the card's
+                 surface; hide() fades it out instantly once loading ends. -->
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/pageProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                app:trackThickness="2dp"
+                app:trackCornerRadius="1dp"
+                app:trackColor="@android:color/transparent"
+                app:indicatorColor="?attr/colorPrimary"
+                app:showDelay="0"
+                app:hideAnimationBehavior="outward"
+                app:showAnimationBehavior="inward"
+                android:visibility="gone" />
+        </FrameLayout>
 
         <!-- Content area: WebView underneath, speed-dial shown on top for new tab -->
         <FrameLayout
