@@ -14,7 +14,7 @@
 
         <!-- Plain TextView instead of Toolbar's built-in title (set via
              supportActionBar?.title) so the dark/light toggle tap target is
-             just the header text itself, not the whole bar -- the built-in
+             just the header text itself, not the whole bar: the built-in
              title renders as an internal view Toolbar doesn't expose, so a
              click listener could only ever be attached to the Toolbar as a
              whole. This TextView is directly clickable/sized instead. -->
