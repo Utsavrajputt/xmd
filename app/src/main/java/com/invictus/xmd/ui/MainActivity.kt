@@ -447,6 +447,10 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         showDownloadStartedSnackbar()
     }
 
+    override fun openDownloadsTab() {
+        bottomNav.selectedItemId = R.id.nav_downloads
+    }
+
     override fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
         val (youtubeLines, otherLines) = lines.partition { LinkParser.isYoutubeLink(it) }

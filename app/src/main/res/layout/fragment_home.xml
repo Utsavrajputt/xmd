@@ -192,13 +192,20 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Quick stats pill (shows when downloads are active) -->
+            <!-- Quick stats pill (shows when downloads are active). Tappable
+                 (see HomeFragment): foreground ripple instead of changing
+                 the background so the pill's shape/color from
+                 Widget.Xmd.StatusPill is untouched, just gets tap feedback
+                 layered on top. -->
             <TextView
                 android:id="@+id/quickStats"
                 style="@style/Widget.Xmd.StatusPill"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
+                android:foreground="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
                 android:visibility="gone" />
 
             <!-- Empty hint -->

@@ -38,6 +38,7 @@ class HomeFragment : Fragment() {
         fun triggerDownloadDirect(lines: List<String>)
         fun triggerDownloadTorrentFile(uri: Uri, displayName: String?)
         fun triggerDownloadTorrentMagnet(link: String, name: String?, customSaveDirPath: String?)
+        fun openDownloadsTab()
     }
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -113,9 +114,13 @@ class HomeFragment : Fragment() {
         updateButtonState()
 
         // Quick stats: show when downloads are active so the user knows to
-        // switch to the Downloads tab.
+        // switch to the Downloads tab. Tappable -- jumps straight to the
+        // Downloads tab instead of making the user tap the bottom nav item
+        // themselves after already seeing the counts here.
+        val statsView = view.findViewById<TextView>(R.id.quickStats)
+        statsView.setOnClickListener { (activity as? Callbacks)?.openDownloadsTab() }
+
         QueueRepository.items.observe(viewLifecycleOwner) { list ->
-            val statsView = view.findViewById<TextView>(R.id.quickStats)
             val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
             val paused = list.count { it.status == ItemStatus.PAUSED }
             val done = list.count { it.status == ItemStatus.DONE }
