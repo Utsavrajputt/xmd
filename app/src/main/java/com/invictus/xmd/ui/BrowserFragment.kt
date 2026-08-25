@@ -189,10 +189,12 @@ class BrowserFragment : Fragment() {
         if (mode == Settings.DnsMode.OFF) {
             return null
         }
-        val dohUrl = if (mode == Settings.DnsMode.CUSTOM) {
-            Settings.dnsCustomUrl().ifBlank { DnsOverHttpsResolver.ADGUARD_DOH_URL }
-        } else {
-            DnsOverHttpsResolver.ADGUARD_DOH_URL
+        val dohUrl = when (mode) {
+            Settings.DnsMode.CUSTOM -> Settings.dnsCustomUrl().ifBlank { DnsOverHttpsResolver.ADGUARD_DOH_URL }
+            Settings.DnsMode.GOOGLE -> DnsOverHttpsResolver.GOOGLE_DOH_URL
+            Settings.DnsMode.CLOUDFLARE -> DnsOverHttpsResolver.CLOUDFLARE_DOH_URL
+            Settings.DnsMode.CLOUDFLARE_ADBLOCK -> DnsOverHttpsResolver.CLOUDFLARE_ADBLOCK_DOH_URL
+            else -> DnsOverHttpsResolver.ADGUARD_DOH_URL
         }
         val signature = "$mode:$dohUrl"
         if (signature == dohClientSignature) return dohClient

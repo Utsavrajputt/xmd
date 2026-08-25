@@ -24,6 +24,27 @@
             android:text="@string/dns_mode_adguard" />
 
         <RadioButton
+            android:id="@+id/dnsOptionGoogle"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_google" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionCloudflare"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_cloudflare" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionCloudflareAdblock"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_cloudflare_adblock" />
+
+        <RadioButton
             android:id="@+id/dnsOptionOff"
             style="@style/Widget.Xmd.RadioRow"
             android:layout_width="match_parent"

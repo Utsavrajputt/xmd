@@ -27,6 +27,12 @@ class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
 
     companion object {
         const val ADGUARD_DOH_URL = "https://dns.adguard.com"
+        const val GOOGLE_DOH_URL = "https://dns.google/resolve"
+        // Cloudflare's plain resolver (1.1.1.1) -- no filtering, matches Google/AdGuard's role here.
+        const val CLOUDFLARE_DOH_URL = "https://cloudflare-dns.com/dns-query"
+        // Cloudflare's malware+ad blocking resolver (1.1.1.2) -- separate hostname per
+        // Cloudflare's docs, not a query param on the plain endpoint.
+        const val CLOUDFLARE_ADBLOCK_DOH_URL = "https://security.cloudflare-dns.com/dns-query"
     }
 
     // Separate, short-timeout client for the DoH lookups themselves --

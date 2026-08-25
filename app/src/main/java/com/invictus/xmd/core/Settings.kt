@@ -73,16 +73,22 @@ object Settings {
     }
 
     // ── Browser: Private DNS (DNS-over-HTTPS for in-app browsing only) ────
-    enum class DnsMode { ADGUARD, OFF, CUSTOM }
+    enum class DnsMode { ADGUARD, GOOGLE, CLOUDFLARE, CLOUDFLARE_ADBLOCK, OFF, CUSTOM }
 
     private const val KEY_DNS_MODE = "browser_dns_mode"
     private const val KEY_DNS_CUSTOM_URL = "browser_dns_custom_url"
 
+    // Defaults to OFF (system DNS) -- previously defaulted to ADGUARD, which
+    // silently routed every in-app browsing request through a third-party DoH
+    // resolver on first launch with no explicit opt-in from the user.
     fun dnsMode(): DnsMode =
-        when (prefs.getString(KEY_DNS_MODE, DnsMode.ADGUARD.name)) {
-            DnsMode.OFF.name -> DnsMode.OFF
+        when (prefs.getString(KEY_DNS_MODE, DnsMode.OFF.name)) {
+            DnsMode.ADGUARD.name -> DnsMode.ADGUARD
+            DnsMode.GOOGLE.name -> DnsMode.GOOGLE
+            DnsMode.CLOUDFLARE.name -> DnsMode.CLOUDFLARE
+            DnsMode.CLOUDFLARE_ADBLOCK.name -> DnsMode.CLOUDFLARE_ADBLOCK
             DnsMode.CUSTOM.name -> DnsMode.CUSTOM
-            else -> DnsMode.ADGUARD
+            else -> DnsMode.OFF
         }
 
     fun setDnsMode(value: DnsMode) {

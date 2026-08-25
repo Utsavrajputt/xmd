@@ -578,6 +578,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val dialogView = layoutInflater.inflate(R.layout.dialog_dns_settings, null)
         val group = dialogView.findViewById<RadioGroup>(R.id.dnsModeGroup)
         val optionAdguard = dialogView.findViewById<RadioButton>(R.id.dnsOptionAdguard)
+        val optionGoogle = dialogView.findViewById<RadioButton>(R.id.dnsOptionGoogle)
+        val optionCloudflare = dialogView.findViewById<RadioButton>(R.id.dnsOptionCloudflare)
+        val optionCloudflareAdblock = dialogView.findViewById<RadioButton>(R.id.dnsOptionCloudflareAdblock)
         val optionOff = dialogView.findViewById<RadioButton>(R.id.dnsOptionOff)
         val optionCustom = dialogView.findViewById<RadioButton>(R.id.dnsOptionCustom)
         val customUrlInput = dialogView.findViewById<EditText>(R.id.dnsCustomUrlInput)
@@ -585,6 +588,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         when (Settings.dnsMode()) {
             Settings.DnsMode.ADGUARD -> optionAdguard.isChecked = true
+            Settings.DnsMode.GOOGLE -> optionGoogle.isChecked = true
+            Settings.DnsMode.CLOUDFLARE -> optionCloudflare.isChecked = true
+            Settings.DnsMode.CLOUDFLARE_ADBLOCK -> optionCloudflareAdblock.isChecked = true
             Settings.DnsMode.OFF -> optionOff.isChecked = true
             Settings.DnsMode.CUSTOM -> optionCustom.isChecked = true
         }
@@ -602,6 +608,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             .setPositiveButton(R.string.settings_save) { _, _ ->
                 when (group.checkedRadioButtonId) {
                     R.id.dnsOptionOff -> Settings.setDnsMode(Settings.DnsMode.OFF)
+                    R.id.dnsOptionGoogle -> Settings.setDnsMode(Settings.DnsMode.GOOGLE)
+                    R.id.dnsOptionCloudflare -> Settings.setDnsMode(Settings.DnsMode.CLOUDFLARE)
+                    R.id.dnsOptionCloudflareAdblock -> Settings.setDnsMode(Settings.DnsMode.CLOUDFLARE_ADBLOCK)
                     R.id.dnsOptionCustom -> {
                         val url = customUrlInput.text?.toString()?.trim().orEmpty()
                         if (url.isEmpty() || !(url.startsWith("http://") || url.startsWith("https://"))) {

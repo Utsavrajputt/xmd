@@ -137,8 +137,11 @@
 
     <!-- DNS -->
     <string name="dns_settings_title">Private DNS</string>
-    <string name="dns_mode_adguard">AdGuard (Default)</string>
-    <string name="dns_mode_off">Off</string>
+    <string name="dns_mode_adguard">AdGuard</string>
+    <string name="dns_mode_google">Google DNS</string>
+    <string name="dns_mode_cloudflare">Cloudflare</string>
+    <string name="dns_mode_cloudflare_adblock">Cloudflare (Ad Block)</string>
+    <string name="dns_mode_off">Off (Default)</string>
     <string name="dns_mode_custom">Custom</string>
     <string name="dns_custom_url_hint">DNS-over-HTTPS URL (e.g. https://dns.example.com/dns-query)</string>
     <string name="dns_custom_url_needed">Enter a valid DNS-over-HTTPS URL.</string>
