@@ -158,13 +158,23 @@ class QueueAdapter(
         }
 
         // ── Action buttons ────────────────────────────────────────────────
+        // PENDING/RESOLVING/NEEDS_CHALLENGE included so a queued-but-not-yet-
+        // downloading item still gets a Cancel (previously only Retry/Open/
+        // Clear states got any buttons at all, leaving Queued items with no
+        // way to back out short of clearing the whole queue).
         val showActions = item.status == ItemStatus.DOWNLOADING || item.status == ItemStatus.PAUSED ||
-            item.status == ItemStatus.RETRYING || item.status == ItemStatus.READY
+            item.status == ItemStatus.RETRYING || item.status == ItemStatus.READY ||
+            item.status == ItemStatus.PENDING || item.status == ItemStatus.RESOLVING ||
+            item.status == ItemStatus.NEEDS_CHALLENGE
         holder.actions.visibility = if (showActions) View.VISIBLE else View.GONE
         // No live connection to pause during an auto-retry backoff wait -- only Cancel
         // applies. yt-dlp also has no native pause, so a downloading YouTube item only
         // gets Cancel too (READY still shows "Start", which works the same for both).
+        // Queued/resolving/challenge items have nothing running yet either -- Pause
+        // has no meaning there, only Cancel does.
         val hidePauseResume = item.status == ItemStatus.RETRYING ||
+            item.status == ItemStatus.PENDING || item.status == ItemStatus.RESOLVING ||
+            item.status == ItemStatus.NEEDS_CHALLENGE ||
             (item.platform == MediaPlatform.YOUTUBE && item.status == ItemStatus.DOWNLOADING)
         holder.pauseResume.visibility = if (hidePauseResume) View.GONE else View.VISIBLE
         holder.pauseResume.text = when (item.status) {
@@ -181,8 +191,12 @@ class QueueAdapter(
         holder.cancel.setOnClickListener { onCancel(item) }
 
         // ── Retry / Open / Clear (FAILED gets Retry, DONE gets Open, all three get Clear) ──
+        // PENDING/RESOLVING/NEEDS_CHALLENGE get this row too (Clear only, via the
+        // same visibility rules below) so a queued item can be removed outright
+        // instead of only cancellable-into-FAILED via the row above.
         val showSecondary = item.status == ItemStatus.FAILED || item.status == ItemStatus.DONE ||
-            item.status == ItemStatus.READY
+            item.status == ItemStatus.READY || item.status == ItemStatus.PENDING ||
+            item.status == ItemStatus.RESOLVING || item.status == ItemStatus.NEEDS_CHALLENGE
         holder.secondaryActions.visibility = if (showSecondary) View.VISIBLE else View.GONE
         holder.retry.visibility = if (item.status == ItemStatus.FAILED) View.VISIBLE else View.GONE
         holder.retry.setOnClickListener { onRetry(item) }

@@ -505,6 +505,24 @@ class DownloadService : LifecycleService() {
                 // very same in-flight connection. Only a genuine Cancel throws, ending this coroutine.
                 engine.downloadAuto(directUrl, tempFile)
 
+                // downloadAuto can return normally without throwing even when the
+                // server truncates the stream early (connection reset mid-body,
+                // proxy cuts off, etc. -- read() just returns -1 sooner than
+                // expected, which looks identical to a clean EOF from here). Without
+                // this check that half-downloaded temp file gets happily moved to
+                // public storage and marked DONE, showing a "completed" file the
+                // user can't actually play/open in full. Verify against the known
+                // total (from Content-Length/Range probe, tracked via bytesTotal) —
+                // when the size was unknown up front (bytesTotal still 0) fall back
+                // to just requiring a non-empty file.
+                val knownTotal = QueueRepository.current().firstOrNull { it.id == itemId }?.bytesTotal ?: 0L
+                val actualSize = tempFile.length()
+                if (!tempFile.isFile || actualSize == 0L || (knownTotal > 0 && actualSize < knownTotal)) {
+                    tempFile.delete()
+                    throw RuntimeException("Incomplete download (got ${actualSize}B" +
+                        (if (knownTotal > 0) " of ${knownTotal}B" else "") + ")")
+                }
+
                 QueueRepository.update(itemId) { it.copy(status = ItemStatus.SAVING) }
                 withContext(Dispatchers.IO) { moveToPublicStorage(tempFile, finalFile) }
                 destinationFile = finalFile
