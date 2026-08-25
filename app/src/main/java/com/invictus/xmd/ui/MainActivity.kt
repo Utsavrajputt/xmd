@@ -838,7 +838,16 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
 
         val options = YtDlpManager.standardQualityOptions()
-        val chosen = suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
+
+        // A saved default (anything other than blank/"Ask always") skips
+        // the picker dialog entirely and downloads at that quality
+        // directly -- matched back to its QualityOption by label, same
+        // list the dialog itself is built from so the two never drift.
+        val savedLabel = Settings.ytDlpDefaultQualityLabel()
+        val chosen = if (savedLabel.isNotBlank()) {
+            options.firstOrNull { it.label == savedLabel }
+        } else {
+            suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
             val dialogView = layoutInflater.inflate(R.layout.dialog_quality_picker, null)
             val group = dialogView.findViewById<RadioGroup>(R.id.qualityGroup)
 
@@ -892,6 +901,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 .create()
             cont.invokeOnCancellation { dialog.dismiss() }
             dialog.show()
+            }
         }
 
         if (chosen == null) {
@@ -996,6 +1006,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val ytdlpButton     = view.findViewById<android.widget.Button>(R.id.ytdlpActionButton)
         val ytdlpUpdateButton  = view.findViewById<android.widget.Button>(R.id.ytdlpUpdateButton)
         val ytdlpNightlyButton = view.findViewById<android.widget.Button>(R.id.ytdlpNightlyButton)
+        val defaultQualityDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.defaultQualityDropdown)
 
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             // Lite build has no YtDlpManager to back this section with --
@@ -1003,6 +1014,20 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             ytdlpDivider.visibility = android.view.View.GONE
             ytdlpSection.visibility = android.view.View.GONE
         } else {
+            // "Ask always" (blank stored value) first, then one entry per
+            // standardQualityOptions() label in the same order as the
+            // picker dialog itself so the two stay visually consistent.
+            val qualityLabels = listOf(getString(R.string.quality_ask_always)) +
+                YtDlpManager.standardQualityOptions().map { it.label }
+            defaultQualityDropdown.setAdapter(
+                android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, qualityLabels)
+            )
+            val savedLabel = Settings.ytDlpDefaultQualityLabel()
+            defaultQualityDropdown.setText(
+                savedLabel.ifBlank { getString(R.string.quality_ask_always) },
+                false
+            )
+
             fun refreshYtDlpRow() {
                 val installed = YtDlpManager.isInstalled(this)
                 ytdlpStatus.text = if (installed) {
@@ -1130,6 +1155,11 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 Settings.setMaxConcurrentDownloads(concurrentInput.text?.toString()?.toIntOrNull() ?: 2)
                 Settings.setAutoRetryEnabled(autoRetrySwitch.isChecked)
                 Settings.setSaveToDownloadsFolder(saveToDownloadsSwitch.isChecked)
+                if (BuildConfig.HAS_YOUTUBE_SUPPORT) {
+                    val chosenLabel = defaultQualityDropdown.text?.toString().orEmpty()
+                    val askAlways = getString(R.string.quality_ask_always)
+                    Settings.setYtDlpDefaultQualityLabel(if (chosenLabel == askAlways) "" else chosenLabel)
+                }
                 Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)

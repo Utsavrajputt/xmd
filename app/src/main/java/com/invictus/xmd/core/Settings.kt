@@ -128,4 +128,17 @@ object Settings {
     fun setYtDlpUseNightly(value: Boolean) {
         prefs.edit().putBoolean(KEY_YTDLP_NIGHTLY, value).apply()
     }
+
+    // ── YouTube default quality ─────────────────────────────────────────
+    // Blank (the default) means "Ask always" -- resolveYoutube shows the
+    // quality picker dialog on every download. Any other value is the
+    // exact label of a YtDlpManager.standardQualityOptions() entry (e.g.
+    // "1080p", "Audio only (MP3)"), matched back to its QualityOption by
+    // label at resolve time, skipping the dialog.
+    private const val KEY_YTDLP_DEFAULT_QUALITY = "ytdlp_default_quality_label"
+
+    fun ytDlpDefaultQualityLabel(): String = prefs.getString(KEY_YTDLP_DEFAULT_QUALITY, "").orEmpty()
+    fun setYtDlpDefaultQualityLabel(label: String) {
+        prefs.edit().putString(KEY_YTDLP_DEFAULT_QUALITY, label).apply()
+    }
 }

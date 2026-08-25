@@ -79,6 +79,9 @@
     <string name="settings_save_to_downloads_hint">Save files directly to the Downloads folder instead of the app folder.</string>
     <string name="settings_ytdlp_title">YouTube downloader (yt-dlp)</string>
     <string name="settings_ytdlp_hint">Required for YouTube downloads. Adds on-device storage once installed.</string>
+    <string name="settings_default_quality">Default quality</string>
+    <string name="settings_default_quality_hint">"Ask always" shows the quality picker on every YouTube download. Picking a fixed quality skips it and downloads at that quality directly.</string>
+    <string name="quality_ask_always">Ask always</string>
     <string name="settings_ytdlp_install">Install</string>
     <string name="settings_ytdlp_delete">Delete</string>
     <string name="settings_ytdlp_installing">Installing…</string>
