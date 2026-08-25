@@ -10,7 +10,26 @@
         android:id="@+id/toolbar"
         style="@style/Widget.Xmd.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize" />
+        android:layout_height="?attr/actionBarSize">
+
+        <!-- Plain TextView instead of Toolbar's built-in title (set via
+             supportActionBar?.title) so the dark/light toggle tap target is
+             just the header text itself, not the whole bar -- the built-in
+             title renders as an internal view Toolbar doesn't expose, so a
+             click listener could only ever be attached to the Toolbar as a
+             whole. This TextView is directly clickable/sized instead. -->
+        <TextView
+            android:id="@+id/toolbarTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Xmd.TitleLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="20sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:paddingHorizontal="4dp" />
+    </androidx.appcompat.widget.Toolbar>
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:id="@+id/fragmentContainer"

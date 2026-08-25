@@ -8,4 +8,7 @@
     <item
         android:id="@+id/menu_history"
         android:title="@string/browser_menu_history" />
+    <item
+        android:id="@+id/menu_settings"
+        android:title="@string/menu_settings" />
 </menu>

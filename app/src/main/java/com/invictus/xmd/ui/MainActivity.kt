@@ -15,6 +15,7 @@ import android.view.MotionEvent
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +56,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    private lateinit var toolbarTitle: TextView
 
     // ── Swipe-to-switch-tabs (bottom nav) ───────────────────────────────
     // Was previously wired into the Browser fragment's WebView (switching
@@ -187,7 +189,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
         toolbar.visibility = android.view.View.VISIBLE
         val downloadsVisible = fm.findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
-        supportActionBar?.title = if (downloadsVisible) "Downloads" else getString(R.string.app_header_title)
+        toolbarTitle.text = if (downloadsVisible) "Downloads" else getString(R.string.app_header_title)
     }
 
     // ── onCreate ──────────────────────────────────────────────────────────
@@ -202,13 +204,16 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         this.toolbar = toolbar
         setSupportActionBar(toolbar)
-        supportActionBar?.title = getString(R.string.app_header_title)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        // Tap the header to flip dark/light mode for whichever color theme
-        // is active. The Toolbar's title isn't a separately clickable view,
-        // so a plain OnClickListener on the Toolbar itself already catches
-        // taps anywhere across it (including over the title text).
-        toolbar.setOnClickListener { toggleDarkMode() }
+        // Tap the header text (not the whole bar) to flip dark/light mode for
+        // whichever color theme is active -- toolbarTitle is a real TextView
+        // now instead of Toolbar's built-in title, so it's directly clickable
+        // on its own without catching taps anywhere else across the bar.
+        val toolbarTitle = findViewById<TextView>(R.id.toolbarTitle)
+        this.toolbarTitle = toolbarTitle
+        toolbarTitle.text = getString(R.string.app_header_title)
+        toolbarTitle.setOnClickListener { toggleDarkMode() }
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
@@ -238,7 +243,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.nav_home -> {
                     showFragment(TAG_HOME)
                     toolbar.visibility = android.view.View.VISIBLE
-                    supportActionBar?.title = getString(R.string.app_header_title)
+                    toolbarTitle.text = getString(R.string.app_header_title)
                 }
                 R.id.nav_browser -> {
                     showFragment(TAG_BROWSER)
@@ -250,7 +255,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.nav_downloads -> {
                     showFragment(TAG_DOWNLOADS)
                     toolbar.visibility = android.view.View.VISIBLE
-                    supportActionBar?.title = "Downloads"
+                    toolbarTitle.text = "Downloads"
                 }
             }
             true
@@ -564,6 +569,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.menu_refresh -> { reloadBrowserTab(); true }
                 R.id.menu_private_dns -> { showDnsSettingsDialog(); true }
                 R.id.menu_history -> { openHistoryScreen(); true }
+                R.id.menu_settings -> { showSettingsDialog(); true }
                 else -> false
             }
         }
