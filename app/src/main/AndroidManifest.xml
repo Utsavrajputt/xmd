@@ -82,7 +82,7 @@
              Player > External downloads hook, without bringing MainActivity
              to the foreground. See ShareReceiverActivity's kdoc.
              taskAffinity="" + excludeFromRecents keeps it out of the
-             caller's own back stack/task entirely -- it opens its own
+             caller's own back stack/task entirely — it opens its own
              throwaway task, shows a sheet, and finishes. -->
         <activity
             android:name=".ui.ShareReceiverActivity"

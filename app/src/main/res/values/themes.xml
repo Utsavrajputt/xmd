@@ -671,9 +671,9 @@
 
     <!-- ==============================================================
          ShareReceiverActivity's theme: a fully transparent, no-animation
-         host for a BottomSheetDialog. The activity itself is never seen --
+         host for a BottomSheetDialog. The activity itself is never seen —
          it exists only to receive the SEND intent and immediately show a
-         sheet -- so the calling app (YouTube/Morphe, a browser, ...) stays
+         sheet — so the calling app (YouTube/Morphe, a browser, ...) stays
          visible underneath instead of xmd's own MainActivity flashing up
          behind it. Extends Theme.Xmd (not LightBase) so M3 color roles /
          component styles (the sheet's buttons, radio rows) still resolve
