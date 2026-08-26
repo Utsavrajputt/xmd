@@ -79,6 +79,9 @@
     <string name="settings_save_to_downloads_hint">Save files directly to the Downloads folder instead of the app folder.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
+    <string name="sniffed_media_title">Videos &amp; audio found on this page</string>
+    <string name="sniffed_media_chip_one">🎬 1 video</string>
+    <string name="sniffed_media_chip_many">🎬 %d videos</string>
     <string name="settings_ytdlp_title">YouTube downloader (yt-dlp)</string>
     <string name="settings_ytdlp_hint">Required for YouTube downloads. Adds on-device storage once installed.</string>
     <string name="settings_default_quality">Default quality</string>
