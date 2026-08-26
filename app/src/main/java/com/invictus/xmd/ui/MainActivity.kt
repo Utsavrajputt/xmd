@@ -580,6 +580,19 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         popup.show()
     }
 
+    override fun triggerSniffedMedia(url: String, needsPicker: Boolean) {
+        QueueRepository.setLinks(listOf(url))
+        val item = QueueRepository.current().firstOrNull { it.sourceUrl == url } ?: return
+        if (needsPicker) {
+            QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+            lifecycleScope.launch { resolveYoutube(item) }
+        } else {
+            QueueRepository.update(item.id) { it.copy(directUrl = url, status = ItemStatus.READY) }
+            DownloadService.start(this)
+            showDownloadStartedSnackbar()
+        }
+    }
+
     private fun reloadBrowserTab() {
         (supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment)?.reloadActiveTab()
     }
