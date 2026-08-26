@@ -12,6 +12,10 @@ import android.view.GestureDetector
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -31,6 +35,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.core.BookmarkRepository
+import com.invictus.xmd.core.DnsOverHttpsResolver
 import com.invictus.xmd.core.DownloadCategory
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.LinkParser
@@ -597,6 +602,26 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         (supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment)?.reloadActiveTab()
     }
 
+    /** Builds a two-line radio-row label: the provider name on top and its
+     *  DoH address underneath in a smaller, dimmer style (mirrors Android's
+     *  own Private DNS picker, which shows the resolved host under each option). */
+    private fun labelWithAddress(title: String, address: String): SpannableString {
+        val full = "$title\n$address"
+        val spannable = SpannableString(full)
+        val addressStart = title.length + 1
+        spannable.setSpan(
+            RelativeSizeSpan(0.8f),
+            addressStart, full.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        spannable.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(this, R.color.m3_on_surface_variant)),
+            addressStart, full.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return spannable
+    }
+
     private fun showDnsSettingsDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_dns_settings, null)
         val group = dialogView.findViewById<RadioGroup>(R.id.dnsModeGroup)
@@ -608,6 +633,11 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val optionCustom = dialogView.findViewById<RadioButton>(R.id.dnsOptionCustom)
         val customUrlInput = dialogView.findViewById<EditText>(R.id.dnsCustomUrlInput)
         val customUrlLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.dnsCustomUrlLayout)
+
+        optionAdguard.text = labelWithAddress(getString(R.string.dns_mode_adguard), DnsOverHttpsResolver.ADGUARD_DOH_URL)
+        optionGoogle.text = labelWithAddress(getString(R.string.dns_mode_google), DnsOverHttpsResolver.GOOGLE_DOH_URL)
+        optionCloudflare.text = labelWithAddress(getString(R.string.dns_mode_cloudflare), DnsOverHttpsResolver.CLOUDFLARE_DOH_URL)
+        optionCloudflareAdblock.text = labelWithAddress(getString(R.string.dns_mode_cloudflare_adblock), DnsOverHttpsResolver.CLOUDFLARE_ADBLOCK_DOH_URL)
 
         when (Settings.dnsMode()) {
             Settings.DnsMode.ADGUARD -> optionAdguard.isChecked = true
