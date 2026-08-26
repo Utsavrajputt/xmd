@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Bottom-sheet content for BrowserFragment's "N videos found" chip --
+     Bottom-sheet content for BrowserFragment's "N videos found" chip:
      lists every stream MediaSniffer has picked up on the current tab. Each
      row is a plain clickable item (not a RadioGroup like
      sheet_share_quality.xml) since tapping one acts immediately instead of
