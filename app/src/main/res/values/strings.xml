@@ -77,6 +77,8 @@
     <string name="settings_auto_retry_hint">Retries up to 3 times automatically if the connection times out or drops. Expired links still require a manual retry.</string>
     <string name="settings_save_to_downloads">Save to Downloads Folder</string>
     <string name="settings_save_to_downloads_hint">Save files directly to the Downloads folder instead of the app folder.</string>
+    <string name="settings_wifi_only">Download on Wi-Fi Only</string>
+    <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
     <string name="settings_ytdlp_title">YouTube downloader (yt-dlp)</string>
     <string name="settings_ytdlp_hint">Required for YouTube downloads. Adds on-device storage once installed.</string>
     <string name="settings_default_quality">Default quality</string>

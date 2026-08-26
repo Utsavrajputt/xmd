@@ -998,6 +998,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val darkModeSwitch  = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.darkModeSwitch)
         val autoRetrySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.autoRetrySwitch)
         val saveToDownloadsSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.saveToDownloadsSwitch)
+        val wifiOnlySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.wifiOnlySwitch)
         val importWebsitesButton = view.findViewById<MaterialButton>(R.id.importWebsitesButton)
         val ytdlpDivider    = view.findViewById<android.view.View>(R.id.ytdlpDivider)
         val ytdlpSection    = view.findViewById<android.view.View>(R.id.ytdlpSection)
@@ -1130,6 +1131,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         concurrentInput.setText(Settings.maxConcurrentDownloads().toString())
         autoRetrySwitch.isChecked = Settings.autoRetryEnabled()
         saveToDownloadsSwitch.isChecked = Settings.saveToDownloadsFolder()
+        wifiOnlySwitch.isChecked = Settings.wifiOnlyDownloads()
 
         // Applies immediately (like the color swatches above it) instead of
         // waiting for Save, since flipping it needs a recreate() anyway --
@@ -1155,6 +1157,15 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 Settings.setMaxConcurrentDownloads(concurrentInput.text?.toString()?.toIntOrNull() ?: 2)
                 Settings.setAutoRetryEnabled(autoRetrySwitch.isChecked)
                 Settings.setSaveToDownloadsFolder(saveToDownloadsSwitch.isChecked)
+                val wifiOnlyJustEnabled = wifiOnlySwitch.isChecked && !Settings.wifiOnlyDownloads()
+                Settings.setWifiOnlyDownloads(wifiOnlySwitch.isChecked)
+                if (wifiOnlyJustEnabled && !com.invictus.xmd.core.NetworkMonitor.isOnWifi(this)) {
+                    // Turned ON while already on cellular -- the setting only
+                    // reacts to a live network *transition* otherwise, so
+                    // without this any download already in flight would keep
+                    // running on cellular until the next Wi-Fi drop/regain.
+                    DownloadService.pauseForWifiOnly(this)
+                }
                 if (BuildConfig.HAS_YOUTUBE_SUPPORT) {
                     val chosenLabel = defaultQualityDropdown.text?.toString().orEmpty()
                     val askAlways = getString(R.string.quality_ask_always)

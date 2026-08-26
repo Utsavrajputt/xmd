@@ -18,6 +18,7 @@ import com.invictus.xmd.core.DownloadEngine
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.MediaPlatform
+import com.invictus.xmd.core.NetworkMonitor
 import com.invictus.xmd.core.QueueItem
 import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.core.Settings
@@ -52,6 +53,7 @@ class DownloadService : LifecycleService() {
         const val ACTION_RESUME_ITEM = "com.invictus.xmd.action.RESUME_ITEM"
         const val ACTION_CANCEL_ITEM = "com.invictus.xmd.action.CANCEL_ITEM"
         const val ACTION_CANCEL_ALL = "com.invictus.xmd.action.CANCEL_ALL"
+        const val ACTION_WIFI_ONLY_ENABLED = "com.invictus.xmd.action.WIFI_ONLY_ENABLED"
         const val EXTRA_ITEM_ID = "extra_item_id"
         private const val NOTIFICATION_ID = 42
         private const val BETWEEN_CLAIM_DELAY_MS = 500L
@@ -88,6 +90,13 @@ class DownloadService : LifecycleService() {
 
         fun cancelAll(context: Context) {
             context.startService(Intent(context, DownloadService::class.java).setAction(ACTION_CANCEL_ALL))
+        }
+
+        /** Called right after the Wi-Fi-only setting is flipped ON from
+         *  Settings while already on cellular -- see [onWifiLost] for the
+         *  actual pause logic, this just routes to it via the running service. */
+        fun pauseForWifiOnly(context: Context) {
+            context.startService(Intent(context, DownloadService::class.java).setAction(ACTION_WIFI_ONLY_ENABLED))
         }
     }
 
@@ -139,6 +148,85 @@ class DownloadService : LifecycleService() {
     // spawn a fresh worker for anything newly READY, even while other
     // downloads are still in flight.
     private val activeWorkers = java.util.concurrent.atomic.AtomicInteger(0)
+
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        networkCallback = NetworkMonitor.register(
+            context = this,
+            onWifiAvailable = { onWifiRegained() },
+            onWifiLost = { onWifiLost() }
+        )
+    }
+
+    override fun onDestroy() {
+        networkCallback?.let { NetworkMonitor.unregister(this, it) }
+        networkCallback = null
+        super.onDestroy()
+    }
+
+    /** Wi-Fi dropped (or vanished entirely) while Wi-Fi-only downloads is ON --
+     *  pause every live download in place, marking each with [Settings.WIFI_WAIT_MARKER]
+     *  so [onWifiRegained] knows to resume exactly these and nothing the user
+     *  paused by hand. YouTube has no native pause, so its items are cancelled
+     *  and routed back to READY instead -- same recovery path already used for
+     *  a dead engine in ACTION_RESUME_ITEM. */
+    private fun onWifiLost() {
+        if (!Settings.wifiOnlyDownloads()) return
+        val live = QueueRepository.current().filter { it.status == ItemStatus.DOWNLOADING }
+        live.forEach { item ->
+            if (item.platform == MediaPlatform.YOUTUBE) {
+                wifiWaitingYoutubeIds.add(item.id)
+                cancelledYoutubeIds.add(item.id)
+                YtDlpManager.cancel(item.id)
+            } else {
+                engines[item.id]?.pause()
+                torrentEngines[item.id]?.pause()
+                QueueRepository.update(item.id) {
+                    it.copy(status = ItemStatus.PAUSED, error = Settings.WIFI_WAIT_MARKER)
+                }
+            }
+        }
+        if (live.isNotEmpty()) updateNotification()
+    }
+
+    /** Wi-Fi is back (or Wi-Fi-only was never on) -- resume anything this
+     *  service auto-paused for it, and top workers back up so anything still
+     *  READY (or just re-queued from a cancelled YouTube item above) gets picked up. */
+    private fun onWifiRegained() {
+        val autoPaused = QueueRepository.current()
+            .filter { it.status == ItemStatus.PAUSED && it.error == Settings.WIFI_WAIT_MARKER }
+        autoPaused.forEach { item ->
+            val liveEngine = engines[item.id] != null || torrentEngines[item.id] != null
+            if (liveEngine) {
+                engines[item.id]?.resume()
+                torrentEngines[item.id]?.resume()
+                QueueRepository.update(item.id) { it.copy(status = ItemStatus.DOWNLOADING, error = null) }
+            } else {
+                // Process died while waiting -- same fallback as a dead-engine
+                // resume: back to READY so a fresh worker re-claims it and
+                // downloadOne()'s Range header picks up the partial file.
+                QueueRepository.update(item.id) { it.copy(status = ItemStatus.READY, error = null) }
+            }
+        }
+        // YouTube items: their cancel() call from onWifiLost() is async and
+        // lands in downloadYoutube()'s catch block, which handles the
+        // READY transition itself (see wifiWaitingYoutubeIds there) --
+        // nothing to requeue here, just make sure a worker exists to pick
+        // them up once that catch block runs.
+        val hadWifiWaitingYoutube = wifiWaitingYoutubeIds.isNotEmpty()
+        if (autoPaused.isNotEmpty() || hadWifiWaitingYoutube) {
+            startForeground(NOTIFICATION_ID, buildNotification())
+            topUpWorkers()
+            updateNotification()
+        }
+    }
+
+    /** YouTube item ids cancelled by [onWifiLost] specifically -- distinct
+     *  from [cancelledYoutubeIds] (which also covers a real user Cancel and
+     *  routes to FAILED) so these instead land back at READY once Wi-Fi returns. */
+    private val wifiWaitingYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
@@ -214,6 +302,7 @@ class DownloadService : LifecycleService() {
                 }
                 updateNotification()
             }
+            ACTION_WIFI_ONLY_ENABLED -> onWifiLost()
             ACTION_CANCEL_ALL -> {
                 engines.values.forEach { it.cancel() }
                 torrentEngines.values.forEach { it.cancel() }
@@ -256,6 +345,7 @@ class DownloadService : LifecycleService() {
 
     private suspend fun worker() {
         while (true) {
+            if (Settings.wifiOnlyDownloads() && !NetworkMonitor.isOnWifi(this)) break
             val item = QueueRepository.claimNextReady() ?: break
             when {
                 item.platform == MediaPlatform.YOUTUBE -> downloadYoutube(item)
@@ -340,16 +430,29 @@ class DownloadService : LifecycleService() {
             // YtDlpManager.install() -- the underlying library's native
             // binary invocation can surface as an Error subtype.
             val cancelled = cancelledYoutubeIds.remove(itemId)
+            val wifiWait = wifiWaitingYoutubeIds.remove(itemId)
             QueueRepository.update(itemId) {
-                it.copy(
-                    status = ItemStatus.FAILED,
-                    error = if (cancelled) "Cancelled" else (e.message ?: "YouTube download failed"),
-                    progressPercent = -1,
-                    mediaStatusText = null
-                )
+                when {
+                    // Cancelled specifically for Wi-Fi wait -- land on READY
+                    // (not FAILED) so a fresh worker re-claims it once Wi-Fi
+                    // is back, mirroring the non-YouTube pause path.
+                    wifiWait -> it.copy(
+                        status = ItemStatus.READY,
+                        error = null,
+                        progressPercent = -1,
+                        mediaStatusText = null
+                    )
+                    else -> it.copy(
+                        status = ItemStatus.FAILED,
+                        error = if (cancelled) "Cancelled" else (e.message ?: "YouTube download failed"),
+                        progressPercent = -1,
+                        mediaStatusText = null
+                    )
+                }
             }
         } finally {
             cancelledYoutubeIds.remove(itemId)
+            wifiWaitingYoutubeIds.remove(itemId)
             updateNotification()
         }
     }

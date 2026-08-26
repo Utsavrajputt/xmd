@@ -8,6 +8,13 @@ import com.invictus.xmd.ui.theme.AppTheme
  * Simple SharedPreferences-backed settings, initialized once from FfApp.
  */
 object Settings {
+    /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
+     *  by the Wi-Fi-only setting (DownloadService) rather than a manual
+     *  Pause -- shared so QueueAdapter can show a clearer label than the
+     *  generic "Paused" text, without DownloadService's pause logic and
+     *  QueueAdapter's display logic needing to know about each other. */
+    const val WIFI_WAIT_MARKER = "Waiting for Wi-Fi"
+
     private const val PREFS = "ff_settings"
     private const val KEY_CONNECTIONS = "connections_per_download"
     private const val KEY_APP_THEME = "app_theme"
@@ -16,6 +23,7 @@ object Settings {
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
     private const val KEY_SAVE_TO_DOWNLOADS = "save_to_downloads_folder"
+    private const val KEY_WIFI_ONLY = "wifi_only_downloads"
 
     private lateinit var prefs: SharedPreferences
 
@@ -70,6 +78,15 @@ object Settings {
     fun saveToDownloadsFolder(): Boolean = prefs.getBoolean(KEY_SAVE_TO_DOWNLOADS, false)
     fun setSaveToDownloadsFolder(value: Boolean) {
         prefs.edit().putBoolean(KEY_SAVE_TO_DOWNLOADS, value).apply()
+    }
+
+    /** When true, no download (HTTP, torrent, or YouTube) is allowed to start
+     *  or continue on cellular -- DownloadService pauses everything live the
+     *  moment Wi-Fi drops and resumes it automatically once Wi-Fi is back.
+     *  Default OFF. */
+    fun wifiOnlyDownloads(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
+    fun setWifiOnlyDownloads(value: Boolean) {
+        prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
     }
 
     // ── Browser: Private DNS (DNS-over-HTTPS for in-app browsing only) ────

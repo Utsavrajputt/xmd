@@ -13,6 +13,7 @@ import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.MediaPlatform
 import com.invictus.xmd.core.QueueItem
+import com.invictus.xmd.core.Settings
 
 class QueueAdapter(
     private val onPauseResume: (QueueItem) -> Unit,
@@ -78,7 +79,8 @@ class QueueAdapter(
                     val pct = if (item.bytesTotal > 0) (item.bytesDone * 100 / item.bytesTotal) else 0
                     "⬇  ${if (item.bytesTotal > 0) "$pct%" else "Downloading…"}"
                 }
-            }            ItemStatus.PAUSED           -> "⏸  Paused"
+            }            ItemStatus.PAUSED           ->
+                if (item.error == Settings.WIFI_WAIT_MARKER) "📶 Waiting for Wi-Fi" else "⏸  Paused"
             ItemStatus.RETRYING         -> "🔁 ${item.error ?: "Retrying…"}"
             ItemStatus.SAVING           -> "💾 Saving to storage…"
             ItemStatus.DONE             -> "✔  Done"
