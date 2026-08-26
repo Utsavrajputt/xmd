@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Pre-release (`v1.0.0-beta.2`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **Pre-release (`v1.0.0-beta.3`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
@@ -59,7 +59,10 @@
 | **Auto-categorized downloads** | IDM-style sorting by extension into `Videos`, `Music`, `Documents`, `Apps`, or `Others` (or flat into Downloads via a Settings toggle) |
 | **Retry system** | Auto-retry on network errors (off by default, toggle in Settings), an expired-link retry popup, and per-item/bulk retry & clear actions |
 | **Persistent queue** | Room-backed download queue that survives app restarts, with auto-resume of queued items and manual Start/Clear controls |
-| **Open & stats** | Open finished downloads directly from the list; download stats shown for YouTube items |
+| **Open & stats** | Open finished downloads directly from the list; download stats shown for YouTube items; tap the done/failed stats pill on Home to jump straight to that Downloads tab |
+| **Share target** | A transparent `ShareReceiverActivity` handles links shared from other apps (e.g. Morphe) without ever bringing Xmd's main UI to the foreground — YouTube links get a quick bottom-sheet quality picker, everything else queues and starts silently |
+| **Download on Wi-Fi Only** | Optional setting (off by default) that auto-pauses all live downloads when Wi-Fi drops and resumes them when it's back |
+| **Default YouTube quality** | Pick "Ask always" or lock in a fixed quality to skip the picker sheet on every YouTube download |
 
 </details>
 
@@ -98,7 +101,8 @@
 | **Address bar suggestions** | Google-powered search suggestions with tap-to-load |
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
 | **Swipe gestures** | Swipe to switch between browser tabs |
-| **Private DNS** | AdGuard DNS-over-HTTPS (default), Off, or a Custom DoH endpoint, with concurrency fixes for reliable resolution |
+| **Media sniffing** | A `MediaSniffer` classifier detects HLS/DASH/direct media requests as pages load, surfacing a "videos found" chip and picker sheet for streamed media |
+| **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |
 | **History** | Full browsing history tab/overlay |
 
 </details>

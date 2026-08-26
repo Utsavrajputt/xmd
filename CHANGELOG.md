@@ -3,6 +3,26 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.0.0-beta.3] - 2026-08-26
+
+### ✨ Added
+- 📤 **Transparent Share-Receiver** for external downloads — sharing a link from another app (e.g. Morphe's "External downloads" hook) into Xmd no longer bounces the caller app off-screen. A new transparent `ShareReceiverActivity` handles the `SEND` intent directly: YouTube links get a quick bottom-sheet quality picker, everything else (direct/torrent links) queues and starts silently, and the caller app stays in the foreground throughout.
+- 🕵️ **In-browser media sniffing** — a new `MediaSniffer` classifier detects HLS/DASH/direct media requests as pages load, surfacing a "videos found" chip and picker sheet in the Browser so streamed media can be grabbed without hunting for a direct link.
+- 📶 **Download on Wi-Fi Only** setting (off by default) — live downloads (HTTP, torrent, and YouTube) automatically pause when Wi-Fi drops and resume when it's back; the queue shows "Waiting for Wi-Fi" instead of a generic paused state.
+- 🎚️ **Default YouTube quality** setting — choose "Ask always" or lock in a fixed quality to skip the picker sheet on every download.
+- 🌐 **Expanded Private DNS options** — added Google DNS and Cloudflare (plain + adblock) DoH providers alongside AdGuard; the list now shows each provider's DoH address as a subtitle, with "Off" reordered to the top.
+- 👆 **Tap-to-jump stats pill** — tapping the done/failed count on Home now jumps straight to the relevant Downloads tab.
+- 🧲 External torrent links found while browsing can now be added directly from the web.
+
+### 🛠 Fixed
+- 🎥 Cleartext HTTP pages (older blogs, direct file hosts) no longer fail to load, and autoplay/JS-triggered `<video>`/`<audio>` no longer hangs on a spinner waiting for a manual tap.
+- ❌ Queued items can now be properly cancelled/cleared, and incomplete downloads are rejected instead of being incorrectly marked as `DONE`.
+- 🎨 Fixed the theme toggle's tap target (previously too large), bumped header title size, and added a Settings shortcut to the browser's overflow menu.
+- 📊 Polished the Browser progress bar (elevation/corners) and snackbar (theme-aware background color).
+- 🩹 Fixed two more invalid `--` sequences inside XML comments that were breaking the databinding parser and release builds.
+
+---
+
 ## [1.0.0-beta.2] - 2026-08-24
 
 ### ✨ Added
