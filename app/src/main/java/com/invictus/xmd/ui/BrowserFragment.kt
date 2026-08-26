@@ -87,6 +87,13 @@ class BrowserFragment : Fragment() {
          *  3-dot button itself, so the menu can be anchored/dropped down
          *  from it Chrome-style instead of popping up as a centered dialog. */
         fun openBrowserMenu(anchor: View)
+        /** A stream MediaSniffer picked up was tapped in the "videos found"
+         *  sheet. HLS/DASH ([needsPicker] true) routes through the same
+         *  quality-picker flow as a YouTube link (resolveYoutube reused
+         *  as-is -- yt-dlp's generic extractor handles a raw manifest URL
+         *  the same way); direct video/audio goes straight to READY like
+         *  any other direct-download link. */
+        fun triggerSniffedMedia(url: String, needsPicker: Boolean)
     }
 
     companion object {
@@ -114,7 +121,15 @@ class BrowserFragment : Fragment() {
         var webView: WebView? = null,
         var webViewState: android.os.Bundle? = null,
         var isLoading: Boolean = false,
-        var progress: Int = 0
+        var progress: Int = 0,
+        // Streams MediaSniffer has found on this tab's current page, keyed
+        // by URL to dedupe -- insertion-ordered so the sheet lists them in
+        // discovery order. Cleared on every navigation (onPageStarted).
+        // shouldInterceptRequest can fire concurrently from more than one
+        // WebView background thread for parallel sub-resource loads, so
+        // this needs to be a synchronized map, not a plain LinkedHashMap.
+        val sniffedMedia: MutableMap<String, com.invictus.xmd.core.MediaSniffer.Sniffed> =
+            java.util.Collections.synchronizedMap(LinkedHashMap())
     )
 
     private lateinit var newTabButton: ImageButton
@@ -132,6 +147,7 @@ class BrowserFragment : Fragment() {
     private lateinit var speedDialContainer: View
     private lateinit var speedDialGrid: RecyclerView
     private lateinit var addLinkFab: FloatingActionButton
+    private lateinit var sniffedMediaFab: com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
     private lateinit var suggestionsCard: MaterialCardView
     private lateinit var suggestionsList: RecyclerView
 
@@ -257,6 +273,7 @@ class BrowserFragment : Fragment() {
         speedDialContainer = view.findViewById(R.id.speedDialContainer)
         speedDialGrid = view.findViewById(R.id.speedDialGrid)
         addLinkFab = view.findViewById(R.id.addLinkFab)
+        sniffedMediaFab = view.findViewById(R.id.sniffedMediaFab)
         suggestionsCard = view.findViewById(R.id.suggestionsCard)
         suggestionsList = view.findViewById(R.id.suggestionsList)
 
@@ -270,6 +287,7 @@ class BrowserFragment : Fragment() {
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
         addLinkFab.setOnClickListener { onAddLinkClicked() }
+        sniffedMediaFab.setOnClickListener { showSniffedMediaSheet() }
         bookmarkStarButton.setOnClickListener { onBookmarkStarTapped() }
 
         // Start on the speed-dial ("new tab") page.
@@ -397,12 +415,14 @@ class BrowserFragment : Fragment() {
                 tab.url = url
                 tab.isLoading = true
                 tab.progress = 0
+                tab.sniffedMedia.clear()
                 if (isCurrentTab(tab)) {
                     pageProgress.setProgressCompat(0, false)
                     pageProgress.show()
                     urlInput.setText(url)
                     updateSecurityIcon(tab)
                     clearDetectedLink()
+                    updateSniffedMediaFab(tab)
                 }
             }
 
@@ -439,6 +459,25 @@ class BrowserFragment : Fragment() {
             }
 
             /**
+             * Passive media sniff -- runs on every GET request regardless of
+             * the Private DNS/DoH setting below (unlike that path, this never
+             * touches the network itself: pure URL-pattern matching against
+             * MediaSniffer, so it's effectively free per call). Always
+             * returns null after recording a match so the request continues
+             * completely untouched -- this must never be the thing that
+             * decides how a request is actually served.
+             */
+            private fun sniffRequest(view: WebView, request: android.webkit.WebResourceRequest) {
+                if (request.method != "GET") return
+                val url = request.url.toString()
+                val sniffed = com.invictus.xmd.core.MediaSniffer.classifyUrl(url) ?: return
+                val isNew = tab.sniffedMedia.put(url, sniffed) == null
+                if (isNew && isCurrentTab(tab)) {
+                    view.post { updateSniffedMediaFab(tab) }
+                }
+            }
+
+            /**
              * Routes every request the page makes -- the page itself and
              * every sub-resource (images, JS, CSS, XHR, etc.) -- through
              * OkHttp using DnsOverHttpsResolver, so DNS resolution follows
@@ -454,6 +493,8 @@ class BrowserFragment : Fragment() {
             override fun shouldInterceptRequest(
                 view: WebView, request: android.webkit.WebResourceRequest
             ): android.webkit.WebResourceResponse? {
+                sniffRequest(view, request)
+
                 if (request.method != "GET") return null
                 val client = currentDohClient() ?: return null
                 val url = request.url.toString()
@@ -663,6 +704,7 @@ class BrowserFragment : Fragment() {
         webViewSwipeRefresh.isRefreshing = false
         val url = tab.url
         if (url != null) checkPageForLinks(url) else clearDetectedLink()
+        updateSniffedMediaFab(tab)
     }
 
     /** Called from MainActivity (e.g. reopening a History entry) to load a
@@ -738,6 +780,7 @@ class BrowserFragment : Fragment() {
         webViewSwipeRefresh.isRefreshing = false
         hideSuggestions()
         clearDetectedLink()
+        sniffedMediaFab.visibility = View.GONE
         hideNavLoadingVeil()
     }
 
@@ -1138,6 +1181,70 @@ class BrowserFragment : Fragment() {
     private fun clearDetectedLink() {
         lastDetectedLink = null
         addLinkFab.visibility = View.GONE
+    }
+
+    /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
+     *  from onPageStarted (clears it), and from shouldInterceptRequest's
+     *  sniff hook every time a genuinely new stream URL is found. No-op
+     *  visually unless [tab] is the tab currently on screen. */
+    private fun updateSniffedMediaFab(tab: BrowserTab) {
+        if (!isCurrentTab(tab)) return
+        val count = tab.sniffedMedia.size
+        if (count == 0) {
+            sniffedMediaFab.visibility = View.GONE
+            return
+        }
+        sniffedMediaFab.text = if (count == 1) {
+            getString(R.string.sniffed_media_chip_one)
+        } else {
+            getString(R.string.sniffed_media_chip_many, count)
+        }
+        sniffedMediaFab.visibility = View.VISIBLE
+    }
+
+    /** Bottom sheet listing every stream in the current tab's sniffedMedia,
+     *  tapping a row hands it straight to Callbacks.triggerSniffedMedia. */
+    private fun showSniffedMediaSheet() {
+        val tab = tabs.getOrNull(currentTabIndex) ?: return
+        // Snapshot under the same lock shouldInterceptRequest writes under --
+        // sniffedMedia is a synchronizedMap precisely so this read (main
+        // thread) can't race a concurrent write (WebView background thread).
+        val streams = synchronized(tab.sniffedMedia) { tab.sniffedMedia.values.toList() }
+        if (streams.isEmpty()) return
+
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.sheet_sniffed_media, null)
+        dialog.setContentView(view)
+
+        val list = view.findViewById<LinearLayout>(R.id.sniffedMediaList)
+        val density = resources.displayMetrics.density
+        streams.forEach { stream ->
+            val row = android.widget.TextView(requireContext())
+            row.text = com.invictus.xmd.core.MediaSniffer.guessLabel(stream.url)
+            row.isClickable = true
+            row.isFocusable = true
+            row.setBackgroundResource(R.drawable.bg_radio_row_selector)
+            row.setTextColor(androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.text_radio_row))
+            row.textSize = 14f
+            row.maxLines = 1
+            row.ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+            row.gravity = android.view.Gravity.CENTER_VERTICAL
+            row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
+            val icon = when (stream.kind) {
+                com.invictus.xmd.core.MediaSniffer.Kind.DIRECT_AUDIO -> R.drawable.ic_music_note
+                else -> R.drawable.ic_video
+            }
+            row.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0)
+            row.compoundDrawablePadding = (12 * density).toInt()
+            row.setOnClickListener {
+                val needsPicker = with(com.invictus.xmd.core.MediaSniffer) { stream.kind.needsQualityPicker() }
+                (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
+                dialog.dismiss()
+            }
+            list.addView(row)
+        }
+
+        dialog.show()
     }
 
     private fun onAddLinkClicked() {

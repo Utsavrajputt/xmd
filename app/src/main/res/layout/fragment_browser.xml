@@ -301,6 +301,20 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- Video/audio sniffer chip: appears with a live count when MediaSniffer
+         picks up a stream on the current page. Sits above addLinkFab so both
+         can be visible at once without overlapping. -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/sniffedMediaFab"
+        style="@style/Widget.Xmd.FloatingActionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="88dp"
+        app:icon="@drawable/ic_video"
+        android:visibility="gone" />
+
     <!-- Auto-detect FAB: appears when a downloadable link is found on the page -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/addLinkFab"
