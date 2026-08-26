@@ -398,6 +398,12 @@ class BrowserFragment : Fragment() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
+        // Android's WebView default (true) blocks any <video>/<audio> from
+        // starting until a real tap on the player itself -- a page that
+        // autoplays or auto-resumes via JS (no direct tap) silently never
+        // starts, showing a stuck loading/buffering spinner with no error.
+        // A real browser wouldn't gate this either, so match that.
+        webView.settings.mediaPlaybackRequiresUserGesture = false
         // LOAD_DEFAULT: serve straight from cache whenever the cached
         // response is still valid per its own headers, only hitting the
         // network for stuff that's actually stale -- cache-first without
@@ -544,6 +550,69 @@ class BrowserFragment : Fragment() {
                     }
                 }
             }
+
+            // HTML5 <video> going fullscreen (requestFullscreen(), or many
+            // players' own fullscreen button) routes through here, not
+            // through normal page layout -- without this override there is
+            // no surface for WebView to actually render the fullscreen video
+            // into, so playback silently never starts even after a real tap
+            // on the player. view is the native video surface WebView built;
+            // just needs a place to live and a way back out.
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                if (fullscreenView != null) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                fullscreenView = view
+                fullscreenCallback = callback
+                val decor = requireActivity().window.decorView as ViewGroup
+                decor.addView(
+                    view,
+                    ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                )
+                setImmersiveMode(true)
+            }
+
+            override fun onHideCustomView() {
+                val decor = requireActivity().window.decorView as ViewGroup
+                fullscreenView?.let { decor.removeView(it) }
+                fullscreenView = null
+                fullscreenCallback?.onCustomViewHidden()
+                fullscreenCallback = null
+                setImmersiveMode(false)
+            }
+        }
+    }
+
+    // Fullscreen <video> state -- see onShowCustomView/onHideCustomView.
+    // Fragment-level (not per-tab): only one tab can be showing a
+    // fullscreen video at a time regardless of how many tabs are open.
+    private var fullscreenView: View? = null
+    private var fullscreenCallback: android.webkit.WebChromeClient.CustomViewCallback? = null
+
+    /** True while a fullscreen <video> is up -- MainActivity's back handler
+     *  checks this first so back exits fullscreen instead of navigating
+     *  the page underneath it. */
+    fun isInFullscreenVideo(): Boolean = fullscreenView != null
+
+    /** Called by MainActivity's back handler when [isInFullscreenVideo] is
+     *  true, and directly by onHideCustomView's own decor cleanup path --
+     *  webView.webChromeClient?.onHideCustomView() is the documented way to
+     *  ask WebView to exit fullscreen from the app side (it then calls our
+     *  onHideCustomView override above to actually tear the view down). */
+    fun exitFullscreenVideo() {
+        tabs.getOrNull(currentTabIndex)?.webView?.webChromeClient?.onHideCustomView()
+    }
+
+    private fun setImmersiveMode(enabled: Boolean) {
+        val window = requireActivity().window
+        val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        if (enabled) {
+            controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            controller.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
     }
 
