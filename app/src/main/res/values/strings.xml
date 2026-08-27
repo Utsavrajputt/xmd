@@ -137,6 +137,14 @@
     <string name="bookmark_added_toast">Shortcut added.</string>
     <string name="bookmark_removed_toast">Shortcut removed.</string>
 
+    <!-- Link long-press context menu -->
+    <string name="link_menu_open_new_tab">Open in new tab</string>
+    <string name="link_menu_open_image_new_tab">Open image in new tab</string>
+    <string name="link_menu_download_image">Download image</string>
+    <string name="link_menu_copy_link_address">Copy link address</string>
+    <string name="link_menu_share_link">Share link</string>
+    <string name="link_copied_toast">Link copied to clipboard</string>
+
     <!-- Browser Menu -->
     <string name="browser_menu_title">Browser</string>
     <string name="browser_menu_private_dns">Private DNS</string>
@@ -159,5 +167,7 @@
     <string name="history_empty">No history yet.</string>
     <string name="history_clear_all">Clear All</string>
     <string name="history_cleared_toast">History cleared.</string>
+    <string name="history_search_hint">Search history</string>
+    <string name="history_search_empty">No matching history.</string>
 
 </resources>

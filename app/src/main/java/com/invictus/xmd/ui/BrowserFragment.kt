@@ -416,6 +416,26 @@ class BrowserFragment : Fragment() {
             if (isCurrentTab(tab)) onWebViewDownloadRequested(url, contentDisposition, mimeType)
         }
 
+        // Chrome-style long-press menu on links/images. hitTestResult never
+        // carries the touch coordinates itself, so a lightweight touch
+        // listener tracks the last down-point purely to anchor the popup
+        // where the finger actually was; it never consumes the event
+        // (always returns false) so normal scrolling/tapping/scrubbing is
+        // completely untouched.
+        var lastTouchX = 0f
+        var lastTouchY = 0f
+        webView.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.x
+                lastTouchY = event.y
+            }
+            false
+        }
+        webView.setOnLongClickListener {
+            val result = webView.hitTestResult
+            showLinkContextMenu(webView, result, lastTouchX, lastTouchY)
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 tab.url = url
@@ -1320,6 +1340,117 @@ class BrowserFragment : Fragment() {
         val link = lastDetectedLink ?: return
         (activity as? Callbacks)?.triggerPrepare(listOf(link))
         clearDetectedLink()
+    }
+
+    // ── Long-press link/image context menu ──────────────────────────────
+
+    /**
+     * Chrome-style long-press menu. [webView].hitTestResult only ever
+     * reports SRC_ANCHOR_TYPE (plain link), SRC_IMAGE_ANCHOR_TYPE (an
+     * image wrapped in a link, e.g. `<a href><img></a>`), or IMAGE_TYPE
+     * (a bare image, no link) for what we care about here -- anything
+     * else (plain text, unlinked page area) shows no menu at all, same
+     * as a real browser. Returns true from the long-click listener only
+     * when a menu was actually shown, so an unrecognized hit falls
+     * through to WebView's own default long-press behavior (text
+     * selection) instead of silently eating the gesture.
+     */
+    private fun showLinkContextMenu(
+        webView: WebView,
+        result: WebView.HitTestResult,
+        touchX: Float,
+        touchY: Float
+    ): Boolean {
+        val linkUrl: String?
+        val imageUrl: String?
+        when (result.type) {
+            WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
+                linkUrl = result.extra
+                imageUrl = null
+            }
+            WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                // extra is the <img>'s src here; the wrapping <a>'s href isn't
+                // exposed by this API at all, so "open in new tab" for this
+                // case opens the image itself -- same as "open image in new
+                // tab" would -- rather than silently doing nothing.
+                linkUrl = result.extra
+                imageUrl = result.extra
+            }
+            WebView.HitTestResult.IMAGE_TYPE -> {
+                linkUrl = null
+                imageUrl = result.extra
+            }
+            else -> return false
+        }
+        if (linkUrl.isNullOrBlank() && imageUrl.isNullOrBlank()) return false
+
+        // Popup has no view of its own to anchor to at an arbitrary point,
+        // so drop a 1x1 invisible anchor into the container at the last
+        // touch position and remove it once the menu closes.
+        val density = resources.displayMetrics.density
+        val anchor = View(requireContext())
+        val anchorSize = (1 * density).toInt().coerceAtLeast(1)
+        webViewContainer.addView(
+            anchor,
+            FrameLayout.LayoutParams(anchorSize, anchorSize).apply {
+                leftMargin = touchX.toInt()
+                topMargin = touchY.toInt()
+            }
+        )
+
+        val popup = android.widget.PopupMenu(requireContext(), anchor)
+        popup.menuInflater.inflate(R.menu.link_context_menu, popup.menu)
+        popup.menu.findItem(R.id.link_menu_open_new_tab).isVisible = !linkUrl.isNullOrBlank()
+        popup.menu.findItem(R.id.link_menu_copy_link_address).isVisible = !linkUrl.isNullOrBlank()
+        popup.menu.findItem(R.id.link_menu_share_link).isVisible = !linkUrl.isNullOrBlank()
+        popup.menu.findItem(R.id.link_menu_open_image_new_tab).isVisible = !imageUrl.isNullOrBlank()
+        popup.menu.findItem(R.id.link_menu_download_image).isVisible = !imageUrl.isNullOrBlank()
+
+        popup.setOnDismissListener { webViewContainer.removeView(anchor) }
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.link_menu_open_new_tab -> linkUrl?.let { openUrlInNewTab(it) }
+                R.id.link_menu_open_image_new_tab -> imageUrl?.let { openUrlInNewTab(it) }
+                R.id.link_menu_download_image -> imageUrl?.let {
+                    onWebViewDownloadRequested(it, null, "image/*")
+                }
+                R.id.link_menu_copy_link_address -> linkUrl?.let { copyLinkToClipboard(it) }
+                R.id.link_menu_share_link -> linkUrl?.let { shareLink(it) }
+            }
+            true
+        }
+        popup.show()
+        return true
+    }
+
+    /** Opens [url] in a brand-new background... actually foreground tab,
+     *  Chrome-style: the new tab becomes current and is shown immediately. */
+    private fun openUrlInNewTab(url: String) {
+        val previousView = tabs.getOrNull(currentTabIndex)?.webView
+        val newTab = BrowserTab(id = nextTabId++, url = url)
+        tabs.add(newTab)
+        currentTabIndex = tabs.lastIndex
+        showWebView()
+        val view = ensureWebView(newTab)
+        showNavLoadingVeil()
+        view.loadUrl(url)
+        crossfadeSwap(view, previousView)
+        updateTabsCount()
+    }
+
+    private fun copyLinkToClipboard(url: String) {
+        val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Link", url))
+        Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLink(url: String) {
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_TEXT, url)
+        }
+        startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
     }
 
     /** Resolves a color from the current active theme (Theme.Xmd.*) instead
