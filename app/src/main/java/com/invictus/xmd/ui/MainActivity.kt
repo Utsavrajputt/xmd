@@ -571,13 +571,18 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     // AlertDialog, so it drops down from the icon the way Chrome's overflow
     // menu does rather than looking like a generic popup.
     override fun openBrowserMenu(anchor: android.view.View) {
+        val browserFragment = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         val popup = androidx.appcompat.widget.PopupMenu(this, anchor, android.view.Gravity.END)
         popup.menuInflater.inflate(R.menu.browser_overflow_menu, popup.menu)
+        popup.menu.findItem(R.id.menu_desktop_site)?.isChecked = browserFragment?.isDesktopModeOn() == true
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.menu_refresh -> { reloadBrowserTab(); true }
+                R.id.menu_find_in_page -> { browserFragment?.showFindInPage(); true }
+                R.id.menu_desktop_site -> { browserFragment?.toggleDesktopModeForCurrentTab(); true }
                 R.id.menu_private_dns -> { showDnsSettingsDialog(); true }
                 R.id.menu_history -> { openHistoryScreen(); true }
+                R.id.menu_clear_browsing_data -> { showClearBrowsingDataDialog(); true }
                 R.id.menu_settings -> { showSettingsDialog(); true }
                 else -> false
             }
@@ -600,6 +605,32 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     private fun reloadBrowserTab() {
         (supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment)?.reloadActiveTab()
+    }
+
+    /** Overflow menu's "Clear browsing data" -- Chrome-style checklist dialog.
+     *  All three boxes start checked (matches Chrome's default selection). */
+    private fun showClearBrowsingDataDialog() {
+        val options = arrayOf(
+            getString(R.string.clear_data_history),
+            getString(R.string.clear_data_cookies),
+            getString(R.string.clear_data_cache)
+        )
+        val checked = booleanArrayOf(true, true, true)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.clear_data_title)
+            .setMultiChoiceItems(options, checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton(R.string.clear_data_action) { _, _ ->
+                val browserFragment = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
+                browserFragment?.clearBrowsingData(
+                    clearHistory = checked[0],
+                    clearCookies = checked[1],
+                    clearCache = checked[2]
+                )
+                android.widget.Toast.makeText(this, R.string.clear_data_cleared_toast, android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /** Builds a two-line radio-row label: the provider name on top and its

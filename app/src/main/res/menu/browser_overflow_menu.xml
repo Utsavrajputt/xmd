@@ -3,11 +3,21 @@
         android:id="@+id/menu_refresh"
         android:title="@string/browser_menu_refresh" />
     <item
+        android:id="@+id/menu_find_in_page"
+        android:title="@string/find_in_page_menu" />
+    <item
+        android:id="@+id/menu_desktop_site"
+        android:title="@string/browser_menu_desktop_site"
+        android:checkable="true" />
+    <item
         android:id="@+id/menu_private_dns"
         android:title="@string/browser_menu_private_dns" />
     <item
         android:id="@+id/menu_history"
         android:title="@string/browser_menu_history" />
+    <item
+        android:id="@+id/menu_clear_browsing_data"
+        android:title="@string/browser_menu_clear_data" />
     <item
         android:id="@+id/menu_settings"
         android:title="@string/menu_settings" />

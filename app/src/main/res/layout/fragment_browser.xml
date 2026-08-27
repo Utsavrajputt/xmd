@@ -128,6 +128,17 @@
                 android:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="@string/action_new_tab" />
 
+            <!-- New private (incognito) tab -->
+            <ImageButton
+                android:id="@+id/newPrivateTabButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="9dp"
+                android:src="@drawable/ic_private_tab"
+                android:tint="?attr/colorOnSurfaceVariant"
+                android:contentDescription="@string/action_new_private_tab" />
+
             <FrameLayout
                 android:id="@+id/tabsButton"
                 android:layout_width="40dp"
@@ -275,6 +286,83 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:maxHeight="280dp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Find-in-page overlay: Chrome-style search bar that floats over
+                 the WebView/speed-dial while active, hidden otherwise. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/findInPageBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:layout_margin="8dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
+                app:cardElevation="6dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="4dp"
+                    android:paddingVertical="4dp">
+
+                    <EditText
+                        android:id="@+id/findInPageInput"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:hint="@string/find_in_page_hint"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:singleLine="true"
+                        android:imeOptions="actionNext"
+                        android:inputType="text" />
+
+                    <TextView
+                        android:id="@+id/findInPageMatchCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="4dp"
+                        android:text="0/0"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
+
+                    <ImageButton
+                        android:id="@+id/findInPagePrev"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_arrow_up"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/find_in_page_prev" />
+
+                    <ImageButton
+                        android:id="@+id/findInPageNext"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_arrow_down"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/find_in_page_next" />
+
+                    <ImageButton
+                        android:id="@+id/findInPageClose"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_close"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/action_dismiss" />
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Navigation loading veil: shown the instant a new page starts

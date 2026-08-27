@@ -107,6 +107,9 @@ class BrowserFragment : Fragment() {
          *  Chrome-style: a handful of your own visited pages, not a full list,
          *  since the remaining rows are Google's live search suggestions. */
         private const val MAX_HISTORY_SUGGESTIONS = 5
+        private const val DESKTOP_USER_AGENT =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/120.0.0.0 Safari/537.36"
     }
 
     /**
@@ -126,6 +129,14 @@ class BrowserFragment : Fragment() {
         var webViewState: android.os.Bundle? = null,
         var isLoading: Boolean = false,
         var progress: Int = 0,
+        // Chrome-style per-tab "Desktop site" toggle -- swaps the WebView's
+        // user agent + viewport handling and reloads. Lives on the tab (not
+        // globally) since real browsers scope this to the page you're on.
+        var isDesktopMode: Boolean = false,
+        // Private/incognito tab: no HistoryRepository writes, and its own
+        // isolated cookie jar torn down when the tab closes (see
+        // closeTab/destroyTabWebView) instead of the shared persistent one.
+        val isPrivate: Boolean = false,
         // Streams MediaSniffer has found on this tab's current page, keyed
         // by URL to dedupe -- insertion-ordered so the sheet lists them in
         // discovery order. Cleared on every navigation (onPageStarted).
@@ -137,6 +148,7 @@ class BrowserFragment : Fragment() {
     )
 
     private lateinit var newTabButton: ImageButton
+    private lateinit var newPrivateTabButton: ImageButton
     private lateinit var homeButton: ImageButton
     private lateinit var urlInput: EditText
     private lateinit var tabsButton: FrameLayout
@@ -154,6 +166,12 @@ class BrowserFragment : Fragment() {
     private lateinit var sniffedMediaFab: com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
     private lateinit var suggestionsCard: MaterialCardView
     private lateinit var suggestionsList: RecyclerView
+    private lateinit var findInPageBar: MaterialCardView
+    private lateinit var findInPageInput: EditText
+    private lateinit var findInPageMatchCount: android.widget.TextView
+    private lateinit var findInPagePrev: ImageButton
+    private lateinit var findInPageNext: ImageButton
+    private lateinit var findInPageClose: ImageButton
 
     private lateinit var adapter: BookmarkAdapter
     private lateinit var suggestionAdapter: SuggestionAdapter
@@ -263,6 +281,7 @@ class BrowserFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         newTabButton = view.findViewById(R.id.newTabButton)
+        newPrivateTabButton = view.findViewById(R.id.newPrivateTabButton)
         homeButton = view.findViewById(R.id.homeButton)
         urlInput = view.findViewById(R.id.urlInput)
         tabsButton = view.findViewById(R.id.tabsButton)
@@ -280,13 +299,21 @@ class BrowserFragment : Fragment() {
         sniffedMediaFab = view.findViewById(R.id.sniffedMediaFab)
         suggestionsCard = view.findViewById(R.id.suggestionsCard)
         suggestionsList = view.findViewById(R.id.suggestionsList)
+        findInPageBar = view.findViewById(R.id.findInPageBar)
+        findInPageInput = view.findViewById(R.id.findInPageInput)
+        findInPageMatchCount = view.findViewById(R.id.findInPageMatchCount)
+        findInPagePrev = view.findViewById(R.id.findInPagePrev)
+        findInPageNext = view.findViewById(R.id.findInPageNext)
+        findInPageClose = view.findViewById(R.id.findInPageClose)
 
         setupSpeedDial()
         setupAddressBar()
         setupSuggestions()
         setupPullToRefresh()
+        setupFindInPage()
 
         newTabButton.setOnClickListener { addNewTab() }
+        newPrivateTabButton.setOnClickListener { addNewPrivateTab() }
         homeButton.setOnClickListener { goHome() }
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
@@ -325,6 +352,33 @@ class BrowserFragment : Fragment() {
     /** Called from MainActivity's overflow menu "Refresh" item. */
     fun reloadActiveTab() {
         tabs.getOrNull(currentTabIndex)?.webView?.reload()
+    }
+
+    /** Called from MainActivity's overflow menu "Desktop site" checkbox. */
+    fun toggleDesktopModeForCurrentTab() = toggleDesktopMode()
+
+    /** Called from MainActivity to set the checkbox's checked state before showing the menu. */
+    fun isDesktopModeOn(): Boolean = isCurrentTabDesktopMode()
+
+    /** Overflow menu's "Clear browsing data" dialog result. Cache/cookies
+     *  are cleared through every currently-live WebView (any tab whose
+     *  WebView has been torn down by LRU eviction has nothing left to
+     *  clear anyway) since there's no single global handle for either --
+     *  each WebView instance owns its own cache, though the cookie jar
+     *  itself is shared, so clearing it once via any instance is enough. */
+    fun clearBrowsingData(clearHistory: Boolean, clearCookies: Boolean, clearCache: Boolean) {
+        if (clearHistory) HistoryRepository.clearAll()
+        if (clearCache) {
+            tabs.mapNotNull { it.webView }.forEach { it.clearCache(true) }
+        }
+        if (clearCookies) {
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+            tabs.mapNotNull { it.webView }.forEach {
+                android.webkit.WebStorage.getInstance().deleteAllData()
+                it.clearFormData()
+            }
+        }
     }
 
     /** Home button: returns the *current* tab to the speed dial (unlike New
@@ -369,8 +423,10 @@ class BrowserFragment : Fragment() {
     private fun destroyTabWebView(tab: BrowserTab) {
         tabAccessOrder.remove(tab.id)
         val wv = tab.webView ?: return
-        val bundle = android.os.Bundle()
-        if (wv.saveState(bundle) != null) tab.webViewState = bundle
+        if (!tab.isPrivate) {
+            val bundle = android.os.Bundle()
+            if (wv.saveState(bundle) != null) tab.webViewState = bundle
+        }
         webViewContainer.removeView(wv)
         wv.stopLoading()
         wv.destroy()
@@ -414,7 +470,18 @@ class BrowserFragment : Fragment() {
         // risking served-stale content on pages that opt out via headers.
         webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
         webView.settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+
+        if (tab.isPrivate) {
+            // Incognito: don't let this tab's requests read or write the
+            // shared persistent cookie jar at all -- every other tab
+            // (private or not) still shares the normal jar as before.
+            CookieManager.getInstance().setAcceptCookie(false)
+        } else {
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        }
+
+        applyDesktopMode(webView, tab.isDesktopMode)
 
         webView.setDownloadListener { url, _, contentDisposition, mimeType, _ ->
             if (isCurrentTab(tab)) onWebViewDownloadRequested(url, contentDisposition, mimeType)
@@ -461,7 +528,7 @@ class BrowserFragment : Fragment() {
                 val title = view.title?.takeIf { t -> t.isNotBlank() } ?: url.orEmpty()
                 tab.url = url
                 tab.title = title
-                if (!url.isNullOrBlank() && url.startsWith("http")) {
+                if (!tab.isPrivate && !url.isNullOrBlank() && url.startsWith("http")) {
                     HistoryRepository.record(url, title)
                 }
                 if (isCurrentTab(tab)) {
@@ -766,6 +833,60 @@ class BrowserFragment : Fragment() {
         suggestionsCard.visibility = View.GONE
     }
 
+    // ── Find in page ──────────────────────────────────────────────────────
+
+    private fun setupFindInPage() {
+        findInPageInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val webView = tabs.getOrNull(currentTabIndex)?.webView ?: return
+                val query = s?.toString().orEmpty()
+                if (query.isEmpty()) {
+                    webView.clearMatches()
+                    findInPageMatchCount.text = "0/0"
+                } else {
+                    webView.findAllAsync(query)
+                }
+            }
+        })
+        findInPagePrev.setOnClickListener {
+            tabs.getOrNull(currentTabIndex)?.webView?.findNext(false)
+        }
+        findInPageNext.setOnClickListener {
+            tabs.getOrNull(currentTabIndex)?.webView?.findNext(true)
+        }
+        findInPageClose.setOnClickListener { hideFindInPage() }
+    }
+
+    /** Opened from the overflow menu's "Find in page" item. Wires the
+     *  active tab's WebView.FindListener fresh each time (rather than once
+     *  up front) since the active WebView instance can change between
+     *  opens as tabs get created/switched/evicted. */
+    fun showFindInPage() {
+        val webView = tabs.getOrNull(currentTabIndex)?.webView ?: return
+        webView.setFindListener { activeMatchOrdinal, numberOfMatches, isDoneCounting ->
+            if (!isDoneCounting) return@setFindListener
+            val current = if (numberOfMatches == 0) 0 else activeMatchOrdinal + 1
+            findInPageMatchCount.text = "$current/$numberOfMatches"
+        }
+        findInPageBar.visibility = View.VISIBLE
+        findInPageInput.requestFocus()
+        val imm = requireContext().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+        imm?.showSoftInput(findInPageInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun hideFindInPage() {
+        tabs.getOrNull(currentTabIndex)?.webView?.let {
+            it.clearMatches()
+            it.setFindListener(null)
+        }
+        findInPageInput.setText("")
+        findInPageBar.visibility = View.GONE
+        val imm = requireContext().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(findInPageInput.windowToken, 0)
+    }
+
     private fun updateSecurityIcon(tab: BrowserTab) {
         val url = tab.url
         if (url.isNullOrBlank() || !url.startsWith("http")) {
@@ -998,6 +1119,25 @@ class BrowserFragment : Fragment() {
         updateTabsCount()
     }
 
+    /** Opens a fresh private/incognito tab: no HistoryRepository writes for
+     *  anything visited in it (see onPageFinished's isPrivate check) and,
+     *  while it's the active tab, cookies aren't accepted at all (see
+     *  configureWebView) -- closing it (closeTab -> destroyTabWebView)
+     *  also wipes any cookies/site data it did manage to pick up so nothing
+     *  survives into the next tab that opens. */
+    private fun addNewPrivateTab() {
+        val previousView = tabs.getOrNull(currentTabIndex)?.webView
+        tabs.add(BrowserTab(id = nextTabId++, isPrivate = true))
+        currentTabIndex = tabs.lastIndex
+        previousView?.let {
+            it.animate().cancel()
+            it.alpha = 0f
+            it.visibility = View.GONE
+        }
+        showSpeedDial()
+        updateTabsCount()
+    }
+
     /**
      * Switches the content area to show [index]'s tab. Since every tab owns
      * its own WebView (up to the pool cap), this is a crossfade between two
@@ -1018,6 +1158,11 @@ class BrowserFragment : Fragment() {
     ) {
         currentTabIndex = index
         val tab = tabs[index]
+        // CookieManager.setAcceptCookie is a single global flag, not scoped
+        // to one WebView -- re-applied on every switch so whichever tab is
+        // now active (private or not) is the one whose cookie policy is in
+        // effect, regardless of what the previously-active tab last set it to.
+        CookieManager.getInstance().setAcceptCookie(!tab.isPrivate)
 
         if (tab.url.isNullOrBlank()) {
             previousView?.let {
@@ -1117,14 +1262,23 @@ class BrowserFragment : Fragment() {
             rowsContainer.removeAllViews()
             tabs.forEachIndexed { index, tab ->
                 val isActive = index == currentTabIndex
-                val tonalColor = resolveThemeColor(
-                    if (isActive) com.google.android.material.R.attr.colorSecondaryContainer
-                    else com.google.android.material.R.attr.colorSurfaceContainerHigh
-                )
-                val onTonalColor = resolveThemeColor(
-                    if (isActive) com.google.android.material.R.attr.colorOnSecondaryContainer
-                    else com.google.android.material.R.attr.colorOnSurface
-                )
+                // Private tabs get a fixed dark tonal treatment regardless of
+                // active/inactive state or app theme -- same idea as Chrome's
+                // distinct grey/black incognito tab strip, so it's visually
+                // obvious at a glance which tabs won't show up in history.
+                val tonalColor = when {
+                    tab.isPrivate -> android.graphics.Color.parseColor(if (isActive) "#3A3A3A" else "#2A2A2A")
+                    isActive -> resolveThemeColor(com.google.android.material.R.attr.colorSecondaryContainer)
+                    else -> resolveThemeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh)
+                }
+                val onTonalColor = if (tab.isPrivate) {
+                    android.graphics.Color.WHITE
+                } else {
+                    resolveThemeColor(
+                        if (isActive) com.google.android.material.R.attr.colorOnSecondaryContainer
+                        else com.google.android.material.R.attr.colorOnSurface
+                    )
+                }
 
                 // A MaterialCardView per row instead of a raw LinearLayout gives
                 // the rounded-corner + ripple + tonal-fill treatment for free,
@@ -1160,19 +1314,24 @@ class BrowserFragment : Fragment() {
                     layoutParams = FrameLayout.LayoutParams(dp(17), dp(17)).apply {
                         gravity = android.view.Gravity.CENTER
                     }
-                    setImageResource(R.drawable.ic_link)
-                    setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer))
+                    setImageResource(if (tab.isPrivate) R.drawable.ic_private_tab else R.drawable.ic_link)
+                    setColorFilter(onTonalColor)
                 }
                 faviconBox.addView(favicon)
-                tab.url?.let { url ->
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        val bitmap = withContext(Dispatchers.IO) { FaviconLoader.load(url) }
-                        if (bitmap != null) {
-                            favicon.clearColorFilter()
-                            favicon.layoutParams = FrameLayout.LayoutParams(dp(20), dp(20)).apply {
-                                gravity = android.view.Gravity.CENTER
+                // Private tabs always show the incognito glyph, never the
+                // site's real favicon -- fetching/showing it here would be a
+                // minor but real leak of what a "private" tab is looking at.
+                if (!tab.isPrivate) {
+                    tab.url?.let { url ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val bitmap = withContext(Dispatchers.IO) { FaviconLoader.load(url) }
+                            if (bitmap != null) {
+                                favicon.clearColorFilter()
+                                favicon.layoutParams = FrameLayout.LayoutParams(dp(20), dp(20)).apply {
+                                    gravity = android.view.Gravity.CENTER
+                                }
+                                favicon.setImageBitmap(bitmap)
                             }
-                            favicon.setImageBitmap(bitmap)
                         }
                     }
                 }
@@ -1361,6 +1520,29 @@ class BrowserFragment : Fragment() {
 
         dialog.show()
     }
+
+    /** Applies (or reverts) desktop-site emulation on [webView]: a desktop
+     *  Chrome UA string plus wide-viewport rendering, same two settings a
+     *  real browser's "Desktop site" toggle flips. Doesn't reload itself --
+     *  callers that change this on an already-loaded page (the overflow
+     *  menu toggle) are responsible for reloading afterwards so the new UA
+     *  actually takes effect. */
+    private fun applyDesktopMode(webView: WebView, desktop: Boolean) {
+        webView.settings.userAgentString = if (desktop) DESKTOP_USER_AGENT else null
+        webView.settings.useWideViewPort = desktop
+        webView.settings.loadWithOverviewMode = desktop
+    }
+
+    /** Overflow menu's "Desktop site" checkbox -- flips the current tab only. */
+    private fun toggleDesktopMode() {
+        val tab = tabs.getOrNull(currentTabIndex) ?: return
+        tab.isDesktopMode = !tab.isDesktopMode
+        val webView = tab.webView ?: return
+        applyDesktopMode(webView, tab.isDesktopMode)
+        webView.reload()
+    }
+
+    private fun isCurrentTabDesktopMode(): Boolean = tabs.getOrNull(currentTabIndex)?.isDesktopMode == true
 
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return
