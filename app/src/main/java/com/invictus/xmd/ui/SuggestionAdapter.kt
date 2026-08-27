@@ -47,7 +47,7 @@ class SuggestionAdapter(
         val item = suggestions[position]
         holder.text.text = item.text
         holder.icon.setImageResource(
-            if (item is Suggestion.History) R.drawable.ic_clock else R.drawable.ic_link
+            if (item is Suggestion.History) R.drawable.ic_clock else R.drawable.ic_search
         )
         holder.itemView.setOnClickListener { onTap(item) }
         holder.addButton.visibility = if (item is Suggestion.Search) View.VISIBLE else View.GONE
