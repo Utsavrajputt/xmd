@@ -314,6 +314,7 @@ class BrowserFragment : Fragment() {
 
         newTabButton.setOnClickListener { addNewTab() }
         newPrivateTabButton.setOnClickListener { addNewPrivateTab() }
+        updatePrivateTabIndicator()
         homeButton.setOnClickListener { goHome() }
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
@@ -1117,6 +1118,7 @@ class BrowserFragment : Fragment() {
         }
         showSpeedDial()
         updateTabsCount()
+        updatePrivateTabIndicator()
     }
 
     /** Opens a fresh private/incognito tab: no HistoryRepository writes for
@@ -1136,6 +1138,7 @@ class BrowserFragment : Fragment() {
         }
         showSpeedDial()
         updateTabsCount()
+        updatePrivateTabIndicator()
     }
 
     /**
@@ -1158,6 +1161,7 @@ class BrowserFragment : Fragment() {
     ) {
         currentTabIndex = index
         val tab = tabs[index]
+        updatePrivateTabIndicator()
         // CookieManager.setAcceptCookie is a single global flag, not scoped
         // to one WebView -- re-applied on every switch so whichever tab is
         // now active (private or not) is the one whose cookie policy is in
@@ -1533,16 +1537,50 @@ class BrowserFragment : Fragment() {
         webView.settings.loadWithOverviewMode = desktop
     }
 
-    /** Overflow menu's "Desktop site" checkbox -- flips the current tab only. */
+    /** Overflow menu's "Desktop site" checkbox -- flips the current tab
+     *  only. Uses loadUrl() (a real fresh network request) instead of
+     *  reload(), which was the actual bug: WebView's reload() can be
+     *  served straight from its own HTTP cache, so a page fetched under
+     *  the old UA string just came back byte-for-byte identical from
+     *  cache -- the new UA never even reached the server on some sites.
+     *  loadUrl() with the exact current URL forces a genuine new request.
+     *  Cache mode is also forced to LOAD_NO_CACHE for just this one
+     *  navigation (restored to the normal LOAD_DEFAULT right after
+     *  starting it) so even a cached response under the *new* UA from an
+     *  earlier visit can't mask a real mismatch -- guarantees this one
+     *  load actually hits the server fresh. */
     private fun toggleDesktopMode() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         tab.isDesktopMode = !tab.isDesktopMode
         val webView = tab.webView ?: return
         applyDesktopMode(webView, tab.isDesktopMode)
-        webView.reload()
+        val currentUrl = webView.url ?: tab.url
+        if (currentUrl != null) {
+            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+            webView.loadUrl(currentUrl)
+            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        } else {
+            webView.reload()
+        }
     }
 
     private fun isCurrentTabDesktopMode(): Boolean = tabs.getOrNull(currentTabIndex)?.isDesktopMode == true
+
+    /** Fills newPrivateTabButton's icon with the theme color whenever the
+     *  currently-VIEWED tab is private (not "any private tab exists" --
+     *  the indicator tracks what you're looking at right now, same as how
+     *  the tab-switcher row coloring works). Called after every place
+     *  currentTabIndex changes. */
+    private fun updatePrivateTabIndicator() {
+        val isCurrentPrivate = tabs.getOrNull(currentTabIndex)?.isPrivate == true
+        if (isCurrentPrivate) {
+            newPrivateTabButton.setImageResource(R.drawable.ic_private_tab_filled)
+            newPrivateTabButton.setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
+        } else {
+            newPrivateTabButton.setImageResource(R.drawable.ic_private_tab)
+            newPrivateTabButton.setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+        }
+    }
 
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return
@@ -1644,6 +1682,7 @@ class BrowserFragment : Fragment() {
         view.loadUrl(url)
         crossfadeSwap(view, previousView)
         updateTabsCount()
+        updatePrivateTabIndicator()
     }
 
     private fun copyLinkToClipboard(url: String) {
