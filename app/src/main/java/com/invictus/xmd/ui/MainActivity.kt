@@ -235,6 +235,22 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
 
         bottomNav = findViewById(R.id.bottomNav)
+
+        // bottomNav is pinned to the physical bottom of the screen (see
+        // activity_main.xml's FrameLayout root) so it no longer gets pushed
+        // up above the keyboard when adjustResize shrinks contentColumn.
+        // What adjustResize still needs, though, is somewhere for that
+        // shrink to go so an EditText near the bottom (e.g. the browser's
+        // find-in-page bar or address bar) isn't left sitting underneath
+        // the keyboard -- so contentColumn's own bottom padding is set
+        // to the IME height while it's open, and back to 0 once it closes.
+        val contentColumn = findViewById<android.view.View>(R.id.contentColumn)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(contentColumn) { view, insets ->
+            val imeHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
+            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, imeHeight)
+            insets
+        }
+
         bottomNav.setOnItemSelectedListener { item ->
             // History is layered on top via addToBackStack (see openHistoryScreen)
             // -- showFragment() below only shows/hides the three base tab
