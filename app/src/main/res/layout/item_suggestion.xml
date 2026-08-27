@@ -16,6 +16,7 @@
         android:background="@drawable/bg_icon_button_tonal">
 
         <ImageView
+            android:id="@+id/suggestionIcon"
             android:layout_width="15dp"
             android:layout_height="15dp"
             android:layout_gravity="center"

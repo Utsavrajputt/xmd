@@ -4,23 +4,35 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.invictus.xmd.R
 
 /**
- * Row = a phrase from SuggestApi (Google). Tapping the row loads it
- * (as a search or URL, same normalization as manual address-bar entry);
- * tapping the trailing "+" saves it as a bookmark without navigating.
+ * Row = either a Google search phrase or a matching local history entry
+ * (see BrowserFragment.scheduleSuggest, which merges both into one list --
+ * search results first, then a handful of history matches, Chrome-style).
+ * Tapping a SEARCH row loads [text] as a search/URL like manual address-bar
+ * entry; tapping a HISTORY row loads [url] directly, skipping normalization
+ * since it's already a real visited URL. The "+" button only makes sense
+ * for a search phrase (bookmarking a raw query), so it's hidden on history
+ * rows.
  */
 class SuggestionAdapter(
-    private val onTap: (String) -> Unit,
+    private val onTap: (Suggestion) -> Unit,
     private val onAddTap: (String) -> Unit
 ) : RecyclerView.Adapter<SuggestionAdapter.ViewHolder>() {
 
-    private var suggestions: List<String> = emptyList()
+    sealed class Suggestion {
+        abstract val text: String
+        data class Search(override val text: String) : Suggestion()
+        data class History(override val text: String, val url: String) : Suggestion()
+    }
 
-    fun submitList(items: List<String>) {
+    private var suggestions: List<Suggestion> = emptyList()
+
+    fun submitList(items: List<Suggestion>) {
         suggestions = items
         notifyDataSetChanged()
     }
@@ -32,15 +44,22 @@ class SuggestionAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val phrase = suggestions[position]
-        holder.text.text = phrase
-        holder.itemView.setOnClickListener { onTap(phrase) }
-        holder.addButton.setOnClickListener { onAddTap(phrase) }
+        val item = suggestions[position]
+        holder.text.text = item.text
+        holder.icon.setImageResource(
+            if (item is Suggestion.History) R.drawable.ic_clock else R.drawable.ic_link
+        )
+        holder.itemView.setOnClickListener { onTap(item) }
+        holder.addButton.visibility = if (item is Suggestion.Search) View.VISIBLE else View.GONE
+        holder.addButton.setOnClickListener {
+            if (item is Suggestion.Search) onAddTap(item.text)
+        }
     }
 
     override fun getItemCount(): Int = suggestions.size
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val icon: ImageView = view.findViewById(R.id.suggestionIcon)
         val text: TextView = view.findViewById(R.id.suggestionText)
         val addButton: ImageButton = view.findViewById(R.id.suggestionAddButton)
     }

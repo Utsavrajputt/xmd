@@ -103,6 +103,10 @@ class BrowserFragment : Fragment() {
          *  general idea as Chrome's background tab discarding. */
         private const val MAX_LIVE_WEBVIEWS = 5
         private const val TAB_SWITCH_ANIM_MS = 130L
+        /** Cap on local history matches shown in the address-bar dropdown --
+         *  Chrome-style: a handful of your own visited pages, not a full list,
+         *  since the remaining rows are Google's live search suggestions. */
+        private const val MAX_HISTORY_SUGGESTIONS = 5
     }
 
     /**
@@ -698,7 +702,18 @@ class BrowserFragment : Fragment() {
 
     private fun setupSuggestions() {
         suggestionAdapter = SuggestionAdapter(
-            onTap = { phrase -> urlInput.setText(phrase); loadUrl(phrase) },
+            onTap = { item ->
+                when (item) {
+                    is SuggestionAdapter.Suggestion.History -> {
+                        urlInput.setText(item.url)
+                        loadUrl(item.url)
+                    }
+                    is SuggestionAdapter.Suggestion.Search -> {
+                        urlInput.setText(item.text)
+                        loadUrl(item.text)
+                    }
+                }
+            },
             onAddTap = { phrase ->
                 val url = normalizeToUrl(phrase)
                 BookmarkRepository.add(title = phrase, url = url)
@@ -711,25 +726,36 @@ class BrowserFragment : Fragment() {
 
     /**
      * 2-3 letters is enough to start querying, debounced ~300ms so we're not
-     * firing a network request on every keystroke. Query text and results
-     * come entirely from Google's public suggest endpoint (filtered to
-     * search-phrase results, see SuggestApi) -- nothing here is a list this
-     * app ships or maintains.
+     * firing a network request on every keystroke. Merges two sources,
+     * history first then search (Chrome-style):
+     *  - local visited-page history (HistoryRepository's already-cached
+     *    LiveData value -- no DB round-trip needed here), matched by
+     *    title/URL substring, capped at [MAX_HISTORY_SUGGESTIONS]
+     *  - Google's public suggest endpoint, filtered to search-phrase
+     *    results only (see SuggestApi) -- no bundled/bare-URL "website"
+     *    suggestions of any kind
      */
     private fun scheduleSuggest(query: String) {
         suggestJob?.cancel()
-        if (query.trim().length < 2) {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) {
             hideSuggestions()
             return
         }
+        val historyMatches = (HistoryRepository.entries.value ?: emptyList())
+            .filter { it.title.contains(trimmed, ignoreCase = true) || it.url.contains(trimmed, ignoreCase = true) }
+            .take(MAX_HISTORY_SUGGESTIONS)
+            .map { SuggestionAdapter.Suggestion.History(text = it.title, url = it.url) }
+
         suggestJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(300)
-            val results = withContext(Dispatchers.IO) { SuggestApi.suggest(query, suggestClient) }
+            val searchResults = withContext(Dispatchers.IO) { SuggestApi.suggest(trimmed, suggestClient) }
             if (!isAdded) return@launch
-            if (results.isEmpty()) {
+            val merged = historyMatches + searchResults.map { SuggestionAdapter.Suggestion.Search(it) }
+            if (merged.isEmpty()) {
                 hideSuggestions()
             } else {
-                suggestionAdapter.submitList(results)
+                suggestionAdapter.submitList(merged)
                 suggestionsCard.visibility = View.VISIBLE
             }
         }
