@@ -558,6 +558,13 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      * funnel through this one helper.
      */
     private fun showDownloadStartedSnackbar() {
+        // Don't show the "Starting download… VIEW" nudge if the user is
+        // already sitting on the Downloads screen -- the VIEW action would
+        // just be pointing them at where they already are.
+        if (findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId == R.id.nav_downloads) {
+            return
+        }
+
         val snackbar = Snackbar.make(
             findViewById(R.id.fragmentContainer),
             R.string.download_started_toast,

@@ -128,17 +128,6 @@
                 android:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="@string/action_new_tab" />
 
-            <!-- New private (incognito) tab -->
-            <ImageButton
-                android:id="@+id/newPrivateTabButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:padding="9dp"
-                android:src="@drawable/ic_private_tab"
-                android:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="@string/action_new_private_tab" />
-
             <FrameLayout
                 android:id="@+id/tabsButton"
                 android:layout_width="40dp"

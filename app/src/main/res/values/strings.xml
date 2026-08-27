@@ -118,7 +118,6 @@
     <string name="action_reload">Reload</string>
     <string name="action_stop">Stop</string>
     <string name="action_new_tab">New Tab</string>
-    <string name="action_new_private_tab">New Private Tab</string>
     <string name="action_home">Home</string>
     <string name="action_tabs">Tabs</string>
     <string name="action_more">More Options</string>

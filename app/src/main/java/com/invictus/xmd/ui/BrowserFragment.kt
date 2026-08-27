@@ -148,7 +148,6 @@ class BrowserFragment : Fragment() {
     )
 
     private lateinit var newTabButton: ImageButton
-    private lateinit var newPrivateTabButton: ImageButton
     private lateinit var homeButton: ImageButton
     private lateinit var urlInput: EditText
     private lateinit var tabsButton: FrameLayout
@@ -281,7 +280,6 @@ class BrowserFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         newTabButton = view.findViewById(R.id.newTabButton)
-        newPrivateTabButton = view.findViewById(R.id.newPrivateTabButton)
         homeButton = view.findViewById(R.id.homeButton)
         urlInput = view.findViewById(R.id.urlInput)
         tabsButton = view.findViewById(R.id.tabsButton)
@@ -313,8 +311,6 @@ class BrowserFragment : Fragment() {
         setupFindInPage()
 
         newTabButton.setOnClickListener { addNewTab() }
-        newPrivateTabButton.setOnClickListener { addNewPrivateTab() }
-        updatePrivateTabIndicator()
         homeButton.setOnClickListener { goHome() }
         tabsButton.setOnClickListener { showTabsDialog() }
         overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
@@ -1118,27 +1114,6 @@ class BrowserFragment : Fragment() {
         }
         showSpeedDial()
         updateTabsCount()
-        updatePrivateTabIndicator()
-    }
-
-    /** Opens a fresh private/incognito tab: no HistoryRepository writes for
-     *  anything visited in it (see onPageFinished's isPrivate check) and,
-     *  while it's the active tab, cookies aren't accepted at all (see
-     *  configureWebView) -- closing it (closeTab -> destroyTabWebView)
-     *  also wipes any cookies/site data it did manage to pick up so nothing
-     *  survives into the next tab that opens. */
-    private fun addNewPrivateTab() {
-        val previousView = tabs.getOrNull(currentTabIndex)?.webView
-        tabs.add(BrowserTab(id = nextTabId++, isPrivate = true))
-        currentTabIndex = tabs.lastIndex
-        previousView?.let {
-            it.animate().cancel()
-            it.alpha = 0f
-            it.visibility = View.GONE
-        }
-        showSpeedDial()
-        updateTabsCount()
-        updatePrivateTabIndicator()
     }
 
     /**
@@ -1161,7 +1136,6 @@ class BrowserFragment : Fragment() {
     ) {
         currentTabIndex = index
         val tab = tabs[index]
-        updatePrivateTabIndicator()
         // CookieManager.setAcceptCookie is a single global flag, not scoped
         // to one WebView -- re-applied on every switch so whichever tab is
         // now active (private or not) is the one whose cookie policy is in
@@ -1566,22 +1540,6 @@ class BrowserFragment : Fragment() {
 
     private fun isCurrentTabDesktopMode(): Boolean = tabs.getOrNull(currentTabIndex)?.isDesktopMode == true
 
-    /** Fills newPrivateTabButton's icon with the theme color whenever the
-     *  currently-VIEWED tab is private (not "any private tab exists" --
-     *  the indicator tracks what you're looking at right now, same as how
-     *  the tab-switcher row coloring works). Called after every place
-     *  currentTabIndex changes. */
-    private fun updatePrivateTabIndicator() {
-        val isCurrentPrivate = tabs.getOrNull(currentTabIndex)?.isPrivate == true
-        if (isCurrentPrivate) {
-            newPrivateTabButton.setImageResource(R.drawable.ic_private_tab_filled)
-            newPrivateTabButton.setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
-        } else {
-            newPrivateTabButton.setImageResource(R.drawable.ic_private_tab)
-            newPrivateTabButton.setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-        }
-    }
-
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return
         (activity as? Callbacks)?.triggerPrepare(listOf(link))
@@ -1682,7 +1640,6 @@ class BrowserFragment : Fragment() {
         view.loadUrl(url)
         crossfadeSwap(view, previousView)
         updateTabsCount()
-        updatePrivateTabIndicator()
     }
 
     private fun copyLinkToClipboard(url: String) {
