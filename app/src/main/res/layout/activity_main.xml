@@ -2,11 +2,11 @@
 <!-- Root is a FrameLayout (not a single resizing LinearLayout) so bottomNav
      sits outside contentColumn as its own sibling, pinned to the physical
      bottom via layout_gravity. Note this alone does NOT keep it fixed
-     above the keyboard -- windowSoftInputMode="adjustResize" (no
+     above the keyboard: windowSoftInputMode="adjustResize" (no
      edge-to-edge) resizes the whole window, not just contentColumn, so
      bottomNav still rides up with the shrinking window edge. MainActivity
      instead hides bottomNav outright (GONE) while the keyboard is open, via
-     a global-layout listener on the root content view -- see onCreate.
+     a global-layout listener on the root content view; see onCreate.
      The insets listener here pads contentColumn's bottom by the IME height
      while it's open, and back to 0 once it closes. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
