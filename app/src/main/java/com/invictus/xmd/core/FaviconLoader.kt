@@ -1,18 +1,25 @@
 package com.invictus.xmd.core
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
 /**
  * Fetches a site's favicon for the Browser tab's speed-dial tiles.
  * No third-party image library -- a direct OkHttp GET + BitmapFactory
- * decode, with a small in-memory LRU cache so re-showing the speed dial
- * (or scrolling the grid) doesn't refetch the same host repeatedly.
+ * decode, backed by two cache layers so re-showing the speed dial (or
+ * relaunching the app) doesn't refetch the same host repeatedly:
+ *  - an in-memory LRU for the current process
+ *  - a one-day-old disk cache (see [init]) so a fresh process still hits
+ *    disk instead of the network -- this used to be memory-only, so every
+ *    cold app start (LruCache wiped with the process) redownloaded every
+ *    tile's icon from scratch, even ones fetched minutes earlier.
  *
  * Tries, in order, apple-touch-icon.png (usually the sharpest, 120-180px),
  * Google's public favicon service at a higher requested size, then the
@@ -28,13 +35,22 @@ object FaviconLoader {
     private const val MAX_CACHE_ENTRIES = 60
     private const val TARGET_PX = 128 // 2x a 52dp tile's ~64dp icon area on a xxhdpi-ish screen
     private const val MIN_ACCEPTABLE_PX = 48 // below this, keep trying other sources for a sharper icon
+    private const val DISK_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000L
 
     private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_ENTRIES) {}
+
+    private var diskCacheDir: File? = null
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(4, TimeUnit.SECONDS)
         .readTimeout(4, TimeUnit.SECONDS)
         .build()
+
+    /** Call once from FfApp.onCreate; harmless if called again. */
+    fun init(context: Context) {
+        if (diskCacheDir != null) return
+        diskCacheDir = File(context.applicationContext.cacheDir, "favicons").apply { mkdirs() }
+    }
 
     /**
      * Blocking; call from a background thread/coroutine, never the main
@@ -47,6 +63,16 @@ object FaviconLoader {
     fun load(pageUrl: String): Bitmap? {
         val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return null
         cache.get(host)?.let { return it }
+
+        val diskFile = diskCacheDir?.let { File(it, diskFileName(host)) }
+        if (diskFile != null && diskFile.exists() &&
+            System.currentTimeMillis() - diskFile.lastModified() < DISK_CACHE_MAX_AGE_MS
+        ) {
+            BitmapFactory.decodeFile(diskFile.path)?.let { bitmap ->
+                cache.put(host, bitmap)
+                return bitmap
+            }
+        }
 
         val scheme = runCatching { URI(pageUrl).scheme }.getOrNull().takeUnless { it.isNullOrBlank() } ?: "https"
 
@@ -62,9 +88,23 @@ object FaviconLoader {
             if (bitmap.width >= MIN_ACCEPTABLE_PX) break
         }
 
-        best?.let { cache.put(host, it) }
+        best?.let { bitmap ->
+            cache.put(host, bitmap)
+            // File.lastModified() doubles as the "fetched at" timestamp --
+            // overwriting it here is what makes the next cold start's
+            // staleness check above work with no separate timestamp store.
+            diskFile?.let { file ->
+                runCatching {
+                    file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                }
+            }
+        }
         return best
     }
+
+    /** Filesystem-safe cache filename for a host, e.g. "www.example.com" -> "www.example.com.png". */
+    private fun diskFileName(host: String): String =
+        host.replace(Regex("[^a-zA-Z0-9.-]"), "_") + ".png"
 
     private fun fetch(url: String): Bitmap? {
         return try {

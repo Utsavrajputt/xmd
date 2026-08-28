@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import com.invictus.xmd.core.BookmarkRepository
+import com.invictus.xmd.core.FaviconLoader
 import com.invictus.xmd.core.HistoryRepository
 import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.core.Settings
@@ -23,6 +24,7 @@ class FfApp : Application() {
         QueueRepository.init(this)
         BookmarkRepository.init(this)
         HistoryRepository.init(this)
+        FaviconLoader.init(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 DOWNLOAD_CHANNEL_ID,
