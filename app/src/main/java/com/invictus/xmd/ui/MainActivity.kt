@@ -236,19 +236,41 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
         bottomNav = findViewById(R.id.bottomNav)
 
-        // bottomNav is pinned to the physical bottom of the screen (see
-        // activity_main.xml's FrameLayout root) so it no longer gets pushed
-        // up above the keyboard when adjustResize shrinks contentColumn.
-        // What adjustResize still needs, though, is somewhere for that
-        // shrink to go so an EditText near the bottom (e.g. the browser's
-        // find-in-page bar or address bar) isn't left sitting underneath
-        // the keyboard -- so contentColumn's own bottom padding is set
-        // to the IME height while it's open, and back to 0 once it closes.
+        // adjustResize needs somewhere for the keyboard's shrink to go so an
+        // EditText near the bottom (e.g. the browser's find-in-page bar or
+        // address bar) isn't left sitting underneath the keyboard -- so
+        // contentColumn's own bottom padding is set to the IME height while
+        // it's open, and back to 0 once it closes. (bottomNav itself is
+        // handled separately below -- see the global-layout listener.)
         val contentColumn = findViewById<android.view.View>(R.id.contentColumn)
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(contentColumn) { view, insets ->
             val imeHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
             view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, imeHeight)
             insets
+        }
+
+        // Hide bottomNav entirely while the soft keyboard is open (paste-links
+        // box, browser find-in-page, address bar, any dialog EditText, etc.)
+        // instead of leaving it floating right above the keys. Covers every
+        // fragment from one place since it lives on the Activity's root view.
+        //
+        // Uses the classic visible-display-frame technique rather than
+        // WindowInsetsCompat's ime() type: this app doesn't draw edge-to-edge
+        // (no setDecorFitsSystemWindows(false)), so under plain adjustResize
+        // the window itself already shrinks to fit above the keyboard and the
+        // ime() inset reaching a listener is 0 -- the resize *is* the
+        // accommodation, there's nothing left for that inset to report.
+        val rootContentView = findViewById<android.view.View>(android.R.id.content)
+        rootContentView.viewTreeObserver.addOnGlobalLayoutListener {
+            val visibleFrame = android.graphics.Rect()
+            rootContentView.getWindowVisibleDisplayFrame(visibleFrame)
+            val rootHeight = rootContentView.rootView.height
+            val keyboardHeight = rootHeight - visibleFrame.bottom
+            // >15% of screen height is the standard threshold for "that's the
+            // keyboard, not just a small layout jitter" (nav bar / cutout /
+            // rounding noise stays well under this).
+            val keyboardOpen = rootHeight > 0 && keyboardHeight > rootHeight * 0.15
+            bottomNav.visibility = if (keyboardOpen) android.view.View.GONE else android.view.View.VISIBLE
         }
 
         bottomNav.setOnItemSelectedListener { item ->
