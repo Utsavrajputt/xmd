@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Pre-release (`v1.0.0-beta.3`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **Pre-release (`v1.0.0-beta.4`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
@@ -63,6 +63,8 @@
 | **Share target** | A transparent `ShareReceiverActivity` handles links shared from other apps (e.g. Morphe) without ever bringing Xmd's main UI to the foreground — YouTube links get a quick bottom-sheet quality picker, everything else queues and starts silently |
 | **Download on Wi-Fi Only** | Optional setting (off by default) that auto-pauses all live downloads when Wi-Fi drops and resumes them when it's back |
 | **Default YouTube quality** | Pick "Ask always" or lock in a fixed quality to skip the picker sheet on every YouTube download |
+| **Video preset & audio format** | Preferred container/codec/FPS ladder for quick quality picks, plus a default audio format (MP3, M4A, Opus, or Original) for Audio-only downloads |
+| **Advanced quality section** | A real yt-dlp format probe surfaced as a collapsible list showing exact FPS/codec/file size per stream, alongside the standard ladder |
 
 </details>
 
@@ -95,15 +97,17 @@
 
 | Feature | Description |
 |---|---|
-| **Speed-dial bookmarks** | Real site favicons, star-to-bookmark toggle, and website import — no default bookmarks cluttering a fresh install |
+| **Speed-dial bookmarks** | Real site favicons (24h on-disk cache), star-to-bookmark toggle, and website import — no default bookmarks cluttering a fresh install |
 | **Per-tab WebView pool** | Instant tab switching with no old-page flash, cross-tab back history, and stale history cleared on a fresh tab's first load |
 | **Chrome-style toolbar** | Reworked toolbar (new tab / search / reload / tabs / overflow) that no longer reappears over content after a background-kill recreation |
-| **Address bar suggestions** | Google-powered search suggestions with tap-to-load |
+| **Address bar suggestions** | Google-powered search suggestions merged with matching visited pages from history, each with a distinct icon |
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
 | **Swipe gestures** | Swipe to switch between browser tabs |
 | **Media sniffing** | A `MediaSniffer` classifier detects HLS/DASH/direct media requests as pages load, surfacing a "videos found" chip and picker sheet for streamed media |
 | **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |
-| **History** | Full browsing history tab/overlay |
+| **Desktop site & Find in page** | Per-tab desktop UA + wide-viewport toggle, and a Chrome-style find-in-page overlay with prev/next navigation and a live match count |
+| **Long-press menu** | Long-press a link or image for open-in-new-tab, download image, copy link address, or share link |
+| **History** | Full browsing history tab/overlay with search by title/URL |
 
 </details>
 

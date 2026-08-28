@@ -3,6 +3,34 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.0.0-beta.4] - 2026-08-28
+
+### ✨ Added
+- 🖱️ **Chrome-style long-press menu** — long-press a link or image in the Browser for open-in-new-tab, open-image-in-new-tab, download image, copy link address, and share link, anchored right at the touch point.
+- 🔍 **History search** — the History tab now has a search box filtering by title/URL.
+- 🕓 **History-aware address bar suggestions** — matching visited pages now show above Google's search-phrase suggestions, each with its own icon.
+- 🖥️ **Desktop site toggle** — per-tab overflow menu item that swaps the UA + wide viewport and forces a genuine reload (not served from cache under the old UA).
+- 🔎 **Find in page** — Chrome-style overlay bar with prev/next navigation and a live match count.
+- ⌨️ **Bottom navigation auto-hides** while the keyboard is open (paste-links box, address bar, find-in-page, any dialog input) instead of floating above the keys.
+- 🎚️ **Video preset settings** — pick a preferred container, codec, and FPS ladder for the quick quality picks, plus a default **audio format** (MP3, M4A, Opus, or Original) for Audio-only downloads.
+- 📊 **Advanced quality section** — a real yt-dlp format probe (`--dump-json`) surfaced as a collapsible list in the quality picker, showing exact FPS/codec/file size per stream alongside the standard quality ladder.
+- 🗂️ **Overflow menu regrouped** into page actions, privacy actions, history, and settings sections for easier scanning.
+
+### 🛠 Fixed
+- 🩹 Container/FPS/Codec preset fields in Settings no longer wrap mid-word (e.g. "WebM" splitting into "We"/"bM") — smaller text plus single-line/ellipsize.
+- 🎵 The Audio-only row in the quality picker now shows your actual saved audio format (MP3/M4A/Opus/Original) instead of always reading "(MP3)"; a saved "Audio only" default quality also survives a later format change instead of silently reverting to "Ask always".
+- 🧭 Downloads tab's Cancel All / Clear All buttons were rendering underneath the bottom navigation bar and never visible — fragment content now clears the nav bar's height properly.
+- 🔢 30fps entries in the Advanced quality list weren't labeled with their fps, making them indistinguishable from formats with no fps data — all formats now show their real fps.
+- 🖼️ Speed-dial favicons switched from a memory-only cache to a 24-hour on-disk cache, so icons no longer redownload on every cold app launch.
+- 🕰️ Fixed the history clock icon rendering as a solid dot instead of an outline, and search-suggestion rows showing the wrong (link) icon instead of a search icon.
+- 🔔 Download-started snackbar reliability: no longer appears while already sitting on the Downloads tab, and no longer goes missing on Home/Browser from tab-switch timing races.
+- 🏗️ Fixed the `lite` flavor build breaking after the yt-dlp format-probe API was added (its stub `YtDlpManager` needed matching method signatures).
+
+### 🗑️ Removed
+- 🕵️ Private browsing tabs' toolbar entry point (the dedicated "New Private Tab" button), pulled back before release.
+
+---
+
 ## [1.0.0-beta.3] - 2026-08-26
 
 ### ✨ Added
