@@ -63,6 +63,17 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var toolbarTitle: TextView
 
+    // Set synchronously inside bottomNav's item-selected listener, the
+    // instant a tab is chosen -- unlike bottomNav.selectedItemId (its own
+    // dispatch-order quirks) or a fragment's isHidden state (only updates
+    // once its FragmentTransaction.commit() actually lands, which is
+    // scheduled, not immediate), this has zero lag. Used by
+    // showDownloadStartedSnackbar() to know which tab is really on screen
+    // *right now*. Not meant to survive process death -- onResume's
+    // syncToolbarWithVisibleFragment() re-derives state from the real
+    // fragments for that case instead.
+    private var currentTabTag: String = TAG_HOME
+
     // ── Swipe-to-switch-tabs (bottom nav) ───────────────────────────────
     // Was previously wired into the Browser fragment's WebView (switching
     // between open website tabs there); moved here so a fast horizontal
@@ -190,11 +201,20 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             // The Browser fragment's own address bar is the top bar here --
             // the shared app toolbar (and its title) would just duplicate it.
             toolbar.visibility = android.view.View.GONE
+            currentTabTag = TAG_BROWSER
             return
         }
         toolbar.visibility = android.view.View.VISIBLE
         val downloadsVisible = fm.findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
         toolbarTitle.text = if (downloadsVisible) "Downloads" else getString(R.string.app_header_title)
+        // currentTabTag defaults to TAG_HOME (see its declaration), which
+        // is only wrong here if Downloads was the real tab -- e.g. process
+        // death and recreation while sitting on Downloads restores that
+        // fragment's shown state via savedInstanceState, but this plain
+        // field always resets to its declared default on a fresh onCreate.
+        if (downloadsVisible) {
+            currentTabTag = TAG_DOWNLOADS
+        }
     }
 
     // ── onCreate ──────────────────────────────────────────────────────────
@@ -284,11 +304,13 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             }
             when (item.itemId) {
                 R.id.nav_home -> {
+                    currentTabTag = TAG_HOME
                     showFragment(TAG_HOME)
                     toolbar.visibility = android.view.View.VISIBLE
                     toolbarTitle.text = getString(R.string.app_header_title)
                 }
                 R.id.nav_browser -> {
+                    currentTabTag = TAG_BROWSER
                     showFragment(TAG_BROWSER)
                     // The Browser fragment's own address bar is the top bar here
                     // (with its own reload/tabs/overflow controls) -- the shared
@@ -296,6 +318,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                     toolbar.visibility = android.view.View.GONE
                 }
                 R.id.nav_downloads -> {
+                    currentTabTag = TAG_DOWNLOADS
                     showFragment(TAG_DOWNLOADS)
                     toolbar.visibility = android.view.View.VISIBLE
                     toolbarTitle.text = "Downloads"
@@ -584,16 +607,20 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // already sitting on the Downloads screen -- the VIEW action would
         // just be pointing them at where they already are.
         //
-        // Checked against the Downloads fragment's actual shown/hidden
-        // state (not bottomNav.selectedItemId) -- selectedItemId can be
-        // transiently stale vs. which fragment is really on screen (e.g.
-        // right after a tab switch commit, or if some other selectedItemId
-        // write elsewhere in this class runs ahead of the fragment
-        // transaction actually landing), which was making this guard fire
-        // -- and the snackbar go missing -- even from Home/Browser.
-        val downloadsVisible = supportFragmentManager
-            .findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
-        if (downloadsVisible) {
+        // Checked against currentTabTag, not the Downloads fragment's
+        // isHidden state -- isHidden only flips once its
+        // FragmentTransaction.commit() actually lands, which is scheduled
+        // on the next main-thread pass rather than applied immediately.
+        // Any flow that switches tabs and then calls this in the same
+        // frame (e.g. handleIncomingIntent jumping to Home right before
+        // starting a download) was reading the *pre-switch* isHidden
+        // value, which made this guard fire -- and the snackbar go
+        // missing -- from every tab, not just Downloads. (This replaced an
+        // earlier bottomNav.selectedItemId check that had the same kind of
+        // staleness problem for a different reason.) currentTabTag is a
+        // plain field written synchronously the moment a tab is chosen, so
+        // there's no async gap left to race.
+        if (currentTabTag == TAG_DOWNLOADS) {
             return
         }
 
