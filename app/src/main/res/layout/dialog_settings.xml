@@ -369,7 +369,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="none"
-                            android:editable="false" />
+                            android:editable="false"
+                            android:textSize="13sp"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -385,7 +388,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="none"
-                            android:editable="false" />
+                            android:editable="false"
+                            android:textSize="13sp"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -400,7 +406,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="none"
-                            android:editable="false" />
+                            android:editable="false"
+                            android:textSize="13sp"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 

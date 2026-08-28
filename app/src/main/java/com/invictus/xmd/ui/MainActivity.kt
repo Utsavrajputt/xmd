@@ -281,6 +281,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // ime() inset reaching a listener is 0 -- the resize *is* the
         // accommodation, there's nothing left for that inset to report.
         val rootContentView = findViewById<android.view.View>(android.R.id.content)
+        val fragmentContainer = findViewById<android.view.View>(R.id.fragmentContainer)
         rootContentView.viewTreeObserver.addOnGlobalLayoutListener {
             val visibleFrame = android.graphics.Rect()
             rootContentView.getWindowVisibleDisplayFrame(visibleFrame)
@@ -291,6 +292,26 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             // rounding noise stays well under this).
             val keyboardOpen = rootHeight > 0 && keyboardHeight > rootHeight * 0.15
             bottomNav.visibility = if (keyboardOpen) android.view.View.GONE else android.view.View.VISIBLE
+
+            // bottomNav floats over contentColumn via layout_gravity="bottom"
+            // rather than being a layout sibling that pushes content up, so
+            // fragmentContainer's real height extends the full screen height
+            // underneath it. Fragments whose content ends well above that
+            // strip never notice, but anything anchored to the fragment's
+            // own bottom (e.g. Downloads' Cancel All / Clear All row) was
+            // rendering *behind* the opaque nav bar -- laid out fine, just
+            // physically covered, so it never appeared. Reserve bottomNav's
+            // own height as bottom padding on fragmentContainer (0 while
+            // it's hidden for the keyboard) so fragment content stops there
+            // instead of running underneath it.
+            if (bottomNav.height > 0) {
+                fragmentContainer.setPadding(
+                    fragmentContainer.paddingLeft,
+                    fragmentContainer.paddingTop,
+                    fragmentContainer.paddingRight,
+                    if (keyboardOpen) 0 else bottomNav.height
+                )
+            }
         }
 
         bottomNav.setOnItemSelectedListener { item ->
@@ -1001,7 +1022,14 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // list the dialog itself is built from so the two never drift.
         val savedLabel = Settings.ytDlpDefaultQualityLabel()
         val chosen = if (savedLabel.isNotBlank()) {
+            // Exact match first; the "Audio only (…)" entry's suffix now
+            // tracks Settings.presetAudioFormat() (used to be hardcoded to
+            // "(MP3)"), so a default saved before switching format presets
+            // won't match verbatim -- fall back to isAudioOnly so it still
+            // resolves to the (now-relabeled) audio-only rung instead of
+            // silently reverting to "Ask always".
             options.firstOrNull { it.label == savedLabel }
+                ?: options.firstOrNull { it.isAudioOnly && savedLabel.startsWith("Audio only") }
         } else {
             suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
             val dialogView = layoutInflater.inflate(R.layout.dialog_quality_picker, null)
@@ -1094,7 +1122,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                     val sizeText = YtDlpManager.formatSize(format, probe.durationSeconds)
                     val label = buildString {
                         if (format.height != null) append("${format.height}p") else append("Audio")
-                        if (format.fps != null && format.fps > 30) append(" ${format.fps}fps")
+                        if (format.fps != null) append(" ${format.fps}fps")
                         append(" · ${format.ext.uppercase()}")
                         if (format.vcodec != null) append(" · ${format.vcodec.substringBefore('.')}")
                         if (sizeText != null) append(" · $sizeText")
@@ -1311,10 +1339,18 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, qualityLabels)
             )
             val savedLabel = Settings.ytDlpDefaultQualityLabel()
-            defaultQualityDropdown.setText(
-                savedLabel.ifBlank { getString(R.string.quality_ask_always) },
-                false
-            )
+            val displayLabel = when {
+                savedLabel.isBlank() -> getString(R.string.quality_ask_always)
+                qualityLabels.contains(savedLabel) -> savedLabel
+                // Saved before the audio format preset changed (see the
+                // matching resolveYoutube() fallback) -- show the current
+                // audio-only label instead of a stale "(MP3)" that's no
+                // longer in the list.
+                savedLabel.startsWith("Audio only") ->
+                    qualityLabels.firstOrNull { it.startsWith("Audio only") } ?: savedLabel
+                else -> savedLabel
+            }
+            defaultQualityDropdown.setText(displayLabel, false)
 
             presetContainerDropdown.bindPresetDropdown(containerOptions, Settings.presetContainer())
             presetFpsDropdown.bindPresetDropdown(fpsOptions, Settings.presetFps())

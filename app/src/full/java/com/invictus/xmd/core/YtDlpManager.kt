@@ -56,8 +56,21 @@ object YtDlpManager {
         QualityOption("720p",       videoSelector(720),  isAudioOnly = false),
         QualityOption("360p",       videoSelector(360),  isAudioOnly = false),
         QualityOption("144p",       videoSelector(144),  isAudioOnly = false),
-        QualityOption("Audio only (MP3)", AUDIO_ONLY_SELECTOR, isAudioOnly = true)
+        QualityOption("Audio only (${audioFormatShortLabel()})", AUDIO_ONLY_SELECTOR, isAudioOnly = true)
     )
+
+    /**
+     * Short display label for the "Audio only (…)" row, reflecting the
+     * user's saved Settings.presetAudioFormat() -- this used to be
+     * hardcoded to "MP3" regardless of the preset, so the picker kept
+     * showing MP3 even after switching to Opus/M4A/Original.
+     */
+    private fun audioFormatShortLabel(): String = when (Settings.presetAudioFormat()) {
+        Settings.AudioFormatPreset.MP3 -> "MP3"
+        Settings.AudioFormatPreset.M4A -> "M4A"
+        Settings.AudioFormatPreset.OPUS -> "Opus"
+        Settings.AudioFormatPreset.ORIGINAL -> "Original"
+    }
 
     /**
      * Builds the `-f` selector for one rung of [standardQualityOptions],
