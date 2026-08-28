@@ -62,6 +62,130 @@ object YtDlpManager {
     private fun videoSelector(maxHeight: Int) =
         "bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
 
+    /** Result of [probeFormats]: every real stream yt-dlp reports for a URL, plus the video's duration (needed to estimate size for formats where yt-dlp doesn't report filesize directly). */
+    data class ProbeResult(
+        val formats: List<ProbedFormat>,
+        val durationSeconds: Int?
+    )
+
+    /** One raw stream as reported by yt-dlp's own format probe (`-j`/getInfo, not the fixed [standardQualityOptions] ladder). */
+    data class ProbedFormat(
+        val formatId: String,
+        val ext: String,
+        val height: Int?,
+        val fps: Int?,
+        val vcodec: String?,
+        val acodec: String?,
+        /** Bytes, from filesize (exact) or filesize_approx -- null if yt-dlp couldn't report either. */
+        val sizeBytes: Long?,
+        /** Total bitrate in Kbit/s (tbr), used as a filesize fallback when sizeBytes is null. */
+        val tbr: Double?
+    ) {
+        val isVideoOnly: Boolean get() = acodec == null || acodec == "none"
+        val isAudioOnly: Boolean get() = vcodec == null || vcodec == "none"
+    }
+
+    /**
+     * Real probe of every stream YouTube actually serves for [url] (the
+     * advanced-settings tab in the quality picker), as opposed to
+     * [standardQualityOptions]'s fixed simplified ladder.
+     *
+     * Runs yt-dlp with `--dump-json --no-download` as a plain [execute]
+     * call (same request/response shape as [download] above) and parses
+     * the raw JSON with org.json rather than going through the library's
+     * typed getInfo()/VideoInfo wrapper -- org.json ships with Android, so
+     * this needs no extra dependency, and reading the well-documented
+     * yt-dlp JSON schema directly (yt-dlp's own `-j` field names:
+     * format_id, height, fps, vcodec, acodec, filesize, filesize_approx,
+     * tbr) is more robust than depending on a third-party wrapper's bean
+     * field/getter names, which aren't part of any documented contract.
+     *
+     * Off the main thread, real network round-trip -- callers should
+     * launch it fire-and-forget alongside showing the dialog, not block
+     * dialog construction on it.
+     *
+     * Filters out storyboard/thumbnail pseudo-formats (mhtml, no vcodec
+     * and no acodec) since those aren't downloadable video/audio streams.
+     * Returns empty on any failure (network, extraction, not installed,
+     * unparseable output) rather than throwing -- the advanced tab just
+     * shows "couldn't load extra formats" and the standard ladder above
+     * still works regardless.
+     */
+    fun probeFormats(url: String, context: Context): ProbeResult {
+        if (!ensureReady(context)) return ProbeResult(emptyList(), null)
+        return try {
+            val request = YoutubeDLRequest(url)
+            request.addOption("--dump-json")
+            request.addOption("--no-download")
+            request.addOption("--no-playlist")
+            val response = YoutubeDL.getInstance().execute(request, "probe-" + System.nanoTime()) { _, _, _ -> }
+
+            // --dump-json prints exactly one JSON object per line (one
+            // line here, since --no-playlist forces a single video) --
+            // lastOrNull skips over any [info]/[youtube] noise lines that
+            // aren't JSON.
+            val jsonLine = response.out
+                .lineSequence()
+                .map { it.trim() }
+                .lastOrNull { it.startsWith("{") }
+                ?: return ProbeResult(emptyList(), null)
+
+            val root = org.json.JSONObject(jsonLine)
+            val duration = root.optInt("duration", -1).takeIf { it > 0 }
+            val formats = root.optJSONArray("formats") ?: return ProbeResult(emptyList(), duration)
+
+            val parsed = (0 until formats.length()).mapNotNull { i ->
+                val f = formats.optJSONObject(i) ?: return@mapNotNull null
+                val vcodec = f.optString("vcodec", "none").takeIf { it != "none" }
+                val acodec = f.optString("acodec", "none").takeIf { it != "none" }
+                if (vcodec == null && acodec == null) return@mapNotNull null
+                val formatId = f.optString("format_id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val filesize = f.optLong("filesize", -1L).takeIf { it > 0 }
+                val filesizeApprox = f.optLong("filesize_approx", -1L).takeIf { it > 0 }
+                ProbedFormat(
+                    formatId = formatId,
+                    ext = f.optString("ext").takeIf { it.isNotBlank() } ?: "mp4",
+                    height = f.optInt("height", -1).takeIf { it > 0 },
+                    fps = f.optInt("fps", -1).takeIf { it > 0 },
+                    vcodec = vcodec,
+                    acodec = acodec,
+                    sizeBytes = filesize ?: filesizeApprox,
+                    tbr = f.optDouble("tbr", -1.0).takeIf { it > 0 }
+                )
+            }
+            ProbeResult(parsed, duration)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Format probe failed for $url", e)
+            ProbeResult(emptyList(), null)
+        }
+    }
+
+    /**
+     * Builds a `-f` selector for one specific video-only [ProbedFormat]
+     * merged with the best matching audio -- mirrors [videoSelector] but
+     * pins the exact formatId instead of a height ceiling, so advanced
+     * picks download the exact stream shown (exact fps/codec/bitrate)
+     * rather than whatever yt-dlp would otherwise pick at that height.
+     */
+    fun advancedSelector(format: ProbedFormat): String = when {
+        format.isAudioOnly -> format.formatId
+        format.isVideoOnly -> "${format.formatId}+bestaudio"
+        else -> format.formatId // already muxed (progressive) stream
+    }
+
+    /** Human-readable "~45.2 MB" from bytes, or a bitrate-derived estimate, or null if neither is known. */
+    fun formatSize(format: ProbedFormat, durationSeconds: Int?): String? {
+        val bytes = format.sizeBytes
+            ?: format.tbr?.takeIf { durationSeconds != null && durationSeconds > 0 }
+                ?.let { tbrKbps -> (tbrKbps * 1000 / 8 * durationSeconds!!).toLong() }
+            ?: return null
+        val approx = format.sizeBytes == null
+        val mb = bytes / (1024.0 * 1024.0)
+        val gb = mb / 1024.0
+        val text = if (gb >= 1.0) "%.2f GB".format(gb) else "%.1f MB".format(mb)
+        return if (approx) "~$text" else text
+    }
+
     /**
      * True once the user has tapped Install in Settings and it succeeded.
      * Nothing is unpacked automatically on app start -- [ensureReady] does

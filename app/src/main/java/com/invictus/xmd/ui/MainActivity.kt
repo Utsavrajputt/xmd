@@ -561,7 +561,17 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // Don't show the "Starting download… VIEW" nudge if the user is
         // already sitting on the Downloads screen -- the VIEW action would
         // just be pointing them at where they already are.
-        if (findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId == R.id.nav_downloads) {
+        //
+        // Checked against the Downloads fragment's actual shown/hidden
+        // state (not bottomNav.selectedItemId) -- selectedItemId can be
+        // transiently stale vs. which fragment is really on screen (e.g.
+        // right after a tab switch commit, or if some other selectedItemId
+        // write elsewhere in this class runs ahead of the fragment
+        // transaction actually landing), which was making this guard fire
+        // -- and the snackbar go missing -- even from Home/Browser.
+        val downloadsVisible = supportFragmentManager
+            .findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
+        if (downloadsVisible) {
             return
         }
 
@@ -947,8 +957,15 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
             val dialogView = layoutInflater.inflate(R.layout.dialog_quality_picker, null)
             val group = dialogView.findViewById<RadioGroup>(R.id.qualityGroup)
+            val density = resources.displayMetrics.density
 
-            options.forEach { option ->
+            // Shared row builder -- used for both the standard ladder above
+            // and the advanced (real-probe) list below, so the two always
+            // look identical. tag carries whichever value the positive
+            // button should resolve for that row (a fixed QualityOption
+            // for the standard ladder, or a ProbedFormat for advanced --
+            // resolved into a QualityOption at OK-click time).
+            fun buildRow(label: String, isAudioOnly: Boolean, tag: Any): AppCompatRadioButton {
                 // AppCompatRadioButton, not the platform RadioButton -- it
                 // handles its own compound-button tinting internally, so it
                 // can be constructed programmatically like this safely. A
@@ -962,41 +979,118 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 // XML is replicated by hand below instead.
                 val row = AppCompatRadioButton(this)
                 row.id = android.view.View.generateViewId()
-                row.text = option.label
+                row.text = label
                 row.isClickable = true
                 row.buttonDrawable = null
                 row.setBackgroundResource(R.drawable.bg_radio_row_selector)
                 row.setTextColor(ContextCompat.getColorStateList(this, R.color.text_radio_row))
                 row.textSize = 14f
                 row.gravity = android.view.Gravity.CENTER_VERTICAL
-                val density = resources.displayMetrics.density
                 row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
-                val startIcon = if (option.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
+                val startIcon = if (isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
                 row.setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
                 row.compoundDrawablePadding = (12 * density).toInt()
-                row.tag = option
+                row.tag = tag
                 row.layoutParams = RadioGroup.LayoutParams(
                     RadioGroup.LayoutParams.MATCH_PARENT,
                     RadioGroup.LayoutParams.WRAP_CONTENT
                 )
-                group.addView(row)
+                return row
             }
+
+            options.forEach { option -> group.addView(buildRow(option.label, option.isAudioOnly, option)) }
             // Default selection: the option one below the top of the ladder
             // (1440p) reads as a sane, non-extreme default rather than
             // pre-selecting either end of the quality range.
             (group.getChildAt(1) as? RadioButton)?.isChecked = true
 
+            // ── Advanced settings: real probed formats (FPS/codec/exact size) ──
+            val advancedHeader  = dialogView.findViewById<android.view.View>(R.id.advancedHeader)
+            val advancedChevron = dialogView.findViewById<android.widget.ImageView>(R.id.advancedChevron)
+            val advancedContent = dialogView.findViewById<android.view.View>(R.id.advancedContent)
+            val advancedProgress = dialogView.findViewById<android.view.View>(R.id.advancedProgress)
+            val advancedEmptyText = dialogView.findViewById<TextView>(R.id.advancedEmptyText)
+            val advancedGroup = dialogView.findViewById<RadioGroup>(R.id.advancedGroup)
+
+            // Cleared once the picker dialog resolves (OK/Cancel/dismiss) so
+            // a slow probe landing after the user already answered doesn't
+            // touch dead dialog views.
+            var probeCallbackAlive = true
+
+            // Kicked off immediately (not lazily on expand) so the result is
+            // typically ready the moment the user taps "Advanced" -- this is
+            // a real yt-dlp --dump-json network round-trip, so it runs on
+            // Dispatchers.IO in the background while the standard ladder
+            // above is already interactive.
+            lifecycleScope.launch {
+                val probe = withContext(Dispatchers.IO) {
+                    YtDlpManager.probeFormats(item.sourceUrl, this@MainActivity)
+                }
+                if (!probeCallbackAlive) return@launch
+
+                advancedProgress.visibility = android.view.View.GONE
+                if (probe.formats.isEmpty()) {
+                    advancedEmptyText.visibility = android.view.View.VISIBLE
+                    return@launch
+                }
+
+                // Highest quality first -- video streams (by height, then
+                // fps) ahead of audio-only, matching the standard ladder's
+                // high-to-low ordering above.
+                val sorted = probe.formats.sortedWith(
+                    compareByDescending<YtDlpManager.ProbedFormat> { it.height ?: -1 }
+                        .thenByDescending { it.fps ?: -1 }
+                )
+                sorted.forEach { format ->
+                    val sizeText = YtDlpManager.formatSize(format, probe.durationSeconds)
+                    val label = buildString {
+                        if (format.height != null) append("${format.height}p") else append("Audio")
+                        if (format.fps != null && format.fps > 30) append(" ${format.fps}fps")
+                        append(" · ${format.ext.uppercase()}")
+                        if (format.vcodec != null) append(" · ${format.vcodec.substringBefore('.')}")
+                        if (sizeText != null) append(" · $sizeText")
+                    }
+                    advancedGroup.addView(buildRow(label, format.isAudioOnly, format))
+                }
+            }
+
+            advancedHeader.setOnClickListener {
+                val expanding = advancedContent.visibility != android.view.View.VISIBLE
+                advancedContent.visibility = if (expanding) android.view.View.VISIBLE else android.view.View.GONE
+                advancedChevron.animate().rotation(if (expanding) 180f else 0f).setDuration(150).start()
+            }
+
             val dialog = MaterialAlertDialogBuilder(this)
                 .setTitle(item.fileName ?: "Choose quality")
                 .setView(dialogView)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val checked = group.findViewById<RadioButton>(group.checkedRadioButtonId)
-                    cont.resume(checked?.tag as? YtDlpManager.QualityOption)
+                    // Advanced list wins if the user picked a row there --
+                    // its RadioGroup and the standard qualityGroup are
+                    // separate groups (independent selection state), so
+                    // whichever one actually has a checked row is the
+                    // user's real choice; advanced is checked first since
+                    // picking there is the more deliberate, overriding action.
+                    val advancedChecked = advancedGroup.findViewById<RadioButton>(advancedGroup.checkedRadioButtonId)
+                    val checkedTag = advancedChecked?.tag
+                        ?: group.findViewById<RadioButton>(group.checkedRadioButtonId)?.tag
+                    val resolved = when (checkedTag) {
+                        is YtDlpManager.QualityOption -> checkedTag
+                        is YtDlpManager.ProbedFormat -> YtDlpManager.QualityOption(
+                            label = checkedTag.formatId,
+                            formatSelector = YtDlpManager.advancedSelector(checkedTag),
+                            isAudioOnly = checkedTag.isAudioOnly
+                        )
+                        else -> null
+                    }
+                    cont.resume(resolved)
                 }
                 .setOnCancelListener { cont.resume(null) }
                 .setNegativeButton(R.string.action_cancel) { d, _ -> d.cancel() }
                 .create()
-            cont.invokeOnCancellation { dialog.dismiss() }
+            cont.invokeOnCancellation {
+                probeCallbackAlive = false
+                dialog.dismiss()
+            }
             dialog.show()
             }
         }
