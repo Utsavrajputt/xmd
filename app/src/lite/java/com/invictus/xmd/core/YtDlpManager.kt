@@ -24,6 +24,33 @@ object YtDlpManager {
 
     fun standardQualityOptions(): List<QualityOption> = emptyList()
 
+    /** One raw stream as reported by the real format probe -- see the full flavor's YtDlpManager.kt for field meanings. */
+    data class ProbedFormat(
+        val formatId: String,
+        val ext: String,
+        val height: Int?,
+        val fps: Int?,
+        val vcodec: String?,
+        val acodec: String?,
+        val sizeBytes: Long?,
+        val tbr: Double?
+    ) {
+        val isVideoOnly: Boolean get() = acodec == null || acodec == "none"
+        val isAudioOnly: Boolean get() = vcodec == null || vcodec == "none"
+    }
+
+    data class ProbeResult(
+        val formats: List<ProbedFormat>,
+        val durationSeconds: Int?
+    )
+
+    /** Always empty in this flavor -- gated behind BuildConfig.HAS_YOUTUBE_SUPPORT at the call site, same as everything else here. */
+    fun probeFormats(url: String, context: Context): ProbeResult = ProbeResult(emptyList(), null)
+
+    fun advancedSelector(format: ProbedFormat): String = format.formatId
+
+    fun formatSize(format: ProbedFormat, durationSeconds: Int?): String? = null
+
     fun isInstalled(context: Context): Boolean = false
 
     fun install(context: Context): String? = "This build doesn't include YouTube support"
