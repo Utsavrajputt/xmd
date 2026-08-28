@@ -1591,7 +1591,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             item.setOnClickListener {
                 if (theme != Settings.appTheme()) {
                     Settings.setAppTheme(theme)
-                    Toast.makeText(this, getString(theme.titleRes), Toast.LENGTH_SHORT).show()
                     recreate()
                 }
             }
