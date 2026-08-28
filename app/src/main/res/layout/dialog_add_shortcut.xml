@@ -10,11 +10,11 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/hint_bookmark_title"
+        android:hint="@string/hint_shortcut_title"
         app:boxBackgroundMode="outline">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/bookmarkTitleInput"
+            android:id="@+id/shortcutTitleInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:singleLine="true" />
@@ -28,20 +28,11 @@
         app:boxBackgroundMode="outline">
 
         <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/bookmarkUrlInput"
+            android:id="@+id/shortcutUrlInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="textUri"
             android:singleLine="true" />
     </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/bookmarkAlsoAddShortcutCheckbox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/bookmark_also_add_shortcut"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="14sp" />
 
 </LinearLayout>

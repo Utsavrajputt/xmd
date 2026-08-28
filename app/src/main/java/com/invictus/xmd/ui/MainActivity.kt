@@ -34,7 +34,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
-import com.invictus.xmd.core.BookmarkRepository
+import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.core.DnsOverHttpsResolver
 import com.invictus.xmd.core.DownloadCategory
 import com.invictus.xmd.core.ItemStatus
@@ -57,7 +57,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks {
+class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks, BookmarkFragment.Callbacks {
 
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
@@ -684,6 +684,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.menu_find_in_page -> { browserFragment?.showFindInPage(); true }
                 R.id.menu_desktop_site -> { browserFragment?.toggleDesktopModeForCurrentTab(); true }
                 R.id.menu_private_dns -> { showDnsSettingsDialog(); true }
+                R.id.menu_bookmarks -> { openBookmarksScreen(); true }
                 R.id.menu_history -> { openHistoryScreen(); true }
                 R.id.menu_clear_browsing_data -> { showClearBrowsingDataDialog(); true }
                 R.id.menu_settings -> { showSettingsDialog(); true }
@@ -830,6 +831,24 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // underneath while History stayed visible on top, making it look like
         // the tap "went nowhere" / landed on the wrong screen.
         supportFragmentManager.popBackStack(TAG_HISTORY, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
+        val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
+        browser?.openUrl(url)
+        findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
+    }
+
+    private fun openBookmarksScreen() {
+        supportFragmentManager.beginTransaction()
+            .add(R.id.fragmentContainer, BookmarkFragment(), TAG_BOOKMARKS)
+            .addToBackStack(TAG_BOOKMARKS)
+            .commit()
+    }
+
+    // ── BookmarkFragment.Callbacks ──────────────────────────────────────────
+
+    override fun openBookmarkInBrowser(url: String) {
+        // Same reasoning as openInBrowser() above -- pop Bookmarks off the
+        // back stack first so the navigation is visibly landing on Browser.
+        supportFragmentManager.popBackStack(TAG_BOOKMARKS, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         browser?.openUrl(url)
         findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
@@ -1616,7 +1635,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     private fun startWebImportFlow() {
         Toast.makeText(this, R.string.import_websites_scanning, Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
-            val files = withContext(Dispatchers.IO) { BookmarkRepository.findImportCandidates() }
+            val files = withContext(Dispatchers.IO) { ShortcutRepository.findImportCandidates() }
             if (files.isEmpty()) {
                 Toast.makeText(this@MainActivity, R.string.import_websites_not_found, Toast.LENGTH_LONG).show()
             } else {
@@ -1637,7 +1656,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     private fun runWebImport(file: File) {
         lifecycleScope.launch {
-            val result = BookmarkRepository.importWebsites(file)
+            val result = ShortcutRepository.importWebsites(file)
             val message = if (result.imported > 0) {
                 getString(R.string.import_websites_success, result.imported)
             } else {
@@ -1654,5 +1673,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
         private const val TAG_HISTORY   = "history"
+        private const val TAG_BOOKMARKS = "bookmarks"
     }
 }

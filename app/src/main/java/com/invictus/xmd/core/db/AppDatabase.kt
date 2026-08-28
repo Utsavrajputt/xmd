@@ -8,16 +8,18 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.migration.Migration
 import com.invictus.xmd.core.Bookmark
+import com.invictus.xmd.core.Shortcut
 import com.invictus.xmd.core.HistoryEntry
 import com.invictus.xmd.core.QueueItem
 
-@Database(entities = [QueueItem::class, Bookmark::class, HistoryEntry::class], version = 7, exportSchema = false)
+@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 9, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun queueItemDao(): QueueItemDao
-    abstract fun bookmarkDao(): BookmarkDao
+    abstract fun shortcutDao(): ShortcutDao
     abstract fun historyDao(): HistoryDao
+    abstract fun bookmarkDao(): BookmarkDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -101,6 +103,36 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v7 -> v8: the old "bookmarks" table was actually the speed-dial
+        // shortcuts list -- renamed to "shortcuts" (and its Kotlin class to
+        // Shortcut) to free up "bookmarks" for the real bookmark feature
+        // added in v8 -> v9 below. A plain rename keeps every existing
+        // speed-dial tile intact across the upgrade.
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE bookmarks RENAME TO shortcuts")
+            }
+        }
+
+        // v8 -> v9: adds the real "bookmarks" table -- pages the user
+        // starred in the Browser toolbar, separate from the shortcuts
+        // speed-dial (see Bookmark.kt).
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bookmarks` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `title` TEXT NOT NULL,
+                        `url` TEXT NOT NULL,
+                        `faviconUrl` TEXT,
+                        `createdAtMs` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -108,7 +140,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ff_queue.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                        MIGRATION_7_8, MIGRATION_8_9
+                    )
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).
                     .fallbackToDestructiveMigration()

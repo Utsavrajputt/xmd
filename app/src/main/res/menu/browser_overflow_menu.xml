@@ -21,6 +21,9 @@
     </group>
     <group android:id="@+id/group_history">
         <item
+            android:id="@+id/menu_bookmarks"
+            android:title="@string/browser_menu_bookmarks" />
+        <item
             android:id="@+id/menu_history"
             android:title="@string/browser_menu_history" />
     </group>

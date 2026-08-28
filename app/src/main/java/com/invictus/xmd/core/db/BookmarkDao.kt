@@ -11,10 +11,10 @@ import com.invictus.xmd.core.Bookmark
 @Dao
 interface BookmarkDao {
 
-    @Query("SELECT * FROM bookmarks ORDER BY sortOrder ASC, createdAtMs ASC")
+    @Query("SELECT * FROM bookmarks ORDER BY createdAtMs DESC")
     fun observeAll(): LiveData<List<Bookmark>>
 
-    @Query("SELECT * FROM bookmarks ORDER BY sortOrder ASC, createdAtMs ASC")
+    @Query("SELECT * FROM bookmarks ORDER BY createdAtMs DESC")
     suspend fun getAll(): List<Bookmark>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -23,6 +23,6 @@ interface BookmarkDao {
     @Delete
     suspend fun delete(bookmark: Bookmark)
 
-    @Query("DELETE FROM bookmarks WHERE id = :id")
-    suspend fun deleteById(id: String)
+    @Query("DELETE FROM bookmarks")
+    suspend fun clearAll()
 }

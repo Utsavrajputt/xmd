@@ -31,8 +31,9 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.invictus.xmd.R
-import com.invictus.xmd.core.Bookmark
 import com.invictus.xmd.core.BookmarkRepository
+import com.invictus.xmd.core.Shortcut
+import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.core.DnsOverHttpsResolver
 import com.invictus.xmd.core.DownloadEngine
 import com.invictus.xmd.core.FaviconLoader
@@ -172,7 +173,7 @@ class BrowserFragment : Fragment() {
     private lateinit var findInPageNext: ImageButton
     private lateinit var findInPageClose: ImageButton
 
-    private lateinit var adapter: BookmarkAdapter
+    private lateinit var adapter: ShortcutAdapter
     private lateinit var suggestionAdapter: SuggestionAdapter
     private var lastDetectedLink: String? = null
     private var suggestJob: Job? = null
@@ -780,8 +781,8 @@ class BrowserFragment : Fragment() {
             },
             onAddTap = { phrase ->
                 val url = normalizeToUrl(phrase)
-                BookmarkRepository.add(title = phrase, url = url)
-                Toast.makeText(requireContext(), R.string.bookmark_added_toast, Toast.LENGTH_SHORT).show()
+                ShortcutRepository.add(title = phrase, url = url)
+                Toast.makeText(requireContext(), R.string.shortcut_added_toast, Toast.LENGTH_SHORT).show()
             }
         )
         suggestionsList.layoutManager = LinearLayoutManager(requireContext())
@@ -896,8 +897,9 @@ class BrowserFragment : Fragment() {
         )
     }
 
-    /** Filled star when the loaded page's URL is already a saved shortcut,
-     *  outline otherwise; hidden entirely on the speed dial (no page yet). */
+    /** Filled star when the loaded page's URL is already saved as a
+     *  bookmark, outline otherwise; hidden entirely on the speed dial (no
+     *  page yet). */
     private fun updateBookmarkStar(tab: BrowserTab) {
         val url = tab.url
         if (url.isNullOrBlank() || !url.startsWith("http")) {
@@ -910,9 +912,11 @@ class BrowserFragment : Fragment() {
         )
     }
 
-    /** Star tapped: adds the current page as a shortcut (via the existing
-     *  Add Shortcut dialog, prefilled) if it isn't one yet, or removes it
-     *  in one tap if it already is -- Chrome-style toggle. */
+    /** Star tapped: adds the current page as a bookmark (via the Add
+     *  Bookmark dialog, prefilled -- with a checkbox to also add it as a
+     *  speed-dial Shortcut) if it isn't one yet, or removes the bookmark
+     *  in one tap if it already is -- Chrome-style toggle. Never touches
+     *  Shortcuts on removal; those are independent once created. */
     private fun onBookmarkStarTapped() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         val url = tab.url ?: return
@@ -989,16 +993,22 @@ class BrowserFragment : Fragment() {
     // ── Speed dial (new tab) ─────────────────────────────────────────────
 
     private fun setupSpeedDial() {
-        adapter = BookmarkAdapter(
-            onTap = { bookmark -> urlInput.setText(bookmark.url); loadUrl(bookmark.url) },
-            onLongPress = { bookmark -> showBookmarkOptionsDialog(bookmark) },
-            onAddTap = { showAddBookmarkDialog(prefillUrl = null) }
+        adapter = ShortcutAdapter(
+            onTap = { shortcut -> urlInput.setText(shortcut.url); loadUrl(shortcut.url) },
+            onLongPress = { shortcut -> showShortcutOptionsDialog(shortcut) },
+            onAddTap = { showAddShortcutDialog(prefillUrl = null) }
         )
         speedDialGrid.layoutManager = GridLayoutManager(requireContext(), 4)
         speedDialGrid.adapter = adapter
 
-        BookmarkRepository.bookmarks.observe(viewLifecycleOwner) { list ->
+        ShortcutRepository.shortcuts.observe(viewLifecycleOwner) { list ->
             adapter.submitList(list)
+        }
+
+        // Separate from the speed-dial tiles above -- this drives the star
+        // toggle in the toolbar (updateBookmarkStar), which reflects real
+        // Bookmarks, not Shortcuts.
+        BookmarkRepository.bookmarks.observe(viewLifecycleOwner) { list ->
             bookmarkedUrls = list.map { it.url }.toSet()
             tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
         }
@@ -1039,10 +1049,10 @@ class BrowserFragment : Fragment() {
         navLoadingVeil.visibility = View.GONE
     }
 
-    private fun showAddBookmarkDialog(prefillUrl: String?, prefillTitle: String? = null) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_bookmark, null)
-        val titleInput = dialogView.findViewById<EditText>(R.id.bookmarkTitleInput)
-        val urlField = dialogView.findViewById<EditText>(R.id.bookmarkUrlInput)
+    private fun showAddShortcutDialog(prefillUrl: String?, prefillTitle: String? = null) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_shortcut, null)
+        val titleInput = dialogView.findViewById<EditText>(R.id.shortcutTitleInput)
+        val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
         urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
         titleInput.setText(prefillTitle)
 
@@ -1056,30 +1066,30 @@ class BrowserFragment : Fragment() {
                     return@setPositiveButton
                 }
                 val normalized = normalizeToUrl(url)
-                BookmarkRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalized)
+                ShortcutRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalized)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun showBookmarkOptionsDialog(bookmark: Bookmark) {
+    private fun showShortcutOptionsDialog(shortcut: Shortcut) {
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(bookmark.title)
+            .setTitle(shortcut.title)
             .setItems(arrayOf(getString(R.string.edit_bookmark_title), getString(R.string.action_delete))) { _, which ->
                 when (which) {
-                    0 -> showEditBookmarkDialog(bookmark)
-                    1 -> BookmarkRepository.remove(bookmark)
+                    0 -> showEditShortcutDialog(shortcut)
+                    1 -> ShortcutRepository.remove(shortcut)
                 }
             }
             .show()
     }
 
-    private fun showEditBookmarkDialog(bookmark: Bookmark) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_bookmark, null)
-        val titleInput = dialogView.findViewById<EditText>(R.id.bookmarkTitleInput)
-        val urlField = dialogView.findViewById<EditText>(R.id.bookmarkUrlInput)
-        titleInput.setText(bookmark.title)
-        urlField.setText(bookmark.url)
+    private fun showEditShortcutDialog(shortcut: Shortcut) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_shortcut, null)
+        val titleInput = dialogView.findViewById<EditText>(R.id.shortcutTitleInput)
+        val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
+        titleInput.setText(shortcut.title)
+        urlField.setText(shortcut.url)
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.edit_bookmark_title)
@@ -1089,10 +1099,43 @@ class BrowserFragment : Fragment() {
                     Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                BookmarkRepository.remove(bookmark)
-                BookmarkRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalizeToUrl(url))
+                ShortcutRepository.remove(shortcut)
+                ShortcutRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalizeToUrl(url))
             }
             .setView(dialogView)
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** Star-button flow: saves a real Bookmark for the current page. The
+     *  checkbox additionally creates a matching speed-dial Shortcut in the
+     *  same tap -- the two lists stay independent after that (removing the
+     *  bookmark later never removes the shortcut, and vice versa). */
+    private fun showAddBookmarkDialog(prefillUrl: String?, prefillTitle: String? = null) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_bookmark, null)
+        val titleInput = dialogView.findViewById<EditText>(R.id.bookmarkTitleInput)
+        val urlField = dialogView.findViewById<EditText>(R.id.bookmarkUrlInput)
+        val alsoAddShortcutCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.bookmarkAlsoAddShortcutCheckbox)
+        urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
+        titleInput.setText(prefillTitle)
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.add_bookmark_dialog_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.action_add) { _, _ ->
+                val url = urlField.text?.toString()?.trim().orEmpty()
+                if (url.isEmpty()) {
+                    Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val normalized = normalizeToUrl(url)
+                val title = titleInput.text?.toString()?.trim().orEmpty()
+                BookmarkRepository.add(title, normalized)
+                if (alsoAddShortcutCheckbox.isChecked) {
+                    ShortcutRepository.add(title, normalized)
+                }
+                Toast.makeText(requireContext(), R.string.bookmark_added_toast, Toast.LENGTH_SHORT).show()
+            }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

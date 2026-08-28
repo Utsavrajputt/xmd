@@ -4,9 +4,12 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * A user-saved speed-dial tile shown on the Browser tab's new-tab page,
- * Chrome-style. [faviconUrl] is resolved and cached by BrowserFragment on
- * first visit (host's /favicon.ico) -- not fetched here.
+ * A real bookmark: a page the user saved via the star button in the
+ * Browser toolbar, most-recent first, viewed in its own Bookmarks screen
+ * (Browser overflow menu -> Bookmarks). Distinct from [Shortcut], which is
+ * the speed-dial tile shown on the new-tab page -- saving a bookmark can
+ * optionally also create a matching Shortcut, but the two lists are
+ * independent from then on.
  */
 @Entity(tableName = "bookmarks")
 data class Bookmark(
@@ -15,6 +18,5 @@ data class Bookmark(
     val title: String,
     val url: String,
     val faviconUrl: String? = null,
-    val sortOrder: Int = 0,
     val createdAtMs: Long = System.currentTimeMillis()
 )

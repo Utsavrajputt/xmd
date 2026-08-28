@@ -143,10 +143,10 @@
     <string name="action_add_to_downloads">Add to Downloads</string>
     <string name="action_add_shortcut">Add Shortcut</string>
 
-    <!-- Shortcuts -->
+    <!-- Shortcuts (speed-dial tiles) -->
     <string name="label_shortcuts">SHORTCUTS</string>
     <string name="label_bookmark_placeholder">Shortcut</string>
-    <string name="hint_bookmark_title">Name</string>
+    <string name="hint_shortcut_title">Name</string>
     <string name="add_bookmark_title">Add Shortcut</string>
     <string name="edit_bookmark_title">Edit Shortcut</string>
     <string name="link_added_snackbar">Link added to your queue</string>
@@ -157,8 +157,22 @@
     <string name="find_in_page_prev">Previous match</string>
     <string name="find_in_page_next">Next match</string>
     <string name="find_in_page_menu">Find in page</string>
-    <string name="bookmark_added_toast">Shortcut added.</string>
-    <string name="bookmark_removed_toast">Shortcut removed.</string>
+    <string name="shortcut_added_toast">Shortcut added.</string>
+    <string name="shortcut_removed_toast">Shortcut removed.</string>
+
+    <!-- Bookmarks (star button + Bookmarks screen) -->
+    <string name="add_bookmark_dialog_title">Add Bookmark</string>
+    <string name="hint_bookmark_title">Name</string>
+    <string name="bookmark_also_add_shortcut">Also add as Shortcut</string>
+    <string name="bookmark_added_toast">Bookmark added.</string>
+    <string name="bookmark_removed_toast">Bookmark removed.</string>
+    <string name="browser_menu_bookmarks">Bookmarks</string>
+    <string name="bookmarks_title">Bookmarks</string>
+    <string name="bookmarks_search_hint">Search bookmarks</string>
+    <string name="bookmarks_empty">No bookmarks yet</string>
+    <string name="bookmarks_search_empty">No matching bookmarks</string>
+    <string name="bookmarks_clear_all">Clear all</string>
+    <string name="bookmarks_cleared_toast">Bookmarks cleared.</string>
 
     <!-- Link long-press context menu -->
     <string name="link_menu_open_new_tab">Open in new tab</string>
