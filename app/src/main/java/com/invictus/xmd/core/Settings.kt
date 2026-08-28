@@ -158,4 +158,63 @@ object Settings {
     fun setYtDlpDefaultQualityLabel(label: String) {
         prefs.edit().putString(KEY_YTDLP_DEFAULT_QUALITY, label).apply()
     }
+
+    // ── YouTube download preset (video container/codec/fps + audio format) ─
+    // Independent of the height ladder in YtDlpManager.standardQualityOptions
+    // -- these narrow *which* stream at that height gets picked. Left at
+    // yt-dlp's own default (whichever's highest bitrate) today, quick picks
+    // tend to land on plain 30fps MP4/AVC; setting these lets that ladder
+    // prefer e.g. 60fps WebM/VP9 instead. ANY/MP3 are the pre-preset
+    // defaults, functionally identical to today's unconstrained behavior.
+    enum class ContainerPreset(val ytDlpExt: String?) { ANY(null), MP4("mp4"), WEBM("webm") }
+    enum class CodecPreset(val vcodecPrefix: String?) { ANY(null), AVC("avc1"), VP9("vp09"), AV1("av01") }
+    enum class FpsPreset(val maxFps: Int?) { ANY(null), FPS30(30), FPS60(60) }
+    enum class AudioFormatPreset(val ytDlpFormat: String?) { MP3("mp3"), M4A("m4a"), OPUS("opus"), ORIGINAL(null) }
+
+    private const val KEY_PRESET_CONTAINER = "ytdlp_preset_container"
+    private const val KEY_PRESET_CODEC = "ytdlp_preset_codec"
+    private const val KEY_PRESET_FPS = "ytdlp_preset_fps"
+    private const val KEY_PRESET_AUDIO_FORMAT = "ytdlp_preset_audio_format"
+
+    fun presetContainer(): ContainerPreset =
+        when (prefs.getString(KEY_PRESET_CONTAINER, ContainerPreset.ANY.name)) {
+            ContainerPreset.MP4.name -> ContainerPreset.MP4
+            ContainerPreset.WEBM.name -> ContainerPreset.WEBM
+            else -> ContainerPreset.ANY
+        }
+    fun setPresetContainer(value: ContainerPreset) {
+        prefs.edit().putString(KEY_PRESET_CONTAINER, value.name).apply()
+    }
+
+    fun presetCodec(): CodecPreset =
+        when (prefs.getString(KEY_PRESET_CODEC, CodecPreset.ANY.name)) {
+            CodecPreset.AVC.name -> CodecPreset.AVC
+            CodecPreset.VP9.name -> CodecPreset.VP9
+            CodecPreset.AV1.name -> CodecPreset.AV1
+            else -> CodecPreset.ANY
+        }
+    fun setPresetCodec(value: CodecPreset) {
+        prefs.edit().putString(KEY_PRESET_CODEC, value.name).apply()
+    }
+
+    fun presetFps(): FpsPreset =
+        when (prefs.getString(KEY_PRESET_FPS, FpsPreset.ANY.name)) {
+            FpsPreset.FPS30.name -> FpsPreset.FPS30
+            FpsPreset.FPS60.name -> FpsPreset.FPS60
+            else -> FpsPreset.ANY
+        }
+    fun setPresetFps(value: FpsPreset) {
+        prefs.edit().putString(KEY_PRESET_FPS, value.name).apply()
+    }
+
+    fun presetAudioFormat(): AudioFormatPreset =
+        when (prefs.getString(KEY_PRESET_AUDIO_FORMAT, AudioFormatPreset.MP3.name)) {
+            AudioFormatPreset.M4A.name -> AudioFormatPreset.M4A
+            AudioFormatPreset.OPUS.name -> AudioFormatPreset.OPUS
+            AudioFormatPreset.ORIGINAL.name -> AudioFormatPreset.ORIGINAL
+            else -> AudioFormatPreset.MP3
+        }
+    fun setPresetAudioFormat(value: AudioFormatPreset) {
+        prefs.edit().putString(KEY_PRESET_AUDIO_FORMAT, value.name).apply()
+    }
 }

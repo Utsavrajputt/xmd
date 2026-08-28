@@ -1248,6 +1248,53 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         val ytdlpUpdateButton  = view.findViewById<android.widget.Button>(R.id.ytdlpUpdateButton)
         val ytdlpNightlyButton = view.findViewById<android.widget.Button>(R.id.ytdlpNightlyButton)
         val defaultQualityDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.defaultQualityDropdown)
+        val presetContainerDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetContainerDropdown)
+        val presetFpsDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetFpsDropdown)
+        val presetCodecDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetCodecDropdown)
+        val audioFormatDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.audioFormatDropdown)
+
+        // Video preset (container/fps/codec) + audio format dropdowns --
+        // each a fixed label<->enum pair list, same "pick by displayed
+        // label, map back on Save" pattern as defaultQualityDropdown /
+        // idForConnections. Declared up here (not inside the branch below)
+        // so the Save handler can also map the chosen label back to its
+        // enum once the dialog closes.
+        val containerOptions = listOf(
+            getString(R.string.preset_any) to Settings.ContainerPreset.ANY,
+            getString(R.string.preset_container_mp4) to Settings.ContainerPreset.MP4,
+            getString(R.string.preset_container_webm) to Settings.ContainerPreset.WEBM
+        )
+        val fpsOptions = listOf(
+            getString(R.string.preset_any) to Settings.FpsPreset.ANY,
+            getString(R.string.preset_fps_30) to Settings.FpsPreset.FPS30,
+            getString(R.string.preset_fps_60) to Settings.FpsPreset.FPS60
+        )
+        val codecOptions = listOf(
+            getString(R.string.preset_any) to Settings.CodecPreset.ANY,
+            getString(R.string.preset_codec_avc) to Settings.CodecPreset.AVC,
+            getString(R.string.preset_codec_vp9) to Settings.CodecPreset.VP9,
+            getString(R.string.preset_codec_av1) to Settings.CodecPreset.AV1
+        )
+        val audioFormatOptions = listOf(
+            getString(R.string.audio_format_mp3) to Settings.AudioFormatPreset.MP3,
+            getString(R.string.audio_format_m4a) to Settings.AudioFormatPreset.M4A,
+            getString(R.string.audio_format_opus) to Settings.AudioFormatPreset.OPUS,
+            getString(R.string.audio_format_original) to Settings.AudioFormatPreset.ORIGINAL
+        )
+        fun <T> android.widget.AutoCompleteTextView.bindPresetDropdown(
+            options: List<Pair<String, T>>,
+            current: T
+        ) {
+            setAdapter(
+                android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1, options.map { it.first })
+            )
+            setText(options.first { it.second == current }.first, false)
+        }
+        // Reverse lookup at Save time: displayed label -> enum, falling back
+        // to the list's first entry (always the "Any"/default row) if
+        // nothing matches for some reason.
+        fun <T> android.widget.AutoCompleteTextView.selectedPreset(options: List<Pair<String, T>>): T =
+            options.firstOrNull { it.first == text?.toString() }?.second ?: options.first().second
 
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             // Lite build has no YtDlpManager to back this section with --
@@ -1268,6 +1315,11 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 savedLabel.ifBlank { getString(R.string.quality_ask_always) },
                 false
             )
+
+            presetContainerDropdown.bindPresetDropdown(containerOptions, Settings.presetContainer())
+            presetFpsDropdown.bindPresetDropdown(fpsOptions, Settings.presetFps())
+            presetCodecDropdown.bindPresetDropdown(codecOptions, Settings.presetCodec())
+            audioFormatDropdown.bindPresetDropdown(audioFormatOptions, Settings.presetAudioFormat())
 
             fun refreshYtDlpRow() {
                 val installed = YtDlpManager.isInstalled(this)
@@ -1410,6 +1462,10 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                     val chosenLabel = defaultQualityDropdown.text?.toString().orEmpty()
                     val askAlways = getString(R.string.quality_ask_always)
                     Settings.setYtDlpDefaultQualityLabel(if (chosenLabel == askAlways) "" else chosenLabel)
+                    Settings.setPresetContainer(presetContainerDropdown.selectedPreset(containerOptions))
+                    Settings.setPresetFps(presetFpsDropdown.selectedPreset(fpsOptions))
+                    Settings.setPresetCodec(presetCodecDropdown.selectedPreset(codecOptions))
+                    Settings.setPresetAudioFormat(audioFormatDropdown.selectedPreset(audioFormatOptions))
                 }
                 Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
             }

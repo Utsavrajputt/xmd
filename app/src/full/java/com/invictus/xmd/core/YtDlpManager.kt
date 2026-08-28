@@ -59,8 +59,53 @@ object YtDlpManager {
         QualityOption("Audio only (MP3)", AUDIO_ONLY_SELECTOR, isAudioOnly = true)
     )
 
-    private fun videoSelector(maxHeight: Int) =
-        "bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
+    /**
+     * Builds the `-f` selector for one rung of [standardQualityOptions],
+     * folding in the user's saved container/codec/fps preset (Settings)
+     * on top of the height ceiling.
+     *
+     * Chains three alternatives, `/`-separated, so a preset never causes a
+     * hard failure:
+     *  1. Height + every preset filter that's set (exact match).
+     *  2. Height alone -- today's behavior, if this video doesn't actually
+     *     offer that container/codec/fps combination at this height.
+     *  3. Plain `best[height<=H]` -- last-resort single-stream fallback.
+     *
+     * All three preset fields at ANY (nothing picked, the default) folds
+     * back to exactly the original unconstrained selector.
+     */
+    private fun videoSelector(maxHeight: Int): String {
+        val container = Settings.presetContainer()
+        val codec = Settings.presetCodec()
+        val fps = Settings.presetFps()
+
+        if (container == Settings.ContainerPreset.ANY &&
+            codec == Settings.CodecPreset.ANY &&
+            fps == Settings.FpsPreset.ANY
+        ) {
+            return "bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
+        }
+
+        val videoFilters = buildList {
+            add("height<=$maxHeight")
+            container.ytDlpExt?.let { add("ext=$it") }
+            codec.vcodecPrefix?.let { add("vcodec^=$it") }
+            fps.maxFps?.let { add("fps<=$it") }
+        }.joinToString("][")
+
+        // Audio track container mirrors the chosen video container where
+        // possible, so the merge doesn't need an extra re-encode -- MP4
+        // pairs with m4a audio, WebM pairs with the webm/opus audio track
+        // YouTube actually serves alongside it.
+        val audioExt = when (container) {
+            Settings.ContainerPreset.MP4 -> "m4a"
+            Settings.ContainerPreset.WEBM -> "webm"
+            Settings.ContainerPreset.ANY -> null
+        }
+        val strictAudio = audioExt?.let { "bestaudio[ext=$it]" } ?: "bestaudio"
+
+        return "bestvideo[$videoFilters]+$strictAudio/bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
+    }
 
     /** Result of [probeFormats]: every real stream yt-dlp reports for a URL, plus the video's duration (needed to estimate size for formats where yt-dlp doesn't report filesize directly). */
     data class ProbeResult(
@@ -453,8 +498,19 @@ object YtDlpManager {
         request.addOption("--print", "after_move:filepath")
 
         if (option.isAudioOnly) {
-            request.addOption("-x")
-            request.addOption("--audio-format", "mp3")
+            // Settings.AudioFormatPreset.ORIGINAL (ytDlpFormat == null) skips
+            // -x/--audio-format entirely and keeps whatever container/codec
+            // YouTube actually serves for the best audio-only stream (m4a or
+            // webm/opus) instead of forcing a re-encode; every other preset
+            // extracts+converts to that exact format, same as the old
+            // hardcoded mp3 behavior.
+            val audioFormat = Settings.presetAudioFormat()
+            if (audioFormat.ytDlpFormat != null) {
+                request.addOption("-x")
+                request.addOption("--audio-format", audioFormat.ytDlpFormat)
+            } else {
+                request.addOption("-f", "bestaudio/best")
+            }
             // ID3 tags: title/uploader come from yt-dlp's own metadata for
             // free via --embed-metadata, but it maps uploader -> "artist"
             // only loosely and never sets album -- --parse-metadata fills
@@ -465,8 +521,9 @@ object YtDlpManager {
             // regular videos usually only have uploader).
             request.addOption("--embed-metadata")
             request.addOption("--embed-thumbnail")
-            // mp3 embedded art must be a JPEG (ID3v2 APIC), not yt-dlp's
-            // default webp thumbnail -- ffmpeg (bundled) does this convert.
+            // Embedded art must be a JPEG (ID3v2 APIC for mp3; harmless and
+            // still widely compatible for m4a/opus/original too), not
+            // yt-dlp's default webp thumbnail -- ffmpeg (bundled) converts.
             request.addOption("--convert-thumbnails", "jpg")
             request.addOption(
                 "--parse-metadata",
