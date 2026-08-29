@@ -38,7 +38,7 @@ import java.util.Locale
  * already used by HistoryFragment.
  */
 class SettingsActivity : AppCompatActivity(),
-    SettingsDownloadsFragment.Callbacks {
+    SettingsBrowserFragment.Callbacks {
 
     private lateinit var headerTitle: TextView
 
@@ -126,7 +126,7 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    // ── SettingsDownloadsFragment.Callbacks: website source-pack import ────
+    // ── SettingsBrowserFragment.Callbacks: website source-pack import ────
     // Moved verbatim from MainActivity.startWebImportFlow() / friends -- the
     // Import Websites action lives in the Downloads settings screen now, and
     // this logic is fully self-contained (ShortcutRepository only), so it's
@@ -166,7 +166,7 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    // ── SettingsDownloadsFragment.Callbacks: website source-pack export ────
+    // ── SettingsBrowserFragment.Callbacks: website source-pack export ────
     // User picks the save location via SAF (Save As) rather than a fixed
     // Downloads/Xmd path, then the file is shared immediately after saving
     // so it's one tap from "Export Now" to sending it to someone.
