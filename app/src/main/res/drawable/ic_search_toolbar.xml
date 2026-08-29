@@ -5,7 +5,7 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <!-- Same glyph as ic_search.xml, but opaque black fill instead of a
-         fixed gray -- this codebase's convention for icons meant to pick
+         fixed gray - this codebase's convention for icons meant to pick
          up the toolbar's automatic action-icon tint (see ic_arrow_back.xml,
          ic_settings_downloads.xml), rather than always rendering the same
          fixed color regardless of theme. -->
