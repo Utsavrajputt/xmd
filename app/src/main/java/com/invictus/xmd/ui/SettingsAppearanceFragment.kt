@@ -22,11 +22,13 @@ import com.invictus.xmd.ui.theme.AppTheme
 /**
  * Theme color + dark mode. Picker/switch logic moved verbatim from
  * MainActivity.setupThemePicker()/toggleDarkMode() (old Settings dialog) --
- * same recreate()-on-change approach, since a theme is only read in
- * onCreate() before super.onCreate(). recreate() here targets
- * SettingsActivity (this fragment's host), which is enough to repaint the
- * currently visible screen; MainActivity picks up the new theme itself the
- * next time it resumes/recreates.
+ * same recreate()-on-change approach. recreate() here targets
+ * SettingsActivity (this fragment's host), which now applies the theme
+ * itself in onCreate() (like MainActivity/ChallengeActivity do) so the
+ * recreate actually repaints this screen. MainActivity picks up the change
+ * on its own next onResume (it compares the currently-applied theme style
+ * against Settings and recreates itself if they've diverged), so backing
+ * out of Settings repaints it immediately too, no app restart needed.
  */
 class SettingsAppearanceFragment : Fragment() {
 

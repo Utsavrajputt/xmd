@@ -58,6 +58,13 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var toolbarTitle: TextView
 
+    /** The theme style res applied via [setTheme] in [onCreate], so
+     *  [onResume] can tell whether Settings changed the theme/dark-mode
+     *  while this Activity was stopped underneath it and needs a
+     *  [recreate] to repaint -- setTheme() only takes effect pre-onCreate,
+     *  so there's no cheaper way to pick up a change made elsewhere. */
+    private var appliedThemeStyleRes: Int = 0
+
     // Set synchronously inside bottomNav's item-selected listener, the
     // instant a tab is chosen -- unlike bottomNav.selectedItemId (its own
     // dispatch-order quirks) or a fragment's isHidden state (only updates
@@ -186,6 +193,19 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      */
     override fun onResume() {
         super.onResume()
+        // Settings (a separate Activity) may have changed the color theme
+        // or dark/light mode while this Activity was stopped underneath
+        // it -- setTheme() only applies pre-onCreate, so the only way to
+        // repaint with the new theme is to recreate() once we notice it
+        // no longer matches what onCreate() applied. The recreate() itself
+        // re-runs onCreate() (which updates appliedThemeStyleRes) then
+        // onResume() again, so the check below just passes through to
+        // syncToolbarWithVisibleFragment() on that second pass.
+        val currentThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
+        if (currentThemeStyleRes != appliedThemeStyleRes) {
+            recreate()
+            return
+        }
         syncToolbarWithVisibleFragment()
     }
 
@@ -217,7 +237,8 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() -- Activity.setTheme() only takes
         // effect if called before the window/decor is created.
-        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
+        appliedThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
+        setTheme(appliedThemeStyleRes)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 

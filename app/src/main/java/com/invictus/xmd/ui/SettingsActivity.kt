@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.invictus.xmd.R
+import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.ShortcutRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,6 +50,12 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate() -- Activity.setTheme() only
+        // takes effect if called before the window/decor is created. Same
+        // theme/dark-mode resolution as MainActivity/ChallengeActivity, so
+        // this screen (and SettingsAppearanceFragment's recreate() calls)
+        // actually repaint instead of recreating with the default theme.
+        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
