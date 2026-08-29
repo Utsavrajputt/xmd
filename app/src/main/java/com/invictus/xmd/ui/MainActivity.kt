@@ -361,6 +361,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                     toolbarTitle.text = "Downloads"
                 }
             }
+            invalidateOptionsMenu()
             true
         }
 
@@ -1295,8 +1296,20 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         return true
     }
 
+    /** Search only makes sense on the Downloads tab (filters the queue) --
+     *  hidden everywhere else. Re-run via invalidateOptionsMenu() from the
+     *  bottomNav item-selected listener whenever the tab changes. */
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        menu.findItem(R.id.action_search)?.isVisible = currentTabTag == TAG_DOWNLOADS
+        return super.onPrepareOptionsMenu(menu)
+    }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.action_settings) { openSettingsScreen(); return true }
+        if (item.itemId == R.id.action_search) {
+            (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.toggleSearch()
+            return true
+        }
         return super.onOptionsItemSelected(item)
     }
 

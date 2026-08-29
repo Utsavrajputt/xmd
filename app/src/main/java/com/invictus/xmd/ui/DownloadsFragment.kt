@@ -1,5 +1,7 @@
 package com.invictus.xmd.ui
 
+import android.text.Editable
+import android.text.TextWatcher
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -42,6 +44,35 @@ class DownloadsFragment : Fragment() {
      *  observer below for why this exists. */
     private var lastSummaryParts: List<String>? = null
 
+    // ── Search ───────────────────────────────────────────────────────────
+    // allItems is the unfiltered source of truth from QueueRepository;
+    // currentQuery is what the search box currently holds. Every list
+    // rebuild (a new QueueRepository emission OR a query edit) re-derives
+    // the visible rows from these two, same pattern as HistoryFragment's
+    // allEntries/currentQuery. Chips and Cancel All/Clear All are computed
+    // off the filtered list too (see renderList) -- when a search is
+    // narrowing what's on screen, "Cancel All" should mean "cancel what
+    // I'm looking at", not silently reach outside it.
+    private var allItems: List<QueueItem> = emptyList()
+    private var currentQuery: String = ""
+    private lateinit var searchCard: View
+    private lateinit var searchInput: EditText
+
+    /** Called by MainActivity when the toolbar search icon is tapped.
+     *  Reveals/hides the search bar; hiding also clears any active query
+     *  so the list goes back to unfiltered instead of staying narrowed
+     *  behind a closed search box. */
+    fun toggleSearch() {
+        val showing = searchCard.visibility == View.VISIBLE
+        if (showing) {
+            searchInput.text?.clear()
+            searchCard.visibility = View.GONE
+        } else {
+            searchCard.visibility = View.VISIBLE
+            searchInput.requestFocus()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View = inflater.inflate(R.layout.fragment_downloads, container, false)
@@ -60,102 +91,165 @@ class DownloadsFragment : Fragment() {
 
         val recycler       = view.findViewById<RecyclerView>(R.id.queueRecycler)
         val emptyContainer = view.findViewById<View>(R.id.emptyContainer)
+        val emptyIconFrame = view.findViewById<View>(R.id.emptyIconFrame)
+        val emptyLabel     = view.findViewById<android.widget.TextView>(R.id.emptyLabel)
+        val emptySubLabel  = view.findViewById<View>(R.id.emptySubLabel)
         val summaryBar     = view.findViewById<View>(R.id.queueSummaryBar)
         val summaryChips   = view.findViewById<ChipGroup>(R.id.queueSummaryChips)
         val cancelBtn       = view.findViewById<MaterialButton>(R.id.cancelButton)
         val clearAllBtn     = view.findViewById<MaterialButton>(R.id.clearAllButton)
+        searchCard  = view.findViewById(R.id.queueSearchCard)
+        searchInput = view.findViewById(R.id.queueSearchInput)
 
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter
 
         clearAllBtn.setOnClickListener { QueueRepository.clearFinishedAndFailed() }
 
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                currentQuery = s?.toString().orEmpty()
+                renderList(
+                    emptyContainer, emptyIconFrame, emptyLabel, emptySubLabel,
+                    summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
+                )
+            }
+        })
+
         QueueRepository.items.observe(viewLifecycleOwner) { list ->
-            adapter.submitList(list)
+            allItems = list
+            renderList(
+                emptyContainer, emptyIconFrame, emptyLabel, emptySubLabel,
+                summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
+            )
+        }
+    }
 
-            val isEmpty = list.isEmpty()
-            recycler.visibility       = if (isEmpty) View.GONE else View.VISIBLE
-            emptyContainer.visibility = if (isEmpty) View.VISIBLE else View.GONE
-
-            if (isEmpty) {
-                summaryBar.visibility = View.GONE
-                cancelBtn.visibility = View.GONE
-                clearAllBtn.visibility = View.GONE
-                return@observe
+    /** Matches on file name OR source URL, case-insensitive substring --
+     *  same casual match style as HistoryFragment's search. Re-derives the
+     *  visible list from [allItems] + [currentQuery] and feeds it through
+     *  to the adapter + summary chips + Cancel All/Clear All, same as
+     *  before this fragment had search, just filtered first. */
+    private fun renderList(
+        emptyContainer: View,
+        emptyIconFrame: View,
+        emptyLabel: android.widget.TextView,
+        emptySubLabel: View,
+        summaryBar: View,
+        summaryChips: ChipGroup,
+        cancelBtn: MaterialButton,
+        clearAllBtn: MaterialButton,
+        recycler: RecyclerView,
+    ) {
+        val query = currentQuery.trim()
+        val list = if (query.isEmpty()) {
+            allItems
+        } else {
+            allItems.filter { item ->
+                (item.fileName?.contains(query, ignoreCase = true) == true) ||
+                    item.sourceUrl.contains(query, ignoreCase = true)
             }
+        }
 
-            // ── Cancel All / Retry All -- same button slot, context-switches ──
-            val hasActive = list.any {
-                it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
+        adapter.submitList(list)
+
+        val isEmpty = list.isEmpty()
+        recycler.visibility       = if (isEmpty) View.GONE else View.VISIBLE
+        emptyContainer.visibility = if (isEmpty) View.VISIBLE else View.GONE
+
+        if (isEmpty) {
+            // Distinguish "nothing downloaded yet" from "search matched
+            // nothing" -- the latter shouldn't show the downloads icon or
+            // the "Add links in the Home tab" tip, since neither applies
+            // when there ARE items, just none matching.
+            if (query.isNotEmpty()) {
+                emptyIconFrame.visibility = View.GONE
+                emptySubLabel.visibility = View.GONE
+                emptyLabel.text = getString(R.string.queue_search_empty)
+            } else {
+                emptyIconFrame.visibility = View.VISIBLE
+                emptySubLabel.visibility = View.VISIBLE
+                emptyLabel.text = getString(R.string.queue_empty_title)
+            }
+            summaryBar.visibility = View.GONE
+            cancelBtn.visibility = View.GONE
+            clearAllBtn.visibility = View.GONE
+            return
+        }
+
+        // ── Cancel All / Retry All -- same button slot, context-switches ──
+        val hasActive = list.any {
+            it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
                 it.status == ItemStatus.RETRYING
-            }
-            val hasFailed = list.any { it.status == ItemStatus.FAILED }
-            val hasClearable = list.any {
-                it.status == ItemStatus.DONE || it.status == ItemStatus.FAILED
-            }
+        }
+        val hasFailed = list.any { it.status == ItemStatus.FAILED }
+        val hasClearable = list.any {
+            it.status == ItemStatus.DONE || it.status == ItemStatus.FAILED
+        }
 
-            when {
-                hasActive -> {
-                    cancelBtn.visibility = View.VISIBLE
-                    cancelBtn.text = getString(R.string.action_cancel_all)
-                    val errorColor = resolveThemeColor(com.google.android.material.R.attr.colorError)
-                    cancelBtn.setTextColor(errorColor)
-                    cancelBtn.strokeColor = ColorStateList.valueOf(errorColor)
-                    cancelBtn.setOnClickListener { DownloadService.cancelAll(requireContext()) }
-                }
-                hasFailed -> {
-                    cancelBtn.visibility = View.VISIBLE
-                    cancelBtn.text = getString(R.string.action_retry_all)
-                    val accentColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
-                    cancelBtn.setTextColor(accentColor)
-                    cancelBtn.strokeColor = ColorStateList.valueOf(accentColor)
-                    cancelBtn.setOnClickListener { (activity as? Callbacks)?.retryAll() }
-                }
-                else -> cancelBtn.visibility = View.GONE
+        when {
+            hasActive -> {
+                cancelBtn.visibility = View.VISIBLE
+                cancelBtn.text = getString(R.string.action_cancel_all)
+                val errorColor = resolveThemeColor(com.google.android.material.R.attr.colorError)
+                cancelBtn.setTextColor(errorColor)
+                cancelBtn.strokeColor = ColorStateList.valueOf(errorColor)
+                cancelBtn.setOnClickListener { DownloadService.cancelAll(requireContext()) }
             }
+            hasFailed -> {
+                cancelBtn.visibility = View.VISIBLE
+                cancelBtn.text = getString(R.string.action_retry_all)
+                val accentColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
+                cancelBtn.setTextColor(accentColor)
+                cancelBtn.strokeColor = ColorStateList.valueOf(accentColor)
+                cancelBtn.setOnClickListener { (activity as? Callbacks)?.retryAll() }
+            }
+            else -> cancelBtn.visibility = View.GONE
+        }
 
-            clearAllBtn.visibility = if (hasClearable) View.VISIBLE else View.GONE
+        clearAllBtn.visibility = if (hasClearable) View.VISIBLE else View.GONE
 
-            val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
-            val ready       = list.count { it.status == ItemStatus.READY }
-            val resolving   = list.count {
-                it.status == ItemStatus.PENDING ||
+        val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
+        val ready       = list.count { it.status == ItemStatus.READY }
+        val resolving   = list.count {
+            it.status == ItemStatus.PENDING ||
                 it.status == ItemStatus.RESOLVING ||
                 it.status == ItemStatus.NEEDS_CHALLENGE
-            }
-            val paused  = list.count { it.status == ItemStatus.PAUSED }
-            val retrying = list.count { it.status == ItemStatus.RETRYING }
-            val saving  = list.count { it.status == ItemStatus.SAVING }
-            val done    = list.count { it.status == ItemStatus.DONE }
-            val failed  = list.count { it.status == ItemStatus.FAILED }
-
-            val parts = mutableListOf<String>()
-            if (downloading > 0) parts += "$downloading downloading"
-            if (ready > 0)       parts += "$ready ready"
-            if (resolving > 0)   parts += "$resolving resolving"
-            if (paused > 0)      parts += "$paused paused"
-            if (retrying > 0)    parts += "$retrying retrying"
-            if (saving > 0)      parts += "$saving saving"
-            if (done > 0)        parts += "$done done"
-            if (failed > 0)      parts += "$failed failed"
-
-            // This observer fires on every progress tick (up to ~5x/sec per
-            // active download) since it's the same QueueRepository.items
-            // LiveData the byte-progress updates ride on -- but `parts` only
-            // actually changes when an item's *status* crosses a bucket
-            // boundary (e.g. downloading -> done), which is rare compared to
-            // the tick rate. Rebuilding the chip row from scratch every tick
-            // means removeAllViews() + inflating brand-new Chip views (each
-            // one resolving theme attributes) purely to redraw the exact same
-            // labels, competing with the UI thread for no visible change --
-            // skip the rebuild entirely when the labels haven't moved.
-            if (parts != lastSummaryParts) {
-                lastSummaryParts = parts
-                summaryChips.removeAllViews()
-                parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
-            }
-            summaryBar.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         }
+        val paused  = list.count { it.status == ItemStatus.PAUSED }
+        val retrying = list.count { it.status == ItemStatus.RETRYING }
+        val saving  = list.count { it.status == ItemStatus.SAVING }
+        val done    = list.count { it.status == ItemStatus.DONE }
+        val failed  = list.count { it.status == ItemStatus.FAILED }
+
+        val parts = mutableListOf<String>()
+        if (downloading > 0) parts += "$downloading downloading"
+        if (ready > 0)       parts += "$ready ready"
+        if (resolving > 0)   parts += "$resolving resolving"
+        if (paused > 0)      parts += "$paused paused"
+        if (retrying > 0)    parts += "$retrying retrying"
+        if (saving > 0)      parts += "$saving saving"
+        if (done > 0)        parts += "$done done"
+        if (failed > 0)      parts += "$failed failed"
+
+        // This observer fires on every progress tick (up to ~5x/sec per
+        // active download) since it's the same QueueRepository.items
+        // LiveData the byte-progress updates ride on -- but `parts` only
+        // actually changes when an item's *status* crosses a bucket
+        // boundary (e.g. downloading -> done), which is rare compared to
+        // the tick rate. Rebuilding the chip row from scratch every tick
+        // means removeAllViews() + inflating brand-new Chip views (each
+        // one resolving theme attributes) purely to redraw the exact same
+        // labels, competing with the UI thread for no visible change --
+        // skip the rebuild entirely when the labels haven't moved.
+        if (parts != lastSummaryParts) {
+            lastSummaryParts = parts
+            summaryChips.removeAllViews()
+            parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
+        }
+        summaryBar.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
     }
 
     /** Small filled-tonal stat chip, e.g. "2 downloading", for the queue summary row. */
