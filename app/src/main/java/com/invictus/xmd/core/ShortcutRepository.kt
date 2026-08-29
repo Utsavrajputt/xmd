@@ -216,6 +216,32 @@ object ShortcutRepository {
         }
     }
 
+    /**
+     * Like [add], but for the case where the user also picked a custom icon
+     * in the add-shortcut dialog: generates the id up front so the picked
+     * image can be copied into place and attached to the very same insert,
+     * instead of racing the async [add] + a follow-up lookup by URL.
+     */
+    suspend fun addWithIcon(context: Context, title: String, url: String, iconUri: android.net.Uri?) {
+        withContext(Dispatchers.IO) {
+            val id = UUID.randomUUID().toString()
+            val iconPath = iconUri?.let { copyIconToInternalStorage(context, it, id) }
+            val nextOrder = (runCatching { dao.getAll() }.getOrDefault(emptyList())
+                .maxOfOrNull { it.sortOrder } ?: -1) + 1
+            runCatching {
+                dao.upsert(
+                    Shortcut(
+                        id = id,
+                        title = title.ifBlank { hostOf(url) },
+                        url = url,
+                        sortOrder = nextOrder,
+                        customIconPath = iconPath
+                    )
+                )
+            }
+        }
+    }
+
     fun remove(shortcut: Shortcut) {
         scope.launch { runCatching { dao.delete(shortcut) } }
     }
@@ -225,6 +251,59 @@ object ShortcutRepository {
             runCatching { dao.upsert(shortcut.copy(title = newTitle.ifBlank { hostOf(shortcut.url) })) }
         }
     }
+
+    /**
+     * Saves edits to an existing shortcut in place -- preserves [Shortcut.id]
+     * and [Shortcut.sortOrder] (and anything else the caller didn't touch),
+     * unlike the old edit flow which did remove()+add() and silently reset
+     * the tile to the end of the grid every time you edited it.
+     */
+    fun update(shortcut: Shortcut) {
+        scope.launch { runCatching { dao.upsert(shortcut) } }
+    }
+
+    /**
+     * Persists a new tile order after a drag-reorder session. [orderedIds]
+     * is the full, final top-to-bottom/left-to-right id sequence; only
+     * called once, when the user taps "Done" -- dragging itself just
+     * reorders the adapter's in-memory list.
+     */
+    fun reorder(orderedIds: List<String>) {
+        scope.launch {
+            runCatching {
+                val byId = dao.getAll().associateBy { it.id }
+                orderedIds.forEachIndexed { index, id ->
+                    val existing = byId[id] ?: return@forEachIndexed
+                    if (existing.sortOrder != index) {
+                        dao.upsert(existing.copy(sortOrder = index))
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Copies a user-picked icon image (from a content:// Uri, e.g. the
+     * system photo picker) into this app's private files dir so it survives
+     * independent of the source app/gallery. Returns the new file's absolute
+     * path, or null if the copy failed. Old custom icon files aren't
+     * auto-deleted here -- callers that replace/clear a shortcut's icon
+     * should remove the previous file themselves if they track it.
+     */
+    suspend fun copyIconToInternalStorage(context: Context, sourceUri: android.net.Uri, shortcutId: String): String? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val dir = File(context.filesDir, "shortcut_icons").apply { mkdirs() }
+                val dest = File(dir, "$shortcutId.png")
+                val input = context.contentResolver.openInputStream(sourceUri) ?: return@runCatching null
+                val bitmap = input.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    ?: return@runCatching null
+                dest.outputStream().use { out ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                }
+                dest.absolutePath
+            }.getOrNull()
+        }
 
     private fun hostOf(url: String): String =
         runCatching { java.net.URI(url).host }.getOrNull() ?: url

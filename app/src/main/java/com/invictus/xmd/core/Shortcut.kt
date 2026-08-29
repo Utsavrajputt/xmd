@@ -20,5 +20,10 @@ data class Shortcut(
     val url: String,
     val faviconUrl: String? = null,
     val sortOrder: Int = 0,
-    val createdAtMs: Long = System.currentTimeMillis()
+    val createdAtMs: Long = System.currentTimeMillis(),
+    // Absolute path to a user-picked icon copied into this app's private
+    // storage (see ShortcutRepository.copyIconToInternalStorage). When set,
+    // this always wins over the live-fetched favicon -- the user has
+    // explicitly overridden the icon for this tile.
+    val customIconPath: String? = null
 )

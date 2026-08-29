@@ -225,11 +225,12 @@
                 android:visibility="visible">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_margin="16dp">
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginVertical="16dp">
 
                     <View
                         android:layout_width="4dp"
@@ -238,13 +239,27 @@
                         android:background="@drawable/bg_section_accent" />
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1"
                         android:text="@string/label_shortcuts"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textStyle="bold"
                         android:textSize="11sp"
                         android:letterSpacing="0.12" />
+
+                    <TextView
+                        android:id="@+id/shortcutReorderToggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="6dp"
+                        android:text="@string/action_reorder"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:clickable="true"
+                        android:focusable="true" />
                 </LinearLayout>
 
                 <androidx.recyclerview.widget.RecyclerView

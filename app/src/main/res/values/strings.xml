@@ -213,6 +213,10 @@
     <string name="find_in_page_menu">Find in page</string>
     <string name="shortcut_added_toast">Shortcut added.</string>
     <string name="shortcut_removed_toast">Shortcut removed.</string>
+    <string name="action_shortcut_pick_icon">Change icon</string>
+    <string name="action_reorder">Reorder</string>
+    <string name="action_done">Done</string>
+    <string name="shortcuts_reordered_toast">Order saved.</string>
 
     <!-- Bookmarks (star button + Bookmarks screen) -->
     <string name="add_bookmark_dialog_title">Add Bookmark</string>

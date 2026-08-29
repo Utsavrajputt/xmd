@@ -12,7 +12,7 @@ import com.invictus.xmd.core.Shortcut
 import com.invictus.xmd.core.HistoryEntry
 import com.invictus.xmd.core.QueueItem
 
-@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 9, exportSchema = false)
+@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 10, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -133,6 +133,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v9 -> v10: adds customIconPath to shortcuts -- an optional
+        // user-picked icon (copied into app-private storage) that overrides
+        // the live-fetched favicon for that speed-dial tile.
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shortcuts ADD COLUMN customIconPath TEXT")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -142,7 +151,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
                     )
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).

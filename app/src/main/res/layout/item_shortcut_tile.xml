@@ -24,6 +24,7 @@
             android:src="@drawable/ic_link"
             android:tint="?attr/colorOnPrimaryContainer"
             android:scaleType="fitCenter"
+            android:clipToOutline="true"
             android:contentDescription="@null" />
     </com.google.android.material.card.MaterialCardView>
 

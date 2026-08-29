@@ -174,6 +174,8 @@ class BrowserFragment : Fragment() {
     private lateinit var navLoadingVeil: View
     private lateinit var speedDialContainer: View
     private lateinit var speedDialGrid: RecyclerView
+    private lateinit var shortcutReorderToggle: android.widget.TextView
+    private var shortcutTouchHelper: androidx.recyclerview.widget.ItemTouchHelper? = null
     private lateinit var addLinkFab: FloatingActionButton
     private lateinit var sniffedMediaFab: com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
     private lateinit var suggestionsCard: MaterialCardView
@@ -187,6 +189,24 @@ class BrowserFragment : Fragment() {
 
     private lateinit var adapter: ShortcutAdapter
     private lateinit var suggestionAdapter: SuggestionAdapter
+
+    // The icon Uri the user just picked in the add/edit shortcut dialog,
+    // set by pickIconLauncher's callback and read back when the dialog's
+    // positive button is tapped. Cleared once consumed or when the dialog
+    // is dismissed without saving.
+    private var pendingIconUri: android.net.Uri? = null
+    private var pendingIconPreview: ImageView? = null
+    private val pickIconLauncher =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) {
+                pendingIconUri = uri
+                pendingIconPreview?.let { preview ->
+                    preview.imageTintList = null
+                    preview.setPadding(0, 0, 0, 0)
+                    preview.setImageURI(uri)
+                }
+            }
+        }
     private var lastDetectedLink: String? = null
     private var suggestJob: Job? = null
     // Mirrors BookmarkRepository.bookmarks (URLs only) so the address-bar
@@ -306,6 +326,7 @@ class BrowserFragment : Fragment() {
         navLoadingVeil = view.findViewById(R.id.navLoadingVeil)
         speedDialContainer = view.findViewById(R.id.speedDialContainer)
         speedDialGrid = view.findViewById(R.id.speedDialGrid)
+        shortcutReorderToggle = view.findViewById(R.id.shortcutReorderToggle)
         addLinkFab = view.findViewById(R.id.addLinkFab)
         sniffedMediaFab = view.findViewById(R.id.sniffedMediaFab)
         suggestionsCard = view.findViewById(R.id.suggestionsCard)
@@ -1133,13 +1154,34 @@ class BrowserFragment : Fragment() {
         adapter = ShortcutAdapter(
             onTap = { shortcut -> urlInput.setText(shortcut.url); loadUrl(shortcut.url) },
             onLongPress = { shortcut -> showShortcutOptionsDialog(shortcut) },
-            onAddTap = { showAddShortcutDialog(prefillUrl = null) }
+            onAddTap = { showAddShortcutDialog(prefillUrl = null) },
+            onStartDrag = { holder -> shortcutTouchHelper?.startDrag(holder) }
         )
         speedDialGrid.layoutManager = GridLayoutManager(requireContext(), 4)
         speedDialGrid.adapter = adapter
 
+        val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(ShortcutDragCallback(adapter))
+        touchHelper.attachToRecyclerView(speedDialGrid)
+        shortcutTouchHelper = touchHelper
+
+        shortcutReorderToggle.setOnClickListener {
+            if (adapter.reorderMode) {
+                // "Done" -- persist whatever order dragging left the grid in.
+                ShortcutRepository.reorder(adapter.currentIds())
+                adapter.reorderMode = false
+                shortcutReorderToggle.setText(R.string.action_reorder)
+            } else {
+                adapter.reorderMode = true
+                shortcutReorderToggle.setText(R.string.action_done)
+            }
+        }
+
         ShortcutRepository.shortcuts.observe(viewLifecycleOwner) { list ->
-            adapter.submitList(list)
+            // While actively dragging, the adapter's in-memory order is the
+            // source of truth -- don't let a DB observer fire (e.g. from an
+            // unrelated add/remove elsewhere) and stomp the drag in
+            // progress. Once reorder mode ends, this resumes normally.
+            if (!adapter.reorderMode) adapter.submitList(list)
         }
 
         // Separate from the speed-dial tiles above -- this drives the star
@@ -1149,6 +1191,46 @@ class BrowserFragment : Fragment() {
             bookmarkedUrls = list.map { it.url }.toSet()
             tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
         }
+    }
+
+    /** Drag-only (no swipe-to-dismiss) ItemTouchHelper callback for the
+     *  speed-dial grid. Only active while [ShortcutAdapter.reorderMode] is
+     *  on -- the fragment starts a drag itself via onStartDrag when a tile
+     *  is long-pressed in that mode, so this doesn't need to detect
+     *  long-press starts on its own. The trailing "+" add tile is never a
+     *  drag target in either direction. */
+    private class ShortcutDragCallback(
+        private val adapter: ShortcutAdapter
+    ) : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
+        androidx.recyclerview.widget.ItemTouchHelper.UP or androidx.recyclerview.widget.ItemTouchHelper.DOWN or
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT,
+        0
+    ) {
+        override fun isLongPressDragEnabled(): Boolean = false
+
+        override fun onMove(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ): Boolean {
+            val from = viewHolder.bindingAdapterPosition
+            val to = target.bindingAdapterPosition
+            if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
+            // Last item is always the "+" add tile -- never a valid drag target.
+            if (to >= adapter.itemCount - 1) return false
+            adapter.moveItem(from, to)
+            return true
+        }
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+            // No swipe-to-dismiss on speed-dial tiles; unused.
+        }
+
+        override fun canDropOver(
+            recyclerView: RecyclerView,
+            current: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ): Boolean = target.bindingAdapterPosition < adapter.itemCount - 1
     }
 
     private fun showSpeedDial() {
@@ -1192,6 +1274,7 @@ class BrowserFragment : Fragment() {
         val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
         urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
         titleInput.setText(prefillTitle)
+        wireIconPicker(dialogView)
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.add_bookmark_title)
@@ -1203,10 +1286,53 @@ class BrowserFragment : Fragment() {
                     return@setPositiveButton
                 }
                 val normalized = normalizeToUrl(url)
-                ShortcutRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalized)
+                val title = titleInput.text?.toString()?.trim().orEmpty()
+                val pickedIcon = pendingIconUri
+                if (pickedIcon != null) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        ShortcutRepository.addWithIcon(requireContext(), title, normalized, pickedIcon)
+                    }
+                } else {
+                    ShortcutRepository.add(title, normalized)
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .setOnDismissListener { pendingIconUri = null; pendingIconPreview = null }
             .show()
+    }
+
+    /** Wires the icon-preview tile in dialog_add_shortcut.xml to launch the
+     *  system photo picker, and (for edits) shows the shortcut's current
+     *  icon -- custom if it has one, else its live favicon. */
+    private fun wireIconPicker(dialogView: View, existing: Shortcut? = null) {
+        pendingIconUri = null
+        val previewCard = dialogView.findViewById<MaterialCardView>(R.id.shortcutIconPreviewCard)
+        val preview = dialogView.findViewById<ImageView>(R.id.shortcutIconPreview)
+        val pickLabel = dialogView.findViewById<android.widget.TextView>(R.id.shortcutIconPickLabel)
+        pendingIconPreview = preview
+
+        val customPath = existing?.customIconPath
+        if (customPath != null) {
+            val bitmap = runCatching { android.graphics.BitmapFactory.decodeFile(customPath) }.getOrNull()
+            if (bitmap != null) {
+                preview.imageTintList = null
+                preview.setPadding(0, 0, 0, 0)
+                preview.setImageBitmap(bitmap)
+            }
+        } else if (existing != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val bitmap = kotlinx.coroutines.withContext(Dispatchers.IO) { FaviconLoader.load(existing.url) }
+                if (bitmap != null) {
+                    preview.imageTintList = null
+                    preview.setPadding(0, 0, 0, 0)
+                    preview.setImageBitmap(bitmap)
+                }
+            }
+        }
+
+        val launchPicker = { pickIconLauncher.launch("image/*") }
+        previewCard.setOnClickListener { launchPicker() }
+        pickLabel.setOnClickListener { launchPicker() }
     }
 
     private fun showShortcutOptionsDialog(shortcut: Shortcut) {
@@ -1227,6 +1353,7 @@ class BrowserFragment : Fragment() {
         val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
         titleInput.setText(shortcut.title)
         urlField.setText(shortcut.url)
+        wireIconPicker(dialogView, existing = shortcut)
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.edit_bookmark_title)
@@ -1236,11 +1363,32 @@ class BrowserFragment : Fragment() {
                     Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                ShortcutRepository.remove(shortcut)
-                ShortcutRepository.add(titleInput.text?.toString()?.trim().orEmpty(), normalizeToUrl(url))
+                val normalized = normalizeToUrl(url)
+                val newTitle = (titleInput.text?.toString()?.trim().orEmpty())
+                    .ifBlank { runCatching { java.net.URI(normalized).host }.getOrNull() ?: normalized }
+                val pickedIcon = pendingIconUri
+                if (pickedIcon != null) {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        val path = ShortcutRepository.copyIconToInternalStorage(requireContext(), pickedIcon, shortcut.id)
+                        // update() preserves id + sortOrder -- editing a
+                        // tile no longer bumps it to the end of the grid.
+                        ShortcutRepository.update(
+                            shortcut.copy(
+                                title = newTitle,
+                                url = normalized,
+                                customIconPath = path ?: shortcut.customIconPath
+                            )
+                        )
+                    }
+                } else {
+                    ShortcutRepository.update(
+                        shortcut.copy(title = newTitle, url = normalized)
+                    )
+                }
             }
             .setView(dialogView)
             .setNegativeButton(android.R.string.cancel, null)
+            .setOnDismissListener { pendingIconUri = null; pendingIconPreview = null }
             .show()
     }
 
