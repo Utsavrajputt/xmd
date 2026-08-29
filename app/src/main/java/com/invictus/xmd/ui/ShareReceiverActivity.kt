@@ -144,7 +144,9 @@ class ShareReceiverActivity : AppCompatActivity() {
         }
 
         val group = view.findViewById<RadioGroup>(R.id.qualityGroup)
-        val options = YtDlpManager.standardQualityOptions()
+        val options = YtDlpManager.standardQualityOptions(
+            isGenericOrHls = !LinkParser.isYoutubeLink(item.sourceUrl)
+        )
         options.forEach { option ->
             // Plain platform RadioButton with an AppCompat-lineage style
             // resource crashes off-theme here the same way it would in

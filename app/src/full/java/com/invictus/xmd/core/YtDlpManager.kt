@@ -49,13 +49,23 @@ object YtDlpManager {
      * the closest match, so there's no need to probe the video's real
      * format list before showing this list.
      */
-    fun standardQualityOptions(): List<QualityOption> = listOf(
-        QualityOption("4K (2160p)", videoSelector(2160), isAudioOnly = false),
-        QualityOption("1440p",      videoSelector(1440), isAudioOnly = false),
-        QualityOption("1080p",      videoSelector(1080), isAudioOnly = false),
-        QualityOption("720p",       videoSelector(720),  isAudioOnly = false),
-        QualityOption("360p",       videoSelector(360),  isAudioOnly = false),
-        QualityOption("144p",       videoSelector(144),  isAudioOnly = false),
+    /**
+     * [isGenericOrHls] true for any non-YouTube link routed here (plain
+     * .m3u8/.mpd manifests and other generic-extractor sites) -- these
+     * frequently report formats with no `height` field at all (e.g. a
+     * devstreaming-cdn HLS master playlist exposing only `hls-0`, `hls-1`
+     * IDs), which makes every height-gated alternative in [videoSelector]'s
+     * chain match nothing and yt-dlp fail with "Requested format is not
+     * available". YouTube's extractor always reports height, so its
+     * selector chain is left exactly as before.
+     */
+    fun standardQualityOptions(isGenericOrHls: Boolean = false): List<QualityOption> = listOf(
+        QualityOption("4K (2160p)", videoSelector(2160, isGenericOrHls), isAudioOnly = false),
+        QualityOption("1440p",      videoSelector(1440, isGenericOrHls), isAudioOnly = false),
+        QualityOption("1080p",      videoSelector(1080, isGenericOrHls), isAudioOnly = false),
+        QualityOption("720p",       videoSelector(720,  isGenericOrHls), isAudioOnly = false),
+        QualityOption("360p",       videoSelector(360,  isGenericOrHls), isAudioOnly = false),
+        QualityOption("144p",       videoSelector(144,  isGenericOrHls), isAudioOnly = false),
         QualityOption("Audio only (${audioFormatShortLabel()})", AUDIO_ONLY_SELECTOR, isAudioOnly = true)
     )
 
@@ -87,20 +97,36 @@ object YtDlpManager {
      * All three preset fields at ANY (nothing picked, the default) folds
      * back to exactly the original unconstrained selector.
      */
-    private fun videoSelector(maxHeight: Int): String {
+    private fun videoSelector(maxHeight: Int, isGenericOrHls: Boolean = false): String {
         val container = Settings.presetContainer()
         val codec = Settings.presetCodec()
         val fps = Settings.presetFps()
+
+        // "<=?" instead of "<=" for generic/HLS links only: yt-dlp's "?"
+        // operator matches a format if the field is within range *or* the
+        // field is simply absent, instead of failing closed when it's
+        // absent. Generic HLS/DASH manifests often don't report height at
+        // all (e.g. a devstreaming-cdn master playlist exposing only
+        // hls-0/hls-1 IDs) -- plain "<=" then matches nothing and yt-dlp
+        // errors with "Requested format is not available". YouTube always
+        // reports height, so its comparator is left exactly as "<=" --
+        // this only loosens matching for streams that genuinely give
+        // yt-dlp nothing to check the cap against, never for YouTube.
+        val heightCmp = if (isGenericOrHls) "<=?" else "<="
+        // Trailing safety net, generic/HLS only: if literally nothing above
+        // matches (both height *and* something else about the format are
+        // unusual), fall back to plain "best" rather than erroring out.
+        val genericFallback = if (isGenericOrHls) "/best" else ""
 
         if (container == Settings.ContainerPreset.ANY &&
             codec == Settings.CodecPreset.ANY &&
             fps == Settings.FpsPreset.ANY
         ) {
-            return "bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
+            return "bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]$genericFallback"
         }
 
         val videoFilters = buildList {
-            add("height<=$maxHeight")
+            add("height$heightCmp$maxHeight")
             container.ytDlpExt?.let { add("ext=$it") }
             codec.vcodecPrefix?.let { add("vcodec^=$it") }
             fps.maxFps?.let { add("fps<=$it") }
@@ -117,7 +143,7 @@ object YtDlpManager {
         }
         val strictAudio = audioExt?.let { "bestaudio[ext=$it]" } ?: "bestaudio"
 
-        return "bestvideo[$videoFilters]+$strictAudio/bestvideo[height<=$maxHeight]+bestaudio/best[height<=$maxHeight]"
+        return "bestvideo[$videoFilters]+$strictAudio/bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]$genericFallback"
     }
 
     /** Result of [probeFormats]: every real stream yt-dlp reports for a URL, plus the video's duration (needed to estimate size for formats where yt-dlp doesn't report filesize directly). */

@@ -1055,7 +1055,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             return
         }
 
-        val options = YtDlpManager.standardQualityOptions()
+        val options = YtDlpManager.standardQualityOptions(
+            isGenericOrHls = !LinkParser.isYoutubeLink(item.sourceUrl)
+        )
 
         // A saved default (anything other than blank/"Ask always") skips
         // the picker dialog entirely and downloads at that quality
