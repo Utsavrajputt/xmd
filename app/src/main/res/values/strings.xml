@@ -89,7 +89,8 @@
     <string name="about_credit_jsoup_desc">HTML parsing for site imports</string>
     <string name="about_credit_room_desc">Local download history storage</string>
     <string name="about_credit_coroutines_desc">Asynchronous downloads</string>
-    <string name="about_made_by">Built with ⚡ by Utsav</string>
+    <string name="about_developers_title">Developers</string>
+    <string name="about_made_by">Built with ⚡</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_hint">Tap a theme to apply it immediately.</string>
     <string name="theme_default">Default</string>
