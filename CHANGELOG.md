@@ -3,6 +3,13 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.0.0-beta.5] - 2026-08-29
+
+### 🎨 Changed
+- 🗂️ **Tabs tray redesign** — the Tabs dialog is now a bottom sheet instead of a modal `AlertDialog`: pill-shaped rows with round white icon avatars, no title bar or Cancel/New Tab footer buttons, and a floating "+" action below the list for opening a new tab.
+
+---
+
 ## [1.0.0-beta.4] - 2026-08-28
 
 ### ✨ Added

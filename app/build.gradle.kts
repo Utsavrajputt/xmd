@@ -12,8 +12,8 @@ android {
         applicationId = "com.invictus.xmd"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.0.0-beta.4"
+        versionCode = 8
+        versionName = "1.0.0-beta.5"
     }
 
     // Two flavors instead of one do-everything APK:
