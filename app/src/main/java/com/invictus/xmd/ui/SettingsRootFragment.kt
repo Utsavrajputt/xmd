@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.R
 
 /**
@@ -44,12 +45,22 @@ class SettingsRootFragment : Fragment() {
             subtitleRes = R.string.settings_category_downloads_desc,
         ) { open(SettingsDownloadsFragment(), "settings_downloads") }
 
-        bindRow(
-            view.findViewById(R.id.rowYoutube),
-            iconRes = R.drawable.ic_settings_youtube,
-            titleRes = R.string.settings_category_youtube,
-            subtitleRes = R.string.settings_category_youtube_desc,
-        ) { open(SettingsYoutubeFragment(), "settings_youtube") }
+        val rowYoutube = view.findViewById<View>(R.id.rowYoutube)
+        if (BuildConfig.HAS_YOUTUBE_SUPPORT) {
+            bindRow(
+                rowYoutube,
+                iconRes = R.drawable.ic_settings_youtube,
+                titleRes = R.string.settings_category_youtube,
+                subtitleRes = R.string.settings_category_youtube_desc,
+            ) { open(SettingsYoutubeFragment(), "settings_youtube") }
+        } else {
+            // Lite build has no yt-dlp engine behind this screen -- drop
+            // the row entirely rather than show a category that leads
+            // nowhere useful, same reasoning as the other
+            // BuildConfig.HAS_YOUTUBE_SUPPORT gates in MainActivity /
+            // AboutFragment / SettingsYoutubeFragment.
+            rowYoutube.visibility = View.GONE
+        }
 
         bindRow(
             view.findViewById(R.id.rowAbout),

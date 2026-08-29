@@ -1,6 +1,9 @@
 package com.invictus.xmd.ui
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
@@ -8,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
+import android.widget.EditText
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
@@ -16,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.QueueItem
@@ -49,7 +54,8 @@ class DownloadsFragment : Fragment() {
             onCancel      = { item -> DownloadService.cancelItem(requireContext(), item.id) },
             onRetry       = { item -> (activity as? Callbacks)?.retryItem(item.id) },
             onClear       = { item -> QueueRepository.removeItem(item.id) },
-            onOpen        = { item -> openFile(item) }
+            onOpen        = { item -> openFile(item) },
+            onLongPress   = { item -> showDownloadOptionsDialog(item) }
         )
 
         val recycler       = view.findViewById<RecyclerView>(R.id.queueRecycler)
@@ -219,6 +225,117 @@ class DownloadsFragment : Fragment() {
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(requireContext(), R.string.open_file_no_app, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /**
+     * Long-press menu for a DONE/FAILED row -- Open with / Rename /
+     * Re-download / Copy download link / Share / Delete, matching the
+     * system Downloads app's per-file context menu. Options that need an
+     * on-disk file (Open with, Rename) are left out when there isn't one
+     * (e.g. a FAILED item that never produced a file) rather than shown
+     * and failing with a toast.
+     */
+    private fun showDownloadOptionsDialog(item: QueueItem) {
+        val file = item.filePath?.let { File(it) }?.takeIf { it.exists() }
+
+        val actions = mutableListOf<Pair<String, () -> Unit>>()
+        if (file != null) {
+            actions += getString(R.string.action_open_with) to { openFile(item) }
+            actions += getString(R.string.action_rename) to { showRenameDialog(item, file) }
+        }
+        actions += getString(R.string.action_redownload) to {
+            (activity as? Callbacks)?.retryItem(item.id)
+        }
+        actions += getString(R.string.action_copy_link) to { copyDownloadLink(item) }
+        actions += getString(R.string.action_share) to { shareItem(item, file) }
+        actions += getString(R.string.action_delete) to { confirmDeleteItem(item, file) }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(item.fileName ?: item.sourceUrl)
+            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
+            .show()
+    }
+
+    /** Renames the on-disk file and mirrors the new name into the queue
+     *  entry (fileName + filePath) so the row, Open, and Share all pick it
+     *  up immediately -- QueueRepository.update also persists it to Room. */
+    private fun showRenameDialog(item: QueueItem, file: File) {
+        val input = EditText(requireContext()).apply {
+            setText(file.name)
+            setSelection(0, file.nameWithoutExtension.length)
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.action_rename)
+            .setView(input)
+            .setPositiveButton(R.string.settings_save) { _, _ ->
+                val newName = input.text?.toString()?.trim().orEmpty()
+                if (newName.isEmpty() || newName == file.name) return@setPositiveButton
+                val newFile = File(file.parentFile, newName)
+                if (newFile.exists()) {
+                    Toast.makeText(requireContext(), R.string.rename_conflict_toast, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (file.renameTo(newFile)) {
+                    QueueRepository.update(item.id) { it.copy(fileName = newName, filePath = newFile.absolutePath) }
+                } else {
+                    Toast.makeText(requireContext(), R.string.rename_failed_toast, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** directUrl is the actual CDN/media link once resolved -- falls back
+     *  to the pasted sourceUrl (e.g. a plain direct link) when there's
+     *  nothing to resolve. */
+    private fun copyDownloadLink(item: QueueItem) {
+        val link = item.directUrl ?: item.sourceUrl
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Download link", link))
+        Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
+    }
+
+    /** Shares the actual file via FileProvider when one exists on disk,
+     *  otherwise falls back to sharing the download link as plain text. */
+    private fun shareItem(item: QueueItem, file: File?) {
+        val context = requireContext()
+        val intent = if (file != null) {
+            val uri = try {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            } catch (e: IllegalArgumentException) {
+                Toast.makeText(context, R.string.open_file_missing, Toast.LENGTH_SHORT).show()
+                return
+            }
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+            Intent(Intent.ACTION_SEND).apply {
+                type = mimeType
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        } else {
+            Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, item.directUrl ?: item.sourceUrl)
+            }
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.action_share)))
+    }
+
+    /** Deletes the on-disk file (if any) and drops the row from the queue.
+     *  A FAILED item with no file just removes the row. */
+    private fun confirmDeleteItem(item: QueueItem, file: File?) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.delete_download_title)
+            .setMessage(item.fileName ?: item.sourceUrl)
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                file?.delete()
+                QueueRepository.removeItem(item.id)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /** Resolves a color from the current *theme* (whichever Theme.Xmd.* is

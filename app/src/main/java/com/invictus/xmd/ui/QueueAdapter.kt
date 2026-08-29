@@ -20,7 +20,12 @@ class QueueAdapter(
     private val onCancel: (QueueItem) -> Unit,
     private val onRetry: (QueueItem) -> Unit,
     private val onClear: (QueueItem) -> Unit,
-    private val onOpen: (QueueItem) -> Unit
+    private val onOpen: (QueueItem) -> Unit,
+    /** Long-press on a DONE/FAILED row -- Open with / Rename / Re-download /
+     *  Copy link / Share / Delete, same idea as the Files app's per-download
+     *  context menu. Not offered for still-in-flight items (nothing to
+     *  rename/share/delete yet, and Re-download would race the live job). */
+    private val onLongPress: (QueueItem) -> Unit
 ) : ListAdapter<QueueItem, QueueAdapter.VH>(DIFF) {
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
@@ -205,6 +210,16 @@ class QueueAdapter(
         holder.open.visibility = if (item.status == ItemStatus.DONE && item.filePath != null) View.VISIBLE else View.GONE
         holder.open.setOnClickListener { onOpen(item) }
         holder.clear.setOnClickListener { onClear(item) }
+
+        // ── Long-press context menu (DONE/FAILED only) ─────────────────────
+        holder.itemView.setOnLongClickListener {
+            if (item.status == ItemStatus.DONE || item.status == ItemStatus.FAILED) {
+                onLongPress(item)
+                true
+            } else {
+                false
+            }
+        }
     }
 
     /** Updates only what a progress tick can change -- status text, size line,

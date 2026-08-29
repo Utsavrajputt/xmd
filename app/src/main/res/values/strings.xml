@@ -46,6 +46,15 @@
     <string name="action_view">View</string>
     <string name="action_delete">Delete</string>
 
+    <!-- Long-press options dialog on a finished/failed download row (DownloadsFragment) -->
+    <string name="action_open_with">Open with</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_redownload">Re-download</string>
+    <string name="action_share">Share</string>
+    <string name="delete_download_title">Delete this download?</string>
+    <string name="rename_conflict_toast">A file with that name already exists</string>
+    <string name="rename_failed_toast">Couldn\'t rename the file</string>
+
     <!-- Downloads -->
     <string name="empty_queue">Paste some links above and tap Prepare.</string>
     <string name="challenge_title">Complete Verification</string>

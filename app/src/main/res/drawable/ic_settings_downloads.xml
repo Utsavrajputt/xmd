@@ -4,10 +4,13 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Single evenOdd path: the arrow is a real transparent cutout through
+         the folder shape rather than a separate white-filled path, so it
+         survives ImageView tint instead of being flattened to the same
+         solid color as the folder outline (see item_settings_category.xml). -->
     <path
         android:fillColor="#FF000000"
-        android:pathData="M19,20H5c-1.1,0 -2,-0.9 -2,-2V6c0,-1.1 0.9,-2 2,-2h4l2,2h8c1.1,0 2,0.9 2,2v10C21,19.1 20.1,20 19,20z"/>
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,17l-3.5,-3.5 1.41,-1.41L11,13.17V9h2v4.17l1.09,-1.08 1.41,1.41L12,17z"/>
+        android:fillType="evenOdd"
+        android:pathData="M19,20H5c-1.1,0 -2,-0.9 -2,-2V6c0,-1.1 0.9,-2 2,-2h4l2,2h8c1.1,0 2,0.9 2,2v10C21,19.1 20.1,20 19,20z
+M12,17l-3.5,-3.5 1.41,-1.41L11,13.17V9h2v4.17l1.09,-1.08 1.41,1.41L12,17z"/>
 </vector>
