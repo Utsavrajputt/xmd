@@ -11,7 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.invictus.xmd.R
-import com.invictus.xmd.core.BookmarkRepository
+import com.invictus.xmd.core.ShortcutRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,13 +101,13 @@ class SettingsActivity : AppCompatActivity(),
     // ── SettingsDownloadsFragment.Callbacks: website source-pack import ────
     // Moved verbatim from MainActivity.startWebImportFlow() / friends -- the
     // Import Websites action lives in the Downloads settings screen now, and
-    // this logic is fully self-contained (BookmarkRepository only), so it's
+    // this logic is fully self-contained (ShortcutRepository only), so it's
     // relocated here rather than delegated back across Activities.
 
     override fun startWebImportFlow() {
         Toast.makeText(this, R.string.import_websites_scanning, Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
-            val files = withContext(Dispatchers.IO) { BookmarkRepository.findImportCandidates() }
+            val files = withContext(Dispatchers.IO) { ShortcutRepository.findImportCandidates() }
             if (files.isEmpty()) {
                 Toast.makeText(this@SettingsActivity, R.string.import_websites_not_found, Toast.LENGTH_LONG).show()
             } else {
@@ -128,7 +128,7 @@ class SettingsActivity : AppCompatActivity(),
 
     private fun runWebImport(file: File) {
         lifecycleScope.launch {
-            val result = BookmarkRepository.importWebsites(file)
+            val result = ShortcutRepository.importWebsites(file)
             val message = if (result.imported > 0) {
                 getString(R.string.import_websites_success, result.imported)
             } else {

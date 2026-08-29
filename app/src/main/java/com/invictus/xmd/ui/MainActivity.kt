@@ -28,13 +28,10 @@ import androidx.core.content.ContextCompat
 import androidx.appcompat.widget.AppCompatRadioButton
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
-import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.core.DnsOverHttpsResolver
 import com.invictus.xmd.core.DownloadCategory
 import com.invictus.xmd.core.ItemStatus
@@ -45,7 +42,6 @@ import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.core.ResolutionError
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.YtDlpManager
-import com.invictus.xmd.ui.theme.AppTheme
 import com.invictus.xmd.service.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -53,7 +49,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -687,7 +682,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 R.id.menu_bookmarks -> { openBookmarksScreen(); true }
                 R.id.menu_history -> { openHistoryScreen(); true }
                 R.id.menu_clear_browsing_data -> { showClearBrowsingDataDialog(); true }
-                R.id.menu_settings -> { showSettingsDialog(); true }
+                R.id.menu_settings -> { openSettingsScreen(); true }
                 else -> false
             }
         }
@@ -1029,7 +1024,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             QueueRepository.update(item.id) {
                 it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed")
             }
-            if (openSettings) showSettingsDialog()
+            if (openSettings) openSettingsScreen()
             return
         }
 
@@ -1272,277 +1267,31 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_settings) { showSettingsDialog(); return true }
+        if (item.itemId == R.id.action_settings) { openSettingsScreen(); return true }
         return super.onOptionsItemSelected(item)
     }
 
-    private fun showSettingsDialog() {
-        val view            = layoutInflater.inflate(R.layout.dialog_settings, null)
-        setupThemePicker(view.findViewById(R.id.themeSwatchContainer))
-        val group           = view.findViewById<RadioGroup>(R.id.connectionsGroup)
-        val speedInput      = view.findViewById<EditText>(R.id.speedLimitInput)
-        val concurrentInput = view.findViewById<EditText>(R.id.maxConcurrentInput)
-        val darkModeSwitch  = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.darkModeSwitch)
-        val autoRetrySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.autoRetrySwitch)
-        val saveToDownloadsSwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.saveToDownloadsSwitch)
-        val wifiOnlySwitch = view.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.wifiOnlySwitch)
-        val importWebsitesButton = view.findViewById<MaterialButton>(R.id.importWebsitesButton)
-        val ytdlpDivider    = view.findViewById<android.view.View>(R.id.ytdlpDivider)
-        val ytdlpSection    = view.findViewById<android.view.View>(R.id.ytdlpSection)
-        val ytdlpStatus     = view.findViewById<android.widget.TextView>(R.id.ytdlpStatus)
-        val ytdlpProgress   = view.findViewById<android.widget.ProgressBar>(R.id.ytdlpProgress)
-        val ytdlpButton     = view.findViewById<android.widget.Button>(R.id.ytdlpActionButton)
-        val ytdlpUpdateButton  = view.findViewById<android.widget.Button>(R.id.ytdlpUpdateButton)
-        val ytdlpNightlyButton = view.findViewById<android.widget.Button>(R.id.ytdlpNightlyButton)
-        val defaultQualityDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.defaultQualityDropdown)
-        val presetContainerDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetContainerDropdown)
-        val presetFpsDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetFpsDropdown)
-        val presetCodecDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.presetCodecDropdown)
-        val audioFormatDropdown = view.findViewById<android.widget.AutoCompleteTextView>(R.id.audioFormatDropdown)
-
-        // Video preset (container/fps/codec) + audio format dropdowns --
-        // each a fixed label<->enum pair list, same "pick by displayed
-        // label, map back on Save" pattern as defaultQualityDropdown /
-        // idForConnections. Declared up here (not inside the branch below)
-        // so the Save handler can also map the chosen label back to its
-        // enum once the dialog closes.
-        val containerOptions = listOf(
-            getString(R.string.preset_any) to Settings.ContainerPreset.ANY,
-            getString(R.string.preset_container_mp4) to Settings.ContainerPreset.MP4,
-            getString(R.string.preset_container_webm) to Settings.ContainerPreset.WEBM
-        )
-        val fpsOptions = listOf(
-            getString(R.string.preset_any) to Settings.FpsPreset.ANY,
-            getString(R.string.preset_fps_30) to Settings.FpsPreset.FPS30,
-            getString(R.string.preset_fps_60) to Settings.FpsPreset.FPS60
-        )
-        val codecOptions = listOf(
-            getString(R.string.preset_any) to Settings.CodecPreset.ANY,
-            getString(R.string.preset_codec_avc) to Settings.CodecPreset.AVC,
-            getString(R.string.preset_codec_vp9) to Settings.CodecPreset.VP9,
-            getString(R.string.preset_codec_av1) to Settings.CodecPreset.AV1
-        )
-        val audioFormatOptions = listOf(
-            getString(R.string.audio_format_mp3) to Settings.AudioFormatPreset.MP3,
-            getString(R.string.audio_format_m4a) to Settings.AudioFormatPreset.M4A,
-            getString(R.string.audio_format_opus) to Settings.AudioFormatPreset.OPUS,
-            getString(R.string.audio_format_original) to Settings.AudioFormatPreset.ORIGINAL
-        )
-        fun <T> android.widget.AutoCompleteTextView.bindPresetDropdown(
-            options: List<Pair<String, T>>,
-            current: T
-        ) {
-            setAdapter(
-                android.widget.ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1, options.map { it.first })
-            )
-            setText(options.first { it.second == current }.first, false)
-        }
-        // Reverse lookup at Save time: displayed label -> enum, falling back
-        // to the list's first entry (always the "Any"/default row) if
-        // nothing matches for some reason.
-        fun <T> android.widget.AutoCompleteTextView.selectedPreset(options: List<Pair<String, T>>): T =
-            options.firstOrNull { it.first == text?.toString() }?.second ?: options.first().second
-
-        if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            // Lite build has no YtDlpManager to back this section with --
-            // hide it entirely rather than show controls that can't do anything.
-            ytdlpDivider.visibility = android.view.View.GONE
-            ytdlpSection.visibility = android.view.View.GONE
-        } else {
-            // "Ask always" (blank stored value) first, then one entry per
-            // standardQualityOptions() label in the same order as the
-            // picker dialog itself so the two stay visually consistent.
-            val qualityLabels = listOf(getString(R.string.quality_ask_always)) +
-                YtDlpManager.standardQualityOptions().map { it.label }
-            defaultQualityDropdown.setAdapter(
-                android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, qualityLabels)
-            )
-            val savedLabel = Settings.ytDlpDefaultQualityLabel()
-            val displayLabel = when {
-                savedLabel.isBlank() -> getString(R.string.quality_ask_always)
-                qualityLabels.contains(savedLabel) -> savedLabel
-                // Saved before the audio format preset changed (see the
-                // matching resolveYoutube() fallback) -- show the current
-                // audio-only label instead of a stale "(MP3)" that's no
-                // longer in the list.
-                savedLabel.startsWith("Audio only") ->
-                    qualityLabels.firstOrNull { it.startsWith("Audio only") } ?: savedLabel
-                else -> savedLabel
-            }
-            defaultQualityDropdown.setText(displayLabel, false)
-
-            presetContainerDropdown.bindPresetDropdown(containerOptions, Settings.presetContainer())
-            presetFpsDropdown.bindPresetDropdown(fpsOptions, Settings.presetFps())
-            presetCodecDropdown.bindPresetDropdown(codecOptions, Settings.presetCodec())
-            audioFormatDropdown.bindPresetDropdown(audioFormatOptions, Settings.presetAudioFormat())
-
-            fun refreshYtDlpRow() {
-                val installed = YtDlpManager.isInstalled(this)
-                ytdlpStatus.text = if (installed) {
-                    val channel = getString(
-                        if (Settings.ytDlpUseNightly()) R.string.settings_ytdlp_channel_nightly
-                        else R.string.settings_ytdlp_channel_stable
-                    )
-                    "${getString(R.string.settings_ytdlp_status_installed)}  •  $channel"
-                } else {
-                    getString(R.string.settings_ytdlp_status_not_installed)
-                }
-                ytdlpButton.setText(if (installed) R.string.settings_ytdlp_delete else R.string.settings_ytdlp_install)
-                ytdlpButton.isEnabled = true
-                ytdlpUpdateButton.visibility = if (installed) android.view.View.VISIBLE else android.view.View.GONE
-                ytdlpUpdateButton.isEnabled = true
-                ytdlpUpdateButton.setText(R.string.settings_ytdlp_update)
-                ytdlpNightlyButton.visibility = if (installed) android.view.View.VISIBLE else android.view.View.GONE
-                ytdlpNightlyButton.isEnabled = true
-                // Button always offers switching to the *other* channel --
-                // once on nightly, it becomes "back to stable" instead of
-                // staying labeled "Use Nightly Build" forever.
-                ytdlpNightlyButton.setText(
-                    if (Settings.ytDlpUseNightly()) R.string.settings_ytdlp_switch_stable
-                    else R.string.settings_ytdlp_use_nightly
-                )
-                ytdlpProgress.visibility = android.view.View.GONE
-            }
-            refreshYtDlpRow()
-
-            ytdlpButton.setOnClickListener {
-                if (YtDlpManager.isInstalled(this)) {
-                    YtDlpManager.delete(this)
-                    Toast.makeText(this, "yt-dlp removed", Toast.LENGTH_SHORT).show()
-                    refreshYtDlpRow()
-                } else {
-                    ytdlpButton.isEnabled = false
-                    ytdlpProgress.visibility = android.view.View.VISIBLE
-                    ytdlpStatus.setText(R.string.settings_ytdlp_installing)
-                    lifecycleScope.launch {
-                        val error = withContext(Dispatchers.IO) { YtDlpManager.install(this@MainActivity) }
-                        // Show the exact failure reason instead of a generic message --
-                        // init() only unpacks bundled assets, no network involved, so a
-                        // guessed "check your connection" message would usually be wrong.
-                        Toast.makeText(
-                            this@MainActivity,
-                            error?.let { "Install failed: $it" } ?: "yt-dlp installed",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        refreshYtDlpRow()
-                    }
-                }
-            }
-
-            ytdlpUpdateButton.setOnClickListener {
-                ytdlpUpdateButton.isEnabled = false
-                ytdlpNightlyButton.isEnabled = false
-                ytdlpProgress.visibility = android.view.View.VISIBLE
-                ytdlpStatus.setText(R.string.settings_ytdlp_updating)
-                lifecycleScope.launch {
-                    val result = withContext(Dispatchers.IO) { YtDlpManager.update(this@MainActivity) }
-                    Toast.makeText(
-                        this@MainActivity,
-                        result?.let { "yt-dlp: $it" } ?: "Update failed — check your connection",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    refreshYtDlpRow()
-                }
-            }
-
-            ytdlpNightlyButton.setOnClickListener {
-                val switchingToNightly = !Settings.ytDlpUseNightly()
-                ytdlpUpdateButton.isEnabled = false
-                ytdlpNightlyButton.isEnabled = false
-                ytdlpProgress.visibility = android.view.View.VISIBLE
-                ytdlpStatus.setText(
-                    if (switchingToNightly) R.string.settings_ytdlp_switching_nightly
-                    else R.string.settings_ytdlp_updating
-                )
-                lifecycleScope.launch {
-                    val result = withContext(Dispatchers.IO) {
-                        YtDlpManager.switchChannel(this@MainActivity, switchingToNightly)
-                    }
-                    Toast.makeText(
-                        this@MainActivity,
-                        result?.let { "yt-dlp: $it" } ?: "Switch failed — check your connection",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    refreshYtDlpRow()
-                }
-            }
-        }
-
-        val idForConnections = mapOf(
-            2 to R.id.conn2, 4 to R.id.conn4, 8 to R.id.conn8, 16 to R.id.conn16
-        )
-        (view.findViewById<RadioButton>(
-            idForConnections[Settings.connectionsPerDownload()] ?: R.id.conn4
-        )).isChecked = true
-        speedInput.setText(Settings.speedLimitKBps().toString())
-        concurrentInput.setText(Settings.maxConcurrentDownloads().toString())
-        autoRetrySwitch.isChecked = Settings.autoRetryEnabled()
-        saveToDownloadsSwitch.isChecked = Settings.saveToDownloadsFolder()
-        wifiOnlySwitch.isChecked = Settings.wifiOnlyDownloads()
-
-        // Applies immediately (like the color swatches above it) instead of
-        // waiting for Save, since flipping it needs a recreate() anyway --
-        // the guard against the initial isChecked assignment re-triggering
-        // itself is redundant here (setChecked before the listener is
-        // attached doesn't fire it), kept only for safety.
-        darkModeSwitch.isChecked = Settings.isDarkMode()
-        darkModeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked != Settings.isDarkMode()) toggleDarkMode()
-        }
-
-        importWebsitesButton.setOnClickListener { startWebImportFlow() }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.settings_title)
-            .setView(view)
-            .setPositiveButton(R.string.settings_save) { _, _ ->
-                val checkedId = group.checkedRadioButtonId
-                val connections = idForConnections.entries
-                    .firstOrNull { it.value == checkedId }?.key ?: 4
-                Settings.setConnectionsPerDownload(connections)
-                Settings.setSpeedLimitKBps(speedInput.text?.toString()?.toIntOrNull() ?: 0)
-                Settings.setMaxConcurrentDownloads(concurrentInput.text?.toString()?.toIntOrNull() ?: 2)
-                Settings.setAutoRetryEnabled(autoRetrySwitch.isChecked)
-                Settings.setSaveToDownloadsFolder(saveToDownloadsSwitch.isChecked)
-                val wifiOnlyJustEnabled = wifiOnlySwitch.isChecked && !Settings.wifiOnlyDownloads()
-                Settings.setWifiOnlyDownloads(wifiOnlySwitch.isChecked)
-                if (wifiOnlyJustEnabled && !com.invictus.xmd.core.NetworkMonitor.isOnWifi(this)) {
-                    // Turned ON while already on cellular -- the setting only
-                    // reacts to a live network *transition* otherwise, so
-                    // without this any download already in flight would keep
-                    // running on cellular until the next Wi-Fi drop/regain.
-                    DownloadService.pauseForWifiOnly(this)
-                }
-                if (BuildConfig.HAS_YOUTUBE_SUPPORT) {
-                    val chosenLabel = defaultQualityDropdown.text?.toString().orEmpty()
-                    val askAlways = getString(R.string.quality_ask_always)
-                    Settings.setYtDlpDefaultQualityLabel(if (chosenLabel == askAlways) "" else chosenLabel)
-                    Settings.setPresetContainer(presetContainerDropdown.selectedPreset(containerOptions))
-                    Settings.setPresetFps(presetFpsDropdown.selectedPreset(fpsOptions))
-                    Settings.setPresetCodec(presetCodecDropdown.selectedPreset(codecOptions))
-                    Settings.setPresetAudioFormat(audioFormatDropdown.selectedPreset(audioFormatOptions))
-                }
-                Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+    /**
+     * Opens the dedicated Settings screen (replaces the old in-place
+     * dialog). All the *screen* logic that used to live here -- connections
+     * & speed, download behavior, YouTube quality presets, yt-dlp
+     * install/update, and website import -- now lives in SettingsActivity
+     * and its category fragments. Dark mode and the theme picker still have
+     * a presence here too (see toggleDarkMode() below), since the toolbar
+     * title tap needs to flip dark mode on *this* Activity directly.
+     */
+    private fun openSettingsScreen() {
+        startActivity(Intent(this, SettingsActivity::class.java))
     }
 
     /**
-     * Fills the horizontal theme picker row in the settings dialog with one
-     * swatch per [AppTheme]. Tapping a swatch applies it immediately --
-     * saves the pick, dismisses the settings dialog (it belongs to this
-     * Activity instance and would be torn down by recreate() anyway), and
-     * recreates the Activity so the new colorPrimary/colorSurface/etc.
-     * actually take effect (a theme is only read in onCreate, before
-     * super.onCreate()).
-     */
-    /**
-     * Flips dark/light mode for whichever [AppTheme] color theme is
-     * currently active -- tap the app header, or use the Dark Mode switch
-     * in Settings > Appearance. Same pattern as picking a new color theme:
-     * save the pick, then `recreate()` since a theme is only read in
-     * `onCreate()`, before `super.onCreate()`.
+     * Flips dark/light mode for whichever color theme is currently active --
+     * triggered by tapping the toolbar title. Same pattern as the
+     * duplicate in SettingsAppearanceFragment.toggleDarkMode() (used there
+     * for the Dark Mode switch in Settings > Appearance): save the pick,
+     * toast the new mode, then recreate() since a theme is only read in
+     * onCreate(), before super.onCreate(). Two copies exist because each
+     * needs to recreate() its *own* Activity instance.
      */
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
@@ -1555,116 +1304,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         recreate()
     }
 
-    private fun setupThemePicker(container: android.widget.LinearLayout) {
-        container.removeAllViews()
-        val current = Settings.appTheme()
-        val dp8 = (8 * resources.displayMetrics.density).toInt()
-
-        fun circleDrawable(colorHex: String) = android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.OVAL
-            setColor(android.graphics.Color.parseColor(colorHex))
-        }
-
-        fun roundRectDrawable(colorHex: String, radiusDp: Float, strokeColor: Int? = null, strokeWidthPx: Int = 0) =
-            android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = radiusDp * resources.displayMetrics.density
-                setColor(android.graphics.Color.parseColor(colorHex))
-                if (strokeColor != null) setStroke(strokeWidthPx, strokeColor)
-            }
-
-        AppTheme.entries.forEach { theme ->
-            val item = layoutInflater.inflate(R.layout.item_theme_swatch, container, false)
-            val ring = item.findViewById<android.widget.FrameLayout>(R.id.swatchRing)
-            val box = item.findViewById<android.widget.FrameLayout>(R.id.swatchBox)
-            val dotPrimary = item.findViewById<android.view.View>(R.id.dotPrimary)
-            val dotSecondary = item.findViewById<android.view.View>(R.id.dotSecondary)
-            val dotTertiary = item.findViewById<android.view.View>(R.id.dotTertiary)
-            val checkIcon = item.findViewById<android.widget.ImageView>(R.id.checkIcon)
-            val nameView = item.findViewById<android.widget.TextView>(R.id.themeName)
-
-            val isSelected = theme == current
-            val ringStrokePx = (2 * resources.displayMetrics.density).toInt()
-            ring.background = roundRectDrawable(
-                colorHex = "#00000000",
-                radiusDp = 16f,
-                strokeColor = if (isSelected) android.graphics.Color.parseColor(theme.swatchPrimary) else android.graphics.Color.TRANSPARENT,
-                strokeWidthPx = ringStrokePx,
-            )
-            box.background = roundRectDrawable(theme.swatchBackground, 13f)
-            dotPrimary.background = circleDrawable(theme.swatchPrimary)
-            dotSecondary.background = circleDrawable(theme.swatchSecondary)
-            dotTertiary.background = circleDrawable(theme.swatchTertiary)
-            checkIcon.visibility = if (isSelected) android.view.View.VISIBLE else android.view.View.GONE
-            checkIcon.setColorFilter(android.graphics.Color.parseColor(theme.swatchPrimary))
-
-            nameView.text = getString(theme.titleRes)
-            // Was hardcoded to R.color.m3_on_surface (a light-on-dark gray),
-            // so it went near-invisible against a light-theme dialog
-            // background. Resolve colorOnSurface from whichever theme is
-            // actually active instead, same as everything else in this
-            // dialog.
-            nameView.setTextColor(MaterialColors.getColor(nameView, com.google.android.material.R.attr.colorOnSurface))
-            nameView.setTypeface(nameView.typeface, if (isSelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-
-            item.setOnClickListener {
-                if (theme != Settings.appTheme()) {
-                    Settings.setAppTheme(theme)
-                    recreate()
-                }
-            }
-
-            container.addView(item, android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-            ).apply { marginEnd = dp8 })
-        }
-    }
-
-    // ── Website source pack import (Settings -> Import Websites) ────────
-
-    /**
-     * Scans for any xmdweb source-pack file and lets the user pick which
-     * one to import -- no auto-popup on launch, and no file picker either;
-     * just a scan + list. Called only from the "Import Now" button in
-     * Settings. Scoped to Downloads, Xmd, and WhatsApp Documents (incl.
-     * subfolders) rather than all of storage, so it can take a moment on a
-     * phone with a lot of WhatsApp history -- a quick toast sets that
-     * expectation before the scan starts.
-     */
-    private fun startWebImportFlow() {
-        Toast.makeText(this, R.string.import_websites_scanning, Toast.LENGTH_SHORT).show()
-        lifecycleScope.launch {
-            val files = withContext(Dispatchers.IO) { ShortcutRepository.findImportCandidates() }
-            if (files.isEmpty()) {
-                Toast.makeText(this@MainActivity, R.string.import_websites_not_found, Toast.LENGTH_LONG).show()
-            } else {
-                showImportCandidatesDialog(files)
-            }
-        }
-    }
-
-    private fun showImportCandidatesDialog(files: List<File>) {
-        val storageRoot = Environment.getExternalStorageDirectory().path
-        val labels = files.map { it.path.removePrefix(storageRoot).trimStart('/') }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.import_websites_title)
-            .setItems(labels) { _, which -> runWebImport(files[which]) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun runWebImport(file: File) {
-        lifecycleScope.launch {
-            val result = ShortcutRepository.importWebsites(file)
-            val message = if (result.imported > 0) {
-                getString(R.string.import_websites_success, result.imported)
-            } else {
-                getString(R.string.import_websites_none_new)
-            }
-            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
-        }
-    }
 
     // ── Constants ─────────────────────────────────────────────────────────
 

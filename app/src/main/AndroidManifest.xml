@@ -103,6 +103,11 @@
             android:exported="false"
             android:label="@string/challenge_title" />
 
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title" />
+
         <service
             android:name=".service.DownloadService"
             android:exported="false"
