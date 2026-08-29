@@ -22,7 +22,7 @@ object YtDlpManager {
         val isAudioOnly: Boolean
     )
 
-    fun standardQualityOptions(): List<QualityOption> = emptyList()
+    fun standardQualityOptions(isGenericOrHls: Boolean = false): List<QualityOption> = emptyList()
 
     /** One raw stream as reported by the real format probe -- see the full flavor's YtDlpManager.kt for field meanings. */
     data class ProbedFormat(
