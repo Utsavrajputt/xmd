@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:background="?android:attr/colorBackground">
 
-    <!-- Search bar -- hidden by default, revealed by the toolbar search
+    <!-- Search bar - hidden by default, revealed by the toolbar search
          icon (MainActivity.onOptionsItemSelected -> DownloadsFragment).
          Same visual pattern as HistoryFragment's search card. -->
     <com.google.android.material.card.MaterialCardView
