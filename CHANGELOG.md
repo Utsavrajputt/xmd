@@ -5,8 +5,32 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 
 ## [1.0.0-beta.5] - 2026-08-29
 
+### ✨ Added
+- 🔖 **Real Bookmarks feature** — the star button now saves/removes a proper bookmark (its own DB table) instead of a shortcut, with a new Bookmarks screen (search, swipe-to-delete, Clear all) off the browser overflow menu; the old speed-dial "Bookmark" tiles are renamed to **Shortcut** throughout, with an "Also add as Shortcut" option when bookmarking.
+- ⚙️ **Settings redesigned** into a full-screen categorized layout, plus a new **About** screen with a developers/credits section.
+- 🗂️ **Tabs tray redesign** — the Tabs dialog is now a bottom sheet instead of a modal `AlertDialog`: pill-shaped rows with round icon avatars and a floating "+" action for opening a new tab.
+- 🧲 **Shortcuts**: custom icon override, drag-to-reorder (saved on Done), and fixes for icon clipping and an edit-order bug.
+- 🚫 **Domain-blocklist ad blocking** for the in-app browser — new Settings > Browser category, on by default.
+- 📤 **Export Websites** (SAF save + share), alongside the existing import; both now live under Browser settings instead of Downloads.
+- 🔍 **Search in the Downloads tab**, filtering the queue by file name or source URL, with its own "No matching downloads" empty state.
+- 🔗 The browser now handles `fb://` and `intent://` links instead of failing with `ERR_UNKNOWN_URL_SCHEME`.
+- 📎 Restored **Copy link** on the Add to Downloads dialog, plus a long-press menu (Open with / Rename / Re-download / Copy download link / Share / Delete) on finished/failed downloads.
+- 🎬 Direct `.m3u8`/`.mpd` links are now routed through yt-dlp instead of downloaded raw.
+- 🎨 Three new themes: **Tokyo Night**, **Gruvbox**, and **Amethyst**.
+- ⚡ Faster search suggestions — instant in-memory history matches, debounce cut from 300ms to 150ms.
+- 🔗 The "yt-dlp not installed" dialog's Install button now deep-links straight to Settings > YouTube.
+
+### 🛠 Fixed
+- 🎥 Video playback on non-YouTube sites — Range requests used for streaming/seeking were being routed through a DoH proxy whenever a Private DNS mode was set, silently breaking playback everywhere except YouTube's own player pipeline; media and Range requests now bypass the proxy.
+- 🔐 Google sign-in no longer fails to persist (removed a WebView UA marker Google blocks, cookies now flushed on pause), and `Set-Cookie` headers from DoH-intercepted requests are now forwarded into `CookieManager` instead of being dropped.
+- ⬇️ Multi-connection resume no longer restarts from scratch on a share-link retry, and notification updates are now actually throttled as intended instead of firing unthrottled on every progress tick.
+- 🎨 Theme changes now apply immediately from Settings instead of requiring a relaunch.
+- ⚙️ Settings icons no longer lose their detail glyphs under tint; the YouTube settings row is correctly hidden on the `lite` flavor.
+- 💾 YouTube/Downloads settings now persist immediately on change — no more Save buttons to remember to tap.
+- 🩹 Assorted invalid XML-comment (`--`) fixes that were breaking release builds.
+
 ### 🎨 Changed
-- 🗂️ **Tabs tray redesign** — the Tabs dialog is now a bottom sheet instead of a modal `AlertDialog`: pill-shaped rows with round white icon avatars, no title bar or Cancel/New Tab footer buttons, and a floating "+" action below the list for opening a new tab.
+- 📥 Website import/export moved from Downloads settings to Browser settings, where it fits better alongside the adblock toggle.
 
 ---
 
