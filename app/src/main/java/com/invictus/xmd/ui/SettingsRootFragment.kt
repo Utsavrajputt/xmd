@@ -39,6 +39,13 @@ class SettingsRootFragment : Fragment() {
         ) { open(SettingsConnectionsFragment(), "settings_connections") }
 
         bindRow(
+            view.findViewById(R.id.rowBrowser),
+            iconRes = R.drawable.ic_settings_browser,
+            titleRes = R.string.settings_category_browser,
+            subtitleRes = R.string.settings_category_browser_desc,
+        ) { open(SettingsBrowserFragment(), "settings_browser") }
+
+        bindRow(
             view.findViewById(R.id.rowDownloads),
             iconRes = R.drawable.ic_settings_downloads,
             titleRes = R.string.settings_category_downloads,

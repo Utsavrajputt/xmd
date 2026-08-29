@@ -92,6 +92,7 @@ class SettingsActivity : AppCompatActivity(),
         headerTitle.text = when (top) {
             is SettingsAppearanceFragment -> getString(R.string.settings_category_appearance)
             is SettingsConnectionsFragment -> getString(R.string.settings_category_connections)
+            is SettingsBrowserFragment -> getString(R.string.settings_category_browser)
             is SettingsDownloadsFragment -> getString(R.string.settings_category_downloads)
             is SettingsYoutubeFragment -> getString(R.string.settings_category_youtube)
             is AboutFragment -> getString(R.string.settings_category_about)
@@ -117,6 +118,7 @@ class SettingsActivity : AppCompatActivity(),
         headerTitle.text = when (fragment) {
             is SettingsAppearanceFragment -> getString(R.string.settings_category_appearance)
             is SettingsConnectionsFragment -> getString(R.string.settings_category_connections)
+            is SettingsBrowserFragment -> getString(R.string.settings_category_browser)
             is SettingsDownloadsFragment -> getString(R.string.settings_category_downloads)
             is SettingsYoutubeFragment -> getString(R.string.settings_category_youtube)
             is AboutFragment -> getString(R.string.settings_category_about)

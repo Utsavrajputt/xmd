@@ -666,6 +666,22 @@ class BrowserFragment : Fragment() {
             override fun shouldInterceptRequest(
                 view: WebView, request: android.webkit.WebResourceRequest
             ): android.webkit.WebResourceResponse? {
+                // Cheapest possible check first, ahead of even the media
+                // sniff -- a Set lookup on the request's own host, no
+                // network, no DNS. Applies regardless of method or DNS
+                // mode: an ad request is an ad request whether it's a GET
+                // for an image or a POST beacon. An empty 200 (rather than
+                // returning null and letting it 404/timeout naturally) is
+                // what keeps pages from stalling on a blocked request or
+                // logging it as a load failure.
+                if (Settings.adblockEnabled() &&
+                    com.invictus.xmd.core.AdblockFilter.isBlocked(request.url.host)
+                ) {
+                    return android.webkit.WebResourceResponse(
+                        "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
+                    )
+                }
+
                 sniffRequest(view, request)
 
                 if (request.method != "GET") return null

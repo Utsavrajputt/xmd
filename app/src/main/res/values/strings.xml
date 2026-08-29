@@ -75,6 +75,8 @@
     <string name="settings_category_appearance_desc">Theme color and dark mode</string>
     <string name="settings_category_connections">Connections &amp; Speed</string>
     <string name="settings_category_connections_desc">Parallel connections, speed limit</string>
+    <string name="settings_category_browser">Browser</string>
+    <string name="settings_category_browser_desc">Ad blocking</string>
     <string name="settings_category_downloads">Downloads</string>
     <string name="settings_category_downloads_desc">Save location, retries, Wi-Fi only</string>
     <string name="settings_category_youtube">Ytdlp</string>
@@ -123,6 +125,8 @@
     <string name="settings_save_to_downloads_hint">Save files directly to the Downloads folder instead of the app folder.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
+    <string name="settings_adblock">Block Ads</string>
+    <string name="settings_adblock_hint">Blocks common ad, tracker, and analytics domains from loading in the in-app browser.</string>
     <string name="sniffed_media_title">Videos &amp; audio found on this page</string>
     <string name="sniffed_media_chip_one">🎬 1 video</string>
     <string name="sniffed_media_chip_many">🎬 %d videos</string>

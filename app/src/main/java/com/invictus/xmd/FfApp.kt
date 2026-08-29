@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.os.Build
 import com.invictus.xmd.core.BookmarkRepository
 import com.invictus.xmd.core.ShortcutRepository
+import com.invictus.xmd.core.AdblockFilter
 import com.invictus.xmd.core.FaviconLoader
 import com.invictus.xmd.core.HistoryRepository
 import com.invictus.xmd.core.QueueRepository
@@ -20,6 +21,7 @@ class FfApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Settings.init(this)
+        AdblockFilter.init(this)
         // Loads the previously-persisted queue from disk so it survives
         // process restart (see QueueRepository's persistence docs).
         QueueRepository.init(this)

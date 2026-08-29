@@ -24,6 +24,7 @@ object Settings {
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
     private const val KEY_SAVE_TO_DOWNLOADS = "save_to_downloads_folder"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
+    private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
 
     private lateinit var prefs: SharedPreferences
 
@@ -87,6 +88,15 @@ object Settings {
     fun wifiOnlyDownloads(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
     fun setWifiOnlyDownloads(value: Boolean) {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+    }
+
+    // ── Browser: Adblock (domain-blocklist ad/tracker blocking) ───────────
+    // Global switch only, no per-site whitelist. Default ON -- this is an
+    // opt-out feature, not opt-in, matching how ad-blocking browsers
+    // (Brave, 1DM+) ship it.
+    fun adblockEnabled(): Boolean = prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)
+    fun setAdblockEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ADBLOCK_ENABLED, value).apply()
     }
 
     // ── Browser: Private DNS (DNS-over-HTTPS for in-app browsing only) ────
