@@ -1498,7 +1498,9 @@ class BrowserFragment : Fragment() {
     }
 
     /** Bottom sheet listing every stream in the current tab's sniffedMedia,
-     *  tapping a row hands it straight to Callbacks.triggerSniffedMedia. */
+     *  tapping a row hands it straight to Callbacks.triggerSniffedMedia; each
+     *  row also carries a copy button to grab the raw URL without starting
+     *  a download. */
     private fun showSniffedMediaSheet() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         // Snapshot under the same lock shouldInterceptRequest writes under --
@@ -1514,6 +1516,19 @@ class BrowserFragment : Fragment() {
         val list = view.findViewById<LinearLayout>(R.id.sniffedMediaList)
         val density = resources.displayMetrics.density
         streams.forEach { stream ->
+            // Row is now a label (tap = download, same as before) plus a
+            // trailing copy button, instead of one full-width TextView --
+            // lets the user grab the raw media URL without kicking off a
+            // download, same tonal round-icon-button pattern used for
+            // "Copy link" in the Add Torrent dialog.
+            val rowContainer = LinearLayout(requireContext())
+            rowContainer.orientation = LinearLayout.HORIZONTAL
+            rowContainer.gravity = android.view.Gravity.CENTER_VERTICAL
+            rowContainer.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+
             val row = android.widget.TextView(requireContext())
             row.text = com.invictus.xmd.core.MediaSniffer.guessLabel(stream.url)
             row.isClickable = true
@@ -1524,7 +1539,8 @@ class BrowserFragment : Fragment() {
             row.maxLines = 1
             row.ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
             row.gravity = android.view.Gravity.CENTER_VERTICAL
-            row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
+            row.setPadding((16 * density).toInt(), (14 * density).toInt(), (8 * density).toInt(), (14 * density).toInt())
+            row.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             val icon = when (stream.kind) {
                 com.invictus.xmd.core.MediaSniffer.Kind.DIRECT_AUDIO -> R.drawable.ic_music_note
                 else -> R.drawable.ic_video
@@ -1536,7 +1552,28 @@ class BrowserFragment : Fragment() {
                 (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
                 dialog.dismiss()
             }
-            list.addView(row)
+
+            val copyButton = ImageButton(requireContext())
+            val buttonSize = (32 * density).toInt()
+            copyButton.layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize).apply {
+                marginEnd = (12 * density).toInt()
+            }
+            copyButton.setBackgroundResource(R.drawable.bg_icon_button_tonal)
+            copyButton.setImageResource(R.drawable.ic_link)
+            copyButton.imageTintList = android.content.res.ColorStateList.valueOf(
+                resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer)
+            )
+            copyButton.scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
+            val iconInset = (8 * density).toInt()
+            copyButton.setPadding(iconInset, iconInset, iconInset, iconInset)
+            copyButton.contentDescription = getString(R.string.torrent_dialog_copy_link)
+            // Doesn't dismiss the sheet -- copying one stream's link
+            // shouldn't stop the user from picking or copying another.
+            copyButton.setOnClickListener { copyLinkToClipboard(stream.url) }
+
+            rowContainer.addView(row)
+            rowContainer.addView(copyButton)
+            list.addView(rowContainer)
         }
 
         dialog.show()
