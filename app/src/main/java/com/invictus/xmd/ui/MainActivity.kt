@@ -535,7 +535,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     override fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
-        val (youtubeLines, otherLines) = lines.partition { LinkParser.isYoutubeLink(it) }
+        val (youtubeLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
 
         otherLines.forEach { link ->
             val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
@@ -881,7 +881,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // without a selection) -- once chosen, retry should just re-run
         // yt-dlp with the same quality rather than re-prompting.
         val needsResolve = LinkParser.isShareLink(item.sourceUrl) ||
-            (LinkParser.isYoutubeLink(item.sourceUrl) && item.mediaFormatSelector == null)
+            (LinkParser.needsYtDlp(item.sourceUrl) && item.mediaFormatSelector == null)
         QueueRepository.update(item.id) {
             it.copy(
                 status = if (needsResolve) ItemStatus.RESOLVING else ItemStatus.READY,
@@ -935,7 +935,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     }
 
     private suspend fun resolveOne(item: QueueItem) {
-        if (LinkParser.isYoutubeLink(item.sourceUrl)) {
+        if (LinkParser.needsYtDlp(item.sourceUrl)) {
             resolveYoutube(item)
             return
         }
@@ -990,22 +990,28 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
     }
 
-    // ── YouTube resolve (quality picker, no challenge/webview involved) ────
+    // ── yt-dlp resolve (quality picker; also handles direct HLS/DASH links,
+    // not just YouTube -- see LinkParser.needsYtDlp) ──────────────────────
 
     /**
-     * YouTube items skip the FuckingFast challenge/resolve pipeline
-     * entirely -- instead of a directUrl, the user picks a quality here and
-     * yt-dlp (DownloadService) resolves + downloads + merges it itself later.
+     * YouTube (and plain HLS/DASH manifest) items skip the FuckingFast
+     * challenge/resolve pipeline entirely -- instead of a directUrl, the
+     * user picks a quality here and yt-dlp (DownloadService) resolves +
+     * downloads + merges it itself later. Named for its original
+     * YouTube-only case; LinkParser.needsYtDlp now also routes plain
+     * .m3u8/.mpd links here since yt-dlp handles those the same way,
+     * segments fetched and muxed into one mp4 rather than downloaded as
+     * the raw manifest text.
      */
     private suspend fun resolveYoutube(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             MaterialAlertDialogBuilder(this)
-                .setTitle("YouTube not supported in this build")
-                .setMessage("This is the Lite build, which doesn't include YouTube downloads. Download the Full build from the app's Releases page to use this.")
+                .setTitle("Not supported in this build")
+                .setMessage("This is the Lite build, which doesn't include the yt-dlp engine needed for YouTube, HLS (.m3u8), or DASH (.mpd) links. Download the Full build from the app's Releases page to use this.")
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
             QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = "YouTube needs the Full build")
+                it.copy(status = ItemStatus.FAILED, error = "Needs the Full build")
             }
             return
         }
@@ -1013,7 +1019,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             val openSettings = suspendCancellableCoroutine<Boolean> { cont ->
                 val dialog = MaterialAlertDialogBuilder(this)
                     .setTitle("yt-dlp not installed")
-                    .setMessage("YouTube downloads need the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
+                    .setMessage("This link needs the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
                     .setPositiveButton("Install now") { _, _ -> cont.resume(true) }
                     .setNegativeButton(android.R.string.cancel) { _, _ -> cont.resume(false) }
                     .setOnCancelListener { cont.resume(false) }

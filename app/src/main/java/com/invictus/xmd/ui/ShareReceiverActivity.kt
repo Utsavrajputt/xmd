@@ -40,7 +40,8 @@ import com.invictus.xmd.service.DownloadService
  * YouTube, nothing at all for a plain direct-download link) and finishes
  * itself the moment a choice is made, exactly like YTDLnis/Seal do.
  *
- * Deliberately narrow in scope: only YouTube links (quality picker) and
+ * Deliberately narrow in scope: only YouTube/HLS/DASH links (quality
+ * picker) and
  * plain generic-download links (queue + start immediately, no UI) are
  * handled invisibly. Share-links that need the Cloudflare-challenge
  * WebView still hand off to MainActivity -- that flow can't happen without
@@ -79,7 +80,7 @@ class ShareReceiverActivity : AppCompatActivity() {
         }
 
         when {
-            LinkParser.isYoutubeLink(url) -> showYoutubeQualitySheet(item)
+            LinkParser.needsYtDlp(url) -> showYtDlpQualitySheet(item)
             LinkParser.isGenericDownloadUrl(url) -> {
                 QueueRepository.update(item.id) { it.copy(directUrl = url, status = ItemStatus.READY) }
                 DownloadService.start(this)
@@ -115,12 +116,12 @@ class ShareReceiverActivity : AppCompatActivity() {
         else -> null
     }?.trim()
 
-    // ── YouTube quality bottom sheet ────────────────────────────────────
+    // ── yt-dlp quality bottom sheet (YouTube, or a direct HLS/DASH link) ───
 
-    private fun showYoutubeQualitySheet(item: QueueItem) {
+    private fun showYtDlpQualitySheet(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            Toast.makeText(this, "YouTube needs the Full build of xmd", Toast.LENGTH_LONG).show()
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "YouTube needs the Full build") }
+            Toast.makeText(this, "This link needs the Full build of xmd", Toast.LENGTH_LONG).show()
+            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Needs the Full build") }
             finish()
             return
         }

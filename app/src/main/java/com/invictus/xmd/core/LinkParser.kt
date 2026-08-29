@@ -79,6 +79,11 @@ object LinkParser {
         if (isShareLink(link)) return false
         if (uri.host in FITGIRL_HOSTS) return false
         if (uri.host in YOUTUBE_HOSTS) return false
+        // HLS (.m3u8) / DASH (.mpd) manifests aren't downloadable as-is --
+        // the "file" at that URL is just a text playlist pointing at the
+        // real media segments, so these need yt-dlp (needsYtDlp) instead of
+        // a plain byte-for-byte download like every other generic URL here.
+        if (isHlsOrDashLink(link)) return false
         return true
     }
 
@@ -97,6 +102,30 @@ object LinkParser {
         val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
         return uri.host in YOUTUBE_HOSTS
     }
+
+    /**
+     * True for a direct HLS (.m3u8) or DASH (.mpd) manifest link -- these
+     * are streams, not a single file, so (like YouTube) they need yt-dlp to
+     * fetch every segment and mux them into one playable file rather than a
+     * plain byte-for-byte download. Reuses [MediaSniffer]'s own URL
+     * classifier so a link is never treated differently here than it would
+     * be by the "Find videos" sniffer sheet.
+     */
+    fun isHlsOrDashLink(link: String): Boolean {
+        val kind = MediaSniffer.classifyUrl(link.trim())?.kind ?: return false
+        return kind == MediaSniffer.Kind.HLS || kind == MediaSniffer.Kind.DASH
+    }
+
+    /**
+     * True for anything that needs the yt-dlp quality-picker flow instead
+     * of a normal resolve -- YouTube, plus any plain HLS/DASH link pasted
+     * or shared directly (not just ones caught by the in-browser sniffer).
+     * Every routing decision (MainActivity, ShareReceiverActivity) should
+     * check this rather than isYoutubeLink alone, or a pasted .m3u8 link
+     * falls through to isGenericDownloadUrl and gets "downloaded" as the
+     * raw manifest text instead of the actual video.
+     */
+    fun needsYtDlp(link: String): Boolean = isYoutubeLink(link) || isHlsOrDashLink(link)
 
     /** Extracts the file id from a fuckingfast.co share URL, e.g. fuckingfast.co/f/abc123 -> abc123 */
     fun fileId(link: String): String {
