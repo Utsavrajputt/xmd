@@ -1442,6 +1442,7 @@ class BrowserFragment : Fragment() {
                 (activity as? Callbacks)?.triggerPrepare(listOf(url))
             }
             .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.action_copy_link) { _, _ -> copyLinkToClipboard(url) }
             .show()
 
         lifecycleScope.launch {
