@@ -580,6 +580,58 @@ class BrowserFragment : Fragment() {
             }
 
             /**
+             * Pages (FB/Instagram/WhatsApp/etc.) love redirecting to a
+             * non-http deep-link scheme -- `fb://native_post/...`,
+             * `intent://applink.instagram.com/...#Intent;...;end`,
+             * `whatsapp://`, `market://`, `upi://`, `mailto:`, `tel:` -- meant
+             * to hand off to that app's native handler. WebView has no idea
+             * what to do with those itself and fails hard with
+             * net::ERR_UNKNOWN_URL_SCHEME ("Web page not available"). Only
+             * plain http/https is left for WebView to load normally; every
+             * other scheme is resolved to a real Intent and fired at
+             * whatever app on the device claims it, so the same links behave
+             * the way they would in Chrome instead of dead-ending here.
+             */
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                request: android.webkit.WebResourceRequest
+            ): Boolean {
+                val uri = request.url
+                val scheme = uri.scheme?.lowercase()
+                if (scheme == "http" || scheme == "https") return false
+
+                try {
+                    val intent = if (scheme == "intent") {
+                        android.content.Intent.parseUri(uri.toString(), android.content.Intent.URI_INTENT_SCHEME)
+                    } else {
+                        android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                    }
+                    intent.addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+                    // Never let a deep link boomerang back into XMD itself.
+                    intent.component = null
+                    intent.selector = null
+
+                    val pm = requireContext().packageManager
+                    if (intent.resolveActivity(pm) != null) {
+                        startActivity(intent)
+                    } else {
+                        // No app installed to catch it (e.g. FB app absent).
+                        // `intent://` links commonly carry a
+                        // S.browser_fallback_url extra for exactly this case
+                        // -- follow it so the user lands on the web version
+                        // instead of a dead "page not available" screen.
+                        val fallbackUrl = intent.getStringExtra("browser_fallback_url")
+                        if (fallbackUrl != null) view.loadUrl(fallbackUrl)
+                    }
+                } catch (e: Exception) {
+                    // Malformed intent URI, or the resolved app rejected the
+                    // launch -- nothing more we can do, just don't crash or
+                    // fall through to WebView trying (and failing) to load it.
+                }
+                return true
+            }
+
+            /**
              * Passive media sniff -- runs on every GET request regardless of
              * the Private DNS/DoH setting below (unlike that path, this never
              * touches the network itself: pure URL-pattern matching against
