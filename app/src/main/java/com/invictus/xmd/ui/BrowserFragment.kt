@@ -903,7 +903,7 @@ class BrowserFragment : Fragment() {
     }
 
     /**
-     * 2-3 letters is enough to start querying, debounced ~300ms so we're not
+     * 2-3 letters is enough to start querying, debounced ~150ms so we're not
      * firing a network request on every keystroke. Merges two sources,
      * history first then search (Chrome-style):
      *  - local visited-page history (HistoryRepository's already-cached
@@ -925,8 +925,16 @@ class BrowserFragment : Fragment() {
             .take(MAX_HISTORY_SUGGESTIONS)
             .map { SuggestionAdapter.Suggestion.History(text = it.title, url = it.url) }
 
+        // History is already in memory, so it renders on this frame instead
+        // of waiting on the debounce + network round-trip below -- only the
+        // search half of the list is provisional at this point.
+        if (historyMatches.isNotEmpty()) {
+            suggestionAdapter.submitList(historyMatches)
+            suggestionsCard.visibility = View.VISIBLE
+        }
+
         suggestJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(300)
+            delay(150)
             val searchResults = withContext(Dispatchers.IO) { SuggestApi.suggest(trimmed, suggestClient) }
             if (!isAdded) return@launch
             val merged = historyMatches + searchResults.map { SuggestionAdapter.Suggestion.Search(it) }
