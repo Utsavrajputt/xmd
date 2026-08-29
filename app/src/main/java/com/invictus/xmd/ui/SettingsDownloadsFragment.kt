@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -15,9 +14,9 @@ import com.invictus.xmd.service.DownloadService
 
 /**
  * Auto-retry, save-to-Downloads, Wi-Fi-only, and the website source-pack
- * import trigger. Switches stage locally and commit together on Save,
- * exactly matching the old Settings dialog's positive-button handler
- * (including the wifi-only-just-enabled pause-in-flight-downloads check).
+ * import trigger. Each switch persists immediately on change (no Save
+ * button), including the wifi-only-just-enabled pause-in-flight-downloads
+ * check, which now runs off the switch's own listener.
  */
 class SettingsDownloadsFragment : Fragment() {
 
@@ -55,11 +54,15 @@ class SettingsDownloadsFragment : Fragment() {
         saveToDownloadsSwitch.isChecked = Settings.saveToDownloadsFolder()
         wifiOnlySwitch.isChecked = Settings.wifiOnlyDownloads()
 
-        view.findViewById<MaterialButton>(R.id.downloadsSaveButton).setOnClickListener {
-            Settings.setAutoRetryEnabled(autoRetrySwitch.isChecked)
-            Settings.setSaveToDownloadsFolder(saveToDownloadsSwitch.isChecked)
-            val wifiOnlyJustEnabled = wifiOnlySwitch.isChecked && !Settings.wifiOnlyDownloads()
-            Settings.setWifiOnlyDownloads(wifiOnlySwitch.isChecked)
+        autoRetrySwitch.setOnCheckedChangeListener { _, isChecked ->
+            Settings.setAutoRetryEnabled(isChecked)
+        }
+        saveToDownloadsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            Settings.setSaveToDownloadsFolder(isChecked)
+        }
+        wifiOnlySwitch.setOnCheckedChangeListener { _, isChecked ->
+            val wifiOnlyJustEnabled = isChecked && !Settings.wifiOnlyDownloads()
+            Settings.setWifiOnlyDownloads(isChecked)
             if (wifiOnlyJustEnabled && !NetworkMonitor.isOnWifi(requireContext())) {
                 // Turned ON while already on cellular -- the setting only
                 // reacts to a live network *transition* otherwise, so
@@ -67,7 +70,6 @@ class SettingsDownloadsFragment : Fragment() {
                 // running on cellular until the next Wi-Fi drop/regain.
                 DownloadService.pauseForWifiOnly(requireContext())
             }
-            Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show()
         }
 
         view.findViewById<MaterialButton>(R.id.importWebsitesButton).setOnClickListener {

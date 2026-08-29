@@ -13,7 +13,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.button.MaterialButton
 import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Settings
@@ -25,12 +24,10 @@ import kotlinx.coroutines.withContext
 /**
  * Default download quality, video preset ladder (container/fps/codec),
  * audio format, and the yt-dlp engine install/update/nightly-channel
- * controls. All logic here is moved verbatim from the old Settings dialog
- * (showSettingsDialog()'s BuildConfig.HAS_YOUTUBE_SUPPORT branch) -- same
- * dropdown bind/read-back pattern, same toast copy, same refreshYtDlpRow()
- * state machine. Only the container changed (dialog section -> full screen)
- * and quality/preset saving moved from the old shared Save button to this
- * screen's own Save button.
+ * controls. The quality/preset dropdowns persist immediately on selection
+ * (no Save button) via each dropdown's own item-click listener; the
+ * yt-dlp install/update/nightly controls were already immediate and are
+ * unchanged, same refreshYtDlpRow() state machine as before.
  */
 class SettingsYoutubeFragment : Fragment() {
 
@@ -68,7 +65,7 @@ class SettingsYoutubeFragment : Fragment() {
 
         // Video preset (container/fps/codec) + audio format dropdowns --
         // each a fixed label<->enum pair list, same "pick by displayed
-        // label, map back on Save" pattern as defaultQualityDropdown.
+        // label, persist on item click" pattern as defaultQualityDropdown.
         val containerOptions = listOf(
             getString(R.string.preset_any) to Settings.ContainerPreset.ANY,
             getString(R.string.preset_container_mp4) to Settings.ContainerPreset.MP4,
@@ -92,12 +89,13 @@ class SettingsYoutubeFragment : Fragment() {
             getString(R.string.audio_format_original) to Settings.AudioFormatPreset.ORIGINAL
         )
 
-        fun <T> AutoCompleteTextView.bindPresetDropdown(options: List<Pair<String, T>>, current: T) {
+        fun <T> AutoCompleteTextView.bindPresetDropdown(
+            options: List<Pair<String, T>>, current: T, onSelected: (T) -> Unit
+        ) {
             setAdapter(ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, options.map { it.first }))
             setText(options.first { it.second == current }.first, false)
+            setOnItemClickListener { _, _, position, _ -> onSelected(options[position].second) }
         }
-        fun <T> AutoCompleteTextView.selectedPreset(options: List<Pair<String, T>>): T =
-            options.firstOrNull { it.first == text?.toString() }?.second ?: options.first().second
 
         // "Ask always" (blank stored value) first, then one entry per
         // standardQualityOptions() label, same order as the picker dialog
@@ -120,11 +118,24 @@ class SettingsYoutubeFragment : Fragment() {
             else -> savedLabel
         }
         defaultQualityDropdown.setText(displayLabel, false)
+        defaultQualityDropdown.setOnItemClickListener { _, _, position, _ ->
+            val chosenLabel = qualityLabels[position]
+            val askAlways = getString(R.string.quality_ask_always)
+            Settings.setYtDlpDefaultQualityLabel(if (chosenLabel == askAlways) "" else chosenLabel)
+        }
 
-        presetContainerDropdown.bindPresetDropdown(containerOptions, Settings.presetContainer())
-        presetFpsDropdown.bindPresetDropdown(fpsOptions, Settings.presetFps())
-        presetCodecDropdown.bindPresetDropdown(codecOptions, Settings.presetCodec())
-        audioFormatDropdown.bindPresetDropdown(audioFormatOptions, Settings.presetAudioFormat())
+        presetContainerDropdown.bindPresetDropdown(containerOptions, Settings.presetContainer()) {
+            Settings.setPresetContainer(it)
+        }
+        presetFpsDropdown.bindPresetDropdown(fpsOptions, Settings.presetFps()) {
+            Settings.setPresetFps(it)
+        }
+        presetCodecDropdown.bindPresetDropdown(codecOptions, Settings.presetCodec()) {
+            Settings.setPresetCodec(it)
+        }
+        audioFormatDropdown.bindPresetDropdown(audioFormatOptions, Settings.presetAudioFormat()) {
+            Settings.setPresetAudioFormat(it)
+        }
 
         fun refreshYtDlpRow() {
             val installed = YtDlpManager.isInstalled(requireContext())
@@ -216,17 +227,6 @@ class SettingsYoutubeFragment : Fragment() {
                 ).show()
                 refreshYtDlpRow()
             }
-        }
-
-        view.findViewById<MaterialButton>(R.id.youtubeSaveButton).setOnClickListener {
-            val chosenLabel = defaultQualityDropdown.text?.toString().orEmpty()
-            val askAlways = getString(R.string.quality_ask_always)
-            Settings.setYtDlpDefaultQualityLabel(if (chosenLabel == askAlways) "" else chosenLabel)
-            Settings.setPresetContainer(presetContainerDropdown.selectedPreset(containerOptions))
-            Settings.setPresetFps(presetFpsDropdown.selectedPreset(fpsOptions))
-            Settings.setPresetCodec(presetCodecDropdown.selectedPreset(codecOptions))
-            Settings.setPresetAudioFormat(audioFormatDropdown.selectedPreset(audioFormatOptions))
-            Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show()
         }
     }
 }
