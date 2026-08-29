@@ -58,6 +58,7 @@ class DownloadService : LifecycleService() {
         private const val NOTIFICATION_ID = 42
         private const val BETWEEN_CLAIM_DELAY_MS = 500L
         private const val MAX_AUTO_RETRIES = 3
+        private const val NOTIFY_THROTTLE_MS = 500L
 
         fun start(context: Context) {
             val intent = Intent(context, DownloadService::class.java).setAction(ACTION_START)
@@ -413,7 +414,7 @@ class DownloadService : LifecycleService() {
                             mediaStatusText = progress.statusText
                         )
                     }
-                    updateNotification()
+                    updateNotificationThrottled()
                 }
             }
             QueueRepository.update(itemId) {
@@ -467,7 +468,7 @@ class DownloadService : LifecycleService() {
         val engine = TorrentEngine(
             progress = { done, total, speed ->
                 QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
-                updateNotification()
+                updateNotificationThrottled()
             },
             log = { }
         )
@@ -554,7 +555,7 @@ class DownloadService : LifecycleService() {
                 client = client,
                 progress = { done, total, speed ->
                     QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
-                    updateNotification()
+                    updateNotificationThrottled()
                 },
                 log = { },
                 connections = Settings.connectionsPerDownload(),
@@ -633,7 +634,7 @@ class DownloadService : LifecycleService() {
                 QueueRepository.update(itemId) { it.copy(status = ItemStatus.DONE, filePath = finalFile.absolutePath) }
                 return
             } catch (e: DownloadCancelledException) {
-                destinationFile?.delete()
+                destinationFile?.let { DownloadEngine.deletePartialFiles(it) }
                 QueueRepository.update(itemId) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
                 return
             } catch (e: Exception) {
@@ -707,6 +708,27 @@ class DownloadService : LifecycleService() {
     private fun updateNotification() {
         val manager = getSystemService(android.app.NotificationManager::class.java)
         manager?.notify(NOTIFICATION_ID, buildNotification())
+    }
+
+    private val lastThrottledNotifyMs = java.util.concurrent.atomic.AtomicLong(0L)
+
+    /**
+     * Same as [updateNotification] but rate-limited to at most once every
+     * [NOTIFY_THROTTLE_MS]. The three per-download progress callbacks
+     * (downloadOne/downloadYoutube/downloadTorrentOne) fire up to ~5x/sec
+     * *per active download* -- buildNotification() rescans the entire queue
+     * every time, and NotificationManager.notify() is a cross-process Binder
+     * call, so a handful of concurrent downloads meant tens of full
+     * notification rebuilds a second for a progress bar that's visually
+     * indistinguishable at that rate. That's pure CPU/Binder overhead
+     * competing with the actual download threads. Status-change call sites
+     * (pause/resume/done/failed/etc.) are untouched and stay immediate.
+     */
+    private fun updateNotificationThrottled() {
+        val now = System.currentTimeMillis()
+        val last = lastThrottledNotifyMs.get()
+        if (now - last < NOTIFY_THROTTLE_MS) return
+        if (lastThrottledNotifyMs.compareAndSet(last, now)) updateNotification()
     }
 
     private fun buildNotification(): Notification {

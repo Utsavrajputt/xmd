@@ -1,5 +1,7 @@
 package com.invictus.xmd.core
 
+import org.json.JSONArray
+import org.json.JSONObject
 import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -47,6 +49,91 @@ class DownloadEngine(
     // unresponsive to Cancel/Cancel All. Forcing the socket closed makes the
     // blocked read throw immediately.
     private val activeCalls = java.util.concurrent.ConcurrentHashMap.newKeySet<Call>()
+
+    // ── Multi-connection segment resume metadata ────────────────────────
+    /**
+     * One connection's byte range plus how much of it is already on disk.
+     * `done` is only ever mutated by the single thread downloading this
+     * segment, but it's read cross-thread when the whole segment list gets
+     * serialized to the sidecar file -- @Volatile keeps that read from
+     * seeing a stale value without needing a full lock.
+     */
+    private data class SegmentState(val start: Long, val end: Long, @Volatile var done: Long = 0L)
+
+    private data class PersistedMultiState(val url: String, val total: Long, val segments: List<SegmentState>)
+
+    private val metaLock = Any()
+    private val lastMetaWriteNanos = AtomicLong(0L)
+
+    private fun metaFile(destination: File) = File(destination.parentFile, destination.name + ".xmdparts")
+
+    /**
+     * Writes current per-segment progress next to the destination file so a
+     * later downloadAuto() call for the same URL can resume each segment
+     * from its own last byte instead of restarting the whole download --
+     * see the comment on [downloadAuto] for why this exists. Uses a
+     * write-to-temp-then-rename so a process death mid-write never leaves a
+     * half-written (unparseable) sidecar behind.
+     */
+    private fun writeSegmentMeta(destination: File, url: String, total: Long, segments: List<SegmentState>) {
+        synchronized(metaLock) {
+            runCatching {
+                val obj = JSONObject()
+                obj.put("url", url)
+                obj.put("total", total)
+                val arr = JSONArray()
+                segments.forEach { seg ->
+                    arr.put(JSONObject().apply {
+                        put("start", seg.start); put("end", seg.end); put("done", seg.done)
+                    })
+                }
+                obj.put("segments", arr)
+                val tmp = File(destination.parentFile, metaFile(destination).name + ".tmp")
+                tmp.writeText(obj.toString())
+                tmp.renameTo(metaFile(destination))
+            }
+        }
+    }
+
+    /** Throttled version of [writeSegmentMeta] for the hot per-chunk call site
+     *  inside [downloadRange] -- same idea as [emitProgress]'s throttle, just
+     *  for disk writes instead of UI callbacks. */
+    private fun maybeWriteSegmentMeta(write: () -> Unit) {
+        val now = System.nanoTime()
+        val last = lastMetaWriteNanos.get()
+        if (now - last < PROGRESS_THROTTLE_NANOS) return
+        if (lastMetaWriteNanos.compareAndSet(last, now)) write()
+    }
+
+    /**
+     * Reads back a previously-written sidecar, or null if there isn't one,
+     * it doesn't parse, it was for a different URL's resolved link, or the
+     * destination file's size no longer matches what it describes (any of
+     * which mean it's stale/untrustworthy and a fresh start is safer).
+     */
+    private fun readPersistedMultiState(destination: File): PersistedMultiState? {
+        val file = metaFile(destination)
+        if (!file.isFile) return null
+        return try {
+            val obj = JSONObject(file.readText())
+            val url = obj.getString("url")
+            val total = obj.getLong("total")
+            if (!destination.isFile || destination.length() != total) return null
+            val arr = obj.getJSONArray("segments")
+            val segs = (0 until arr.length()).map { i ->
+                val s = arr.getJSONObject(i)
+                SegmentState(s.getLong("start"), s.getLong("end"), s.getLong("done"))
+            }
+            if (segs.isEmpty() || segs.first().start != 0L || segs.last().end != total - 1L) return null
+            PersistedMultiState(url, total, segs)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun deleteSegmentMeta(destination: File) {
+        runCatching { metaFile(destination).delete() }
+    }
 
     // ── Rate limiter (unchanged) ──────────────────────────────────────────
     private class RateLimiter(private val bytesPerSecond: Long) {
@@ -202,12 +289,69 @@ class DownloadEngine(
                 }
             }.getOrNull()
         }
+
+        /**
+         * Deletes a destination file together with its multi-connection
+         * resume sidecar (the ".xmdparts" file written by [writeSegmentMeta]).
+         * Call this whenever a download is abandoned for good -- a genuine
+         * user Cancel -- so a future download reusing the same temp path
+         * doesn't get confused by stale segment metadata. Deliberately NOT
+         * called for a merely-FAILED (retries exhausted) item: leaving both
+         * files in place is what lets a manual Retry resume instead of
+         * starting the whole file over.
+         */
+        fun deletePartialFiles(destination: File) {
+            destination.delete()
+            File(destination.parentFile, destination.name + ".xmdparts").delete()
+        }
     }
 
     // ── Entry point ───────────────────────────────────────────────────────
+    /**
+     * Always checks for resumable multi-connection progress FIRST, before
+     * looking at the current [connections] setting at all -- a prior
+     * attempt's sidecar (see [writeSegmentMeta]) fully determines the
+     * segment layout on resume, so this correctly keeps resuming
+     * multi-connection even if the user changed the connections-per-download
+     * setting mid-download. Skipping this used to be the whole bug: any
+     * exception from a fresh downloadMulti() -- including a plain network
+     * drop with most of the file already on disk -- deleted the destination
+     * outright and restarted single-connection from byte 0, which is exactly
+     * what a network toggle mid-download would trigger.
+     *
+     * Deliberately does NOT require the sidecar's stored URL to match [url]:
+     * a manual Retry on a share link (FuckingFast/pixeldrain/hubcloud/etc.)
+     * always re-resolves to a fresh, differently-tokened CDN link (see
+     * MainActivity.retrySingle), so gating resume on exact URL equality
+     * meant resume silently never worked on the one path users actually hit
+     * after a failure. [destination]'s path is already per-item deterministic
+     * (same fileName+category each attempt) and readPersistedMultiState
+     * already verifies the file's on-disk length still matches the
+     * recorded total, so path+size is trusted as "the same download" and
+     * the fresh [url] is simply used to fetch whatever ranges are left.
+     */
     fun downloadAuto(url: String, destination: File) {
         cancelled.set(false)
         paused.set(false)
+
+        val resumable = readPersistedMultiState(destination)
+        if (resumable != null) {
+            log("Resuming ${destination.name}: ${resumable.segments.sumOf { it.done }}/${resumable.total} bytes across ${resumable.segments.size} connections")
+            downloadMulti(url, destination, resumable.total, resumable.segments)
+            return
+        }
+        if (metaFile(destination).isFile) {
+            // A sidecar exists but readPersistedMultiState still rejected it --
+            // corrupt JSON, or destination's on-disk length no longer matches
+            // the recorded total (e.g. something else touched the file).
+            // destination's on-disk length in that case is a multi-connection
+            // pre-allocation that doesn't describe real single-connection
+            // progress, so falling through to the plain single-connection
+            // resume below with that length would make the server think the
+            // file is already complete. Safer to discard both and start clean.
+            deleteSegmentMeta(destination)
+            destination.delete()
+        }
 
         val alreadyPartial = destination.isFile && destination.length() > 0
         if (connections > 1 && !alreadyPartial) {
@@ -218,14 +362,30 @@ class DownloadEngine(
             // itself was in flight.
             checkpoint()
             if (probe.supportsRanges && probe.totalSize >= MULTI_CONNECTION_MIN_BYTES) {
+                val segmentSize = probe.totalSize / connections
+                val freshSegments = (0 until connections).map { i ->
+                    val start = i * segmentSize
+                    val end = if (i == connections - 1) probe.totalSize - 1 else (start + segmentSize - 1)
+                    SegmentState(start, end)
+                }
                 try {
                     log("Downloading with $connections parallel connections")
-                    downloadMulti(url, destination, probe.totalSize)
+                    downloadMulti(url, destination, probe.totalSize, freshSegments)
                     return
                 } catch (e: DownloadCancelledException) {
                     throw e
                 } catch (e: Exception) {
-                    log("Parallel download failed (${e.message}), retrying single-connection")
+                    // Only safe to discard the sparse placeholder file and
+                    // fall back to single-connection if NOTHING was actually
+                    // written yet -- re-read the sidecar (downloadMulti keeps
+                    // it current as segments progress) rather than assuming;
+                    // if real bytes made it to disk, preserve them and let
+                    // the caller's retry resume these exact segments instead.
+                    val bytesSoFar = readPersistedMultiState(destination)
+                        ?.takeIf { it.url == url }?.segments?.sumOf { it.done } ?: 0L
+                    if (bytesSoFar > 0) throw e
+                    log("Parallel download failed immediately (${e.message}), falling back to single connection")
+                    deleteSegmentMeta(destination)
                     destination.delete()
                     cancelled.set(false)
                 }
@@ -265,29 +425,54 @@ class DownloadEngine(
     }
 
     // ── Multi-connection download ──────────────────────────────────────────
-    private fun downloadMulti(url: String, destination: File, totalSize: Long) {
+    /**
+     * `segments` fully describes the layout (and, on a resume, how much of
+     * each is already downloaded) -- callers build this fresh from
+     * [connections] for a brand-new download, or read it back from the
+     * sidecar via [readPersistedMultiState] to resume one already in
+     * progress. The completion check at the end sums each segment's real
+     * `done` count rather than checking `destination.length()`, since the
+     * file is pre-sized to `totalSize` up front (see setLength below) and
+     * so its length alone can never actually catch a short/truncated
+     * download -- that was a second, separate way a corrupted file could
+     * previously get marked DONE.
+     */
+    private fun downloadMulti(url: String, destination: File, totalSize: Long, segments: List<SegmentState>) {
         destination.parentFile?.mkdirs()
         RandomAccessFile(destination, "rw").use { it.setLength(totalSize) }
 
-        val segmentSize = totalSize / connections
-        val ranges = (0 until connections).map { i ->
-            val start = i * segmentSize
-            val end   = if (i == connections - 1) totalSize - 1 else (start + segmentSize - 1)
-            start to end
+        val alreadyDone = segments.sumOf { it.done }
+        val doneCounter = AtomicLong(alreadyDone)
+        // Seed the UI with real progress immediately on resume instead of a
+        // visible jump back to 0% while the still-incomplete segments spin up.
+        if (alreadyDone > 0) emitProgress(alreadyDone, totalSize, 0.0, force = true)
+
+        writeSegmentMeta(destination, url, totalSize, segments)
+
+        val pending = segments.filter { it.done < (it.end - it.start + 1) }
+        if (pending.isEmpty()) {
+            // Every segment already finished in a prior attempt (e.g. the
+            // process died right after the last byte landed, before cleanup
+            // ran) -- nothing left to download.
+            deleteSegmentMeta(destination)
+            emitProgress(totalSize, totalSize, 0.0, force = true)
+            log("Downloaded ${destination.name}")
+            return
         }
 
-        val doneCounter = AtomicLong(0L)
         // One shared SpeedMeter so all segment threads contribute to the
         // same sliding window — gives the true aggregate download speed.
-        val speedMeter  = SpeedMeter()
-        val failure     = AtomicReference<Exception?>(null)
-        val executor    = Executors.newFixedThreadPool(connections)
+        val speedMeter = SpeedMeter()
+        val failure    = AtomicReference<Exception?>(null)
+        val executor   = Executors.newFixedThreadPool(pending.size)
 
         try {
-            val futures = ranges.map { (start, end) ->
+            val futures = pending.map { seg ->
                 executor.submit {
                     try {
-                        downloadRange(url, destination, start, end, doneCounter, totalSize, speedMeter)
+                        downloadRange(url, destination, seg, doneCounter, totalSize, speedMeter) {
+                            maybeWriteSegmentMeta { writeSegmentMeta(destination, url, totalSize, segments) }
+                        }
                     } catch (e: Exception) {
                         failure.compareAndSet(null, e)
                         cancel()
@@ -297,39 +482,44 @@ class DownloadEngine(
             futures.forEach { it.get() }
         } finally {
             executor.shutdownNow()
+            // Always snapshot final per-segment state, success or failure --
+            // this is what a subsequent downloadAuto() resumes from.
+            writeSegmentMeta(destination, url, totalSize, segments)
         }
 
         failure.get()?.let { throw it }
 
-        val finalSize = destination.length()
-        if (finalSize < totalSize) {
-            throw RuntimeException("Parallel download incomplete: $finalSize/$totalSize bytes")
+        val finalDone = segments.sumOf { it.done }
+        if (finalDone < totalSize) {
+            throw RuntimeException("Parallel download incomplete: $finalDone/$totalSize bytes")
         }
+        deleteSegmentMeta(destination)
         emitProgress(totalSize, totalSize, 0.0, force = true)
         log("Downloaded ${destination.name}")
     }
 
-    // Signature changed: accepts shared SpeedMeter instead of `started: Long`
     private fun downloadRange(
         url: String,
         destination: File,
-        start: Long,
-        end: Long,
+        seg: SegmentState,
         doneCounter: AtomicLong,
         totalSize: Long,
-        speedMeter: SpeedMeter          // ← shared across all segment workers
+        speedMeter: SpeedMeter,      // ← shared across all segment workers
+        persist: () -> Unit          // ← throttled sidecar write, called per chunk + once at the end
     ) {
-        val request = Request.Builder().url(url).header("Range", "bytes=$start-$end").build()
+        val resumeStart = seg.start + seg.done
+        if (resumeStart > seg.end) return // already fully downloaded in a prior attempt
+        val request = Request.Builder().url(url).header("Range", "bytes=$resumeStart-${seg.end}").build()
         val call = client.newCall(request)
         activeCalls.add(call)
         try {
             call.execute().use { response ->
                 if (response.code != 206 && response.code != 200) {
-                    throw RuntimeException("Segment $start-$end failed (HTTP ${response.code})")
+                    throw RuntimeException("Segment ${seg.start}-${seg.end} failed (HTTP ${response.code})")
                 }
                 val body = response.body ?: throw RuntimeException("Empty segment body")
                 RandomAccessFile(destination, "rw").use { raf ->
-                    raf.seek(start)
+                    raf.seek(resumeStart)
                     body.byteStream().use { input ->
                         val buffer = ByteArray(STREAM_BLOCK_SIZE)
                         while (true) {
@@ -338,12 +528,25 @@ class DownloadEngine(
                             if (read == -1) break
                             if (read == 0) continue
                             raf.write(buffer, 0, read)
+                            seg.done += read
                             val done = doneCounter.addAndGet(read.toLong())
                             limiter.acquire(read)
                             speedMeter.record(read.toLong())          // ← sliding window
                             emitProgress(done, totalSize, speedMeter.bps())
+                            persist()
                         }
                     }
+                }
+                // A clean EOF (read() == -1) here doesn't guarantee the server
+                // actually sent the full requested range -- a proxy/CDN
+                // cutting the response short mid-segment looks identical to a
+                // normal finish from this side. Verify the byte count
+                // explicitly instead of trusting -1 alone, otherwise a
+                // truncated segment silently counts as "done" and the file
+                // ships corrupted.
+                val expected = seg.end - seg.start + 1
+                if (seg.done < expected) {
+                    throw IOException("Segment ${seg.start}-${seg.end} ended early (${seg.done}/$expected bytes)")
                 }
             }
         } catch (e: IOException) {
