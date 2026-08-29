@@ -33,6 +33,10 @@ class DownloadsFragment : Fragment() {
 
     private lateinit var adapter: QueueAdapter
 
+    /** Last rendered summary-chip labels -- see the [QueueRepository.items]
+     *  observer below for why this exists. */
+    private var lastSummaryParts: List<String>? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View = inflater.inflate(R.layout.fragment_downloads, container, false)
@@ -129,8 +133,21 @@ class DownloadsFragment : Fragment() {
             if (done > 0)        parts += "$done done"
             if (failed > 0)      parts += "$failed failed"
 
-            summaryChips.removeAllViews()
-            parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
+            // This observer fires on every progress tick (up to ~5x/sec per
+            // active download) since it's the same QueueRepository.items
+            // LiveData the byte-progress updates ride on -- but `parts` only
+            // actually changes when an item's *status* crosses a bucket
+            // boundary (e.g. downloading -> done), which is rare compared to
+            // the tick rate. Rebuilding the chip row from scratch every tick
+            // means removeAllViews() + inflating brand-new Chip views (each
+            // one resolving theme attributes) purely to redraw the exact same
+            // labels, competing with the UI thread for no visible change --
+            // skip the rebuild entirely when the labels haven't moved.
+            if (parts != lastSummaryParts) {
+                lastSummaryParts = parts
+                summaryChips.removeAllViews()
+                parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
+            }
             summaryBar.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         }
     }
