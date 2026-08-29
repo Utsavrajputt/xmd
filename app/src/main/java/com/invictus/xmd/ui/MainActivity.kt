@@ -1051,7 +1051,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             QueueRepository.update(item.id) {
                 it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed")
             }
-            if (openSettings) openSettingsScreen()
+            if (openSettings) openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE)
             return
         }
 
@@ -1307,8 +1307,10 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
      * a presence here too (see toggleDarkMode() below), since the toolbar
      * title tap needs to flip dark mode on *this* Activity directly.
      */
-    private fun openSettingsScreen() {
-        startActivity(Intent(this, SettingsActivity::class.java))
+    private fun openSettingsScreen(category: String? = null) {
+        startActivity(Intent(this, SettingsActivity::class.java).apply {
+            if (category != null) putExtra(SettingsActivity.EXTRA_OPEN_CATEGORY, category)
+        })
     }
 
     /**

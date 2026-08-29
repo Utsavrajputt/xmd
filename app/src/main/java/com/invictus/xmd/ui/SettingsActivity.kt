@@ -66,6 +66,12 @@ class SettingsActivity : AppCompatActivity(),
             supportFragmentManager.beginTransaction()
                 .replace(R.id.settingsFragmentContainer, SettingsRootFragment(), TAG_ROOT)
                 .commit()
+            // Deep-link straight into a category (e.g. the "Install now"
+            // button on the yt-dlp-not-installed dialog) instead of always
+            // landing on the root list -- see EXTRA_OPEN_CATEGORY.
+            if (intent.getStringExtra(EXTRA_OPEN_CATEGORY) == CATEGORY_YOUTUBE) {
+                openCategory(SettingsYoutubeFragment(), "settings_youtube")
+            }
         }
 
         // Keep the header title in sync with whichever fragment is on top,
@@ -207,5 +213,10 @@ class SettingsActivity : AppCompatActivity(),
 
     companion object {
         private const val TAG_ROOT = "settings_root"
+
+        /** Intent extra: which category to land on directly, skipping the
+         *  root list. See [CATEGORY_YOUTUBE]. */
+        const val EXTRA_OPEN_CATEGORY = "open_category"
+        const val CATEGORY_YOUTUBE = "youtube"
     }
 }
