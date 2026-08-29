@@ -78,6 +78,38 @@ enum class AppTheme(
         swatchSecondary = "#D4A5B8",
         swatchTertiary = "#8AB8A8",
     ),
+    TOKYO_NIGHT(
+        storageKey = "tokyo_night",
+        titleRes = R.string.theme_tokyo_night,
+        styleResDark = R.style.Theme_Xmd_TokyoNight,
+        styleResLight = R.style.Theme_Xmd_TokyoNight_Light,
+        swatchBackground = "#1A1B26",
+        swatchPrimary = "#7AA2F7",
+        swatchSecondary = "#BB9AF7",
+        swatchTertiary = "#9ECE6A",
+    ),
+    GRUVBOX(
+        storageKey = "gruvbox",
+        titleRes = R.string.theme_gruvbox,
+        styleResDark = R.style.Theme_Xmd_Gruvbox,
+        styleResLight = R.style.Theme_Xmd_Gruvbox_Light,
+        swatchBackground = "#282828",
+        swatchPrimary = "#FE8019",
+        swatchSecondary = "#FABD2F",
+        swatchTertiary = "#8EC07C",
+    ),
+    // Renamed from mpvrx's "Default" theme (a purple/plum palette) so it
+    // doesn't collide with XMD's own DEFAULT entry above.
+    AMETHYST(
+        storageKey = "amethyst",
+        titleRes = R.string.theme_amethyst,
+        styleResDark = R.style.Theme_Xmd_Amethyst,
+        styleResLight = R.style.Theme_Xmd_Amethyst_Light,
+        swatchBackground = "#161217",
+        swatchPrimary = "#E8B5EF",
+        swatchSecondary = "#D6C0D6",
+        swatchTertiary = "#F5B7B0",
+    ),
     ;
 
     /** Resolves this color theme against the current dark/light mode. */

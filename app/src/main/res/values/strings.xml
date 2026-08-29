@@ -98,6 +98,9 @@
     <string name="theme_nord">Nord</string>
     <string name="theme_dracula">Dracula</string>
     <string name="theme_catppuccin">Catppuccin</string>
+    <string name="theme_tokyo_night">Tokyo Night</string>
+    <string name="theme_gruvbox">Gruvbox</string>
+    <string name="theme_amethyst">Amethyst</string>
     <string name="theme_mode_dark">Dark mode</string>
     <string name="theme_mode_light">Light mode</string>
     <string name="settings_dark_mode">Dark Mode</string>
