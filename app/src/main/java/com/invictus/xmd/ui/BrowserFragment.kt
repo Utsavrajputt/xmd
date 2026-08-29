@@ -621,6 +621,21 @@ class BrowserFragment : Fragment() {
                 val url = request.url.toString()
                 if (!url.startsWith("http")) return null
 
+                // <video>/<audio> playback lives and dies by HTTP Range
+                // requests (seeking, adaptive buffering) -- this proxy path
+                // does a single synchronous OkHttp call per request and was
+                // never built to stream partial-content responses back to
+                // WebView correctly, so routing media through it silently
+                // broke playback on any site that isn't YouTube (whose
+                // player fetches through its own JS pipeline rather than a
+                // plain WebView-level GET). Let WebView's native network
+                // stack handle anything media-shaped, or anything already
+                // asking for a byte range, regardless of the DNS setting --
+                // this is the one exception to "everything goes through the
+                // DoH client when a mode is set."
+                if (request.requestHeaders.keys.any { it.equals("Range", ignoreCase = true) }) return null
+                if (com.invictus.xmd.core.MediaSniffer.classifyUrl(url) != null) return null
+
                 return try {
                     val reqBuilder = Request.Builder().url(url)
                     request.requestHeaders.forEach { (name, value) -> reqBuilder.header(name, value) }
