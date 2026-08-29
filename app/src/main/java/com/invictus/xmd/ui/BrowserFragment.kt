@@ -111,6 +111,18 @@ class BrowserFragment : Fragment() {
         private const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/120.0.0.0 Safari/537.36"
+        // WebView's own default UA embeds a "; wv)" marker (and a
+        // "Version/4.0 " token before "Chrome/") identifying it as an
+        // in-app WebView rather than the real Chrome browser -- Google
+        // (accounts.google.com) actively detects and blocks sign-in on
+        // exactly that marker ("Error 403: disallowed_useragent"), even
+        // though the WebView is otherwise fully capable of the login flow.
+        // Used for every non-desktop tab (not just left as WebView's
+        // default) so Google -- and any other site doing the same
+        // useragent sniffing -- treats this browser like a normal one.
+        private const val MOBILE_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/120.0.0.0 Mobile Safari/537.36"
     }
 
     /**
@@ -322,6 +334,20 @@ class BrowserFragment : Fragment() {
         // Start on the speed-dial ("new tab") page.
         showSpeedDial()
         updateTabsCount()
+    }
+
+    /**
+     * Chromium's WebView cookie store is written lazily -- it can still be
+     * sitting in an in-memory buffer, not yet on disk, when Android kills
+     * a backgrounded app's process (common on battery-aggressive OEM
+     * skins). Without an explicit flush here, a session cookie set moments
+     * earlier (e.g. finishing a Google sign-in) can simply vanish the next
+     * time the app is opened, looking like "it didn't stay logged in" even
+     * though the sign-in itself worked fine.
+     */
+    override fun onPause() {
+        super.onPause()
+        CookieManager.getInstance().flush()
     }
 
     /**
@@ -599,6 +625,26 @@ class BrowserFragment : Fragment() {
                     val reqBuilder = Request.Builder().url(url)
                     request.requestHeaders.forEach { (name, value) -> reqBuilder.header(name, value) }
                     val response = client.newCall(reqBuilder.build()).execute()
+                    // OkHttp's default CookieJar is CookieJar.NO_COOKIES -- it
+                    // doesn't touch WebView's CookieManager at all, so any
+                    // Set-Cookie this DoH-routed fetch receives would
+                    // otherwise just vanish instead of being stored. That's
+                    // silent and easy to miss on an ordinary page, but it's
+                    // exactly what breaks Google's cross-domain single
+                    // sign-on: staying logged into Drive/Gmail/etc. after
+                    // signing into YouTube depends on a background
+                    // sub-resource request (not the main-frame navigation
+                    // WebView still handles itself) setting a shared
+                    // .google.com session cookie. Every hop of the redirect
+                    // chain is walked -- not just the final response -- since
+                    // OkHttp only exposes each hop's own headers via
+                    // priorResponse, and a cookie can legitimately be set on
+                    // an intermediate redirect rather than the final URL.
+                    generateSequence(response) { it.priorResponse }.toList().asReversed().forEach { hop ->
+                        hop.headers("Set-Cookie").forEach { cookie ->
+                            CookieManager.getInstance().setCookie(hop.request.url.toString(), cookie)
+                        }
+                    }
                     val body = response.body
                     if (body == null) {
                         response.close()
@@ -1587,7 +1633,7 @@ class BrowserFragment : Fragment() {
      *  menu toggle) are responsible for reloading afterwards so the new UA
      *  actually takes effect. */
     private fun applyDesktopMode(webView: WebView, desktop: Boolean) {
-        webView.settings.userAgentString = if (desktop) DESKTOP_USER_AGENT else null
+        webView.settings.userAgentString = if (desktop) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
         webView.settings.useWideViewPort = desktop
         webView.settings.loadWithOverviewMode = desktop
     }
