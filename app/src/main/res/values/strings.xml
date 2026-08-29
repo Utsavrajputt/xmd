@@ -77,7 +77,7 @@
     <string name="settings_category_connections_desc">Parallel connections, speed limit</string>
     <string name="settings_category_downloads">Downloads</string>
     <string name="settings_category_downloads_desc">Save location, retries, Wi-Fi only</string>
-    <string name="settings_category_youtube">YouTube</string>
+    <string name="settings_category_youtube">Ytdlp</string>
     <string name="settings_category_youtube_desc">Default quality, format, yt-dlp engine</string>
     <string name="settings_category_about">About</string>
     <string name="settings_category_about_desc">Version, credits, and licenses</string>
@@ -99,7 +99,7 @@
     <string name="about_credit_room_desc">Local download history storage</string>
     <string name="about_credit_coroutines_desc">Asynchronous downloads</string>
     <string name="about_developers_title">Developers</string>
-    <string name="about_made_by">Built with ⚡</string>
+    <string name="about_made_by">Built with ♥️ by Invictus</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_hint">Tap a theme to apply it immediately.</string>
     <string name="theme_default">Default</string>
@@ -148,7 +148,7 @@
     <string name="settings_preset_container_label">Container</string>
     <string name="settings_preset_fps_label">FPS</string>
     <string name="settings_preset_codec_label">Codec</string>
-    <string name="preset_any">Any</string>
+    <string name="preset_any">Auto</string>
     <string name="preset_container_mp4">MP4</string>
     <string name="preset_container_webm">WebM</string>
     <string name="preset_codec_avc">H.264 (AVC)</string>
@@ -164,15 +164,15 @@
     <string name="audio_format_original">Original (no re-encode)</string>
     <string name="settings_save">Save</string>
     <string name="settings_import_websites">Website Sources</string>
-    <string name="settings_import_websites_hint">Scans Downloads, Xmd, and WhatsApp Documents (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
+    <string name="settings_import_websites_hint">Scans Preset folders (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
     <string name="settings_import_websites_button">Import Now</string>
 
     <!-- Website Import -->
     <string name="import_websites_title">Import Websites</string>
-    <string name="import_websites_scanning">Scanning Downloads, Xmd, and WhatsApp Documents for xmdweb files…</string>
+    <string name="import_websites_scanning">Scanning files…</string>
     <string name="import_websites_success">Imported %1$d website(s).</string>
-    <string name="import_websites_none_new">No new websites to import — everything in that file is already added.</string>
-    <string name="import_websites_not_found">No xmdweb source-pack file found in Downloads, Xmd, or WhatsApp Documents.</string>
+    <string name="import_websites_none_new">Already Updated.</string>
+    <string name="import_websites_not_found">No Websource found.</string>
     <string name="settings_export_websites_button">Export Now</string>
     <string name="export_websites_empty">No shortcuts saved yet — nothing to export.</string>
     <string name="export_websites_failed">Couldn\'t save the file. Try again.</string>
