@@ -176,6 +176,29 @@ object ShortcutRepository {
         return null
     }
 
+    /**
+     * Serializes all saved shortcuts back into the same xmdweb source-pack
+     * shape importWebsites() reads (`{"websites": [...]}`) -- so a file
+     * exported here can be re-imported on this device or shared to
+     * another one via Settings -> Import Websites, sortOrder preserved.
+     */
+    suspend fun exportWebsitesJson(): String = withContext(Dispatchers.IO) {
+        val all = runCatching { dao.getAll() }.getOrDefault(emptyList()).sortedBy { it.sortOrder }
+        val array = JSONArray()
+        all.forEach { shortcut ->
+            val obj = JSONObject()
+            obj.put("name", shortcut.title)
+            obj.put("url", shortcut.url)
+            shortcut.faviconUrl?.let { obj.put("icon", it) }
+            array.put(obj)
+        }
+        JSONObject().put("websites", array).toString(2)
+    }
+
+    suspend fun count(): Int = withContext(Dispatchers.IO) {
+        runCatching { dao.getAll() }.getOrDefault(emptyList()).size
+    }
+
     fun add(title: String, url: String) {
         scope.launch {
             val nextOrder = (runCatching { dao.getAll() }.getOrDefault(emptyList())

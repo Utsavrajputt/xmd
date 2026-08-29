@@ -161,6 +161,11 @@
     <string name="import_websites_success">Imported %1$d website(s).</string>
     <string name="import_websites_none_new">No new websites to import — everything in that file is already added.</string>
     <string name="import_websites_not_found">No xmdweb source-pack file found in Downloads, Xmd, or WhatsApp Documents.</string>
+    <string name="settings_export_websites_button">Export Now</string>
+    <string name="export_websites_empty">No shortcuts saved yet — nothing to export.</string>
+    <string name="export_websites_failed">Couldn\'t save the file. Try again.</string>
+    <string name="export_websites_success">Website source pack saved.</string>
+    <string name="export_websites_share_title">Share website source pack</string>
 
     <!-- Browser -->
     <string name="hint_url">Search or type a URL</string>

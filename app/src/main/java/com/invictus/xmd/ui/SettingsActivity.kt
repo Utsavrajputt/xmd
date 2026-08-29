@@ -1,11 +1,14 @@
 package com.invictus.xmd.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -16,6 +19,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Dedicated Settings screen -- replaces the old single-dialog Settings UI.
@@ -34,6 +40,13 @@ class SettingsActivity : AppCompatActivity(),
     SettingsDownloadsFragment.Callbacks {
 
     private lateinit var headerTitle: TextView
+
+    // Must be registered before onStart -- declared as a property so it's
+    // set up during Activity construction, same requirement as any other
+    // registerForActivityResult() call.
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) writeAndShareExport(uri)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -136,6 +149,53 @@ class SettingsActivity : AppCompatActivity(),
             }
             Toast.makeText(this@SettingsActivity, message, Toast.LENGTH_LONG).show()
         }
+    }
+
+    // ── SettingsDownloadsFragment.Callbacks: website source-pack export ────
+    // User picks the save location via SAF (Save As) rather than a fixed
+    // Downloads/Xmd path, then the file is shared immediately after saving
+    // so it's one tap from "Export Now" to sending it to someone.
+
+    override fun startWebExportFlow() {
+        lifecycleScope.launch {
+            val count = ShortcutRepository.count()
+            if (count == 0) {
+                Toast.makeText(this@SettingsActivity, R.string.export_websites_empty, Toast.LENGTH_SHORT).show()
+            } else {
+                exportLauncher.launch(defaultExportFileName())
+            }
+        }
+    }
+
+    private fun defaultExportFileName(): String {
+        val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        return "xmd_web_$stamp.json"
+    }
+
+    private fun writeAndShareExport(uri: Uri) {
+        lifecycleScope.launch {
+            val json = ShortcutRepository.exportWebsitesJson()
+            val written = withContext(Dispatchers.IO) {
+                runCatching {
+                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                }.isSuccess
+            }
+            if (!written) {
+                Toast.makeText(this@SettingsActivity, R.string.export_websites_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            Toast.makeText(this@SettingsActivity, R.string.export_websites_success, Toast.LENGTH_SHORT).show()
+            shareExportedFile(uri)
+        }
+    }
+
+    private fun shareExportedFile(uri: Uri) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.export_websites_share_title)))
     }
 
     companion object {

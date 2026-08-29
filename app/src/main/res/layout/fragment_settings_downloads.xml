@@ -105,13 +105,30 @@
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/importWebsitesButton"
-            style="@style/Widget.Xmd.Button.Outlined"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@string/settings_import_websites_button" />
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/importWebsitesButton"
+                style="@style/Widget.Xmd.Button.Outlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="@string/settings_import_websites_button" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/exportWebsitesButton"
+                style="@style/Widget.Xmd.Button.Outlined"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/settings_export_websites_button" />
+
+        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/downloadsSaveButton"

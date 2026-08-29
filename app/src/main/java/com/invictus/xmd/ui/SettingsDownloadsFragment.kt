@@ -25,6 +25,7 @@ class SettingsDownloadsFragment : Fragment() {
      *  it needs an Activity-scoped lifecycleScope + dialog host. */
     interface Callbacks {
         fun startWebImportFlow()
+        fun startWebExportFlow()
     }
 
     private var callbacks: Callbacks? = null
@@ -71,6 +72,10 @@ class SettingsDownloadsFragment : Fragment() {
 
         view.findViewById<MaterialButton>(R.id.importWebsitesButton).setOnClickListener {
             callbacks?.startWebImportFlow()
+        }
+
+        view.findViewById<MaterialButton>(R.id.exportWebsitesButton).setOnClickListener {
+            callbacks?.startWebExportFlow()
         }
     }
 }
