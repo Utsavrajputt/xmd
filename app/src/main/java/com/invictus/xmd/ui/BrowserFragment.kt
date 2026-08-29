@@ -141,12 +141,6 @@ class BrowserFragment : Fragment() {
         var webViewState: android.os.Bundle? = null,
         var isLoading: Boolean = false,
         var progress: Int = 0,
-        // Downscaled snapshot of the WebView's last-rendered frame, refreshed
-        // by captureThumbnail() whenever this tab is backgrounded (switched
-        // away from, or a new tab opened over it). Purely cosmetic -- used
-        // to give the tabs sheet a live-preview card instead of a bare icon
-        // row. Never populated for private tabs (see captureThumbnail).
-        var thumbnail: android.graphics.Bitmap? = null,
         // Chrome-style per-tab "Desktop site" toggle -- swaps the WebView's
         // user agent + viewport handling and reloads. Lives on the tab (not
         // globally) since real browsers scope this to the page you're on.
@@ -1436,39 +1430,8 @@ class BrowserFragment : Fragment() {
         tabsCount.text = tabs.size.toString()
     }
 
-    /**
-     * Draws [tab]'s live WebView down into a small bitmap for the tabs
-     * sheet's preview card. Scaled way down (quarter size) since it's only
-     * ever shown at thumbnail size -- capturing full-resolution would just
-     * burn memory for no visible gain. Skipped for private tabs so a
-     * snapshot of what was being browsed never lingers in memory after the
-     * tab closes. Best-effort: a mid-layout or zero-size WebView just
-     * leaves the previous (or no) thumbnail in place rather than throwing.
-     */
-    private fun captureThumbnail(tab: BrowserTab) {
-        if (tab.isPrivate) return
-        val view = tab.webView ?: return
-        if (view.width <= 0 || view.height <= 0) return
-        try {
-            val scale = 0.25f
-            val bitmap = android.graphics.Bitmap.createBitmap(
-                (view.width * scale).toInt().coerceAtLeast(1),
-                (view.height * scale).toInt().coerceAtLeast(1),
-                android.graphics.Bitmap.Config.ARGB_8888
-            )
-            val canvas = android.graphics.Canvas(bitmap)
-            canvas.scale(scale, scale)
-            view.draw(canvas)
-            tab.thumbnail = bitmap
-        } catch (_: Exception) {
-            // Leave whatever thumbnail (or lack of one) the tab already had.
-        }
-    }
-
     private fun addNewTab() {
-        val previousTab = tabs.getOrNull(currentTabIndex)
-        val previousView = previousTab?.webView
-        previousTab?.let { captureThumbnail(it) }
+        val previousView = tabs.getOrNull(currentTabIndex)?.webView
         tabs.add(BrowserTab(id = nextTabId++))
         currentTabIndex = tabs.lastIndex
         previousView?.let {
@@ -1498,7 +1461,6 @@ class BrowserFragment : Fragment() {
         index: Int,
         previousView: WebView? = tabs.getOrNull(currentTabIndex)?.webView
     ) {
-        tabs.getOrNull(currentTabIndex)?.let { captureThumbnail(it) }
         currentTabIndex = index
         val tab = tabs[index]
         // CookieManager.setAcceptCookie is a single global flag, not scoped
@@ -1587,74 +1549,19 @@ class BrowserFragment : Fragment() {
     }
 
     /**
-     * Tabs tray: a bottom sheet (not a modal dialog) with a live preview
-     * card for whatever tab is currently on screen, then every open tab as
-     * a compact pill -- round icon, title, close X -- and a floating "+"
-     * beneath the list instead of a dialog footer button. Styled after
-     * Samsung/Kiwi-style tab trays rather than a plain settings-style list.
+     * Tabs tray: a bottom sheet (not a modal dialog) listing every open tab
+     * as a compact pill -- round icon, title, close X -- with a floating
+     * "+" beneath the list instead of a dialog footer button.
      */
     private fun showTabsDialog() {
         val context = requireContext()
         fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
-
-        // Snapshot the active tab right before the tray opens so its preview
-        // card reflects what's actually on screen, not a stale capture from
-        // whenever it was last backgrounded.
-        tabs.getOrNull(currentTabIndex)?.let { captureThumbnail(it) }
 
         val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(context)
 
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(20))
-        }
-
-        // Live preview of the current tab -- gives the tray the same
-        // "here's what you're on" framing the reference UI has, instead of
-        // dropping straight into a flat list.
-        tabs.getOrNull(currentTabIndex)?.let { activeTab ->
-            val previewCard = MaterialCardView(context).apply {
-                radius = dp(20).toFloat()
-                cardElevation = 0f
-                strokeWidth = dp(2)
-                strokeColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
-                layoutParams = LinearLayout.LayoutParams(dp(150), dp(100)).apply {
-                    gravity = android.view.Gravity.END
-                    bottomMargin = dp(16)
-                }
-            }
-            val preview = FrameLayout(context)
-            val previewImage = ImageView(context).apply {
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                val thumb = activeTab.thumbnail
-                if (thumb != null && !activeTab.isPrivate) {
-                    setImageBitmap(thumb)
-                } else {
-                    setBackgroundColor(resolveThemeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh))
-                    setImageResource(if (activeTab.isPrivate) R.drawable.ic_private_tab else R.drawable.ic_link)
-                    setColorFilter(resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-                    setPadding(dp(48), dp(30), dp(48), dp(30))
-                }
-            }
-            val previewLabel = android.widget.TextView(context).apply {
-                text = activeTab.title.ifBlank { activeTab.url ?: getString(R.string.action_new_tab) }
-                setTextColor(android.graphics.Color.WHITE)
-                textSize = 11f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setPadding(dp(8), dp(14), dp(8), dp(6))
-                setBackgroundColor(android.graphics.Color.parseColor("#99000000"))
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { gravity = android.view.Gravity.BOTTOM }
-            }
-            preview.addView(previewImage)
-            preview.addView(previewLabel)
-            previewCard.addView(preview)
-            root.addView(previewCard)
         }
 
         val rowsContainer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
