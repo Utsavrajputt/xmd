@@ -55,24 +55,28 @@ class SettingsActivity : AppCompatActivity(),
         // theme/dark-mode resolution as MainActivity/ChallengeActivity, so
         // this screen (and SettingsAppearanceFragment's recreate() calls)
         // actually repaint instead of recreating with the default theme.
-        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
+        com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val statusBarColor = com.google.android.material.color.MaterialColors.getColor(
+        val isDark = Settings.isDarkMode()
+        val isAmoled = isDark && Settings.isAmoledMode()
+
+        // Status bar must match the header (colorSurfaceContainerLow)
+        val headerColor = com.google.android.material.color.MaterialColors.getColor(
             this,
             com.google.android.material.R.attr.colorSurfaceContainerLow,
             android.graphics.Color.BLACK
         )
-        val navBarColor = com.google.android.material.color.MaterialColors.getColor(
+        // Navigation bar matches the body background (pure black in AMOLED mode)
+        val navBarColor = if (isAmoled) android.graphics.Color.BLACK else com.google.android.material.color.MaterialColors.getColor(
             this,
             android.R.attr.colorBackground,
             android.graphics.Color.BLACK
         )
-        window.statusBarColor = statusBarColor
+        window.statusBarColor = headerColor
         window.navigationBarColor = navBarColor
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-        val isDark = Settings.isDarkMode()
         insetsController.isAppearanceLightStatusBars = !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
 

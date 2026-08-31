@@ -217,12 +217,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
         }
 
-    /** The theme style res applied via [setTheme] in [onCreate], so
-     *  [onResume] can tell whether Settings changed the theme/dark-mode
-     *  while this Activity was stopped underneath it and needs a
-     *  [recreate] to repaint -- setTheme() only takes effect pre-onCreate,
-     *  so there's no cheaper way to pick up a change made elsewhere. */
-    private var appliedThemeStyleRes: Int = 0
+    private var appliedThemeKey: String = ""
+    private var appliedIsDark: Boolean = true
+    private var appliedIsAmoled: Boolean = false
 
     private var currentTabTag: String = TAG_DOWNLOADS
 
@@ -337,8 +334,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // re-runs onCreate() (which updates appliedThemeStyleRes) then
         // onResume() again, so the check below just passes through to
         // syncToolbarWithVisibleFragment() on that second pass.
-        val currentThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
-        if (currentThemeStyleRes != appliedThemeStyleRes) {
+        if (Settings.appTheme().storageKey != appliedThemeKey ||
+            Settings.isDarkMode() != appliedIsDark ||
+            Settings.isAmoledMode() != appliedIsAmoled) {
             recreate()
             return
         }
@@ -361,21 +359,25 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun applySystemBarColors() {
-        val statusBarColor = MaterialColors.getColor(
+        val isDark = Settings.isDarkMode()
+        val isAmoled = isDark && Settings.isAmoledMode()
+
+        // Status bar must match the header (colorSurfaceContainerLow)
+        val headerColor = MaterialColors.getColor(
             this,
             com.google.android.material.R.attr.colorSurfaceContainerLow,
             Color.BLACK
         )
-        val navBarColor = MaterialColors.getColor(
+        // Navigation bar matches the body background (pure black in AMOLED mode)
+        val navBarColor = if (isAmoled) Color.BLACK else MaterialColors.getColor(
             this,
             android.R.attr.colorBackground,
             Color.BLACK
         )
-        window.statusBarColor = statusBarColor
+        window.statusBarColor = headerColor
         window.navigationBarColor = navBarColor
 
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-        val isDark = Settings.isDarkMode()
         insetsController.isAppearanceLightStatusBars = !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
     }
@@ -383,10 +385,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // ── onCreate ──────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Must run before super.onCreate() -- Activity.setTheme() only takes
-        // effect if called before the window/decor is created.
-        appliedThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
-        setTheme(appliedThemeStyleRes)
+        // Must run before super.onCreate() -- Activity theme setup applies
+        // before the window/decor is created.
+        appliedThemeKey = Settings.appTheme().storageKey
+        appliedIsDark = Settings.isDarkMode()
+        appliedIsAmoled = Settings.isAmoledMode()
+        com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         applySystemBarColors()

@@ -1058,4 +1058,17 @@
         <item name="android:gravity">center_vertical</item>
     </style>
 
+    <!-- AMOLED Dark Overlay — overrides ONLY the body background and base surfaces to pitch black (#000000)
+         while preserving the theme's header color (colorSurfaceContainerLow) and accent colors. -->
+    <style name="ThemeOverlay.Xmd.Amoled" parent="">
+        <item name="android:colorBackground">#000000</item>
+        <item name="android:windowBackground">#000000</item>
+        <item name="colorSurface">#000000</item>
+        <item name="colorSurfaceDim">#000000</item>
+        <item name="colorSurfaceContainerLowest">#000000</item>
+        <item name="colorPrimaryDark">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+    </style>
+
 </resources>

@@ -55,7 +55,18 @@ class ShareReceiverActivity : AppCompatActivity() {
     // the sheet's context only, not the activity's own (deliberately
     // invisible) window theme.
     private val themedContext by lazy {
-        ContextThemeWrapper(this, Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
+        val theme = Settings.appTheme()
+        val isDark = Settings.isDarkMode()
+        val baseWrapper = ContextThemeWrapper(this, theme.resolvedStyleRes(isDark))
+        val context = if (theme == com.invictus.xmd.ui.theme.AppTheme.SYSTEM) {
+            com.google.android.material.color.DynamicColors.wrapContextIfAvailable(baseWrapper)
+        } else {
+            baseWrapper
+        }
+        if (isDark && Settings.isAmoledMode()) {
+            context.theme.applyStyle(R.style.ThemeOverlay_Xmd_Amoled, true)
+        }
+        context
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
