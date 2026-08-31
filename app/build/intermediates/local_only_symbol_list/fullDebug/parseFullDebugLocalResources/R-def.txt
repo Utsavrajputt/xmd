@@ -59,6 +59,9 @@ drawable bg_circle_outline
 drawable bg_drag_handle
 drawable bg_icon_button_tonal
 drawable bg_icon_button_tonal_primary
+drawable bg_nav_badge
+drawable bg_nav_item_active
+drawable bg_nav_item_inactive
 drawable bg_radio_row_selector
 drawable bg_section_accent
 drawable bg_status_pill
@@ -143,7 +146,6 @@ id bookmarksClearAll
 id bookmarksEmptyLabel
 id bookmarksList
 id bookmarksSearchInput
-id bottomNav
 id btnCancel
 id btnDownload
 id cancelButton
@@ -243,7 +245,19 @@ id menu_history
 id menu_private_dns
 id menu_refresh
 id menu_settings
+id navAddFab
+id navBarLayout
+id navBrowserIcon
+id navBrowserLabel
+id navDownloadsBadge
+id navDownloadsIcon
+id navDownloadsLabel
+id navItemBrowser
+id navItemBrowserContent
+id navItemDownloads
+id navItemDownloadsContent
 id navLoadingVeil
+id navPillCard
 id nav_add
 id nav_browser
 id nav_downloads

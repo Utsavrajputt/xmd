@@ -59,13 +59,18 @@ class SettingsActivity : AppCompatActivity(),
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val barColor = com.google.android.material.color.MaterialColors.getColor(
+        val statusBarColor = com.google.android.material.color.MaterialColors.getColor(
             this,
             com.google.android.material.R.attr.colorSurfaceContainerLow,
             android.graphics.Color.BLACK
         )
-        window.statusBarColor = barColor
-        window.navigationBarColor = barColor
+        val navBarColor = com.google.android.material.color.MaterialColors.getColor(
+            this,
+            android.R.attr.colorBackground,
+            android.graphics.Color.BLACK
+        )
+        window.statusBarColor = statusBarColor
+        window.navigationBarColor = navBarColor
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
         val isDark = Settings.isDarkMode()
         insetsController.isAppearanceLightStatusBars = !isDark

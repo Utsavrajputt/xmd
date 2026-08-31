@@ -3045,6 +3045,9 @@ drawable bg_circle_outline
 drawable bg_drag_handle
 drawable bg_icon_button_tonal
 drawable bg_icon_button_tonal_primary
+drawable bg_nav_badge
+drawable bg_nav_item_active
+drawable bg_nav_item_inactive
 drawable bg_radio_row_selector
 drawable bg_section_accent
 drawable bg_status_pill
@@ -3330,7 +3333,6 @@ id bookmarksEmptyLabel
 id bookmarksList
 id bookmarksSearchInput
 id bottom
-id bottomNav
 id bounce
 id bounceBoth
 id bounceEnd
@@ -3638,7 +3640,19 @@ id mtrl_picker_text_input_range_start
 id mtrl_picker_title_text
 id mtrl_view_tag_bottom_padding
 id multiply
+id navAddFab
+id navBarLayout
+id navBrowserIcon
+id navBrowserLabel
+id navDownloadsBadge
+id navDownloadsIcon
+id navDownloadsLabel
+id navItemBrowser
+id navItemBrowserContent
+id navItemDownloads
+id navItemDownloadsContent
 id navLoadingVeil
+id navPillCard
 id nav_add
 id nav_browser
 id nav_downloads

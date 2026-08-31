@@ -1,8 +1,8 @@
 package com.invictus.xmd.ui;
 
-@kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000\u00d6\u0001\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\b\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0005\n\u0002\u0010 \n\u0000\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0004\n\u0002\u0010\u000e\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\u0010\u000b\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u0011\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0007\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\t\n\u0002\u0018\u0002\n\u0002\b\n\n\u0002\u0018\u0002\n\u0002\b#\u0018\u0000 \u008d\u00012\u00020\u00012\u00020\u00022\u00020\u00032\u00020\u00042\u00020\u0005:\u0002\u008d\u0001B\u0005\u00a2\u0006\u0002\u0010\u0006J\u0010\u0010:\u001a\u00020+2\u0006\u0010;\u001a\u00020<H\u0002J\b\u0010=\u001a\u00020+H\u0002J\b\u0010>\u001a\u00020+H\u0002J\b\u0010?\u001a\u00020+H\u0002J\b\u0010@\u001a\u00020+H\u0002J\b\u0010A\u001a\u00020\u001fH\u0002J\u0010\u0010B\u001a\u00020.2\u0006\u0010C\u001a\u00020DH\u0016J\u0010\u0010E\u001a\u00020+2\u0006\u0010F\u001a\u00020\u0015H\u0002J\u0018\u0010G\u001a\u00020H2\u0006\u0010I\u001a\u00020\u001f2\u0006\u0010J\u001a\u00020\u001fH\u0002J\u0012\u0010K\u001a\u0004\u0018\u00010\u001f2\u0006\u0010L\u001a\u00020\u001fH\u0002J\u0012\u0010M\u001a\u00020+2\b\u0010N\u001a\u0004\u0018\u00010OH\u0014J\u0010\u0010P\u001a\u00020.2\u0006\u0010Q\u001a\u00020RH\u0016J\u0010\u0010S\u001a\u00020+2\u0006\u0010F\u001a\u00020\u0015H\u0014J\u0010\u0010T\u001a\u00020.2\u0006\u0010U\u001a\u00020VH\u0016J\u0010\u0010W\u001a\u00020.2\u0006\u0010Q\u001a\u00020RH\u0016J\b\u0010X\u001a\u00020+H\u0014J\u0010\u0010Y\u001a\u00020+2\u0006\u0010Z\u001a\u000202H\u0002J\u0010\u0010[\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001fH\u0016J\b\u0010]\u001a\u00020+H\u0002J\u0010\u0010^\u001a\u00020+2\u0006\u0010_\u001a\u00020`H\u0016J\u0006\u0010a\u001a\u00020+J\b\u0010b\u001a\u00020+H\u0002J\u0010\u0010c\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001fH\u0016J\u0014\u0010d\u001a\u00020+2\n\b\u0002\u0010e\u001a\u0004\u0018\u00010\u001fH\u0002J\u0012\u0010f\u001a\u0004\u0018\u00010\u001f2\u0006\u0010Z\u001a\u000202H\u0002J\b\u0010g\u001a\u00020+H\u0002J\u000e\u0010h\u001a\u00020+H\u0082@\u00a2\u0006\u0002\u0010iJ\u0016\u0010j\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\u0012\u0010m\u001a\u0004\u0018\u00010\u001f2\u0006\u0010n\u001a\u000202H\u0002J\u0016\u0010o\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\b\u0010p\u001a\u00020+H\u0016J\u0010\u0010q\u001a\u00020+2\u0006\u0010r\u001a\u00020\u001fH\u0016J\u0016\u0010s\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\u0012\u0010t\u001a\u00020+2\n\b\u0002\u0010L\u001a\u0004\u0018\u00010\u001fJ*\u0010u\u001a\u00020+2\n\b\u0002\u0010v\u001a\u0004\u0018\u00010\u001f2\n\b\u0002\u0010w\u001a\u0004\u0018\u0001022\n\b\u0002\u0010x\u001a\u0004\u0018\u00010\u001fJ\b\u0010y\u001a\u00020+H\u0002J\b\u0010z\u001a\u00020+H\u0002J\b\u0010{\u001a\u00020+H\u0002J\u0010\u0010|\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0002J\u0010\u0010}\u001a\u00020+2\u0006\u0010~\u001a\u00020\u001fH\u0002J\b\u0010\u007f\u001a\u00020+H\u0002J\t\u0010\u0080\u0001\u001a\u00020+H\u0002J\u0016\u0010\u0081\u0001\u001a\u00020+2\r\u0010\u0082\u0001\u001a\b\u0012\u0004\u0012\u00020\u001f0\u0012J$\u0010\u0083\u0001\u001a\u00020+2\u0006\u0010L\u001a\u00020\u001f2\b\u0010(\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001fJ\u0007\u0010\u0085\u0001\u001a\u00020+J0\u0010\u0086\u0001\u001a\u00020+2\u0006\u0010Z\u001a\u0002022\t\u0010\u0087\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0088\u0001\u001a\u0004\u0018\u00010\u001fJ/\u0010\u0089\u0001\u001a\u00020+2\u0006\u0010L\u001a\u00020\u001f2\b\u0010(\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0088\u0001\u001a\u0004\u0018\u00010\u001fJ\u0018\u0010\u008a\u0001\u001a\u00020+2\r\u0010\u0082\u0001\u001a\b\u0012\u0004\u0012\u00020\u001f0\u0012H\u0016J\u001a\u0010\u008b\u0001\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001f2\u0007\u0010\u008c\u0001\u001a\u00020.H\u0016R\u000e\u0010\u0007\u001a\u00020\bX\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u000e\u0010\t\u001a\u00020\nX\u0082.\u00a2\u0006\u0002\n\u0000R\u001b\u0010\u000b\u001a\u00020\f8BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b\u000f\u0010\u0010\u001a\u0004\b\r\u0010\u000eR\u0014\u0010\u0011\u001a\b\u0012\u0004\u0012\u00020\b0\u0012X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u0010\u0013\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u00150\u00150\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0017\u001a\u00020\u0018X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001b\u0010\u0019\u001a\u00020\u001a8BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b\u001d\u0010\u0010\u001a\u0004\b\u001b\u0010\u001cR\u000e\u0010\u001e\u001a\u00020\u001fX\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u001b\u0010 \u001a\u00020\u00188BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b#\u0010\u0010\u001a\u0004\b!\u0010\"R\u001c\u0010$\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f0\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000RD\u0010%\u001a8\u0012\u0015\u0012\u0013\u0018\u00010\u001f\u00a2\u0006\f\b'\u0012\b\b(\u0012\u0004\b\b()\u0012\u0015\u0012\u0013\u0018\u00010\u001f\u00a2\u0006\f\b'\u0012\b\b(\u0012\u0004\b\b(*\u0012\u0004\u0012\u00020+\u0018\u00010&X\u0082\u000e\u00a2\u0006\u0002\n\u0000RN\u0010,\u001aB\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f\u0012\f\u0012\n \u0016*\u0004\u0018\u00010.0. \u0016* \u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f\u0012\f\u0012\n \u0016*\u0004\u0018\u00010.0.\u0018\u00010-0-X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u0010/\u001a\u0010\u0012\u0004\u0012\u00020\u001f\u0012\u0004\u0012\u00020+\u0018\u000100X\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u0016\u00101\u001a\n\u0012\u0006\u0012\u0004\u0018\u0001020\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001a\u00103\u001a\u000e\u0012\n\u0012\b\u0012\u0004\u0012\u00020\u001f040\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u00105\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f0\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u000e\u00106\u001a\u000207X\u0082.\u00a2\u0006\u0002\n\u0000R\u000e\u00108\u001a\u000209X\u0082.\u00a2\u0006\u0002\n\u0000\u00a8\u0006\u008e\u0001"}, d2 = {"Lcom/invictus/xmd/ui/MainActivity;", "Landroidx/appcompat/app/AppCompatActivity;", "Lcom/invictus/xmd/ui/DownloadsFragment$Callbacks;", "Lcom/invictus/xmd/ui/BrowserFragment$Callbacks;", "Lcom/invictus/xmd/ui/HistoryFragment$Callbacks;", "Lcom/invictus/xmd/ui/BookmarkFragment$Callbacks;", "()V", "appliedThemeStyleRes", "", "bottomNav", "Lcom/google/android/material/bottomnavigation/BottomNavigationView;", "bottomNavSwipeDetector", "Landroid/view/GestureDetector;", "getBottomNavSwipeDetector", "()Landroid/view/GestureDetector;", "bottomNavSwipeDetector$delegate", "Lkotlin/Lazy;", "bottomNavSwipeOrder", "", "challengeLauncher", "Landroidx/activity/result/ActivityResultLauncher;", "Landroid/content/Intent;", "kotlin.jvm.PlatformType", "client", "Lokhttp3/OkHttpClient;", "clipboardManager", "Landroid/content/ClipboardManager;", "getClipboardManager", "()Landroid/content/ClipboardManager;", "clipboardManager$delegate", "currentTabTag", "", "filenameClient", "getFilenameClient", "()Lokhttp3/OkHttpClient;", "filenameClient$delegate", "notificationPermissionLauncher", "pendingChallengeContinuation", "Lkotlin/Function2;", "Lkotlin/ParameterName;", "name", "directUrl", "error", "", "pendingRetryIds", "Ljava/util/concurrent/ConcurrentHashMap$KeySetView;", "", "pendingSaveDirCallback", "Lkotlin/Function1;", "pickSaveDirLauncher", "Landroid/net/Uri;", "pickTorrentFileLauncher", "", "storagePermissionLauncher", "toolbar", "Landroidx/appcompat/widget/Toolbar;", "toolbarTitle", "Landroid/widget/TextView;", "applyResponsiveDialogWidth", "dialog", "Landroidx/appcompat/app/AlertDialog;", "applySystemBarColors", "autoResumePendingDownloads", "checkNotificationPermission", "checkStoragePermission", "defaultSavePath", "dispatchTouchEvent", "ev", "Landroid/view/MotionEvent;", "handleIncomingIntent", "intent", "labelWithAddress", "Landroid/text/SpannableString;", "title", "address", "magnetDisplayName", "link", "onCreate", "savedInstanceState", "Landroid/os/Bundle;", "onCreateOptionsMenu", "menu", "Landroid/view/Menu;", "onNewIntent", "onOptionsItemSelected", "item", "Landroid/view/MenuItem;", "onPrepareOptionsMenu", "onResume", "onTorrentFilePicked", "uri", "openBookmarkInBrowser", "url", "openBookmarksScreen", "openBrowserMenu", "anchor", "Landroid/view/View;", "openDownloadsTab", "openHistoryScreen", "openInBrowser", "openSettingsScreen", "category", "queryDisplayName", "reloadBrowserTab", "resolveAll", "(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;", "resolveOne", "Lcom/invictus/xmd/core/QueueItem;", "(Lcom/invictus/xmd/core/QueueItem;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;", "resolveTreeUriToPath", "treeUri", "resolveYoutube", "retryAll", "retryItem", "itemId", "retrySingle", "showAddDownloadDialog", "showAddTorrentDialog", "prefillLink", "prefillTorrentUri", "prefillDisplayName", "showClearBrowsingDataDialog", "showDnsSettingsDialog", "showDownloadStartedSnackbar", "showExpiredLinkDialog", "showFragment", "tag", "syncToolbarWithVisibleFragment", "toggleDarkMode", "triggerDownloadDirect", "lines", "triggerDownloadDirectCustom", "customSaveDirPath", "triggerDownloadReady", "triggerDownloadTorrentFile", "displayName", "selectedFileIndices", "triggerDownloadTorrentMagnet", "triggerPrepare", "triggerSniffedMedia", "needsPicker", "Companion", "app_fullDebug"})
+@kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000\u00d6\u0001\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0010\b\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0005\n\u0002\u0010 \n\u0000\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0004\n\u0002\u0010\u000e\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\u0010\u000b\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u0011\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0007\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\t\n\u0002\u0018\u0002\n\u0002\b\n\n\u0002\u0018\u0002\n\u0002\b%\u0018\u0000 \u008d\u00012\u00020\u00012\u00020\u00022\u00020\u00032\u00020\u00042\u00020\u0005:\u0006\u008d\u0001\u008e\u0001\u008f\u0001B\u0005\u00a2\u0006\u0002\u0010\u0006J\u0010\u0010:\u001a\u00020+2\u0006\u0010;\u001a\u00020<H\u0002J\b\u0010=\u001a\u00020+H\u0002J\b\u0010>\u001a\u00020+H\u0002J\b\u0010?\u001a\u00020+H\u0002J\b\u0010@\u001a\u00020+H\u0002J\b\u0010A\u001a\u00020\u001fH\u0002J\u0010\u0010B\u001a\u00020.2\u0006\u0010C\u001a\u00020DH\u0016J\u0010\u0010E\u001a\u00020+2\u0006\u0010F\u001a\u00020\u0015H\u0002J\u0018\u0010G\u001a\u00020H2\u0006\u0010I\u001a\u00020\u001f2\u0006\u0010J\u001a\u00020\u001fH\u0002J\u0012\u0010K\u001a\u0004\u0018\u00010\u001f2\u0006\u0010L\u001a\u00020\u001fH\u0002J\u0012\u0010M\u001a\u00020+2\b\u0010N\u001a\u0004\u0018\u00010OH\u0014J\u0010\u0010P\u001a\u00020.2\u0006\u0010Q\u001a\u00020RH\u0016J\u0010\u0010S\u001a\u00020+2\u0006\u0010F\u001a\u00020\u0015H\u0014J\u0010\u0010T\u001a\u00020.2\u0006\u0010U\u001a\u00020VH\u0016J\u0010\u0010W\u001a\u00020.2\u0006\u0010Q\u001a\u00020RH\u0016J\b\u0010X\u001a\u00020+H\u0014J\u0010\u0010Y\u001a\u00020+2\u0006\u0010Z\u001a\u000202H\u0002J\u0010\u0010[\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001fH\u0016J\b\u0010]\u001a\u00020+H\u0002J\u0010\u0010^\u001a\u00020+2\u0006\u0010_\u001a\u00020`H\u0016J\u0006\u0010a\u001a\u00020+J\b\u0010b\u001a\u00020+H\u0002J\u0010\u0010c\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001fH\u0016J\u0014\u0010d\u001a\u00020+2\n\b\u0002\u0010e\u001a\u0004\u0018\u00010\u001fH\u0002J\u0012\u0010f\u001a\u0004\u0018\u00010\u001f2\u0006\u0010Z\u001a\u000202H\u0002J\b\u0010g\u001a\u00020+H\u0002J\u000e\u0010h\u001a\u00020+H\u0082@\u00a2\u0006\u0002\u0010iJ\u0016\u0010j\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\u0012\u0010m\u001a\u0004\u0018\u00010\u001f2\u0006\u0010n\u001a\u000202H\u0002J\u0016\u0010o\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\b\u0010p\u001a\u00020+H\u0016J\u0010\u0010q\u001a\u00020+2\u0006\u0010r\u001a\u00020\u001fH\u0016J\u0016\u0010s\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0082@\u00a2\u0006\u0002\u0010lJ\u0012\u0010t\u001a\u00020+2\n\b\u0002\u0010L\u001a\u0004\u0018\u00010\u001fJ*\u0010u\u001a\u00020+2\n\b\u0002\u0010v\u001a\u0004\u0018\u00010\u001f2\n\b\u0002\u0010w\u001a\u0004\u0018\u0001022\n\b\u0002\u0010x\u001a\u0004\u0018\u00010\u001fJ\b\u0010y\u001a\u00020+H\u0002J\b\u0010z\u001a\u00020+H\u0002J\b\u0010{\u001a\u00020+H\u0002J\u0010\u0010|\u001a\u00020+2\u0006\u0010U\u001a\u00020kH\u0002J\u0010\u0010}\u001a\u00020+2\u0006\u0010~\u001a\u00020\u001fH\u0002J\b\u0010\u007f\u001a\u00020+H\u0002J\t\u0010\u0080\u0001\u001a\u00020+H\u0002J\u0016\u0010\u0081\u0001\u001a\u00020+2\r\u0010\u0082\u0001\u001a\b\u0012\u0004\u0012\u00020\u001f0\u0012J$\u0010\u0083\u0001\u001a\u00020+2\u0006\u0010L\u001a\u00020\u001f2\b\u0010(\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001fJ\u0007\u0010\u0085\u0001\u001a\u00020+J0\u0010\u0086\u0001\u001a\u00020+2\u0006\u0010Z\u001a\u0002022\t\u0010\u0087\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0088\u0001\u001a\u0004\u0018\u00010\u001fJ/\u0010\u0089\u0001\u001a\u00020+2\u0006\u0010L\u001a\u00020\u001f2\b\u0010(\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0084\u0001\u001a\u0004\u0018\u00010\u001f2\t\u0010\u0088\u0001\u001a\u0004\u0018\u00010\u001fJ\u0018\u0010\u008a\u0001\u001a\u00020+2\r\u0010\u0082\u0001\u001a\b\u0012\u0004\u0012\u00020\u001f0\u0012H\u0016J\u001a\u0010\u008b\u0001\u001a\u00020+2\u0006\u0010\\\u001a\u00020\u001f2\u0007\u0010\u008c\u0001\u001a\u00020.H\u0016R\u000e\u0010\u0007\u001a\u00020\bX\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u0012\u0010\t\u001a\u00060\nR\u00020\u0000X\u0082.\u00a2\u0006\u0002\n\u0000R\u001b\u0010\u000b\u001a\u00020\f8BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b\u000f\u0010\u0010\u001a\u0004\b\r\u0010\u000eR\u0014\u0010\u0011\u001a\b\u0012\u0004\u0012\u00020\b0\u0012X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u0010\u0013\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u00150\u00150\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u000e\u0010\u0017\u001a\u00020\u0018X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001b\u0010\u0019\u001a\u00020\u001a8BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b\u001d\u0010\u0010\u001a\u0004\b\u001b\u0010\u001cR\u000e\u0010\u001e\u001a\u00020\u001fX\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u001b\u0010 \u001a\u00020\u00188BX\u0082\u0084\u0002\u00a2\u0006\f\n\u0004\b#\u0010\u0010\u001a\u0004\b!\u0010\"R\u001c\u0010$\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f0\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000RD\u0010%\u001a8\u0012\u0015\u0012\u0013\u0018\u00010\u001f\u00a2\u0006\f\b'\u0012\b\b(\u0012\u0004\b\b()\u0012\u0015\u0012\u0013\u0018\u00010\u001f\u00a2\u0006\f\b'\u0012\b\b(\u0012\u0004\b\b(*\u0012\u0004\u0012\u00020+\u0018\u00010&X\u0082\u000e\u00a2\u0006\u0002\n\u0000RN\u0010,\u001aB\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f\u0012\f\u0012\n \u0016*\u0004\u0018\u00010.0. \u0016* \u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f\u0012\f\u0012\n \u0016*\u0004\u0018\u00010.0.\u0018\u00010-0-X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u0010/\u001a\u0010\u0012\u0004\u0012\u00020\u001f\u0012\u0004\u0012\u00020+\u0018\u000100X\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u0016\u00101\u001a\n\u0012\u0006\u0012\u0004\u0018\u0001020\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001a\u00103\u001a\u000e\u0012\n\u0012\b\u0012\u0004\u0012\u00020\u001f040\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u001c\u00105\u001a\u0010\u0012\f\u0012\n \u0016*\u0004\u0018\u00010\u001f0\u001f0\u0014X\u0082\u0004\u00a2\u0006\u0002\n\u0000R\u000e\u00106\u001a\u000207X\u0082.\u00a2\u0006\u0002\n\u0000R\u000e\u00108\u001a\u000209X\u0082.\u00a2\u0006\u0002\n\u0000\u00a8\u0006\u0090\u0001"}, d2 = {"Lcom/invictus/xmd/ui/MainActivity;", "Landroidx/appcompat/app/AppCompatActivity;", "Lcom/invictus/xmd/ui/DownloadsFragment$Callbacks;", "Lcom/invictus/xmd/ui/BrowserFragment$Callbacks;", "Lcom/invictus/xmd/ui/HistoryFragment$Callbacks;", "Lcom/invictus/xmd/ui/BookmarkFragment$Callbacks;", "()V", "appliedThemeStyleRes", "", "bottomNav", "Lcom/invictus/xmd/ui/MainActivity$ExpressiveNavBar;", "bottomNavSwipeDetector", "Landroid/view/GestureDetector;", "getBottomNavSwipeDetector", "()Landroid/view/GestureDetector;", "bottomNavSwipeDetector$delegate", "Lkotlin/Lazy;", "bottomNavSwipeOrder", "", "challengeLauncher", "Landroidx/activity/result/ActivityResultLauncher;", "Landroid/content/Intent;", "kotlin.jvm.PlatformType", "client", "Lokhttp3/OkHttpClient;", "clipboardManager", "Landroid/content/ClipboardManager;", "getClipboardManager", "()Landroid/content/ClipboardManager;", "clipboardManager$delegate", "currentTabTag", "", "filenameClient", "getFilenameClient", "()Lokhttp3/OkHttpClient;", "filenameClient$delegate", "notificationPermissionLauncher", "pendingChallengeContinuation", "Lkotlin/Function2;", "Lkotlin/ParameterName;", "name", "directUrl", "error", "", "pendingRetryIds", "Ljava/util/concurrent/ConcurrentHashMap$KeySetView;", "", "pendingSaveDirCallback", "Lkotlin/Function1;", "pickSaveDirLauncher", "Landroid/net/Uri;", "pickTorrentFileLauncher", "", "storagePermissionLauncher", "toolbar", "Landroidx/appcompat/widget/Toolbar;", "toolbarTitle", "Landroid/widget/TextView;", "applyResponsiveDialogWidth", "dialog", "Landroidx/appcompat/app/AlertDialog;", "applySystemBarColors", "autoResumePendingDownloads", "checkNotificationPermission", "checkStoragePermission", "defaultSavePath", "dispatchTouchEvent", "ev", "Landroid/view/MotionEvent;", "handleIncomingIntent", "intent", "labelWithAddress", "Landroid/text/SpannableString;", "title", "address", "magnetDisplayName", "link", "onCreate", "savedInstanceState", "Landroid/os/Bundle;", "onCreateOptionsMenu", "menu", "Landroid/view/Menu;", "onNewIntent", "onOptionsItemSelected", "item", "Landroid/view/MenuItem;", "onPrepareOptionsMenu", "onResume", "onTorrentFilePicked", "uri", "openBookmarkInBrowser", "url", "openBookmarksScreen", "openBrowserMenu", "anchor", "Landroid/view/View;", "openDownloadsTab", "openHistoryScreen", "openInBrowser", "openSettingsScreen", "category", "queryDisplayName", "reloadBrowserTab", "resolveAll", "(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;", "resolveOne", "Lcom/invictus/xmd/core/QueueItem;", "(Lcom/invictus/xmd/core/QueueItem;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;", "resolveTreeUriToPath", "treeUri", "resolveYoutube", "retryAll", "retryItem", "itemId", "retrySingle", "showAddDownloadDialog", "showAddTorrentDialog", "prefillLink", "prefillTorrentUri", "prefillDisplayName", "showClearBrowsingDataDialog", "showDnsSettingsDialog", "showDownloadStartedSnackbar", "showExpiredLinkDialog", "showFragment", "tag", "syncToolbarWithVisibleFragment", "toggleDarkMode", "triggerDownloadDirect", "lines", "triggerDownloadDirectCustom", "customSaveDirPath", "triggerDownloadReady", "triggerDownloadTorrentFile", "displayName", "selectedFileIndices", "triggerDownloadTorrentMagnet", "triggerPrepare", "triggerSniffedMedia", "needsPicker", "Companion", "ExpressiveNavBar", "NavMenuItem", "app_fullDebug"})
 public final class MainActivity extends androidx.appcompat.app.AppCompatActivity implements com.invictus.xmd.ui.DownloadsFragment.Callbacks, com.invictus.xmd.ui.BrowserFragment.Callbacks, com.invictus.xmd.ui.HistoryFragment.Callbacks, com.invictus.xmd.ui.BookmarkFragment.Callbacks {
-    private com.google.android.material.bottomnavigation.BottomNavigationView bottomNav;
+    private com.invictus.xmd.ui.MainActivity.ExpressiveNavBar bottomNav;
     private androidx.appcompat.widget.Toolbar toolbar;
     private android.widget.TextView toolbarTitle;
     @org.jetbrains.annotations.NotNull()
@@ -384,6 +384,156 @@ public final class MainActivity extends androidx.appcompat.app.AppCompatActivity
         
         private Companion() {
             super();
+        }
+    }
+    
+    @kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000@\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0011\n\u0002\u0010\b\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\u0010\u000b\n\u0002\b\n\n\u0002\u0010\u0002\n\u0002\b\u0006\b\u0086\u0004\u0018\u00002\u00020\u0001BM\u0012\u0006\u0010\u0002\u001a\u00020\u0003\u0012\u0006\u0010\u0004\u001a\u00020\u0003\u0012\u0006\u0010\u0005\u001a\u00020\u0003\u0012\u0006\u0010\u0006\u001a\u00020\u0007\u0012\u0006\u0010\b\u001a\u00020\t\u0012\u0006\u0010\n\u001a\u00020\t\u0012\u0006\u0010\u000b\u001a\u00020\u0007\u0012\u0006\u0010\f\u001a\u00020\t\u0012\u0006\u0010\r\u001a\u00020\u0003\u00a2\u0006\u0002\u0010\u000eJ\u001a\u0010+\u001a\u00020,2\u0012\u0010-\u001a\u000e\u0012\u0004\u0012\u00020 \u0012\u0004\u0012\u00020!0\u001fJ\u000e\u0010.\u001a\u00020,2\u0006\u0010/\u001a\u00020\u001bJ\u000e\u00100\u001a\u00020,2\u0006\u00101\u001a\u00020\u001bR\u0011\u0010\r\u001a\u00020\u0003\u00a2\u0006\b\n\u0000\u001a\u0004\b\u000f\u0010\u0010R\u0011\u0010\u000b\u001a\u00020\u0007\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0011\u0010\u0012R\u0011\u0010\u0005\u001a\u00020\u0003\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0013\u0010\u0010R\u0011\u0010\f\u001a\u00020\t\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0014\u0010\u0015R\u0011\u0010\n\u001a\u00020\t\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0016\u0010\u0015R\u0011\u0010\u0006\u001a\u00020\u0007\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0017\u0010\u0012R\u0011\u0010\u0004\u001a\u00020\u0003\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0018\u0010\u0010R\u0011\u0010\b\u001a\u00020\t\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0019\u0010\u0015R\u0011\u0010\u001a\u001a\u00020\u001b8F\u00a2\u0006\u0006\u001a\u0004\b\u001c\u0010\u001dR\u001c\u0010\u001e\u001a\u0010\u0012\u0004\u0012\u00020 \u0012\u0004\u0012\u00020!\u0018\u00010\u001fX\u0082\u000e\u00a2\u0006\u0002\n\u0000R\u0011\u0010\u0002\u001a\u00020\u0003\u00a2\u0006\b\n\u0000\u001a\u0004\b\"\u0010\u0010R$\u0010$\u001a\u00020\u001b2\u0006\u0010#\u001a\u00020\u001b@FX\u0086\u000e\u00a2\u0006\u000e\n\u0000\u001a\u0004\b%\u0010\u001d\"\u0004\b&\u0010'R$\u0010(\u001a\u00020\u001b2\u0006\u0010#\u001a\u00020\u001b8F@FX\u0086\u000e\u00a2\u0006\f\u001a\u0004\b)\u0010\u001d\"\u0004\b*\u0010'\u00a8\u00062"}, d2 = {"Lcom/invictus/xmd/ui/MainActivity$ExpressiveNavBar;", "", "layout", "Landroid/view/View;", "downloadsItem", "browserItem", "downloadsIcon", "Landroid/widget/ImageView;", "downloadsLabel", "Landroid/widget/TextView;", "downloadsBadge", "browserIcon", "browserLabel", "addFab", "(Lcom/invictus/xmd/ui/MainActivity;Landroid/view/View;Landroid/view/View;Landroid/view/View;Landroid/widget/ImageView;Landroid/widget/TextView;Landroid/widget/TextView;Landroid/widget/ImageView;Landroid/widget/TextView;Landroid/view/View;)V", "getAddFab", "()Landroid/view/View;", "getBrowserIcon", "()Landroid/widget/ImageView;", "getBrowserItem", "getBrowserLabel", "()Landroid/widget/TextView;", "getDownloadsBadge", "getDownloadsIcon", "getDownloadsItem", "getDownloadsLabel", "height", "", "getHeight", "()I", "itemSelectedListener", "Lkotlin/Function1;", "Lcom/invictus/xmd/ui/MainActivity$NavMenuItem;", "", "getLayout", "value", "selectedItemId", "getSelectedItemId", "setSelectedItemId", "(I)V", "visibility", "getVisibility", "setVisibility", "setOnItemSelectedListener", "", "listener", "updateBadge", "count", "updateVisuals", "selectedId", "app_fullDebug"})
+    public final class ExpressiveNavBar {
+        @org.jetbrains.annotations.NotNull()
+        private final android.view.View layout = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.view.View downloadsItem = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.view.View browserItem = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.widget.ImageView downloadsIcon = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.widget.TextView downloadsLabel = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.widget.TextView downloadsBadge = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.widget.ImageView browserIcon = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.widget.TextView browserLabel = null;
+        @org.jetbrains.annotations.NotNull()
+        private final android.view.View addFab = null;
+        @org.jetbrains.annotations.Nullable()
+        private kotlin.jvm.functions.Function1<? super com.invictus.xmd.ui.MainActivity.NavMenuItem, java.lang.Boolean> itemSelectedListener;
+        private int selectedItemId;
+        
+        public ExpressiveNavBar(@org.jetbrains.annotations.NotNull()
+        android.view.View layout, @org.jetbrains.annotations.NotNull()
+        android.view.View downloadsItem, @org.jetbrains.annotations.NotNull()
+        android.view.View browserItem, @org.jetbrains.annotations.NotNull()
+        android.widget.ImageView downloadsIcon, @org.jetbrains.annotations.NotNull()
+        android.widget.TextView downloadsLabel, @org.jetbrains.annotations.NotNull()
+        android.widget.TextView downloadsBadge, @org.jetbrains.annotations.NotNull()
+        android.widget.ImageView browserIcon, @org.jetbrains.annotations.NotNull()
+        android.widget.TextView browserLabel, @org.jetbrains.annotations.NotNull()
+        android.view.View addFab) {
+            super();
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.view.View getLayout() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.view.View getDownloadsItem() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.view.View getBrowserItem() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.widget.ImageView getDownloadsIcon() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.widget.TextView getDownloadsLabel() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.widget.TextView getDownloadsBadge() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.widget.ImageView getBrowserIcon() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.widget.TextView getBrowserLabel() {
+            return null;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final android.view.View getAddFab() {
+            return null;
+        }
+        
+        public final int getSelectedItemId() {
+            return 0;
+        }
+        
+        public final void setSelectedItemId(int value) {
+        }
+        
+        public final int getVisibility() {
+            return 0;
+        }
+        
+        public final void setVisibility(int value) {
+        }
+        
+        public final int getHeight() {
+            return 0;
+        }
+        
+        public final void setOnItemSelectedListener(@org.jetbrains.annotations.NotNull()
+        kotlin.jvm.functions.Function1<? super com.invictus.xmd.ui.MainActivity.NavMenuItem, java.lang.Boolean> listener) {
+        }
+        
+        public final void updateBadge(int count) {
+        }
+        
+        public final void updateVisuals(int selectedId) {
+        }
+    }
+    
+    @kotlin.Metadata(mv = {1, 9, 0}, k = 1, xi = 48, d1 = {"\u0000 \n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0010\b\n\u0002\b\u0006\n\u0002\u0010\u000b\n\u0002\b\u0003\n\u0002\u0010\u000e\n\u0000\b\u0086\b\u0018\u00002\u00020\u0001B\r\u0012\u0006\u0010\u0002\u001a\u00020\u0003\u00a2\u0006\u0002\u0010\u0004J\t\u0010\u0007\u001a\u00020\u0003H\u00c6\u0003J\u0013\u0010\b\u001a\u00020\u00002\b\b\u0002\u0010\u0002\u001a\u00020\u0003H\u00c6\u0001J\u0013\u0010\t\u001a\u00020\n2\b\u0010\u000b\u001a\u0004\u0018\u00010\u0001H\u00d6\u0003J\t\u0010\f\u001a\u00020\u0003H\u00d6\u0001J\t\u0010\r\u001a\u00020\u000eH\u00d6\u0001R\u0011\u0010\u0002\u001a\u00020\u0003\u00a2\u0006\b\n\u0000\u001a\u0004\b\u0005\u0010\u0006\u00a8\u0006\u000f"}, d2 = {"Lcom/invictus/xmd/ui/MainActivity$NavMenuItem;", "", "itemId", "", "(I)V", "getItemId", "()I", "component1", "copy", "equals", "", "other", "hashCode", "toString", "", "app_fullDebug"})
+    public static final class NavMenuItem {
+        private final int itemId = 0;
+        
+        public NavMenuItem(int itemId) {
+            super();
+        }
+        
+        public final int getItemId() {
+            return 0;
+        }
+        
+        public final int component1() {
+            return 0;
+        }
+        
+        @org.jetbrains.annotations.NotNull()
+        public final com.invictus.xmd.ui.MainActivity.NavMenuItem copy(int itemId) {
+            return null;
+        }
+        
+        @java.lang.Override()
+        public boolean equals(@org.jetbrains.annotations.Nullable()
+        java.lang.Object other) {
+            return false;
+        }
+        
+        @java.lang.Override()
+        public int hashCode() {
+            return 0;
+        }
+        
+        @java.lang.Override()
+        @org.jetbrains.annotations.NotNull()
+        public java.lang.String toString() {
+            return null;
         }
     }
 }

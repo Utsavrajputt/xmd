@@ -52,16 +52,20 @@
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/divider_row_gap.xml"
     },
     {
-        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/menu_link_context_menu.xml.flat",
-        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/menu/link_context_menu.xml"
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_bg_nav_item_inactive.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/bg_nav_item_inactive.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/layout_fragment_about.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_about.xml"
     },
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/mipmap-mdpi_xmd_background.png.flat",
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/mipmap-mdpi/xmd_background.png"
     },
     {
-        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/layout_fragment_about.xml.flat",
-        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_about.xml"
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/menu_link_context_menu.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/menu/link_context_menu.xml"
     },
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/mipmap-xxxhdpi_xmd_background.png.flat",
@@ -84,12 +88,12 @@
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_dns_settings.xml"
     },
     {
-        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_ic_delete.xml.flat",
-        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/ic_delete.xml"
-    },
-    {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/mipmap-hdpi_xmd_monochrome.png.flat",
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/mipmap-hdpi/xmd_monochrome.png"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_ic_delete.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/ic_delete.xml"
     },
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_ic_downloads.xml.flat",
@@ -252,6 +256,10 @@
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/ic_settings_youtube.xml"
     },
     {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_bg_nav_badge.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/bg_nav_badge.xml"
+    },
+    {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/mipmap-mdpi_xmd.png.flat",
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/mipmap-mdpi/xmd.png"
     },
@@ -406,6 +414,10 @@
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_ic_tab_browser.xml.flat",
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/ic_tab_browser.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/drawable_bg_nav_item_active.xml.flat",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/drawable/bg_nav_item_active.xml"
     },
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-fullDebug-43:/xml_file_paths.xml.flat",

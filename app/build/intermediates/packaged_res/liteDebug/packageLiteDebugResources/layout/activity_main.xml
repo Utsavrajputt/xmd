@@ -48,14 +48,157 @@
             android:layout_weight="1" />
     </LinearLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
-        style="@style/Widget.Xmd.BottomNavigationView"
-        android:layout_width="match_parent"
+    <!-- Google Photos style Modern Material Expressive Floating Pill Navbar + Circle Action -->
+    <LinearLayout
+        android:id="@+id/navBarLayout"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        app:menu="@menu/bottom_nav_menu"
-        app:labelVisibilityMode="labeled"
-        app:elevation="0dp" />
+        android:layout_gravity="bottom|center_horizontal"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false">
+
+        <!-- Navigation Pill Container -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/navPillCard"
+            android:layout_width="wrap_content"
+            android:layout_height="56dp"
+            android:layout_marginEnd="10dp"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="3dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:animateLayoutChanges="true"
+                android:padding="5dp">
+
+                <!-- Downloads Item -->
+                <FrameLayout
+                    android:id="@+id/navItemDownloads"
+                    android:layout_width="wrap_content"
+                    android:layout_height="46dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingHorizontal="16dp"
+                    android:background="@drawable/bg_nav_item_active">
+
+                    <LinearLayout
+                        android:id="@+id/navItemDownloadsContent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:animateLayoutChanges="true">
+
+                        <FrameLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content">
+
+                            <ImageView
+                                android:id="@+id/navDownloadsIcon"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:src="@drawable/ic_tab_downloads"
+                                app:tint="?attr/colorOnSecondaryContainer" />
+
+                            <TextView
+                                android:id="@+id/navDownloadsBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minWidth="16dp"
+                                android:minHeight="16dp"
+                                android:paddingHorizontal="4dp"
+                                android:layout_gravity="top|end"
+                                android:layout_marginStart="12dp"
+                                android:layout_marginTop="-4dp"
+                                android:background="@drawable/bg_nav_badge"
+                                android:textColor="?attr/colorOnError"
+                                android:textSize="10sp"
+                                android:textStyle="bold"
+                                android:gravity="center"
+                                android:visibility="gone" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:id="@+id/navDownloadsLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="@string/tab_downloads"
+                            android:textColor="?attr/colorOnSecondaryContainer"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </FrameLayout>
+
+                <!-- Browser Item -->
+                <FrameLayout
+                    android:id="@+id/navItemBrowser"
+                    android:layout_width="wrap_content"
+                    android:layout_height="46dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:paddingHorizontal="16dp"
+                    android:background="@drawable/bg_nav_item_inactive">
+
+                    <LinearLayout
+                        android:id="@+id/navItemBrowserContent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:animateLayoutChanges="true">
+
+                        <ImageView
+                            android:id="@+id/navBrowserIcon"
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_tab_browser"
+                            app:tint="?attr/colorOnSurfaceVariant"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/navBrowserLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/tab_browser"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </FrameLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Circular + Add Button -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/navAddFab"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="3dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_add"
+                app:tint="?attr/colorOnSurface"
+                android:contentDescription="@string/tab_add" />
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
 </FrameLayout>

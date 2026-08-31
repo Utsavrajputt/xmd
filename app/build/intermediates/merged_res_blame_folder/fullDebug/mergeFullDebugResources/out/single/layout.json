@@ -1,11 +1,11 @@
 [
     {
-        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_browser.xml",
-        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_browser.xml"
-    },
-    {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_bookmark_tile.xml",
         "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_bookmark_tile.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_browser.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_browser.xml"
     },
     {
         "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_add_shortcut.xml",

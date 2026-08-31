@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -13,7 +14,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.card.MaterialCardView;
 import com.invictus.xmd.R;
 import java.lang.NullPointerException;
 import java.lang.Override;
@@ -24,13 +25,46 @@ public final class ActivityMainBinding implements ViewBinding {
   private final FrameLayout rootView;
 
   @NonNull
-  public final BottomNavigationView bottomNav;
-
-  @NonNull
   public final LinearLayout contentColumn;
 
   @NonNull
   public final CoordinatorLayout fragmentContainer;
+
+  @NonNull
+  public final MaterialCardView navAddFab;
+
+  @NonNull
+  public final LinearLayout navBarLayout;
+
+  @NonNull
+  public final ImageView navBrowserIcon;
+
+  @NonNull
+  public final TextView navBrowserLabel;
+
+  @NonNull
+  public final TextView navDownloadsBadge;
+
+  @NonNull
+  public final ImageView navDownloadsIcon;
+
+  @NonNull
+  public final TextView navDownloadsLabel;
+
+  @NonNull
+  public final FrameLayout navItemBrowser;
+
+  @NonNull
+  public final LinearLayout navItemBrowserContent;
+
+  @NonNull
+  public final FrameLayout navItemDownloads;
+
+  @NonNull
+  public final LinearLayout navItemDownloadsContent;
+
+  @NonNull
+  public final MaterialCardView navPillCard;
 
   @NonNull
   public final Toolbar toolbar;
@@ -38,14 +72,30 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final TextView toolbarTitle;
 
-  private ActivityMainBinding(@NonNull FrameLayout rootView,
-      @NonNull BottomNavigationView bottomNav, @NonNull LinearLayout contentColumn,
-      @NonNull CoordinatorLayout fragmentContainer, @NonNull Toolbar toolbar,
+  private ActivityMainBinding(@NonNull FrameLayout rootView, @NonNull LinearLayout contentColumn,
+      @NonNull CoordinatorLayout fragmentContainer, @NonNull MaterialCardView navAddFab,
+      @NonNull LinearLayout navBarLayout, @NonNull ImageView navBrowserIcon,
+      @NonNull TextView navBrowserLabel, @NonNull TextView navDownloadsBadge,
+      @NonNull ImageView navDownloadsIcon, @NonNull TextView navDownloadsLabel,
+      @NonNull FrameLayout navItemBrowser, @NonNull LinearLayout navItemBrowserContent,
+      @NonNull FrameLayout navItemDownloads, @NonNull LinearLayout navItemDownloadsContent,
+      @NonNull MaterialCardView navPillCard, @NonNull Toolbar toolbar,
       @NonNull TextView toolbarTitle) {
     this.rootView = rootView;
-    this.bottomNav = bottomNav;
     this.contentColumn = contentColumn;
     this.fragmentContainer = fragmentContainer;
+    this.navAddFab = navAddFab;
+    this.navBarLayout = navBarLayout;
+    this.navBrowserIcon = navBrowserIcon;
+    this.navBrowserLabel = navBrowserLabel;
+    this.navDownloadsBadge = navDownloadsBadge;
+    this.navDownloadsIcon = navDownloadsIcon;
+    this.navDownloadsLabel = navDownloadsLabel;
+    this.navItemBrowser = navItemBrowser;
+    this.navItemBrowserContent = navItemBrowserContent;
+    this.navItemDownloads = navItemDownloads;
+    this.navItemDownloadsContent = navItemDownloadsContent;
+    this.navPillCard = navPillCard;
     this.toolbar = toolbar;
     this.toolbarTitle = toolbarTitle;
   }
@@ -77,12 +127,6 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
-      id = R.id.bottomNav;
-      BottomNavigationView bottomNav = ViewBindings.findChildViewById(rootView, id);
-      if (bottomNav == null) {
-        break missingId;
-      }
-
       id = R.id.contentColumn;
       LinearLayout contentColumn = ViewBindings.findChildViewById(rootView, id);
       if (contentColumn == null) {
@@ -92,6 +136,78 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.fragmentContainer;
       CoordinatorLayout fragmentContainer = ViewBindings.findChildViewById(rootView, id);
       if (fragmentContainer == null) {
+        break missingId;
+      }
+
+      id = R.id.navAddFab;
+      MaterialCardView navAddFab = ViewBindings.findChildViewById(rootView, id);
+      if (navAddFab == null) {
+        break missingId;
+      }
+
+      id = R.id.navBarLayout;
+      LinearLayout navBarLayout = ViewBindings.findChildViewById(rootView, id);
+      if (navBarLayout == null) {
+        break missingId;
+      }
+
+      id = R.id.navBrowserIcon;
+      ImageView navBrowserIcon = ViewBindings.findChildViewById(rootView, id);
+      if (navBrowserIcon == null) {
+        break missingId;
+      }
+
+      id = R.id.navBrowserLabel;
+      TextView navBrowserLabel = ViewBindings.findChildViewById(rootView, id);
+      if (navBrowserLabel == null) {
+        break missingId;
+      }
+
+      id = R.id.navDownloadsBadge;
+      TextView navDownloadsBadge = ViewBindings.findChildViewById(rootView, id);
+      if (navDownloadsBadge == null) {
+        break missingId;
+      }
+
+      id = R.id.navDownloadsIcon;
+      ImageView navDownloadsIcon = ViewBindings.findChildViewById(rootView, id);
+      if (navDownloadsIcon == null) {
+        break missingId;
+      }
+
+      id = R.id.navDownloadsLabel;
+      TextView navDownloadsLabel = ViewBindings.findChildViewById(rootView, id);
+      if (navDownloadsLabel == null) {
+        break missingId;
+      }
+
+      id = R.id.navItemBrowser;
+      FrameLayout navItemBrowser = ViewBindings.findChildViewById(rootView, id);
+      if (navItemBrowser == null) {
+        break missingId;
+      }
+
+      id = R.id.navItemBrowserContent;
+      LinearLayout navItemBrowserContent = ViewBindings.findChildViewById(rootView, id);
+      if (navItemBrowserContent == null) {
+        break missingId;
+      }
+
+      id = R.id.navItemDownloads;
+      FrameLayout navItemDownloads = ViewBindings.findChildViewById(rootView, id);
+      if (navItemDownloads == null) {
+        break missingId;
+      }
+
+      id = R.id.navItemDownloadsContent;
+      LinearLayout navItemDownloadsContent = ViewBindings.findChildViewById(rootView, id);
+      if (navItemDownloadsContent == null) {
+        break missingId;
+      }
+
+      id = R.id.navPillCard;
+      MaterialCardView navPillCard = ViewBindings.findChildViewById(rootView, id);
+      if (navPillCard == null) {
         break missingId;
       }
 
@@ -107,8 +223,10 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((FrameLayout) rootView, bottomNav, contentColumn,
-          fragmentContainer, toolbar, toolbarTitle);
+      return new ActivityMainBinding((FrameLayout) rootView, contentColumn, fragmentContainer,
+          navAddFab, navBarLayout, navBrowserIcon, navBrowserLabel, navDownloadsBadge,
+          navDownloadsIcon, navDownloadsLabel, navItemBrowser, navItemBrowserContent,
+          navItemDownloads, navItemDownloadsContent, navPillCard, toolbar, toolbarTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

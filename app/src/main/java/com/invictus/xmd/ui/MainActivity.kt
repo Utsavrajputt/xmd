@@ -72,13 +72,118 @@ import com.invictus.xmd.core.DownloadEngine
 import com.invictus.xmd.core.TorrentSession
 import kotlinx.coroutines.Job
 import org.libtorrent4j.TorrentInfo
+import android.graphics.Typeface
+import androidx.core.view.isVisible
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
 class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks, BookmarkFragment.Callbacks {
 
-    private lateinit var bottomNav: BottomNavigationView
+    data class NavMenuItem(val itemId: Int)
+
+    inner class ExpressiveNavBar(
+        val layout: View,
+        val downloadsItem: View,
+        val browserItem: View,
+        val downloadsIcon: ImageView,
+        val downloadsLabel: TextView,
+        val downloadsBadge: TextView,
+        val browserIcon: ImageView,
+        val browserLabel: TextView,
+        val addFab: View
+    ) {
+        private var itemSelectedListener: ((NavMenuItem) -> Boolean)? = null
+
+        var selectedItemId: Int = R.id.nav_downloads
+            set(value) {
+                val changed = field != value
+                field = value
+                updateVisuals(value)
+                if (changed) {
+                    itemSelectedListener?.invoke(NavMenuItem(value))
+                }
+            }
+
+        var visibility: Int
+            get() = layout.visibility
+            set(value) { layout.visibility = value }
+
+        val height: Int
+            get() = layout.height
+
+        init {
+            downloadsItem.setOnClickListener {
+                selectedItemId = R.id.nav_downloads
+            }
+            browserItem.setOnClickListener {
+                selectedItemId = R.id.nav_browser
+            }
+            addFab.setOnClickListener {
+                showAddDownloadDialog()
+            }
+            updateVisuals(selectedItemId)
+        }
+
+        fun setOnItemSelectedListener(listener: (NavMenuItem) -> Boolean) {
+            itemSelectedListener = listener
+        }
+
+        fun updateBadge(count: Int) {
+            if (count > 0) {
+                downloadsBadge.visibility = View.VISIBLE
+                downloadsBadge.text = if (count > 99) "99+" else count.toString()
+            } else {
+                downloadsBadge.visibility = View.GONE
+            }
+        }
+
+        fun updateVisuals(selectedId: Int) {
+            val isDownloads = selectedId == R.id.nav_downloads
+
+            val activeBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_active)
+            val inactiveBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_inactive)
+
+            val colorActive = MaterialColors.getColor(
+                this@MainActivity,
+                com.google.android.material.R.attr.colorOnSecondaryContainer,
+                Color.BLACK
+            )
+            val colorInactive = MaterialColors.getColor(
+                this@MainActivity,
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                Color.GRAY
+            )
+
+            // Only show icon on the current (active) tab, like Google Photos
+            val density = resources.displayMetrics.density
+            val iconMargin = (8 * density).toInt()
+
+            downloadsIcon.visibility = if (isDownloads) View.VISIBLE else View.GONE
+            (downloadsLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginStart = if (isDownloads) iconMargin else 0
+                downloadsLabel.layoutParams = lp
+            }
+
+            browserIcon.visibility = if (!isDownloads) View.VISIBLE else View.GONE
+            (browserLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginStart = if (!isDownloads) iconMargin else 0
+                browserLabel.layoutParams = lp
+            }
+
+            downloadsItem.background = if (isDownloads) activeBg else inactiveBg
+            downloadsIcon.imageTintList = ColorStateList.valueOf(if (isDownloads) colorActive else colorInactive)
+            downloadsLabel.setTextColor(if (isDownloads) colorActive else colorInactive)
+            downloadsLabel.setTypeface(null, if (isDownloads) Typeface.BOLD else Typeface.NORMAL)
+
+            browserItem.background = if (!isDownloads) activeBg else inactiveBg
+            browserIcon.imageTintList = ColorStateList.valueOf(if (!isDownloads) colorActive else colorInactive)
+            browserLabel.setTextColor(if (!isDownloads) colorActive else colorInactive)
+            browserLabel.setTypeface(null, if (!isDownloads) Typeface.BOLD else Typeface.NORMAL)
+        }
+    }
+
+    private lateinit var bottomNav: ExpressiveNavBar
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var toolbarTitle: TextView
 
@@ -256,13 +361,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun applySystemBarColors() {
-        val barColor = MaterialColors.getColor(
+        val statusBarColor = MaterialColors.getColor(
             this,
             com.google.android.material.R.attr.colorSurfaceContainerLow,
             Color.BLACK
         )
-        window.statusBarColor = barColor
-        window.navigationBarColor = barColor
+        val navBarColor = MaterialColors.getColor(
+            this,
+            android.R.attr.colorBackground,
+            Color.BLACK
+        )
+        window.statusBarColor = statusBarColor
+        window.navigationBarColor = navBarColor
 
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
         val isDark = Settings.isDarkMode()
@@ -306,7 +416,30 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 .commit()
         }
 
-        bottomNav = findViewById(R.id.bottomNav)
+        val navBarLayout = findViewById<View>(R.id.navBarLayout)
+        bottomNav = ExpressiveNavBar(
+            layout = navBarLayout,
+            downloadsItem = findViewById(R.id.navItemDownloads),
+            browserItem = findViewById(R.id.navItemBrowser),
+            downloadsIcon = findViewById(R.id.navDownloadsIcon),
+            downloadsLabel = findViewById(R.id.navDownloadsLabel),
+            downloadsBadge = findViewById(R.id.navDownloadsBadge),
+            browserIcon = findViewById(R.id.navBrowserIcon),
+            browserLabel = findViewById(R.id.navBrowserLabel),
+            addFab = findViewById(R.id.navAddFab)
+        )
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(navBarLayout) { view, insets ->
+            val navBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            val basePaddingBottom = (12 * resources.displayMetrics.density).toInt()
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                navBars.bottom + basePaddingBottom
+            )
+            insets
+        }
 
         // adjustResize needs somewhere for the keyboard's shrink to go so an
         // EditText near the bottom (e.g. the browser's find-in-page bar or
@@ -401,13 +534,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
                 it.status == ItemStatus.SAVING || it.status == ItemStatus.RETRYING
             }
-            val badge = bottomNav.getOrCreateBadge(R.id.nav_downloads)
-            if (active > 0) {
-                badge.isVisible = true
-                badge.number    = active
-            } else {
-                badge.isVisible = false
-            }
+            bottomNav.updateBadge(active)
         }
 
         // Watches items sent through the Retry button; pops an IDM-style
@@ -1160,7 +1287,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             R.string.download_started_toast,
             Snackbar.LENGTH_LONG
         ).setAction(R.string.action_view) {
-            findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_downloads
+            bottomNav.selectedItemId = R.id.nav_downloads
         }
 
         val sideMargin = (16 * resources.displayMetrics.density).toInt()
@@ -1343,7 +1470,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         supportFragmentManager.popBackStack(TAG_HISTORY, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         browser?.openUrl(url)
-        findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
+        bottomNav.selectedItemId = R.id.nav_browser
     }
 
     private fun openBookmarksScreen() {
@@ -1361,7 +1488,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         supportFragmentManager.popBackStack(TAG_BOOKMARKS, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         browser?.openUrl(url)
-        findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
+        bottomNav.selectedItemId = R.id.nav_browser
     }
 
     // ── DownloadsFragment.Callbacks ─────────────────────────────────────────
