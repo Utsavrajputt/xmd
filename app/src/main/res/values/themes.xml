@@ -47,9 +47,10 @@
         <item name="colorPrimaryDark">@color/m3_background</item>
         <item name="colorAccent">@color/m3_primary</item>
         <item name="android:windowBackground">@color/m3_background</item>
-        <item name="android:statusBarColor">@color/m3_background</item>
-        <item name="android:navigationBarColor">@color/m3_background</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
 
         <!-- ==========================================================
              Material 3 Expressive shape system — bigger, bolder,
@@ -123,7 +124,10 @@
         <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
         <item name="snackbarStyle">@style/Widget.Xmd.Snackbar</item>
 
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
     <style name="Theme.Xmd.Light" parent="Theme.Xmd.LightBase">
@@ -169,8 +173,8 @@
         <item name="colorPrimaryDark">#FAFAFA</item>
         <item name="colorAccent">#00658F</item>
         <item name="android:windowBackground">#FAFAFA</item>
-        <item name="android:statusBarColor">#FAFAFA</item>
-        <item name="android:navigationBarColor">#FAFAFA</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Aurora.Light" parent="Theme.Xmd.LightBase">
@@ -216,8 +220,8 @@
         <item name="colorPrimaryDark">#FAFAFF</item>
         <item name="colorAccent">#2E5FD9</item>
         <item name="android:windowBackground">#FAFAFF</item>
-        <item name="android:statusBarColor">#FAFAFF</item>
-        <item name="android:navigationBarColor">#FAFAFF</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Nord.Light" parent="Theme.Xmd.LightBase">
@@ -263,8 +267,8 @@
         <item name="colorPrimaryDark">#ECEFF4</item>
         <item name="colorAccent">#5E81AC</item>
         <item name="android:windowBackground">#ECEFF4</item>
-        <item name="android:statusBarColor">#ECEFF4</item>
-        <item name="android:navigationBarColor">#ECEFF4</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Dracula.Light" parent="Theme.Xmd.LightBase">
@@ -310,8 +314,8 @@
         <item name="colorPrimaryDark">#F8F8F2</item>
         <item name="colorAccent">#644AC9</item>
         <item name="android:windowBackground">#F8F8F2</item>
-        <item name="android:statusBarColor">#F8F8F2</item>
-        <item name="android:navigationBarColor">#F8F8F2</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Catppuccin.Light" parent="Theme.Xmd.LightBase">
@@ -357,8 +361,8 @@
         <item name="colorPrimaryDark">#EFF1F5</item>
         <item name="colorAccent">#8839EF</item>
         <item name="android:windowBackground">#EFF1F5</item>
-        <item name="android:statusBarColor">#EFF1F5</item>
-        <item name="android:navigationBarColor">#EFF1F5</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.TokyoNight.Light" parent="Theme.Xmd.LightBase">
@@ -404,8 +408,8 @@
         <item name="colorPrimaryDark">#E9E9EF</item>
         <item name="colorAccent">#34548A</item>
         <item name="android:windowBackground">#E9E9EF</item>
-        <item name="android:statusBarColor">#E9E9EF</item>
-        <item name="android:navigationBarColor">#E9E9EF</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Gruvbox.Light" parent="Theme.Xmd.LightBase">
@@ -451,8 +455,8 @@
         <item name="colorPrimaryDark">#FBF1C7</item>
         <item name="colorAccent">#AF3A03</item>
         <item name="android:windowBackground">#FBF1C7</item>
-        <item name="android:statusBarColor">#FBF1C7</item>
-        <item name="android:navigationBarColor">#FBF1C7</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Amethyst.Light" parent="Theme.Xmd.LightBase">
@@ -498,8 +502,8 @@
         <item name="colorPrimaryDark">#F7F5F8</item>
         <item name="colorAccent">#794F81</item>
         <item name="android:windowBackground">#F7F5F8</item>
-        <item name="android:statusBarColor">#F7F5F8</item>
-        <item name="android:navigationBarColor">#F7F5F8</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <!-- ==============================================================
@@ -549,8 +553,8 @@
         <item name="colorPrimaryDark">#04070F</item>
         <item name="colorAccent">#5B93FF</item>
         <item name="android:windowBackground">#04070F</item>
-        <item name="android:statusBarColor">#04070F</item>
-        <item name="android:navigationBarColor">#04070F</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Nord" parent="Theme.Xmd">
@@ -591,8 +595,8 @@
         <item name="colorPrimaryDark">#2E3440</item>
         <item name="colorAccent">#88C0D0</item>
         <item name="android:windowBackground">#2E3440</item>
-        <item name="android:statusBarColor">#2E3440</item>
-        <item name="android:navigationBarColor">#2E3440</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Dracula" parent="Theme.Xmd">
@@ -633,8 +637,8 @@
         <item name="colorPrimaryDark">#282A36</item>
         <item name="colorAccent">#BD93F9</item>
         <item name="android:windowBackground">#282A36</item>
-        <item name="android:statusBarColor">#282A36</item>
-        <item name="android:navigationBarColor">#282A36</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Catppuccin" parent="Theme.Xmd">
@@ -675,8 +679,8 @@
         <item name="colorPrimaryDark">#1E1E2E</item>
         <item name="colorAccent">#9BA8CF</item>
         <item name="android:windowBackground">#1E1E2E</item>
-        <item name="android:statusBarColor">#1E1E2E</item>
-        <item name="android:navigationBarColor">#1E1E2E</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.TokyoNight" parent="Theme.Xmd">
@@ -717,8 +721,8 @@
         <item name="colorPrimaryDark">#1A1B26</item>
         <item name="colorAccent">#7AA2F7</item>
         <item name="android:windowBackground">#1A1B26</item>
-        <item name="android:statusBarColor">#1A1B26</item>
-        <item name="android:navigationBarColor">#1A1B26</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Gruvbox" parent="Theme.Xmd">
@@ -759,8 +763,8 @@
         <item name="colorPrimaryDark">#282828</item>
         <item name="colorAccent">#FE8019</item>
         <item name="android:windowBackground">#282828</item>
-        <item name="android:statusBarColor">#282828</item>
-        <item name="android:navigationBarColor">#282828</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <style name="Theme.Xmd.Amethyst" parent="Theme.Xmd">
@@ -801,8 +805,8 @@
         <item name="colorPrimaryDark">#161217</item>
         <item name="colorAccent">#E8B5EF</item>
         <item name="android:windowBackground">#161217</item>
-        <item name="android:statusBarColor">#161217</item>
-        <item name="android:navigationBarColor">#161217</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
     </style>
 
     <!-- ==============================================================

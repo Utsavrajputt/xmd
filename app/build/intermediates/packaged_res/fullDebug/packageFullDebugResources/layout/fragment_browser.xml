@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Address bar: gesture back handles page/tab navigation now, so no
+             back/forward buttons; just new-tab, the search field, reload,
+             tabs, and overflow. Floats slightly off the edges with its own
+             rounded surface + elevation (rather than a flat bar flush with
+             the screen edges) for the Expressive "floating toolbar" look. -->
+        <!-- Wraps just the address bar card so the progress line below can
+             overlay its bottom edge (layout_gravity="bottom") rather than
+             sitting in a separate row with a gap underneath it. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:shapeAppearance="@style/ShapeAppearance.Xmd.Large"
+            app:cardElevation="3dp"
+            app:strokeWidth="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingVertical="8dp">
+
+            <ImageButton
+                android:id="@+id/homeButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="9dp"
+                android:src="@drawable/ic_home"
+                android:tint="?attr/colorOnSurfaceVariant"
+                android:contentDescription="@string/action_home" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Full"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <!-- Security indicator: swaps between locked/unlocked padlock
+                         based on the current page's scheme; hidden on the speed
+                         dial where there's no page to describe. -->
+                    <ImageView
+                        android:id="@+id/siteSecurityIcon"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="12dp"
+                        android:src="@drawable/ic_lock"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone"
+                        android:contentDescription="@null" />
+
+                    <EditText
+                        android:id="@+id/urlInput"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="4dp"
+                        android:hint="@string/hint_url"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:singleLine="true"
+                        android:ellipsize="end"
+                        android:imeOptions="actionGo"
+                        android:inputType="textUri"
+                        android:selectAllOnFocus="true" />
+
+                    <!-- Bookmark-this-page toggle: outline when the loaded page
+                         isn't saved as a shortcut, filled once it is. Hidden on
+                         the speed dial (no page to bookmark yet). -->
+                    <ImageButton
+                        android:id="@+id/bookmarkStarButton"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="2dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_star_outline"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone"
+                        android:contentDescription="@string/action_add_shortcut" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- New tab: was the reload button's spot. Manual reload now
+                 lives as pull-to-refresh (see webViewSwipeRefresh below) and
+                 a "Refresh" item in the overflow menu, Chrome-gesture-style
+                 instead of a dedicated button. -->
+            <ImageButton
+                android:id="@+id/newTabButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_add"
+                android:tint="?attr/colorOnSurfaceVariant"
+                android:contentDescription="@string/action_new_tab" />
+
+            <FrameLayout
+                android:id="@+id/tabsButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/action_tabs">
+
+                <View
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_tabs_counter" />
+
+                <TextView
+                    android:id="@+id/tabsCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="1"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <ImageButton
+                android:id="@+id/overflowButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_more_vert"
+                android:tint="?attr/colorOnSurfaceVariant"
+                android:contentDescription="@string/action_more" />
+        </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+            <!-- Chrome-style thin progress line, sitting right on the
+                 address bar card's own bottom edge (same 8dp margins as the
+                 card so it spans the same width). Track is transparent so
+                 only the moving indicator line shows on top of the card's
+                 surface; hide() fades it out instantly once loading ends. -->
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/pageProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                android:elevation="4dp"
+                android:translationZ="4dp"
+                app:trackThickness="3dp"
+                app:trackCornerRadius="2dp"
+                app:trackColor="@android:color/transparent"
+                app:indicatorColor="?attr/colorPrimary"
+                app:showDelay="0"
+                app:hideAnimationBehavior="outward"
+                app:showAnimationBehavior="inward"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Content area: WebView underneath, speed-dial shown on top for new tab -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- Hosts every live tab's own WebView instance (pooled, capped;
+                 see BrowserFragment). Each tab's WebView is added here and
+                 shown/hidden (with a crossfade) on switch instead of a single
+                 shared WebView being re-pointed, so switching tabs is an
+                 instant view swap rather than a reload/restoreState.
+
+                 Wrapped in SwipeRefreshLayout for Chrome-style pull-to-
+                 refresh; BrowserFragment gates the gesture to only fire
+                 when the active WebView is already scrolled to the top
+                 (setOnChildScrollUpCallback), same as Chrome. -->
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/webViewSwipeRefresh"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <FrameLayout
+                    android:id="@+id/webViewContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            <!-- Speed-dial "new tab" page -->
+            <LinearLayout
+                android:id="@+id/speedDialContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:background="?android:attr/colorBackground"
+                android:visibility="visible">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginVertical="16dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="14dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_section_accent" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/label_shortcuts"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textStyle="bold"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.12" />
+
+                    <TextView
+                        android:id="@+id/shortcutReorderToggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="6dp"
+                        android:text="@string/action_reorder"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/speedDialGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingHorizontal="8dp"
+                    android:paddingBottom="16dp" />
+            </LinearLayout>
+
+            <!-- Address-bar suggestions dropdown: floats over WebView/speed-dial
+                 while the user is typing; hidden otherwise. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/suggestionsCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:layout_margin="8dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
+                app:cardElevation="6dp"
+                android:visibility="gone">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/suggestionsList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:maxHeight="280dp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Find-in-page overlay: Chrome-style search bar that floats over
+                 the WebView/speed-dial while active, hidden otherwise. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/findInPageBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:layout_margin="8dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:shapeAppearance="@style/ShapeAppearance.Xmd.Medium"
+                app:cardElevation="6dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="4dp"
+                    android:paddingVertical="4dp">
+
+                    <EditText
+                        android:id="@+id/findInPageInput"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:hint="@string/find_in_page_hint"
+                        android:textColorHint="?attr/colorOnSurfaceVariant"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="14sp"
+                        android:singleLine="true"
+                        android:imeOptions="actionNext"
+                        android:inputType="text" />
+
+                    <TextView
+                        android:id="@+id/findInPageMatchCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="4dp"
+                        android:text="0/0"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp" />
+
+                    <ImageButton
+                        android:id="@+id/findInPagePrev"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_arrow_up"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/find_in_page_prev" />
+
+                    <ImageButton
+                        android:id="@+id/findInPageNext"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="9dp"
+                        android:src="@drawable/ic_arrow_down"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/find_in_page_next" />
+
+                    <ImageButton
+                        android:id="@+id/findInPageClose"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_close"
+                        android:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/action_dismiss" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Navigation loading veil: shown the instant a new page starts
+                 loading (new URL, back/forward, tab switch) and hidden once
+                 it finishes. Sits above the WebView so the *previous* page's
+                 pixels are never visible mid-navigation, without this,
+                 WebView keeps rendering the old page until the new one has
+                 painted, which reads as "purana website dikh raha hai". -->
+            <FrameLayout
+                android:id="@+id/navLoadingVeil"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?android:attr/colorBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:indeterminateTint="?attr/colorPrimary" />
+            </FrameLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Video/audio sniffer chip: appears with a live count when MediaSniffer
+         picks up a stream on the current page. Sits above addLinkFab so both
+         can be visible at once without overlapping. -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/sniffedMediaFab"
+        style="@style/Widget.Xmd.FloatingActionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginBottom="88dp"
+        app:icon="@drawable/ic_video"
+        android:visibility="gone" />
+
+    <!-- Auto-detect FAB: appears when a downloadable link is found on the page -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/addLinkFab"
+        style="@style/Widget.Xmd.FloatingActionButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:src="@drawable/ic_download_link"
+        android:contentDescription="@string/action_add_to_downloads"
+        android:visibility="gone" />
+
+</FrameLayout>

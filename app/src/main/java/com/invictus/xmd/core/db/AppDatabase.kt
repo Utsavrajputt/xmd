@@ -12,7 +12,7 @@ import com.invictus.xmd.core.Shortcut
 import com.invictus.xmd.core.HistoryEntry
 import com.invictus.xmd.core.QueueItem
 
-@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 10, exportSchema = false)
+@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 11, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -142,6 +142,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v10 -> v11: adds selectedFileIndices to queue_items (torrent multi-file selection).
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN selectedFileIndices TEXT")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -151,7 +158,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
                     )
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).

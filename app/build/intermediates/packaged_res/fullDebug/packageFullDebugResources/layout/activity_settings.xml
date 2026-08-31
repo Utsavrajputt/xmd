@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shell for Settings: a self-drawn header (title changes per pushed
+     fragment, matching the HistoryFragment convention rather than an
+     ActionBar/Toolbar) plus a FrameLayout container that hosts the root
+     category list first, then each category's Fragment layered on top via
+     addToBackStack, same manual FragmentManager pattern MainActivity
+     already uses for Home/Downloads/Browser/History. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?attr/colorSurfaceContainerLow"
+        android:padding="12dp">
+
+        <ImageButton
+            android:id="@+id/settingsBackButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_icon_button_tonal"
+            android:padding="9dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="?attr/colorOnSecondaryContainer"
+            android:contentDescription="@string/action_back" />
+
+        <TextView
+            android:id="@+id/settingsHeaderTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="@string/settings_title"
+            android:textColor="?attr/colorOnSurface"
+            android:textAppearance="@style/TextAppearance.Xmd.TitleLarge" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/settingsFragmentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

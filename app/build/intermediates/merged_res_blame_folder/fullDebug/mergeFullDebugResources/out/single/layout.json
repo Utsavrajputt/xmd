@@ -1,0 +1,146 @@
+[
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_browser.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_browser.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_bookmark_tile.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_bookmark_tile.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_add_shortcut.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_add_shortcut.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/sheet_sniffed_media.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/sheet_sniffed_media.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_browser.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_browser.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_shortcut_tile.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_shortcut_tile.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_theme_swatch.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_theme_swatch.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_suggestion.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_suggestion.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_youtube.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_youtube.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_add_download.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_add_download.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_torrent_file.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_torrent_file.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_quality_picker.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_quality_picker.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_downloads.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_downloads.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/activity_challenge.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/activity_challenge.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_add_bookmark.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_add_bookmark.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_connections.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_connections.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_settings_category.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_settings_category.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_about_credit.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_about_credit.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_dns_settings.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_dns_settings.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_shortcut_add_tile.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_shortcut_add_tile.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_downloads.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_downloads.xml"
+    },
+    {
+        "merged": "com.invictus.xmd.app-mergeFullDebugResources-42:/layout/activity_main.xml",
+        "source": "com.invictus.xmd.app-main-47:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_bookmark_row.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_bookmark_row.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_bookmark_add_tile.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_bookmark_add_tile.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_history.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_history.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/activity_main.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/sheet_share_quality.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/sheet_share_quality.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/dialog_add_torrent.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/dialog_add_torrent.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_home.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_home.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/activity_settings.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_about.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_about.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_bookmarks.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_bookmarks.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_root.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_root.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_history.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_history.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/fragment_settings_appearance.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/fragment_settings_appearance.xml"
+    },
+    {
+        "merged": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-mergeFullDebugResources-42:/layout/item_queue.xml",
+        "source": "/Users/arnab/.gradle/daemon/8.7/com.invictus.xmd.app-main-47:/layout/item_queue.xml"
+    }
+]

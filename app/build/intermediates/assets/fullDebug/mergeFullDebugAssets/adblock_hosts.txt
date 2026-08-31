@@ -1,0 +1,96 @@
+# XMD bundled adblock list -- domain-per-line, blank lines and lines
+# starting with # are ignored. Matches the request host exactly or any
+# subdomain of it (see AdblockFilter.isBlocked). Curated set of common
+# ad-serving, analytics, and tracking domains; not a full EasyList port.
+# Update by editing this file and cutting a new app release.
+
+# --- Google ads / analytics ---
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+google-analytics.com
+googletagmanager.com
+googletagservices.com
+adservice.google.com
+pagead2.googlesyndication.com
+
+# --- Facebook / Meta trackers ---
+connect.facebook.net
+facebook.com/tr
+an.facebook.com
+
+# --- Major ad networks ---
+adnxs.com
+adsrvr.org
+adroll.com
+advertising.com
+rubiconproject.com
+pubmatic.com
+openx.net
+criteo.com
+criteo.net
+taboola.com
+outbrain.com
+mgid.com
+propellerads.com
+popads.net
+popcash.net
+adcolony.com
+applovin.com
+unityads.unity3d.com
+media.net
+bidswitch.net
+casalemedia.com
+smartadserver.com
+adform.net
+adition.com
+yieldmo.com
+sharethrough.com
+33across.com
+scorecardresearch.com
+
+# --- Analytics / telemetry ---
+hotjar.com
+mixpanel.com
+segment.io
+segment.com
+amplitude.com
+mouseflow.com
+crazyegg.com
+clicktale.net
+newrelic.com
+nr-data.net
+bugsnag.com
+sentry.io
+
+# --- Popup / redirect / malvertising networks ---
+exoclick.com
+juicyads.com
+trafficjunky.net
+adsterra.com
+hilltopads.net
+revcontent.com
+zedo.com
+adcash.com
+bidvertiser.com
+clickadu.com
+adskeeper.co.uk
+mediavine.com
+ezoic.net
+
+# --- Video pre-roll / mid-roll ad servers ---
+imasdk.googleapis.com
+ads.yahoo.com
+video-ads.tv
+tremorhub.com
+spotxchange.com
+
+# --- Misc common trackers ---
+quantserve.com
+addthis.com
+chartbeat.com
+krxd.net
+adsafeprotected.com
+moatads.com
+adform.com
+serving-sys.com

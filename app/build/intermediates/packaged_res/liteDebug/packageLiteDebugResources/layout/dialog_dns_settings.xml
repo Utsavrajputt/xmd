@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <RadioGroup
+        android:id="@+id/dnsModeGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:showDividers="middle"
+        android:divider="@drawable/divider_row_gap">
+
+        <RadioButton
+            android:id="@+id/dnsOptionOff"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_off" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionAdguard"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_adguard" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionGoogle"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_google" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionCloudflare"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_cloudflare" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionCloudflareAdblock"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_cloudflare_adblock" />
+
+        <RadioButton
+            android:id="@+id/dnsOptionCustom"
+            style="@style/Widget.Xmd.RadioRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dns_mode_custom" />
+    </RadioGroup>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/dnsCustomUrlLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="@string/dns_custom_url_hint"
+        app:boxBackgroundMode="outline"
+        android:visibility="gone">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/dnsCustomUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textUri"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>

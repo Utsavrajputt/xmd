@@ -1,0 +1,885 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/main/res"><file name="xmd_monochrome" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-mdpi/xmd_monochrome.png" qualifiers="mdpi-v4" type="mipmap"/><file name="xmd_foreground" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-mdpi/xmd_foreground.png" qualifiers="mdpi-v4" type="mipmap"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-mdpi/xmd.png" qualifiers="mdpi-v4" type="mipmap"/><file name="xmd_background" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-mdpi/xmd_background.png" qualifiers="mdpi-v4" type="mipmap"/><file name="xmd_monochrome" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-hdpi/xmd_monochrome.png" qualifiers="hdpi-v4" type="mipmap"/><file name="xmd_foreground" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-hdpi/xmd_foreground.png" qualifiers="hdpi-v4" type="mipmap"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-hdpi/xmd.png" qualifiers="hdpi-v4" type="mipmap"/><file name="xmd_background" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-hdpi/xmd_background.png" qualifiers="hdpi-v4" type="mipmap"/><file name="bg_tabs_counter" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_tabs_counter.xml" qualifiers="" type="drawable"/><file name="ic_star_filled" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_star_filled.xml" qualifiers="" type="drawable"/><file name="bg_drag_handle" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_drag_handle.xml" qualifiers="" type="drawable"/><file name="ic_check_selector" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_check_selector.xml" qualifiers="" type="drawable"/><file name="ic_settings_downloads" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_downloads.xml" qualifiers="" type="drawable"/><file name="bg_status_pill" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_status_pill.xml" qualifiers="" type="drawable"/><file name="ic_settings_browser" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_browser.xml" qualifiers="" type="drawable"/><file name="ic_star_outline" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_star_outline.xml" qualifiers="" type="drawable"/><file name="ic_settings_youtube" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_youtube.xml" qualifiers="" type="drawable"/><file name="ic_browser" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_browser.xml" qualifiers="" type="drawable"/><file name="bg_circle_outline" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_circle_outline.xml" qualifiers="" type="drawable"/><file name="ic_arrow_forward" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_arrow_forward.xml" qualifiers="" type="drawable"/><file name="ic_settings_about" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_about.xml" qualifiers="" type="drawable"/><file name="ic_downloads_outline" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_downloads_outline.xml" qualifiers="" type="drawable"/><file name="ic_private_tab" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_private_tab.xml" qualifiers="" type="drawable"/><file name="ic_refresh" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_refresh.xml" qualifiers="" type="drawable"/><file name="ic_more_vert" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_more_vert.xml" qualifiers="" type="drawable"/><file name="ic_close" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_close.xml" qualifiers="" type="drawable"/><file name="ic_home" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_home.xml" qualifiers="" type="drawable"/><file name="ic_add" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_add.xml" qualifiers="" type="drawable"/><file name="ic_settings_connections" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_connections.xml" qualifiers="" type="drawable"/><file name="ic_stop" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_stop.xml" qualifiers="" type="drawable"/><file name="bg_section_accent" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_section_accent.xml" qualifiers="" type="drawable"/><file name="ic_tab_browser" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_tab_browser.xml" qualifiers="" type="drawable"/><file name="ic_tabs" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_tabs.xml" qualifiers="" type="drawable"/><file name="bg_icon_button_tonal" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_icon_button_tonal.xml" qualifiers="" type="drawable"/><file name="ic_search_toolbar" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_search_toolbar.xml" qualifiers="" type="drawable"/><file name="ic_delete" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_delete.xml" qualifiers="" type="drawable"/><file name="ic_lock" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_lock.xml" qualifiers="" type="drawable"/><file name="ic_home_outline" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_home_outline.xml" qualifiers="" type="drawable"/><file name="bg_icon_button_tonal_primary" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_icon_button_tonal_primary.xml" qualifiers="" type="drawable"/><file name="bg_radio_row_selector" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/bg_radio_row_selector.xml" qualifiers="" type="drawable"/><file name="ic_video" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_video.xml" qualifiers="" type="drawable"/><file name="ic_link" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_link.xml" qualifiers="" type="drawable"/><file name="ic_arrow_back" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_arrow_back.xml" qualifiers="" type="drawable"/><file name="ic_private_tab_filled" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_private_tab_filled.xml" qualifiers="" type="drawable"/><file name="ic_clock" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_clock.xml" qualifiers="" type="drawable"/><file name="divider_row_gap" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/divider_row_gap.xml" qualifiers="" type="drawable"/><file name="ic_github" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_github.xml" qualifiers="" type="drawable"/><file name="ic_arrow_up" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_arrow_up.xml" qualifiers="" type="drawable"/><file name="ic_download_link" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_download_link.xml" qualifiers="" type="drawable"/><file name="ic_settings_appearance" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_settings_appearance.xml" qualifiers="" type="drawable"/><file name="ic_search" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_search.xml" qualifiers="" type="drawable"/><file name="ic_chevron_right" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_chevron_right.xml" qualifiers="" type="drawable"/><file name="ic_download" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_download.xml" qualifiers="" type="drawable"/><file name="ic_lock_open" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_lock_open.xml" qualifiers="" type="drawable"/><file name="ic_tab_downloads" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_tab_downloads.xml" qualifiers="" type="drawable"/><file name="ic_music_note" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_music_note.xml" qualifiers="" type="drawable"/><file name="ic_history_empty" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_history_empty.xml" qualifiers="" type="drawable"/><file name="ic_arrow_down" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_arrow_down.xml" qualifiers="" type="drawable"/><file name="ic_check" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_check.xml" qualifiers="" type="drawable"/><file name="ic_check_none" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_check_none.xml" qualifiers="" type="drawable"/><file name="ic_downloads" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_downloads.xml" qualifiers="" type="drawable"/><file name="ic_browser_outline" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_browser_outline.xml" qualifiers="" type="drawable"/><file name="ic_tab_home" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_tab_home.xml" qualifiers="" type="drawable"/><file name="ic_magnet" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_magnet.xml" qualifiers="" type="drawable"/><file name="xmd_monochrome" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxxhdpi/xmd_monochrome.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="xmd_foreground" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxxhdpi/xmd_foreground.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxxhdpi/xmd.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="xmd_background" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxxhdpi/xmd_background.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="item_shortcut_tile" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_shortcut_tile.xml" qualifiers="" type="layout"/><file name="item_suggestion" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_suggestion.xml" qualifiers="" type="layout"/><file name="sheet_share_quality" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/sheet_share_quality.xml" qualifiers="" type="layout"/><file name="fragment_settings_connections" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_connections.xml" qualifiers="" type="layout"/><file name="item_bookmark_row" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_bookmark_row.xml" qualifiers="" type="layout"/><file name="fragment_settings_downloads" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_downloads.xml" qualifiers="" type="layout"/><file name="activity_settings" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/activity_settings.xml" qualifiers="" type="layout"/><file name="fragment_about" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_about.xml" qualifiers="" type="layout"/><file name="activity_challenge" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/activity_challenge.xml" qualifiers="" type="layout"/><file name="item_shortcut_add_tile" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_shortcut_add_tile.xml" qualifiers="" type="layout"/><file name="dialog_add_shortcut" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_add_shortcut.xml" qualifiers="" type="layout"/><file name="dialog_quality_picker" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_quality_picker.xml" qualifiers="" type="layout"/><file name="dialog_add_torrent" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_add_torrent.xml" qualifiers="" type="layout"/><file name="fragment_downloads" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_downloads.xml" qualifiers="" type="layout"/><file name="dialog_dns_settings" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_dns_settings.xml" qualifiers="" type="layout"/><file name="fragment_history" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_history.xml" qualifiers="" type="layout"/><file name="item_bookmark_add_tile" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_bookmark_add_tile.xml" qualifiers="" type="layout"/><file name="item_queue" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_queue.xml" qualifiers="" type="layout"/><file name="dialog_add_bookmark" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_add_bookmark.xml" qualifiers="" type="layout"/><file name="fragment_settings_appearance" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_appearance.xml" qualifiers="" type="layout"/><file name="item_theme_swatch" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_theme_swatch.xml" qualifiers="" type="layout"/><file name="item_about_credit" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_about_credit.xml" qualifiers="" type="layout"/><file name="item_settings_category" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_settings_category.xml" qualifiers="" type="layout"/><file name="fragment_browser" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_browser.xml" qualifiers="" type="layout"/><file name="sheet_sniffed_media" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/sheet_sniffed_media.xml" qualifiers="" type="layout"/><file name="fragment_bookmarks" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_bookmarks.xml" qualifiers="" type="layout"/><file name="fragment_settings_youtube" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_youtube.xml" qualifiers="" type="layout"/><file name="activity_main" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/activity_main.xml" qualifiers="" type="layout"/><file name="fragment_settings_browser" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_browser.xml" qualifiers="" type="layout"/><file name="item_bookmark_tile" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_bookmark_tile.xml" qualifiers="" type="layout"/><file name="fragment_settings_root" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/fragment_settings_root.xml" qualifiers="" type="layout"/><file name="item_history" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_history.xml" qualifiers="" type="layout"/><file name="xmd_monochrome" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxhdpi/xmd_monochrome.png" qualifiers="xxhdpi-v4" type="mipmap"/><file name="xmd_foreground" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxhdpi/xmd_foreground.png" qualifiers="xxhdpi-v4" type="mipmap"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxhdpi/xmd.png" qualifiers="xxhdpi-v4" type="mipmap"/><file name="xmd_background" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xxhdpi/xmd_background.png" qualifiers="xxhdpi-v4" type="mipmap"/><file name="bottom_nav_colors" path="/Users/arnab/Desktop/xmd/app/src/main/res/color/bottom_nav_colors.xml" qualifiers="" type="color"/><file name="text_radio_row" path="/Users/arnab/Desktop/xmd/app/src/main/res/color/text_radio_row.xml" qualifiers="" type="color"/><file path="/Users/arnab/Desktop/xmd/app/src/main/res/values/colors.xml" qualifiers=""><color name="m3_primary">#7CD4FF</color><color name="m3_on_primary">#00344A</color><color name="m3_primary_container">#00496A</color><color name="m3_on_primary_container">#C7E7FF</color><color name="m3_secondary">#B7CAD6</color><color name="m3_on_secondary">#22323C</color><color name="m3_secondary_container">#3A4953</color><color name="m3_on_secondary_container">#D3E5F2</color><color name="m3_tertiary">#FFB4A0</color><color name="m3_on_tertiary">#5C1900</color><color name="m3_tertiary_container">#7D2C0F</color><color name="m3_on_tertiary_container">#FFDBCF</color><color name="m3_error">#FFB4AB</color><color name="m3_on_error">#690005</color><color name="m3_error_container">#93000A</color><color name="m3_on_error_container">#FFDAD6</color><color name="m3_success">#8CDB9C</color><color name="m3_on_success">#003914</color><color name="m3_success_container_solid">#0A5A2A</color><color name="m3_on_success_container">#ABF0B6</color><color name="m3_warning">#FFD08C</color><color name="m3_on_warning">#452B00</color><color name="m3_warning_container">#623F00</color><color name="m3_on_warning_container">#FFDDB3</color><color name="m3_background">#0E1521</color><color name="m3_on_background">#E1E2E8</color><color name="m3_surface">#0E1521</color><color name="m3_on_surface">#E1E2E8</color><color name="m3_surface_dim">#0E1521</color><color name="m3_surface_bright">#343B47</color><color name="m3_surface_container_lowest">#090E17</color><color name="m3_surface_container_low">#161D2A</color><color name="m3_surface_container">#1A2230</color><color name="m3_surface_container_high">#25303F</color><color name="m3_surface_container_highest">#303B4A</color><color name="m3_on_surface_variant">#C1C8D6</color><color name="m3_outline">#8B93A3</color><color name="m3_outline_variant">#414A5A</color><color name="m3_inverse_surface">#E1E2E8</color><color name="m3_inverse_on_surface">#1A2230</color><color name="m3_inverse_primary">#00658F</color><color name="m3_scrim">#000000</color><color name="m3_shadow">#000000</color><color name="ff_bg">#0E1521</color><color name="ff_surface">#1A2230</color><color name="ff_surface_2">#25303F</color><color name="ff_divider">#414A5A</color><color name="ff_accent">#7CD4FF</color><color name="ff_text">#E1E2E8</color><color name="ff_muted">#C1C8D6</color><color name="ff_success">#8CDB9C</color><color name="ff_error">#FFB4AB</color><color name="ff_warning">#FFD08C</color></file><file path="/Users/arnab/Desktop/xmd/app/src/main/res/values/themes.xml" qualifiers=""><style name="Theme.Xmd" parent="Theme.Material3.Dark.NoActionBar">
+        
+        <item name="colorPrimary">@color/m3_primary</item>
+        <item name="colorOnPrimary">@color/m3_on_primary</item>
+        <item name="colorPrimaryContainer">@color/m3_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/m3_on_primary_container</item>
+
+        <item name="colorSecondary">@color/m3_secondary</item>
+        <item name="colorOnSecondary">@color/m3_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/m3_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/m3_on_secondary_container</item>
+
+        <item name="colorTertiary">@color/m3_tertiary</item>
+        <item name="colorOnTertiary">@color/m3_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/m3_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/m3_on_tertiary_container</item>
+
+        <item name="colorError">@color/m3_error</item>
+        <item name="colorOnError">@color/m3_on_error</item>
+        <item name="colorErrorContainer">@color/m3_error_container</item>
+        <item name="colorOnErrorContainer">@color/m3_on_error_container</item>
+
+        <item name="android:colorBackground">@color/m3_background</item>
+        <item name="colorOnBackground">@color/m3_on_background</item>
+        <item name="colorSurface">@color/m3_surface</item>
+        <item name="colorOnSurface">@color/m3_on_surface</item>
+        <item name="colorSurfaceDim">@color/m3_surface_dim</item>
+        <item name="colorSurfaceBright">@color/m3_surface_bright</item>
+        <item name="colorSurfaceContainerLowest">@color/m3_surface_container_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/m3_surface_container_low</item>
+        <item name="colorSurfaceContainer">@color/m3_surface_container</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surface_container_high</item>
+        <item name="colorSurfaceContainerHighest">@color/m3_surface_container_highest</item>
+        <item name="colorOnSurfaceVariant">@color/m3_on_surface_variant</item>
+        <item name="colorOutline">@color/m3_outline</item>
+        <item name="colorOutlineVariant">@color/m3_outline_variant</item>
+
+        <item name="colorSurfaceVariant">@color/m3_surface_container_high</item>
+        <item name="colorSurfaceInverse">@color/m3_inverse_surface</item>
+        <item name="colorOnSurfaceInverse">@color/m3_inverse_on_surface</item>
+        <item name="colorPrimaryInverse">@color/m3_inverse_primary</item>
+
+        
+        <item name="colorPrimaryDark">@color/m3_background</item>
+        <item name="colorAccent">@color/m3_primary</item>
+        <item name="android:windowBackground">@color/m3_background</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        
+        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Xmd.ExtraSmall</item>
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Xmd.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Xmd.ExtraLarge</item>
+
+        
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Xmd.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.Xmd.TitleMedium</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Xmd.LabelLarge</item>
+
+        
+        <item name="materialButtonStyle">@style/Widget.Xmd.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.Xmd.Button.Outlined</item>
+        <item name="borderlessButtonStyle">@style/Widget.Xmd.Button.Text</item>
+        <item name="materialCardViewStyle">@style/Widget.Xmd.CardView</item>
+        <item name="chipStyle">@style/Widget.Xmd.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.Xmd.BottomNavigationView</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Xmd.FloatingActionButton</item>
+        <item name="toolbarStyle">@style/Widget.Xmd.Toolbar</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Xmd.AlertDialog</item>
+        <item name="textInputStyle">@style/Widget.Xmd.TextInputLayout</item>
+        <item name="linearProgressIndicatorStyle">@style/Widget.Xmd.ProgressIndicator</item>
+        <item name="switchStyle">@style/Widget.Xmd.Switch</item>
+        <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
+        <item name="snackbarStyle">@style/Widget.Xmd.Snackbar</item>
+    </style><style name="Theme.Xmd.LightBase" parent="Theme.Material3.Light.NoActionBar">
+        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Xmd.ExtraSmall</item>
+        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Xmd.Small</item>
+        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Xmd.ExtraLarge</item>
+
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.Xmd.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.Xmd.TitleMedium</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.Xmd.LabelLarge</item>
+
+        <item name="materialButtonStyle">@style/Widget.Xmd.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.Xmd.Button.Outlined</item>
+        <item name="borderlessButtonStyle">@style/Widget.Xmd.Button.Text</item>
+        <item name="materialCardViewStyle">@style/Widget.Xmd.CardView</item>
+        <item name="chipStyle">@style/Widget.Xmd.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.Xmd.BottomNavigationView</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Xmd.FloatingActionButton</item>
+        <item name="toolbarStyle">@style/Widget.Xmd.Toolbar</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Xmd.AlertDialog</item>
+        <item name="textInputStyle">@style/Widget.Xmd.TextInputLayout</item>
+        <item name="linearProgressIndicatorStyle">@style/Widget.Xmd.ProgressIndicator</item>
+        <item name="switchStyle">@style/Widget.Xmd.Switch</item>
+        <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
+        <item name="snackbarStyle">@style/Widget.Xmd.Snackbar</item>
+
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style><style name="Theme.Xmd.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#00658F</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#C7E7FF</item>
+        <item name="colorOnPrimaryContainer">#001E2C</item>
+
+        <item name="colorSecondary">#4B6373</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#D3E5F2</item>
+        <item name="colorOnSecondaryContainer">#0A1F27</item>
+
+        <item name="colorTertiary">#984836</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#FFDBCF</item>
+        <item name="colorOnTertiaryContainer">#3A0900</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#FAFAFA</item>
+        <item name="colorOnBackground">#1A1C1E</item>
+        <item name="colorSurface">#FAFAFA</item>
+        <item name="colorOnSurface">#1A1C1E</item>
+        <item name="colorSurfaceDim">#DAD9DE</item>
+        <item name="colorSurfaceBright">#FAFAFA</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#F3F3F6</item>
+        <item name="colorSurfaceContainer">#EDEDF0</item>
+        <item name="colorSurfaceContainerHigh">#E7E7EB</item>
+        <item name="colorSurfaceContainerHighest">#E1E2E5</item>
+        <item name="colorOnSurfaceVariant">#43474E</item>
+        <item name="colorOutline">#73777F</item>
+        <item name="colorOutlineVariant">#C3C7CE</item>
+
+        <item name="colorSurfaceVariant">#E7E7EB</item>
+        <item name="colorSurfaceInverse">#2F3033</item>
+        <item name="colorOnSurfaceInverse">#F1F0F4</item>
+        <item name="colorPrimaryInverse">#7CD4FF</item>
+        <item name="colorPrimaryDark">#FAFAFA</item>
+        <item name="colorAccent">#00658F</item>
+        <item name="android:windowBackground">#FAFAFA</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Aurora.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#2E5FD9</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#DCE3FF</item>
+        <item name="colorOnPrimaryContainer">#001551</item>
+
+        <item name="colorSecondary">#56607A</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#DAE2F9</item>
+        <item name="colorOnSecondaryContainer">#131C2E</item>
+
+        <item name="colorTertiary">#4A57C7</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#E0E0FF</item>
+        <item name="colorOnTertiaryContainer">#0B144C</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#FAFAFF</item>
+        <item name="colorOnBackground">#1A1B21</item>
+        <item name="colorSurface">#FAFAFF</item>
+        <item name="colorOnSurface">#1A1B21</item>
+        <item name="colorSurfaceDim">#DADAE1</item>
+        <item name="colorSurfaceBright">#FAFAFF</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#F4F3FA</item>
+        <item name="colorSurfaceContainer">#EEEDF5</item>
+        <item name="colorSurfaceContainerHigh">#E8E7F0</item>
+        <item name="colorSurfaceContainerHighest">#E2E2EA</item>
+        <item name="colorOnSurfaceVariant">#45464F</item>
+        <item name="colorOutline">#767680</item>
+        <item name="colorOutlineVariant">#C6C5D0</item>
+
+        <item name="colorSurfaceVariant">#E8E7F0</item>
+        <item name="colorSurfaceInverse">#2F3036</item>
+        <item name="colorOnSurfaceInverse">#F1F0F8</item>
+        <item name="colorPrimaryInverse">#B4C4FF</item>
+        <item name="colorPrimaryDark">#FAFAFF</item>
+        <item name="colorAccent">#2E5FD9</item>
+        <item name="android:windowBackground">#FAFAFF</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Nord.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#5E81AC</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#D8E5F0</item>
+        <item name="colorOnPrimaryContainer">#12232F</item>
+
+        <item name="colorSecondary">#4C566A</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#DDE3EC</item>
+        <item name="colorOnSecondaryContainer">#171C24</item>
+
+        <item name="colorTertiary">#B48EAD</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#F0E1EC</item>
+        <item name="colorOnTertiaryContainer">#3B1F35</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#ECEFF4</item>
+        <item name="colorOnBackground">#2E3440</item>
+        <item name="colorSurface">#ECEFF4</item>
+        <item name="colorOnSurface">#2E3440</item>
+        <item name="colorSurfaceDim">#D8DEE9</item>
+        <item name="colorSurfaceBright">#ECEFF4</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#E5E9F0</item>
+        <item name="colorSurfaceContainer">#E0E5EC</item>
+        <item name="colorSurfaceContainerHigh">#DBE1E9</item>
+        <item name="colorSurfaceContainerHighest">#D6DCE5</item>
+        <item name="colorOnSurfaceVariant">#434C5E</item>
+        <item name="colorOutline">#6B7789</item>
+        <item name="colorOutlineVariant">#C4CCD6</item>
+
+        <item name="colorSurfaceVariant">#DBE1E9</item>
+        <item name="colorSurfaceInverse">#2E3440</item>
+        <item name="colorOnSurfaceInverse">#ECEFF4</item>
+        <item name="colorPrimaryInverse">#88C0D0</item>
+        <item name="colorPrimaryDark">#ECEFF4</item>
+        <item name="colorAccent">#5E81AC</item>
+        <item name="android:windowBackground">#ECEFF4</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Dracula.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#644AC9</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E7DEFF</item>
+        <item name="colorOnPrimaryContainer">#1F0060</item>
+
+        <item name="colorSecondary">#A3144D</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFD9E4</item>
+        <item name="colorOnSecondaryContainer">#3C0018</item>
+
+        <item name="colorTertiary">#036A96</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#C2E8FF</item>
+        <item name="colorOnTertiaryContainer">#001E2C</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#F8F8F2</item>
+        <item name="colorOnBackground">#1F1F1F</item>
+        <item name="colorSurface">#F8F8F2</item>
+        <item name="colorOnSurface">#1F1F1F</item>
+        <item name="colorSurfaceDim">#DEDED8</item>
+        <item name="colorSurfaceBright">#F8F8F2</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#F1F1EC</item>
+        <item name="colorSurfaceContainer">#EBEBE5</item>
+        <item name="colorSurfaceContainerHigh">#E5E5DF</item>
+        <item name="colorSurfaceContainerHighest">#DFDFD9</item>
+        <item name="colorOnSurfaceVariant">#454540</item>
+        <item name="colorOutline">#78786F</item>
+        <item name="colorOutlineVariant">#C9C9BE</item>
+
+        <item name="colorSurfaceVariant">#E5E5DF</item>
+        <item name="colorSurfaceInverse">#1F1F1F</item>
+        <item name="colorOnSurfaceInverse">#F8F8F2</item>
+        <item name="colorPrimaryInverse">#BD93F9</item>
+        <item name="colorPrimaryDark">#F8F8F2</item>
+        <item name="colorAccent">#644AC9</item>
+        <item name="android:windowBackground">#F8F8F2</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Catppuccin.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#8839EF</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#ECDCFF</item>
+        <item name="colorOnPrimaryContainer">#280059</item>
+
+        <item name="colorSecondary">#EA76CB</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFD9F0</item>
+        <item name="colorOnSecondaryContainer">#3D0030</item>
+
+        <item name="colorTertiary">#179299</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#B0F0EC</item>
+        <item name="colorOnTertiaryContainer">#00201F</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#EFF1F5</item>
+        <item name="colorOnBackground">#4C4F69</item>
+        <item name="colorSurface">#EFF1F5</item>
+        <item name="colorOnSurface">#4C4F69</item>
+        <item name="colorSurfaceDim">#DCDFE4</item>
+        <item name="colorSurfaceBright">#EFF1F5</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#E9EBF0</item>
+        <item name="colorSurfaceContainer">#E3E5EB</item>
+        <item name="colorSurfaceContainerHigh">#DDE0E6</item>
+        <item name="colorSurfaceContainerHighest">#D7DAE1</item>
+        <item name="colorOnSurfaceVariant">#5C5F77</item>
+        <item name="colorOutline">#8C8FA1</item>
+        <item name="colorOutlineVariant">#CCCFDA</item>
+
+        <item name="colorSurfaceVariant">#DDE0E6</item>
+        <item name="colorSurfaceInverse">#4C4F69</item>
+        <item name="colorOnSurfaceInverse">#EFF1F5</item>
+        <item name="colorPrimaryInverse">#9BA8CF</item>
+        <item name="colorPrimaryDark">#EFF1F5</item>
+        <item name="colorAccent">#8839EF</item>
+        <item name="android:windowBackground">#EFF1F5</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.TokyoNight.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#34548A</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#E0E8F5</item>
+        <item name="colorOnPrimaryContainer">#12233F</item>
+
+        <item name="colorSecondary">#5A4A78</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#E9E5F0</item>
+        <item name="colorOnSecondaryContainer">#251B37</item>
+
+        <item name="colorTertiary">#485E30</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#EBF2E3</item>
+        <item name="colorOnTertiaryContainer">#2A3A18</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#E9E9EF</item>
+        <item name="colorOnBackground">#1A1B26</item>
+        <item name="colorSurface">#E9E9EF</item>
+        <item name="colorOnSurface">#1A1B26</item>
+        <item name="colorSurfaceDim">#D1D4D9</item>
+        <item name="colorSurfaceBright">#E9E9EF</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#DDE4F1</item>
+        <item name="colorSurfaceContainer">#D9E0EA</item>
+        <item name="colorSurfaceContainerHigh">#D2D8E3</item>
+        <item name="colorSurfaceContainerHighest">#CED3DC</item>
+        <item name="colorOnSurfaceVariant">#45494F</item>
+        <item name="colorOutline">#76797F</item>
+        <item name="colorOutlineVariant">#C4C8CF</item>
+
+        <item name="colorSurfaceVariant">#D2D8E3</item>
+        <item name="colorSurfaceInverse">#1A1B26</item>
+        <item name="colorOnSurfaceInverse">#E1E2E8</item>
+        <item name="colorPrimaryInverse">#C7D4EA</item>
+        <item name="colorPrimaryDark">#E9E9EF</item>
+        <item name="colorAccent">#34548A</item>
+        <item name="android:windowBackground">#E9E9EF</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Gruvbox.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#AF3A03</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#FFE3D6</item>
+        <item name="colorOnPrimaryContainer">#521A00</item>
+
+        <item name="colorSecondary">#B57614</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FCEED9</item>
+        <item name="colorOnSecondaryContainer">#4E3104</item>
+
+        <item name="colorTertiary">#427B58</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#E3F2E9</item>
+        <item name="colorOnTertiaryContainer">#183925</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#FBF1C7</item>
+        <item name="colorOnBackground">#282828</item>
+        <item name="colorSurface">#FBF1C7</item>
+        <item name="colorOnSurface">#282828</item>
+        <item name="colorSurfaceDim">#CFC8C5</item>
+        <item name="colorSurfaceBright">#FBF1C7</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#EAD7CE</item>
+        <item name="colorSurfaceContainer">#E2D3CB</item>
+        <item name="colorSurfaceContainerHigh">#DACBC4</item>
+        <item name="colorSurfaceContainerHighest">#D3C7C2</item>
+        <item name="colorOnSurfaceVariant">#4F4845</item>
+        <item name="colorOutline">#7F7976</item>
+        <item name="colorOutlineVariant">#CFC8C4</item>
+
+        <item name="colorSurfaceVariant">#DACBC4</item>
+        <item name="colorSurfaceInverse">#282828</item>
+        <item name="colorOnSurfaceInverse">#E1E2E8</item>
+        <item name="colorPrimaryInverse">#FECBB4</item>
+        <item name="colorPrimaryDark">#FBF1C7</item>
+        <item name="colorAccent">#AF3A03</item>
+        <item name="android:windowBackground">#FBF1C7</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Amethyst.Light" parent="Theme.Xmd.LightBase">
+        <item name="colorPrimary">#794F81</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#EFE5F1</item>
+        <item name="colorOnPrimaryContainer">#321B37</item>
+
+        <item name="colorSecondary">#6A596C</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#EDE8EE</item>
+        <item name="colorOnSecondaryContainer">#2F2131</item>
+
+        <item name="colorTertiary">#82524D</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#F1E6E4</item>
+        <item name="colorOnTertiaryContainer">#371D1A</item>
+
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <item name="android:colorBackground">#F7F5F8</item>
+        <item name="colorOnBackground">#161217</item>
+        <item name="colorSurface">#F7F5F8</item>
+        <item name="colorOnSurface">#161217</item>
+        <item name="colorSurfaceDim">#E2DCE3</item>
+        <item name="colorSurfaceBright">#F7F5F8</item>
+        <item name="colorSurfaceContainerLowest">#FFFFFF</item>
+        <item name="colorSurfaceContainerLow">#F5ECF7</item>
+        <item name="colorSurfaceContainer">#F0E7F2</item>
+        <item name="colorSurfaceContainerHigh">#E9DFEB</item>
+        <item name="colorSurfaceContainerHighest">#E3DBE5</item>
+        <item name="colorOnSurfaceVariant">#4D454F</item>
+        <item name="colorOutline">#7E767F</item>
+        <item name="colorOutlineVariant">#CDC4CF</item>
+
+        <item name="colorSurfaceVariant">#E9DFEB</item>
+        <item name="colorSurfaceInverse">#161217</item>
+        <item name="colorOnSurfaceInverse">#E1E2E8</item>
+        <item name="colorPrimaryInverse">#DFD0E2</item>
+        <item name="colorPrimaryDark">#F7F5F8</item>
+        <item name="colorAccent">#794F81</item>
+        <item name="android:windowBackground">#F7F5F8</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Aurora" parent="Theme.Xmd">
+        <item name="colorPrimary">#5B93FF</item>
+        <item name="colorOnPrimary">#051C48</item>
+        <item name="colorPrimaryContainer">#093688</item>
+        <item name="colorOnPrimaryContainer">#7CA9FF</item>
+
+        <item name="colorSecondary">#9FAEC9</item>
+        <item name="colorOnSecondary">#29303F</item>
+        <item name="colorSecondaryContainer">#4E5B77</item>
+        <item name="colorOnSecondaryContainer">#B2BED4</item>
+
+        <item name="colorTertiary">#97A8FF</item>
+        <item name="colorOnTertiary">#18204B</item>
+        <item name="colorTertiaryContainer">#2E3D8D</item>
+        <item name="colorOnTertiaryContainer">#ACB9FF</item>
+
+        <item name="android:colorBackground">#04070F</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#04070F</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#04070E</item>
+        <item name="colorSurfaceBright">#3B4356</item>
+        <item name="colorSurfaceContainerLowest">#03060D</item>
+        <item name="colorSurfaceContainerLow">#070C17</item>
+        <item name="colorSurfaceContainer">#090F1D</item>
+        <item name="colorSurfaceContainerHigh">#0D1527</item>
+        <item name="colorSurfaceContainerHighest">#101B31</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#949FB4</item>
+        <item name="colorOutlineVariant">#46597B</item>
+
+        <item name="colorSurfaceVariant">#0D1527</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#0A3C98</item>
+        <item name="colorPrimaryDark">#04070F</item>
+        <item name="colorAccent">#5B93FF</item>
+        <item name="android:windowBackground">#04070F</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Nord" parent="Theme.Xmd">
+        <item name="colorPrimary">#88C0D0</item>
+        <item name="colorOnPrimary">#2A3A4D</item>
+        <item name="colorPrimaryContainer">#506E92</item>
+        <item name="colorOnPrimaryContainer">#A0CDD9</item>
+
+        <item name="colorSecondary">#D8DEE9</item>
+        <item name="colorOnSecondary">#222730</item>
+        <item name="colorSecondaryContainer">#41495A</item>
+        <item name="colorOnSecondaryContainer">#E0E5ED</item>
+
+        <item name="colorTertiary">#D8A9C4</item>
+        <item name="colorOnTertiary">#51404E</item>
+        <item name="colorTertiaryContainer">#997993</item>
+        <item name="colorOnTertiaryContainer">#E0BAD0</item>
+
+        <item name="android:colorBackground">#2E3440</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#2E3440</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#2C313D</item>
+        <item name="colorSurfaceBright">#5E6973</item>
+        <item name="colorSurfaceContainerLowest">#282D37</item>
+        <item name="colorSurfaceContainerLow">#313945</item>
+        <item name="colorSurfaceContainer">#333C49</item>
+        <item name="colorSurfaceContainerHigh">#37424E</item>
+        <item name="colorSurfaceContainerHighest">#3B4854</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#AEB5C2</item>
+        <item name="colorOutlineVariant">#4F6272</item>
+
+        <item name="colorSurfaceVariant">#37424E</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#597BA3</item>
+        <item name="colorPrimaryDark">#2E3440</item>
+        <item name="colorAccent">#88C0D0</item>
+        <item name="android:windowBackground">#2E3440</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Dracula" parent="Theme.Xmd">
+        <item name="colorPrimary">#BD93F9</item>
+        <item name="colorOnPrimary">#2C334A</item>
+        <item name="colorPrimaryContainer">#53618B</item>
+        <item name="colorOnPrimaryContainer">#CAA9FA</item>
+
+        <item name="colorSecondary">#FF79C6</item>
+        <item name="colorOnSecondary">#1F2028</item>
+        <item name="colorSecondaryContainer">#3A3C4C</item>
+        <item name="colorOnSecondaryContainer">#FF94D1</item>
+
+        <item name="colorTertiary">#8BE9FD</item>
+        <item name="colorOnTertiary">#247037</item>
+        <item name="colorTertiaryContainer">#44D469</item>
+        <item name="colorOnTertiaryContainer">#A2EDFD</item>
+
+        <item name="android:colorBackground">#282A36</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#282A36</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#262833</item>
+        <item name="colorSurfaceBright">#605C71</item>
+        <item name="colorSurfaceContainerLowest">#22242E</item>
+        <item name="colorSurfaceContainerLow">#2D2E3D</item>
+        <item name="colorSurfaceContainer">#313042</item>
+        <item name="colorSurfaceContainerHigh">#37344A</item>
+        <item name="colorSurfaceContainerHighest">#3D3951</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#BF87B3</item>
+        <item name="colorOutlineVariant">#5A597A</item>
+
+        <item name="colorSurfaceVariant">#37344A</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#5D6C9C</item>
+        <item name="colorPrimaryDark">#282A36</item>
+        <item name="colorAccent">#BD93F9</item>
+        <item name="android:windowBackground">#282A36</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Catppuccin" parent="Theme.Xmd">
+        <item name="colorPrimary">#9BA8CF</item>
+        <item name="colorOnPrimary">#223045</item>
+        <item name="colorPrimaryContainer">#415B83</item>
+        <item name="colorOnPrimaryContainer">#AFB9D9</item>
+
+        <item name="colorSecondary">#D4A5B8</item>
+        <item name="colorOnSecondary">#523040</item>
+        <item name="colorSecondaryContainer">#9C5B7A</item>
+        <item name="colorOnSecondaryContainer">#DDB7C6</item>
+
+        <item name="colorTertiary">#8AB8A8</item>
+        <item name="colorOnTertiary">#53351C</item>
+        <item name="colorTertiaryContainer">#9C6435</item>
+        <item name="colorOnTertiaryContainer">#A1C6B9</item>
+
+        <item name="android:colorBackground">#1E1E2E</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#1E1E2E</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#1C1C2C</item>
+        <item name="colorSurfaceBright">#555666</item>
+        <item name="colorSurfaceContainerLowest">#1A1A28</item>
+        <item name="colorSurfaceContainerLow">#222334</item>
+        <item name="colorSurfaceContainer">#252638</item>
+        <item name="colorSurfaceContainerHigh">#2A2C3E</item>
+        <item name="colorSurfaceContainerHighest">#303145</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#AC9BAC</item>
+        <item name="colorOutlineVariant">#535D71</item>
+
+        <item name="colorSurfaceVariant">#2A2C3E</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#486692</item>
+        <item name="colorPrimaryDark">#1E1E2E</item>
+        <item name="colorAccent">#9BA8CF</item>
+        <item name="android:windowBackground">#1E1E2E</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.TokyoNight" parent="Theme.Xmd">
+        <item name="colorPrimary">#7AA2F7</item>
+        <item name="colorOnPrimary">#051F57</item>
+        <item name="colorPrimaryContainer">#093490</item>
+        <item name="colorOnPrimaryContainer">#92B4FB</item>
+
+        <item name="colorSecondary">#BB9AF7</item>
+        <item name="colorOnSecondary">#230755</item>
+        <item name="colorSecondaryContainer">#3A0B8E</item>
+        <item name="colorOnSecondaryContainer">#B894FA</item>
+
+        <item name="colorTertiary">#9ECE6A</item>
+        <item name="colorOnTertiary">#2F4517</item>
+        <item name="colorTertiaryContainer">#4E7326</item>
+        <item name="colorOnTertiaryContainer">#C8E6A8</item>
+
+        <item name="android:colorBackground">#1A1B26</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#1A1B26</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#1A1B26</item>
+        <item name="colorSurfaceBright">#48536A</item>
+        <item name="colorSurfaceContainerLowest">#0E182D</item>
+        <item name="colorSurfaceContainerLow">#131F37</item>
+        <item name="colorSurfaceContainer">#15223D</item>
+        <item name="colorSurfaceContainerHigh">#1B2946</item>
+        <item name="colorSurfaceContainerHighest">#1F2F51</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#939DB4</item>
+        <item name="colorOutlineVariant">#47577B</item>
+
+        <item name="colorSurfaceVariant">#1B2946</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#093490</item>
+        <item name="colorPrimaryDark">#1A1B26</item>
+        <item name="colorAccent">#7AA2F7</item>
+        <item name="android:windowBackground">#1A1B26</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Gruvbox" parent="Theme.Xmd">
+        <item name="colorPrimary">#FE8019</item>
+        <item name="colorOnPrimary">#572A05</item>
+        <item name="colorPrimaryContainer">#914608</item>
+        <item name="colorOnPrimaryContainer">#FFC18F</item>
+
+        <item name="colorSecondary">#FABD2F</item>
+        <item name="colorOnSecondary">#573E05</item>
+        <item name="colorSecondaryContainer">#916808</item>
+        <item name="colorOnSecondaryContainer">#FFDD8F</item>
+
+        <item name="colorTertiary">#8EC07C</item>
+        <item name="colorOnTertiary">#263E1E</item>
+        <item name="colorTertiaryContainer">#406732</item>
+        <item name="colorOnTertiaryContainer">#BCDDB0</item>
+
+        <item name="android:colorBackground">#282828</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#282828</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#282828</item>
+        <item name="colorSurfaceBright">#6A5848</item>
+        <item name="colorSurfaceContainerLowest">#3C230F</item>
+        <item name="colorSurfaceContainerLow">#462B15</item>
+        <item name="colorSurfaceContainer">#4C2E16</item>
+        <item name="colorSurfaceContainerHigh">#55361D</item>
+        <item name="colorSurfaceContainerHighest">#603D20</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#B4A293</item>
+        <item name="colorOutlineVariant">#7B5E47</item>
+
+        <item name="colorSurfaceVariant">#55361D</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#914608</item>
+        <item name="colorPrimaryDark">#282828</item>
+        <item name="colorAccent">#FE8019</item>
+        <item name="android:windowBackground">#282828</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="Theme.Xmd.Amethyst" parent="Theme.Xmd">
+        <item name="colorPrimary">#E8B5EF</item>
+        <item name="colorOnPrimary">#44104B</item>
+        <item name="colorPrimaryContainer">#721B7E</item>
+        <item name="colorOnPrimaryContainer">#E4A0EE</item>
+
+        <item name="colorSecondary">#D6C0D6</item>
+        <item name="colorOnSecondary">#382438</item>
+        <item name="colorSecondaryContainer">#5D3C5D</item>
+        <item name="colorOnSecondaryContainer">#D6B8D6</item>
+
+        <item name="colorTertiary">#F5B7B0</item>
+        <item name="colorOnTertiary">#51120A</item>
+        <item name="colorTertiaryContainer">#881D11</item>
+        <item name="colorOnTertiaryContainer">#F5A299</item>
+
+        <item name="android:colorBackground">#161217</item>
+        <item name="colorOnBackground">#E1E2E8</item>
+        <item name="colorSurface">#161217</item>
+        <item name="colorOnSurface">#E1E2E8</item>
+        <item name="colorSurfaceDim">#161217</item>
+        <item name="colorSurfaceBright">#5D4261</item>
+        <item name="colorSurfaceContainerLowest">#170B19</item>
+        <item name="colorSurfaceContainerLow">#201123</item>
+        <item name="colorSurfaceContainer">#251328</item>
+        <item name="colorSurfaceContainerHigh">#2E1931</item>
+        <item name="colorSurfaceContainerHighest">#381E3B</item>
+        <item name="colorOnSurfaceVariant">#C1C8D6</item>
+        <item name="colorOutline">#B093B4</item>
+        <item name="colorOutlineVariant">#75477B</item>
+
+        <item name="colorSurfaceVariant">#2E1931</item>
+        <item name="colorSurfaceInverse">#E1E2E8</item>
+        <item name="colorOnSurfaceInverse">#1A2230</item>
+        <item name="colorPrimaryInverse">#721B7E</item>
+        <item name="colorPrimaryDark">#161217</item>
+        <item name="colorAccent">#E8B5EF</item>
+        <item name="android:windowBackground">#161217</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
+        <item name="android:navigationBarColor">?attr/colorSurfaceContainerLow</item>
+    </style><style name="ShapeAppearance.Xmd.ExtraSmall" parent="ShapeAppearance.Material3.Corner.ExtraSmall">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">10dp</item>
+    </style><style name="ShapeAppearance.Xmd.Small" parent="ShapeAppearance.Material3.Corner.Small">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">14dp</item>
+    </style><style name="ShapeAppearance.Xmd.Medium" parent="ShapeAppearance.Material3.Corner.Medium">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style><style name="ShapeAppearance.Xmd.Large" parent="ShapeAppearance.Material3.Corner.Large">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style><style name="ShapeAppearance.Xmd.ExtraLarge" parent="ShapeAppearance.Material3.Corner.ExtraLarge">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">36dp</item>
+    </style><style name="ShapeAppearance.Xmd.Full" parent="ShapeAppearance.Material3.Corner.Full">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style><style name="Widget.Xmd.Snackbar" parent="Widget.Material3.Snackbar">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="android:elevation">6dp</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="android:maxWidth">420dp</item>
+        <item name="snackbarTextViewStyle">@style/TextAppearance.Xmd.Snackbar</item>
+        <item name="snackbarButtonStyle">@style/Widget.Xmd.Snackbar.ActionButton</item>
+    </style><style name="TextAppearance.Xmd.Snackbar" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@android:color/white</item>
+    </style><style name="Widget.Xmd.Snackbar.ActionButton" parent="Widget.Material3.Button.TextButton.Snackbar">
+        <item name="android:textColor">@android:color/white</item>
+    </style><style name="TextAppearance.Xmd.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+        <item name="fontFamily">@font/space_grotesk_semibold</item>
+        <item name="android:fontFamily">@font/space_grotesk_semibold</item>
+        <item name="android:letterSpacing">0.0</item>
+        <item name="android:textSize">18sp</item>
+    </style><style name="TextAppearance.Xmd.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style><style name="TextAppearance.Xmd.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.02</item>
+    </style><style name="Widget.Xmd.Button" parent="Widget.Material3.Button">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:letterSpacing">0.0</item>
+    </style><style name="Widget.Xmd.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="strokeColor">?attr/colorOutline</item>
+        <item name="strokeWidth">1dp</item>
+    </style><style name="Widget.Xmd.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+    </style><style name="Widget.Xmd.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">?attr/colorSecondaryContainer</item>
+        <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
+    </style><style name="Widget.Xmd.CardView" parent="Widget.Material3.CardView.Outlined">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainer</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardElevation">0dp</item>
+    </style><style name="Widget.Xmd.Chip" parent="Widget.Material3.Chip.Assist">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="chipBackgroundColor">?attr/colorSecondaryContainer</item>
+        <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
+    </style><style name="Widget.Xmd.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">?attr/colorSurfaceContainerLow</item>
+        <item name="itemIconTint">@color/bottom_nav_colors</item>
+        <item name="itemTextColor">@color/bottom_nav_colors</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Xmd.BottomNavigationView.ActiveIndicator</item>
+        <item name="elevation">0dp</item>
+    </style><style name="Widget.Xmd.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">?attr/colorPrimaryContainer</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+    </style><style name="Widget.Xmd.FloatingActionButton" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="tint">?attr/colorOnPrimaryContainer</item>
+    </style><style name="Widget.Xmd.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">?attr/colorSurfaceContainerLow</item>
+        <item name="titleTextColor">?attr/colorOnSurface</item>
+        <item name="titleTextAppearance">@style/TextAppearance.Xmd.TitleLarge</item>
+    </style><style name="ThemeOverlay.Xmd.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Xmd.Large</item>
+    </style><style name="Theme.Xmd.Transparent" parent="Theme.Xmd">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">false</item>
+    </style><style name="Widget.Xmd.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Medium</item>
+        <item name="boxStrokeColor">?attr/colorOutline</item>
+        <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
+    </style><style name="Widget.Xmd.ProgressIndicator" parent="Widget.Material3.LinearProgressIndicator">
+        <item name="trackColor">?attr/colorSurfaceContainerHigh</item>
+        <item name="indicatorColor">?attr/colorPrimary</item>
+        <item name="trackCornerRadius">8dp</item>
+    </style><style name="Widget.Xmd.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="thumbTint">?attr/colorOnPrimary</item>
+        <item name="trackTint">?attr/colorPrimary</item>
+    </style><style name="Widget.Xmd.IconButton.Tonal" parent="Widget.Material3.Button.IconButton">
+        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
+        <item name="backgroundTint">?attr/colorSecondaryContainer</item>
+        <item name="iconTint">?attr/colorOnSecondaryContainer</item>
+        <item name="rippleColor">?attr/colorOnSecondaryContainer</item>
+    </style><style name="Widget.Xmd.IconButton.Tonal.Primary" parent="Widget.Xmd.IconButton.Tonal">
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="iconTint">?attr/colorOnPrimaryContainer</item>
+        <item name="rippleColor">?attr/colorOnPrimaryContainer</item>
+    </style><style name="Widget.Xmd.StatusPill" parent="">
+        <item name="android:background">@drawable/bg_status_pill</item>
+        <item name="android:textColor">?attr/colorOnTertiaryContainer</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:paddingHorizontal">12dp</item>
+        <item name="android:paddingVertical">4dp</item>
+        <item name="android:gravity">center</item>
+    </style><style name="Widget.Xmd.RadioRow" parent="Widget.AppCompat.CompoundButton.RadioButton">
+        <item name="android:button">@null</item>
+        <item name="android:background">@drawable/bg_radio_row_selector</item>
+        <item name="android:drawableEnd">@drawable/ic_check_selector</item>
+        <item name="android:textColor">@color/text_radio_row</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingVertical">12dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+        <item name="android:gravity">center_vertical</item>
+    </style></file><file path="/Users/arnab/Desktop/xmd/app/src/main/res/values/strings.xml" qualifiers=""><string name="app_name">Xmd</string><string name="app_header_title">Xtreme Media Downloader</string><string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string><string name="action_prepare">Prepare</string><string name="section_add_new_download">ADD NEW DOWNLOAD</string><string name="action_download">Download Ready Files</string><string name="action_pick_torrent_file">Pick .torrent file</string><string name="action_add_torrent">Add torrent</string><string name="torrent_dialog_title">Add Torrent</string><string name="torrent_dialog_link_label">Link</string><string name="torrent_dialog_link_hint">Paste magnet link (magnet:?xt=...)</string><string name="torrent_dialog_name_label">Name</string><string name="torrent_dialog_name_placeholder">Detected from link</string><string name="torrent_dialog_pick_file">Pick .torrent file instead</string><string name="torrent_dialog_invalid_link">Paste a valid magnet link, or pick a .torrent file</string><string name="torrent_dialog_copy_link">Copy link</string><string name="torrent_dialog_advanced_label">Advanced (save location)</string><string name="torrent_dialog_save_to_label">Save to</string><string name="torrent_dialog_save_to_default">Default location</string><string name="torrent_dialog_change_path">Change</string><string name="torrent_dialog_link_copied_toast">Link copied.</string><string name="torrent_dialog_path_unsupported">That folder isn\'t supported -- pick one on internal storage instead.</string><string name="action_download_direct">Download</string><string name="action_pause">Pause</string><string name="action_resume">Resume</string><string name="action_start">Start</string><string name="action_cancel">Cancel</string><string name="action_retry">Retry</string><string name="action_open">Open</string><string name="link_found_toast">Link found — tap to add to downloads</string><string name="open_file_missing">File not found — it may have been moved or deleted.</string><string name="open_file_no_app">No app found that can open this file.</string><string name="action_clear">Clear</string><string name="action_retry_all">Retry All</string><string name="action_clear_all">Clear All</string><string name="action_clear_finished">Clear Finished</string><string name="action_cancel_all">Cancel All</string><string name="action_add">Add</string><string name="action_dismiss">Dismiss</string><string name="action_view">View</string><string name="action_delete">Delete</string><string name="action_open_with">Open with</string><string name="action_rename">Rename</string><string name="action_redownload">Re-download</string><string name="action_share">Share</string><string name="delete_download_title">Delete this download?</string><string name="rename_conflict_toast">A file with that name already exists</string><string name="rename_failed_toast">Couldn\'t rename the file</string><string name="empty_queue">Paste some links above and tap Prepare.</string><string name="challenge_title">Complete Verification</string><string name="challenge_loading">Loading share page…</string><string name="download_channel_name">Downloads</string><string name="download_channel_description">Shows progress for active downloads.</string><string name="only_authorized">Only download content you are authorized to access.</string><string name="clipboard_link_detected">Link detected in clipboard: %1$s</string><string name="download_started_toast">Starting download…</string><string name="menu_settings">Settings</string><string name="settings_title">Settings</string><string name="settings_saved">Settings saved</string><string name="settings_category_appearance">Appearance</string><string name="settings_category_appearance_desc">Theme color and dark mode</string><string name="settings_category_connections">Connections &amp; Speed</string><string name="settings_category_connections_desc">Parallel connections, speed limit</string><string name="settings_category_browser">Browser</string><string name="settings_category_browser_desc">Ad blocking</string><string name="settings_category_downloads">Downloads</string><string name="settings_category_downloads_desc">Save location, retries, Wi-Fi only</string><string name="settings_category_youtube">Ytdlp</string><string name="settings_category_youtube_desc">Default quality, format, yt-dlp engine</string><string name="settings_category_about">About</string><string name="settings_category_about_desc">Version, credits, and licenses</string><string name="about_title">About</string><string name="about_tagline">Xtreme Media Downloader</string><string name="about_version_format">Version %1$s</string><string name="about_github">View on GitHub</string><string name="about_github_url" translatable="false">https://github.com/Utsavrajputt/xmd</string><string name="about_license_title">License</string><string name="about_license_body">Released under the GNU Affero General Public License v3.0 (AGPL-3.0). Xmd is free and open-source software — you are free to use, study, share, and modify it.</string><string name="about_credits_title">Credits &amp; Open Source</string><string name="about_credits_hint">Xmd is built on the shoulders of these open-source projects</string><string name="about_credit_ytdlp_desc">YouTube and video-site downloads</string><string name="about_credit_libtorrent_desc">Torrent and magnet link downloads</string><string name="about_credit_okhttp_desc">HTTP networking</string><string name="about_credit_jsoup_desc">HTML parsing for site imports</string><string name="about_credit_room_desc">Local download history storage</string><string name="about_credit_coroutines_desc">Asynchronous downloads</string><string name="about_developers_title">Developers</string><string name="about_made_by">Built with ♥️ by Invictus</string><string name="settings_appearance">Appearance</string><string name="settings_theme_hint">Tap a theme to apply it immediately.</string><string name="theme_default">Default</string><string name="theme_aurora">Aurora</string><string name="theme_nord">Nord</string><string name="theme_dracula">Dracula</string><string name="theme_catppuccin">Catppuccin</string><string name="theme_tokyo_night">Tokyo Night</string><string name="theme_gruvbox">Gruvbox</string><string name="theme_amethyst">Amethyst</string><string name="theme_mode_dark">Dark mode</string><string name="theme_mode_light">Light mode</string><string name="settings_dark_mode">Dark Mode</string><string name="settings_dark_mode_hint">Switch between the dark and light variant of the selected theme. Tapping the header once does the same thing.</string><string name="settings_connections">Connections per Download</string><string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string><string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string><string name="settings_auto_retry">Auto Retry on Network Error</string><string name="settings_auto_retry_hint">Retries up to 3 times automatically if the connection times out or drops. Expired links still require a manual retry.</string><string name="settings_save_to_downloads">Save to Downloads Folder</string><string name="settings_save_to_downloads_hint">Save files directly to the Downloads folder instead of the app folder.</string><string name="settings_wifi_only">Download on Wi-Fi Only</string><string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string><string name="settings_adblock">Block Ads</string><string name="settings_adblock_hint">Blocks common ad, tracker, and analytics domains from loading in the in-app browser.</string><string name="sniffed_media_title">Videos &amp; audio found on this page</string><string name="sniffed_media_chip_one">🎬 1 video</string><string name="sniffed_media_chip_many">🎬 %d videos</string><string name="settings_ytdlp_title">YouTube downloader (yt-dlp)</string><string name="settings_ytdlp_hint">Required for YouTube downloads. Adds on-device storage once installed.</string><string name="settings_default_quality">Default quality</string><string name="settings_default_quality_hint">"Ask always" shows the quality picker on every YouTube download. Picking a fixed quality skips it and downloads at that quality directly.</string><string name="quality_ask_always">Ask always</string><string name="settings_ytdlp_install">Install</string><string name="settings_ytdlp_delete">Delete</string><string name="settings_ytdlp_installing">Installing…</string><string name="settings_ytdlp_status_installed">Installed ✓</string><string name="settings_ytdlp_status_not_installed">Not installed</string><string name="settings_ytdlp_update">Update</string><string name="settings_ytdlp_updating">Updating…</string><string name="settings_ytdlp_use_nightly">Use Nightly Build</string><string name="settings_ytdlp_switch_stable">Switch to Stable Build</string><string name="settings_ytdlp_switching_nightly">Switching to nightly…</string><string name="settings_ytdlp_channel_stable">Channel: Stable</string><string name="settings_ytdlp_channel_nightly">Channel: Nightly</string><string name="settings_video_preset_title">Video preset</string><string name="settings_video_preset_hint">Preferred container, codec, and frame rate for the quick quality picks (144p–4K). Falls back automatically if a video doesn\'t offer that exact combination.</string><string name="settings_preset_container_label">Container</string><string name="settings_preset_fps_label">FPS</string><string name="settings_preset_codec_label">Codec</string><string name="preset_any">Auto</string><string name="preset_container_mp4">MP4</string><string name="preset_container_webm">WebM</string><string name="preset_codec_avc">H.264 (AVC)</string><string name="preset_codec_vp9">VP9</string><string name="preset_codec_av1">AV1</string><string name="preset_fps_30">Up to 30 fps</string><string name="preset_fps_60">Up to 60 fps</string><string name="settings_audio_format_title">Audio format</string><string name="settings_audio_format_hint">Format used for "Audio only" downloads.</string><string name="audio_format_mp3">MP3</string><string name="audio_format_m4a">M4A (AAC)</string><string name="audio_format_opus">Opus</string><string name="audio_format_original">Original (no re-encode)</string><string name="settings_save">Save</string><string name="settings_import_websites">Website Sources</string><string name="settings_import_websites_hint">Scans Preset folders (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string><string name="settings_import_websites_button">Import Now</string><string name="import_websites_title">Import Websites</string><string name="import_websites_scanning">Scanning files…</string><string name="import_websites_success">Imported %1$d website(s).</string><string name="import_websites_none_new">Already Updated.</string><string name="import_websites_not_found">No Websource found.</string><string name="settings_export_websites_button">Export Now</string><string name="export_websites_empty">No shortcuts saved yet — nothing to export.</string><string name="export_websites_failed">Couldn\'t save the file. Try again.</string><string name="export_websites_success">Website source pack saved.</string><string name="export_websites_share_title">Share website source pack</string><string name="hint_url">Search or type a URL</string><string name="action_back">Back</string><string name="action_forward">Forward</string><string name="action_reload">Reload</string><string name="action_stop">Stop</string><string name="action_new_tab">New Tab</string><string name="action_home">Home</string><string name="action_tabs">Tabs</string><string name="action_more">More Options</string><string name="action_add_to_downloads">Add to Downloads</string><string name="action_add_shortcut">Add Shortcut</string><string name="label_shortcuts">SHORTCUTS</string><string name="label_bookmark_placeholder">Shortcut</string><string name="hint_shortcut_title">Name</string><string name="add_bookmark_title">Add Shortcut</string><string name="edit_bookmark_title">Edit Shortcut</string><string name="link_added_snackbar">Link added to your queue</string><string name="bookmark_needs_url">Enter a valid URL.</string><string name="download_confirm_title">Add to Downloads?</string><string name="download_confirm_message">%1$s</string><string name="action_copy_link">Copy link</string><string name="find_in_page_hint">Find on page</string><string name="find_in_page_prev">Previous match</string><string name="find_in_page_next">Next match</string><string name="find_in_page_menu">Find in page</string><string name="shortcut_added_toast">Shortcut added.</string><string name="shortcut_removed_toast">Shortcut removed.</string><string name="action_shortcut_pick_icon">Change icon</string><string name="action_reorder">Reorder</string><string name="action_done">Done</string><string name="shortcuts_reordered_toast">Order saved.</string><string name="add_bookmark_dialog_title">Add Bookmark</string><string name="hint_bookmark_title">Name</string><string name="bookmark_also_add_shortcut">Also add as Shortcut</string><string name="bookmark_added_toast">Bookmark added.</string><string name="bookmark_removed_toast">Bookmark removed.</string><string name="browser_menu_bookmarks">Bookmarks</string><string name="bookmarks_title">Bookmarks</string><string name="bookmarks_search_hint">Search bookmarks</string><string name="bookmarks_empty">No bookmarks yet</string><string name="bookmarks_search_empty">No matching bookmarks</string><string name="bookmarks_clear_all">Clear all</string><string name="bookmarks_cleared_toast">Bookmarks cleared.</string><string name="link_menu_open_new_tab">Open in new tab</string><string name="link_menu_open_image_new_tab">Open image in new tab</string><string name="link_menu_download_image">Download image</string><string name="link_menu_copy_link_address">Copy link address</string><string name="link_menu_share_link">Share link</string><string name="link_copied_toast">Link copied to clipboard</string><string name="browser_menu_title">Browser</string><string name="browser_menu_private_dns">Private DNS</string><string name="browser_menu_history">History</string><string name="browser_menu_refresh">Refresh</string><string name="browser_menu_desktop_site">Desktop site</string><string name="browser_menu_clear_data">Clear browsing data</string><string name="clear_data_title">Clear browsing data</string><string name="clear_data_history">History</string><string name="clear_data_cookies">Cookies and site data</string><string name="clear_data_cache">Cached images and files</string><string name="clear_data_action">Clear data</string><string name="clear_data_cleared_toast">Browsing data cleared.</string><string name="dns_settings_title">Private DNS</string><string name="dns_mode_adguard">AdGuard</string><string name="dns_mode_google">Google DNS</string><string name="dns_mode_cloudflare">Cloudflare</string><string name="dns_mode_cloudflare_adblock">Cloudflare (Ad Block)</string><string name="dns_mode_off">Off (Default)</string><string name="dns_mode_custom">Custom</string><string name="dns_custom_url_hint">DNS-over-HTTPS URL (e.g. https://dns.example.com/dns-query)</string><string name="dns_custom_url_needed">Enter a valid DNS-over-HTTPS URL.</string><string name="history_title">History</string><string name="history_empty">No history yet.</string><string name="history_clear_all">Clear All</string><string name="history_cleared_toast">History cleared.</string><string name="history_search_hint">Search history</string><string name="history_search_empty">No matching history.</string><string name="action_search">Search</string><string name="queue_search_hint">Search downloads</string><string name="queue_search_empty">No matching downloads.</string><string name="queue_empty_title">No downloads yet</string><string name="torrent_dialog_metadata_failed">Couldn\'t fetch metadata in time. All files will be downloaded.</string><string name="download_dialog_title">Add Download</string><string name="clipboard_empty_toast">Clipboard is empty</string><string name="torrent_dialog_select_all">Select All</string><string name="tab_browser">Browser</string><string name="torrent_dialog_fetching_metadata">Fetching torrent metadata &amp; files…</string><string name="torrent_dialog_save_path_failed">Only folders on internal storage can be selected</string><string name="dialog_paste_link">Paste link</string><string name="tab_downloads">Downloads</string><string name="download_dialog_link_hint">https://...</string><string name="dialog_link_pasted_toast">Link pasted</string><string name="torrent_dialog_deselect_all">Deselect All</string><string name="torrent_dialog_no_files_selected">Please select at least one file to download</string><string name="download_dialog_name_placeholder">Filename</string><string name="tab_add">Add</string><string name="torrent_dialog_files_label">Files</string><string name="torrent_dialog_cancel">Cancel</string><string name="torrent_dialog_start">Start</string></file><file name="backup_rules" path="/Users/arnab/Desktop/xmd/app/src/main/res/xml/backup_rules.xml" qualifiers="" type="xml"/><file name="file_paths" path="/Users/arnab/Desktop/xmd/app/src/main/res/xml/file_paths.xml" qualifiers="" type="xml"/><file name="browser_overflow_menu" path="/Users/arnab/Desktop/xmd/app/src/main/res/menu/browser_overflow_menu.xml" qualifiers="" type="menu"/><file name="bottom_nav_menu" path="/Users/arnab/Desktop/xmd/app/src/main/res/menu/bottom_nav_menu.xml" qualifiers="" type="menu"/><file name="main_menu" path="/Users/arnab/Desktop/xmd/app/src/main/res/menu/main_menu.xml" qualifiers="" type="menu"/><file name="link_context_menu" path="/Users/arnab/Desktop/xmd/app/src/main/res/menu/link_context_menu.xml" qualifiers="" type="menu"/><file name="xmd_monochrome" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xhdpi/xmd_monochrome.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="xmd_foreground" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xhdpi/xmd_foreground.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xhdpi/xmd.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="xmd_background" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-xhdpi/xmd_background.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="space_grotesk_semibold" path="/Users/arnab/Desktop/xmd/app/src/main/res/font/space_grotesk_semibold.ttf" qualifiers="" type="font"/><file name="xmd" path="/Users/arnab/Desktop/xmd/app/src/main/res/mipmap-anydpi-v26/xmd.xml" qualifiers="anydpi-v26" type="mipmap"/><file name="ic_copy" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_copy.xml" qualifiers="" type="drawable"/><file name="ic_paste" path="/Users/arnab/Desktop/xmd/app/src/main/res/drawable/ic_paste.xml" qualifiers="" type="drawable"/><file name="dialog_add_download" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/dialog_add_download.xml" qualifiers="" type="layout"/><file name="item_torrent_file" path="/Users/arnab/Desktop/xmd/app/src/main/res/layout/item_torrent_file.xml" qualifiers="" type="layout"/></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="lite$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/lite/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="lite" generated-set="lite$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/lite/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/debug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/build/generated/res/resValues/lite/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/build/generated/res/resValues/lite/debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="variant$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/liteDebug/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="variant" generated-set="variant$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/arnab/Desktop/xmd/app/src/liteDebug/res"/></dataSet><mergedItems/></merger>

@@ -862,7 +862,7 @@ class BrowserFragment : Fragment() {
      * through its in-page history or, with none left, resets the tab back
      * to the speed dial (still consumed). Only once we're already on the
      * speed dial does this return false, so MainActivity's callback can
-     * fall back to the Home tab instead of exiting.
+     * fall back to the Downloads tab instead of exiting.
      */
     fun onBackPressed(): Boolean {
         val tab = tabs.getOrNull(currentTabIndex) ?: return false

@@ -119,7 +119,9 @@ data class QueueItem(
      * parseable yet (right after the download starts) or not applicable
      * (DIRECT path, which already has its own speed via speedBps).
      */
-    var mediaStatusText: String? = null
+    var mediaStatusText: String? = null,
+    /** Comma-separated list of selected 0-indexed file indices for torrent downloads. Null means download all files. */
+    var selectedFileIndices: String? = null
 )
 
 class ResolutionError(message: String) : Exception(message)

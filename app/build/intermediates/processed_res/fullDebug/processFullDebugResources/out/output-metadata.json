@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "PROCESSED_RES",
+    "kind": "Directory"
+  },
+  "applicationId": "com.invictus.xmd",
+  "variantName": "fullDebug",
+  "elements": [
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "armeabi-v7a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 8,
+      "versionName": "1.0.0-beta.5-full",
+      "outputFile": "resources-fullArmeabi-v7aDebug.ap_"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "arm64-v8a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 8,
+      "versionName": "1.0.0-beta.5-full",
+      "outputFile": "resources-fullArm64-v8aDebug.ap_"
+    }
+  ],
+  "elementType": "File"
+}

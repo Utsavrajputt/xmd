@@ -279,4 +279,25 @@
     <string name="queue_search_empty">No matching downloads.</string>
     <string name="queue_empty_title">No downloads yet</string>
 
+    <!-- Bottom Nav Tabs -->
+    <string name="tab_downloads">Downloads</string>
+    <string name="tab_add">Add</string>
+    <string name="tab_browser">Browser</string>
+
+    <!-- External download & torrent files selection -->
+    <string name="download_dialog_title">Add Download</string>
+    <string name="download_dialog_link_hint">https://...</string>
+    <string name="download_dialog_name_placeholder">Filename</string>
+    <string name="torrent_dialog_files_label">Files</string>
+    <string name="torrent_dialog_fetching_metadata">Fetching torrent metadata &amp; files…</string>
+    <string name="torrent_dialog_metadata_failed">Couldn\'t fetch metadata in time. All files will be downloaded.</string>
+    <string name="torrent_dialog_select_all">Select All</string>
+    <string name="torrent_dialog_deselect_all">Deselect All</string>
+    <string name="torrent_dialog_no_files_selected">Please select at least one file to download</string>
+    <string name="torrent_dialog_save_path_failed">Only folders on internal storage can be selected</string>
+    <string name="dialog_paste_link">Paste link</string>
+    <string name="clipboard_empty_toast">Clipboard is empty</string>
+    <string name="dialog_link_pasted_toast">Link pasted</string>
+    <string name="torrent_dialog_cancel">Cancel</string>
+    <string name="torrent_dialog_start">Start</string>
 </resources>

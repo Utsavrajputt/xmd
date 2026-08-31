@@ -1,5 +1,6 @@
 package com.invictus.xmd.core
 
+import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
@@ -11,7 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class TorrentResult(
     val name: String,
     val numFiles: Int,
-    val saveDir: File
+    val saveDir: File,
+    val singleFilePath: String? = null
 )
 
 /**
@@ -20,14 +22,8 @@ data class TorrentResult(
  * enough that running more than one per app would just fight itself over
  * the network and disk. Every [TorrentEngine] instance (one per in-flight
  * torrent item, same pattern as DownloadEngine for HTTP items) shares this.
- *
- * Left running for the lifetime of the process rather than stopped after
- * each download -- restarting the session (rebuilding the DHT routing
- * table, etc.) is expensive, and DownloadService already only stays alive
- * (foreground) while something is actually downloading, same as the HTTP
- * path.
  */
-private object TorrentSession {
+object TorrentSession {
     @Volatile private var manager: SessionManager? = null
 
     val instance: SessionManager
@@ -37,6 +33,13 @@ private object TorrentSession {
                 manager = it
             }
         }
+
+    fun fetchMetadata(magnetUri: String, timeoutSeconds: Int, cacheDir: File): ByteArray? {
+        cacheDir.mkdirs()
+        return runCatching {
+            instance.fetchMagnet(magnetUri, timeoutSeconds, cacheDir)
+        }.getOrNull()
+    }
 }
 
 /**
@@ -44,12 +47,6 @@ private object TorrentSession {
  * via libtorrent4j, reporting progress the same shape as [DownloadEngine]
  * so DownloadService can treat both engines interchangeably from the
  * QueueRepository's point of view (bytesDone/bytesTotal/speedBps).
- *
- * Unlike DownloadEngine this doesn't stream bytes itself -- libtorrent
- * writes pieces straight into [saveDir] on its own native thread. This
- * class's job is just: kick the torrent off, then poll its status and
- * translate that into the same progress callbacks, until it finishes /
- * is cancelled / errors out.
  */
 class TorrentEngine(
     private val progress: ProgressFn = { _, _, _ -> },
@@ -84,7 +81,7 @@ class TorrentEngine(
      * then downloads it into [saveDir]. Blocks the calling thread until the
      * torrent finishes, so call this from a background dispatcher.
      */
-    fun downloadMagnet(magnetUri: String, saveDir: File): TorrentResult {
+    fun downloadMagnet(magnetUri: String, saveDir: File, selectedFileIndices: String? = null): TorrentResult {
         cancelled.set(false)
         paused.set(false)
         saveDir.mkdirs()
@@ -99,24 +96,40 @@ class TorrentEngine(
         checkpoint()
 
         val ti = TorrentInfo.bdecode(data)
-        return startAndPoll(ti, saveDir)
+        return startAndPoll(ti, saveDir, selectedFileIndices)
     }
 
     /** Same as [downloadMagnet] but for a .torrent file already fetched as bytes. */
-    fun downloadTorrentFile(torrentBytes: ByteArray, saveDir: File): TorrentResult {
+    fun downloadTorrentFile(torrentBytes: ByteArray, saveDir: File, selectedFileIndices: String? = null): TorrentResult {
         cancelled.set(false)
         paused.set(false)
         saveDir.mkdirs()
         val ti = TorrentInfo.bdecode(torrentBytes)
-        return startAndPoll(ti, saveDir)
+        return startAndPoll(ti, saveDir, selectedFileIndices)
     }
 
-    private fun startAndPoll(ti: TorrentInfo, saveDir: File): TorrentResult {
+    private fun startAndPoll(ti: TorrentInfo, saveDir: File, selectedFileIndices: String? = null): TorrentResult {
         log("Downloading: ${ti.name()}")
+
+        val selectedSet = selectedFileIndices?.split(",")
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            ?.toSet()
+
         TorrentSession.instance.download(ti, saveDir)
 
         val h = waitForHandle(ti) ?: throw RuntimeException("Torrent failed to start")
         handle = h
+
+        if (selectedSet != null && selectedSet.isNotEmpty()) {
+            val count = ti.numFiles()
+            val priorities = Priority.array(Priority.IGNORE, count)
+            for (idx in 0 until count) {
+                if (idx in selectedSet) {
+                    priorities[idx] = Priority.DEFAULT
+                }
+            }
+            h.prioritizeFiles(priorities)
+        }
 
         while (true) {
             checkpoint()
@@ -139,7 +152,22 @@ class TorrentEngine(
         }
 
         log("Torrent finished: ${ti.name()}")
-        return TorrentResult(name = ti.name(), numFiles = ti.numFiles(), saveDir = saveDir)
+
+        val singleFilePath = if (selectedSet != null && selectedSet.size == 1) {
+            val idx = selectedSet.first()
+            val relPath = runCatching { ti.files().filePath(idx) }.getOrNull()
+            if (relPath != null) File(saveDir, relPath).absolutePath else null
+        } else if (ti.numFiles() == 1) {
+            val relPath = runCatching { ti.files().filePath(0) }.getOrNull()
+            if (relPath != null) File(saveDir, relPath).absolutePath else File(saveDir, ti.name()).absolutePath
+        } else null
+
+        return TorrentResult(
+            name = ti.name(),
+            numFiles = ti.numFiles(),
+            saveDir = saveDir,
+            singleFilePath = singleFilePath
+        )
     }
 
     /** libtorrent hands back a TorrentHandle asynchronously after download() is called. */

@@ -1,0 +1,35 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:id="@+id/group_page_actions">
+        <item
+            android:id="@+id/menu_refresh"
+            android:title="@string/browser_menu_refresh" />
+        <item
+            android:id="@+id/menu_find_in_page"
+            android:title="@string/find_in_page_menu" />
+        <item
+            android:id="@+id/menu_desktop_site"
+            android:title="@string/browser_menu_desktop_site"
+            android:checkable="true" />
+    </group>
+    <group android:id="@+id/group_privacy">
+        <item
+            android:id="@+id/menu_private_dns"
+            android:title="@string/browser_menu_private_dns" />
+        <item
+            android:id="@+id/menu_clear_browsing_data"
+            android:title="@string/browser_menu_clear_data" />
+    </group>
+    <group android:id="@+id/group_history">
+        <item
+            android:id="@+id/menu_bookmarks"
+            android:title="@string/browser_menu_bookmarks" />
+        <item
+            android:id="@+id/menu_history"
+            android:title="@string/browser_menu_history" />
+    </group>
+    <group android:id="@+id/group_settings">
+        <item
+            android:id="@+id/menu_settings"
+            android:title="@string/menu_settings" />
+    </group>
+</menu>
