@@ -124,12 +124,6 @@ class SettingsActivity : AppCompatActivity(),
     /** Called by [SettingsRootFragment] when a category row is tapped. */
     fun openCategory(fragment: Fragment, tag: String) {
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(
-                android.R.anim.fade_in,
-                android.R.anim.fade_out,
-                android.R.anim.fade_in,
-                android.R.anim.fade_out,
-            )
             .replace(R.id.settingsFragmentContainer, fragment, tag)
             .addToBackStack(tag)
             .commit()
@@ -232,6 +226,16 @@ class SettingsActivity : AppCompatActivity(),
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(intent, getString(R.string.export_websites_share_title)))
+    }
+
+    override fun finish() {
+        super.finish()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     companion object {

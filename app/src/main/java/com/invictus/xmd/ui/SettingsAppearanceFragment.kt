@@ -11,7 +11,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -64,11 +63,6 @@ class SettingsAppearanceFragment : Fragment() {
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
         Settings.setDarkMode(nowDark)
-        Toast.makeText(
-            requireContext(),
-            if (nowDark) getString(R.string.theme_mode_dark) else getString(R.string.theme_mode_light),
-            Toast.LENGTH_SHORT,
-        ).show()
         requireActivity().recreate()
     }
 

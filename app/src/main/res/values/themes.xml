@@ -1005,6 +1005,7 @@
     </style>
 
     <style name="Widget.Xmd.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:thumb">@drawable/bg_switch_thumb</item>
         <item name="thumbTint">?attr/colorOnPrimary</item>
         <item name="trackTint">?attr/colorPrimary</item>
     </style>
