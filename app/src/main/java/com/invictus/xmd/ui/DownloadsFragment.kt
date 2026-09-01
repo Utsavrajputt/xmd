@@ -55,22 +55,23 @@ class DownloadsFragment : Fragment() {
     // I'm looking at", not silently reach outside it.
     private var allItems: List<QueueItem> = emptyList()
     private var currentQuery: String = ""
-    private lateinit var searchCard: View
-    private lateinit var searchInput: EditText
 
-    /** Called by MainActivity when the toolbar search icon is tapped.
-     *  Reveals/hides the search bar; hiding also clears any active query
-     *  so the list goes back to unfiltered instead of staying narrowed
-     *  behind a closed search box. */
-    fun toggleSearch() {
-        val showing = searchCard.visibility == View.VISIBLE
-        if (showing) {
-            searchInput.text?.clear()
-            searchCard.visibility = View.GONE
-        } else {
-            searchCard.visibility = View.VISIBLE
-            searchInput.requestFocus()
-        }
+    /** Called by MainActivity when the in-header search query updates. */
+    fun setFilterQuery(query: String) {
+        currentQuery = query
+        val v = view ?: return
+        val emptyContainer = v.findViewById<View>(R.id.emptyContainer) ?: return
+        val emptyIconFrame = v.findViewById<View>(R.id.emptyIconFrame) ?: return
+        val emptyLabel     = v.findViewById<android.widget.TextView>(R.id.emptyLabel) ?: return
+        val summaryBar     = v.findViewById<View>(R.id.queueSummaryBar) ?: return
+        val summaryChips   = v.findViewById<ChipGroup>(R.id.queueSummaryChips) ?: return
+        val cancelBtn      = v.findViewById<MaterialButton>(R.id.cancelButton) ?: return
+        val clearAllBtn    = v.findViewById<MaterialButton>(R.id.clearAllButton) ?: return
+        val recycler       = v.findViewById<RecyclerView>(R.id.queueRecycler) ?: return
+        renderList(
+            emptyContainer, emptyIconFrame, emptyLabel,
+            summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
+        )
     }
 
     override fun onCreateView(
@@ -97,25 +98,11 @@ class DownloadsFragment : Fragment() {
         val summaryChips   = view.findViewById<ChipGroup>(R.id.queueSummaryChips)
         val cancelBtn       = view.findViewById<MaterialButton>(R.id.cancelButton)
         val clearAllBtn     = view.findViewById<MaterialButton>(R.id.clearAllButton)
-        searchCard  = view.findViewById(R.id.queueSearchCard)
-        searchInput = view.findViewById(R.id.queueSearchInput)
 
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = adapter
 
         clearAllBtn.setOnClickListener { QueueRepository.clearFinishedAndFailed() }
-
-        searchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                currentQuery = s?.toString().orEmpty()
-                renderList(
-                    emptyContainer, emptyIconFrame, emptyLabel,
-                    summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
-                )
-            }
-        })
 
         QueueRepository.items.observe(viewLifecycleOwner) { list ->
             allItems = list

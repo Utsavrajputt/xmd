@@ -25,22 +25,104 @@
             android:id="@+id/toolbar"
             style="@style/Widget.Xmd.Toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize">
+            android:layout_height="?attr/actionBarSize"
+            app:contentInsetStart="16dp"
+            app:contentInsetEnd="8dp"
+            app:contentInsetLeft="16dp"
+            app:contentInsetRight="8dp">
 
-            <TextView
-                android:id="@+id/toolbarTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Xmd.TitleLarge"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:singleLine="true"
-                android:ellipsize="end"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:paddingHorizontal="4dp" />
+            <!-- Normal Header: Title on Left, Search & Settings on Right -->
+            <LinearLayout
+                android:id="@+id/headerNormalLayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/toolbarTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textAppearance="@style/TextAppearance.Xmd.TitleLarge"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:paddingVertical="4dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/headerSearchButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    app:icon="@drawable/ic_search"
+                    app:iconSize="22dp"
+                    app:iconTint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="@string/action_search" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/headerSettingsButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    app:icon="@drawable/ic_settings"
+                    app:iconSize="22dp"
+                    app:iconTint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="@string/menu_settings" />
+            </LinearLayout>
+
+            <!-- In-Header Search Bar (Revealed when search is active) -->
+            <LinearLayout
+                android:id="@+id/headerSearchLayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/headerSearchBackButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    app:icon="@drawable/ic_arrow_back"
+                    app:iconSize="22dp"
+                    app:iconTint="?attr/colorOnSurface"
+                    android:contentDescription="@string/action_back" />
+
+                <EditText
+                    android:id="@+id/headerSearchInput"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:background="@null"
+                    android:hint="@string/queue_search_hint"
+                    android:inputType="text"
+                    android:imeOptions="actionSearch"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/headerSearchClearButton"
+                    style="@style/Widget.Material3.Button.IconButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_close"
+                    app:iconSize="20dp"
+                    app:iconTint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="@string/action_clear" />
+            </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
 
         <androidx.coordinatorlayout.widget.CoordinatorLayout

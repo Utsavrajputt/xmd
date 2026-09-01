@@ -60,6 +60,9 @@ import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.text.TextWatcher
+import android.text.Editable
 import android.widget.ImageView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.widget.doAfterTextChanged
@@ -194,6 +197,29 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private lateinit var bottomNav: ExpressiveNavBar
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var toolbarTitle: TextView
+    private lateinit var headerNormalLayout: View
+    private lateinit var headerSearchLayout: View
+    private lateinit var headerSearchInput: EditText
+    private lateinit var headerSearchClearButton: View
+
+    private fun openHeaderSearch() {
+        headerNormalLayout.visibility = View.GONE
+        headerSearchLayout.visibility = View.VISIBLE
+        headerSearchInput.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.showSoftInput(headerSearchInput, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun closeHeaderSearch() {
+        if (::headerSearchLayout.isInitialized && headerSearchLayout.visibility == View.VISIBLE) {
+            headerSearchInput.text?.clear()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.hideSoftInputFromWindow(headerSearchInput.windowToken, 0)
+            headerSearchLayout.visibility = View.GONE
+            headerNormalLayout.visibility = View.VISIBLE
+            (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.setFilterQuery("")
+        }
+    }
 
     private val clipboardManager by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
@@ -355,6 +381,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val fm = supportFragmentManager
         val browserVisible = fm.findFragmentByTag(TAG_BROWSER)?.isHidden == false
         if (browserVisible) {
+            closeHeaderSearch()
             // The Browser fragment's own address bar is the top bar here --
             // the shared app toolbar (and its title) would just duplicate it.
             toolbar.visibility = android.view.View.GONE
@@ -408,14 +435,34 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        // Tap the header text (not the whole bar) to flip dark/light mode for
-        // whichever color theme is active -- toolbarTitle is a real TextView
-        // now instead of Toolbar's built-in title, so it's directly clickable
-        // on its own without catching taps anywhere else across the bar.
         val toolbarTitle = findViewById<TextView>(R.id.toolbarTitle)
         this.toolbarTitle = toolbarTitle
         toolbarTitle.text = getString(R.string.app_header_title)
         toolbarTitle.setOnClickListener { toggleDarkMode() }
+
+        headerNormalLayout = findViewById(R.id.headerNormalLayout)
+        headerSearchLayout = findViewById(R.id.headerSearchLayout)
+        headerSearchInput = findViewById(R.id.headerSearchInput)
+        headerSearchClearButton = findViewById(R.id.headerSearchClearButton)
+
+        val headerSearchButton = findViewById<View>(R.id.headerSearchButton)
+        val headerSettingsButton = findViewById<View>(R.id.headerSettingsButton)
+        val headerSearchBackButton = findViewById<View>(R.id.headerSearchBackButton)
+
+        headerSearchButton.setOnClickListener { openHeaderSearch() }
+        headerSettingsButton.setOnClickListener { openSettingsScreen() }
+        headerSearchBackButton.setOnClickListener { closeHeaderSearch() }
+        headerSearchClearButton.setOnClickListener { headerSearchInput.text?.clear() }
+
+        headerSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString().orEmpty()
+                headerSearchClearButton.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
+                (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.setFilterQuery(query)
+            }
+        })
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
@@ -523,6 +570,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         //  2. Browser tab -> jump to Downloads tab first before exiting.
         //  3. Already on Downloads tab -> exit the app.
         onBackPressedDispatcher.addCallback(this) {
+            if (::headerSearchLayout.isInitialized && headerSearchLayout.visibility == View.VISIBLE) {
+                closeHeaderSearch()
+                return@addCallback
+            }
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack()
                 return@addCallback
@@ -2265,24 +2316,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // ── Options menu ──────────────────────────────────────────────────────
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
+        return false
     }
 
-    /** Search only makes sense on the Downloads tab (filters the queue) --
-     *  hidden everywhere else. Re-run via invalidateOptionsMenu() from the
-     *  bottomNav item-selected listener whenever the tab changes. */
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        menu.findItem(R.id.action_search)?.isVisible = currentTabTag == TAG_DOWNLOADS
-        return super.onPrepareOptionsMenu(menu)
+        return false
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.action_settings) { openSettingsScreen(); return true }
-        if (item.itemId == R.id.action_search) {
-            (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.toggleSearch()
-            return true
-        }
         return super.onOptionsItemSelected(item)
     }
 
