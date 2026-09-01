@@ -49,48 +49,181 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.core.widget.doAfterTextChanged
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.shape.MaterialShapeDrawable
+import com.google.android.material.shape.ShapeAppearanceModel
+import com.invictus.xmd.core.DownloadEngine
+import com.invictus.xmd.core.TorrentSession
+import kotlinx.coroutines.Job
+import org.libtorrent4j.TorrentInfo
+import android.graphics.Typeface
+import androidx.core.view.isVisible
+import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks, BookmarkFragment.Callbacks {
+class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks, BookmarkFragment.Callbacks {
 
-    private lateinit var bottomNav: BottomNavigationView
+    data class NavMenuItem(val itemId: Int)
+
+    inner class ExpressiveNavBar(
+        val layout: View,
+        val downloadsItem: View,
+        val browserItem: View,
+        val downloadsIcon: ImageView,
+        val downloadsLabel: TextView,
+        val downloadsBadge: TextView,
+        val browserIcon: ImageView,
+        val browserLabel: TextView,
+        val addFab: View
+    ) {
+        private var itemSelectedListener: ((NavMenuItem) -> Boolean)? = null
+
+        var selectedItemId: Int = R.id.nav_downloads
+            set(value) {
+                val changed = field != value
+                field = value
+                updateVisuals(value)
+                if (changed) {
+                    itemSelectedListener?.invoke(NavMenuItem(value))
+                }
+            }
+
+        var visibility: Int
+            get() = layout.visibility
+            set(value) { layout.visibility = value }
+
+        val height: Int
+            get() = layout.height
+
+        init {
+            downloadsItem.setOnClickListener {
+                selectedItemId = R.id.nav_downloads
+            }
+            browserItem.setOnClickListener {
+                selectedItemId = R.id.nav_browser
+            }
+            addFab.setOnClickListener {
+                showAddDownloadDialog()
+            }
+            updateVisuals(selectedItemId)
+        }
+
+        fun setOnItemSelectedListener(listener: (NavMenuItem) -> Boolean) {
+            itemSelectedListener = listener
+        }
+
+        fun updateBadge(count: Int) {
+            if (count > 0) {
+                downloadsBadge.visibility = View.VISIBLE
+                downloadsBadge.text = if (count > 99) "99+" else count.toString()
+            } else {
+                downloadsBadge.visibility = View.GONE
+            }
+        }
+
+        fun updateVisuals(selectedId: Int) {
+            val isDownloads = selectedId == R.id.nav_downloads
+
+            val activeBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_active)
+            val inactiveBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_inactive)
+
+            val colorActive = MaterialColors.getColor(
+                this@MainActivity,
+                com.google.android.material.R.attr.colorOnSecondaryContainer,
+                Color.BLACK
+            )
+            val colorInactive = MaterialColors.getColor(
+                this@MainActivity,
+                com.google.android.material.R.attr.colorOnSurfaceVariant,
+                Color.GRAY
+            )
+
+            // Only show icon on the current (active) tab, like Google Photos
+            val density = resources.displayMetrics.density
+            val iconMargin = (8 * density).toInt()
+
+            downloadsIcon.visibility = if (isDownloads) View.VISIBLE else View.GONE
+            (downloadsLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginStart = if (isDownloads) iconMargin else 0
+                downloadsLabel.layoutParams = lp
+            }
+
+            browserIcon.visibility = if (!isDownloads) View.VISIBLE else View.GONE
+            (browserLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginStart = if (!isDownloads) iconMargin else 0
+                browserLabel.layoutParams = lp
+            }
+
+            downloadsItem.background = if (isDownloads) activeBg else inactiveBg
+            downloadsIcon.imageTintList = ColorStateList.valueOf(if (isDownloads) colorActive else colorInactive)
+            downloadsLabel.setTextColor(if (isDownloads) colorActive else colorInactive)
+            downloadsLabel.setTypeface(null, if (isDownloads) Typeface.BOLD else Typeface.NORMAL)
+
+            browserItem.background = if (!isDownloads) activeBg else inactiveBg
+            browserIcon.imageTintList = ColorStateList.valueOf(if (!isDownloads) colorActive else colorInactive)
+            browserLabel.setTextColor(if (!isDownloads) colorActive else colorInactive)
+            browserLabel.setTypeface(null, if (!isDownloads) Typeface.BOLD else Typeface.NORMAL)
+        }
+    }
+
+    private lateinit var bottomNav: ExpressiveNavBar
     private lateinit var toolbar: androidx.appcompat.widget.Toolbar
     private lateinit var toolbarTitle: TextView
 
-    /** The theme style res applied via [setTheme] in [onCreate], so
-     *  [onResume] can tell whether Settings changed the theme/dark-mode
-     *  while this Activity was stopped underneath it and needs a
-     *  [recreate] to repaint -- setTheme() only takes effect pre-onCreate,
-     *  so there's no cheaper way to pick up a change made elsewhere. */
-    private var appliedThemeStyleRes: Int = 0
+    private val clipboardManager by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
-    // Set synchronously inside bottomNav's item-selected listener, the
-    // instant a tab is chosen -- unlike bottomNav.selectedItemId (its own
-    // dispatch-order quirks) or a fragment's isHidden state (only updates
-    // once its FragmentTransaction.commit() actually lands, which is
-    // scheduled, not immediate), this has zero lag. Used by
-    // showDownloadStartedSnackbar() to know which tab is really on screen
-    // *right now*. Not meant to survive process death -- onResume's
-    // syncToolbarWithVisibleFragment() re-derives state from the real
-    // fragments for that case instead.
-    private var currentTabTag: String = TAG_HOME
+    private val filenameClient by lazy {
+        OkHttpClient.Builder()
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
 
-    // ── Swipe-to-switch-tabs (bottom nav) ───────────────────────────────
-    // Was previously wired into the Browser fragment's WebView (switching
-    // between open website tabs there); moved here so a fast horizontal
-    // swipe anywhere in the app instead switches between the Home/Browser/
-    // Downloads bottom nav destinations. Living in dispatchTouchEvent (as
-    // opposed to a per-view touch listener) is what lets it see swipes
-    // that happen over a WebView or RecyclerView -- those views consume
-    // their own touch events before a listener on a parent view would ever
-    // see them, but the Activity sees every touch event first regardless.
-    // Deliberately conservative (2x horizontal-over-vertical dominance + a
-    // minimum distance) so it doesn't fire on ordinary vertical scrolling,
-    // and it never consumes the event (super.dispatchTouchEvent still runs
-    // unconditionally below), so normal scrolling/tapping/zooming is
-    // completely unaffected.
-    private val bottomNavSwipeOrder = listOf(R.id.nav_home, R.id.nav_browser, R.id.nav_downloads)
+    private var pendingSaveDirCallback: ((String) -> Unit)? = null
+
+    private val pickTorrentFileLauncher: ActivityResultLauncher<Array<String>> =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+            if (uri != null) onTorrentFilePicked(uri)
+        }
+
+    private val pickSaveDirLauncher: ActivityResultLauncher<Uri?> =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+            if (uri == null) return@registerForActivityResult
+            val path = resolveTreeUriToPath(uri)
+            if (path != null) {
+                pendingSaveDirCallback?.invoke(path)
+            } else {
+                Toast.makeText(
+                    this,
+                    R.string.torrent_dialog_save_path_failed,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+    private var appliedThemeKey: String = ""
+    private var appliedIsDark: Boolean = true
+    private var appliedIsAmoled: Boolean = false
+
+    private var currentTabTag: String = TAG_DOWNLOADS
+
+    private val bottomNavSwipeOrder = listOf(R.id.nav_downloads, R.id.nav_browser)
 
     private val bottomNavSwipeDetector by lazy {
         val minDistancePx = 80 * resources.displayMetrics.density
@@ -201,8 +334,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // re-runs onCreate() (which updates appliedThemeStyleRes) then
         // onResume() again, so the check below just passes through to
         // syncToolbarWithVisibleFragment() on that second pass.
-        val currentThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
-        if (currentThemeStyleRes != appliedThemeStyleRes) {
+        if (Settings.appTheme().storageKey != appliedThemeKey ||
+            Settings.isDarkMode() != appliedIsDark ||
+            Settings.isAmoledMode() != appliedIsAmoled) {
             recreate()
             return
         }
@@ -220,27 +354,46 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             return
         }
         toolbar.visibility = android.view.View.VISIBLE
-        val downloadsVisible = fm.findFragmentByTag(TAG_DOWNLOADS)?.isHidden == false
-        toolbarTitle.text = if (downloadsVisible) "Downloads" else getString(R.string.app_header_title)
-        // currentTabTag defaults to TAG_HOME (see its declaration), which
-        // is only wrong here if Downloads was the real tab -- e.g. process
-        // death and recreation while sitting on Downloads restores that
-        // fragment's shown state via savedInstanceState, but this plain
-        // field always resets to its declared default on a fresh onCreate.
-        if (downloadsVisible) {
-            currentTabTag = TAG_DOWNLOADS
-        }
+        toolbarTitle.text = getString(R.string.tab_downloads)
+        currentTabTag = TAG_DOWNLOADS
+    }
+
+    private fun applySystemBarColors() {
+        val isDark = Settings.isDarkMode()
+        val isAmoled = isDark && Settings.isAmoledMode()
+
+        // Status bar must match the header (colorSurfaceContainerLow)
+        val headerColor = MaterialColors.getColor(
+            this,
+            com.google.android.material.R.attr.colorSurfaceContainerLow,
+            Color.BLACK
+        )
+        // Navigation bar matches the body background (pure black in AMOLED mode)
+        val navBarColor = if (isAmoled) Color.BLACK else MaterialColors.getColor(
+            this,
+            android.R.attr.colorBackground,
+            Color.BLACK
+        )
+        window.statusBarColor = headerColor
+        window.navigationBarColor = navBarColor
+
+        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = !isDark
+        insetsController.isAppearanceLightNavigationBars = !isDark
     }
 
     // ── onCreate ──────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Must run before super.onCreate() -- Activity.setTheme() only takes
-        // effect if called before the window/decor is created.
-        appliedThemeStyleRes = Settings.appTheme().resolvedStyleRes(Settings.isDarkMode())
-        setTheme(appliedThemeStyleRes)
+        // Must run before super.onCreate() -- Activity theme setup applies
+        // before the window/decor is created.
+        appliedThemeKey = Settings.appTheme().storageKey
+        appliedIsDark = Settings.isDarkMode()
+        appliedIsAmoled = Settings.isAmoledMode()
+        com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        applySystemBarColors()
 
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         this.toolbar = toolbar
@@ -253,24 +406,44 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // on its own without catching taps anywhere else across the bar.
         val toolbarTitle = findViewById<TextView>(R.id.toolbarTitle)
         this.toolbarTitle = toolbarTitle
-        toolbarTitle.text = getString(R.string.app_header_title)
+        toolbarTitle.text = getString(R.string.tab_downloads)
         toolbarTitle.setOnClickListener { toggleDarkMode() }
 
         // Add fragments only on a fresh start (not after config-change)
         if (savedInstanceState == null) {
-            val home      = HomeFragment()
-            val browser   = BrowserFragment()
             val downloads = DownloadsFragment()
+            val browser   = BrowserFragment()
             supportFragmentManager.beginTransaction()
-                .add(R.id.fragmentContainer, home,      TAG_HOME)
-                .add(R.id.fragmentContainer, browser,   TAG_BROWSER)
                 .add(R.id.fragmentContainer, downloads, TAG_DOWNLOADS)
-                .hide(browser)
-                .hide(downloads)   // Home is the initial tab
+                .add(R.id.fragmentContainer, browser,   TAG_BROWSER)
+                .hide(browser)   // Downloads is the initial tab
                 .commit()
         }
 
-        bottomNav = findViewById(R.id.bottomNav)
+        val navBarLayout = findViewById<View>(R.id.navBarLayout)
+        bottomNav = ExpressiveNavBar(
+            layout = navBarLayout,
+            downloadsItem = findViewById(R.id.navItemDownloads),
+            browserItem = findViewById(R.id.navItemBrowser),
+            downloadsIcon = findViewById(R.id.navDownloadsIcon),
+            downloadsLabel = findViewById(R.id.navDownloadsLabel),
+            downloadsBadge = findViewById(R.id.navDownloadsBadge),
+            browserIcon = findViewById(R.id.navBrowserIcon),
+            browserLabel = findViewById(R.id.navBrowserLabel),
+            addFab = findViewById(R.id.navAddFab)
+        )
+
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(navBarLayout) { view, insets ->
+            val navBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            val basePaddingBottom = (12 * resources.displayMetrics.density).toInt()
+            view.setPadding(
+                view.paddingLeft,
+                view.paddingTop,
+                view.paddingRight,
+                navBars.bottom + basePaddingBottom
+            )
+            insets
+        }
 
         // adjustResize needs somewhere for the keyboard's shrink to go so an
         // EditText near the bottom (e.g. the browser's find-in-page bar or
@@ -289,13 +462,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         // box, browser find-in-page, address bar, any dialog EditText, etc.)
         // instead of leaving it floating right above the keys. Covers every
         // fragment from one place since it lives on the Activity's root view.
-        //
-        // Uses the classic visible-display-frame technique rather than
-        // WindowInsetsCompat's ime() type: this app doesn't draw edge-to-edge
-        // (no setDecorFitsSystemWindows(false)), so under plain adjustResize
-        // the window itself already shrinks to fit above the keyboard and the
-        // ime() inset reaching a listener is 0 -- the resize *is* the
-        // accommodation, there's nothing left for that inset to report.
         val rootContentView = findViewById<android.view.View>(android.R.id.content)
         val fragmentContainer = findViewById<android.view.View>(R.id.fragmentContainer)
         rootContentView.viewTreeObserver.addOnGlobalLayoutListener {
@@ -303,23 +469,9 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             rootContentView.getWindowVisibleDisplayFrame(visibleFrame)
             val rootHeight = rootContentView.rootView.height
             val keyboardHeight = rootHeight - visibleFrame.bottom
-            // >15% of screen height is the standard threshold for "that's the
-            // keyboard, not just a small layout jitter" (nav bar / cutout /
-            // rounding noise stays well under this).
             val keyboardOpen = rootHeight > 0 && keyboardHeight > rootHeight * 0.15
             bottomNav.visibility = if (keyboardOpen) android.view.View.GONE else android.view.View.VISIBLE
 
-            // bottomNav floats over contentColumn via layout_gravity="bottom"
-            // rather than being a layout sibling that pushes content up, so
-            // fragmentContainer's real height extends the full screen height
-            // underneath it. Fragments whose content ends well above that
-            // strip never notice, but anything anchored to the fragment's
-            // own bottom (e.g. Downloads' Cancel All / Clear All row) was
-            // rendering *behind* the opaque nav bar -- laid out fine, just
-            // physically covered, so it never appeared. Reserve bottomNav's
-            // own height as bottom padding on fragmentContainer (0 while
-            // it's hidden for the keyboard) so fragment content stops there
-            // instead of running underneath it.
             if (bottomNav.height > 0) {
                 fragmentContainer.setPadding(
                     fragmentContainer.paddingLeft,
@@ -331,53 +483,38 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
 
         bottomNav.setOnItemSelectedListener { item ->
-            // History is layered on top via addToBackStack (see openHistoryScreen)
-            // -- showFragment() below only shows/hides the three base tab
-            // fragments underneath it, so without popping first, switching
-            // tabs (by tap OR the swipe gesture) left History visibly stuck
-            // on top no matter which tab got selected underneath.
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
             }
             when (item.itemId) {
-                R.id.nav_home -> {
-                    currentTabTag = TAG_HOME
-                    showFragment(TAG_HOME)
-                    toolbar.visibility = android.view.View.VISIBLE
-                    toolbarTitle.text = getString(R.string.app_header_title)
-                }
-                R.id.nav_browser -> {
-                    currentTabTag = TAG_BROWSER
-                    showFragment(TAG_BROWSER)
-                    // The Browser fragment's own address bar is the top bar here
-                    // (with its own reload/tabs/overflow controls) -- the shared
-                    // app toolbar (and its "Browser" title) would just duplicate it.
-                    toolbar.visibility = android.view.View.GONE
-                }
                 R.id.nav_downloads -> {
                     currentTabTag = TAG_DOWNLOADS
                     showFragment(TAG_DOWNLOADS)
                     toolbar.visibility = android.view.View.VISIBLE
-                    toolbarTitle.text = "Downloads"
+                    toolbarTitle.text = getString(R.string.tab_downloads)
+                    invalidateOptionsMenu()
+                    true
                 }
+                R.id.nav_add -> {
+                    showAddDownloadDialog()
+                    false
+                }
+                R.id.nav_browser -> {
+                    currentTabTag = TAG_BROWSER
+                    showFragment(TAG_BROWSER)
+                    toolbar.visibility = android.view.View.GONE
+                    invalidateOptionsMenu()
+                    true
+                }
+                else -> false
             }
-            invalidateOptionsMenu()
-            true
         }
 
         // Back handling, gesture or button:
-        //  1. Browser tab with page history / a loaded page -> step back
-        //     through it (or back to the speed dial). Handled entirely by
-        //     BrowserFragment.onBackPressed().
-        //  2. Browser tab already on the speed dial (or any other tab) ->
-        //     jump to the Home tab, rather than falling straight through to
-        //     the default behavior and closing the app. This is what used to
-        //     be missing: searching or opening a site, then going back, used
-        //     to exit the app outright instead of landing on Home.
-        //  3. Already on the Home tab -> default behavior (exits the app).
+        //  1. Browser tab with page history / a loaded page -> step back through it.
+        //  2. Browser tab -> jump to Downloads tab first before exiting.
+        //  3. Already on Downloads tab -> exit the app.
         onBackPressedDispatcher.addCallback(this) {
-            // History (or any other overlay screen added via addToBackStack)
-            // is on top -- pop it first, same as it would in any other app.
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack()
                 return@addCallback
@@ -386,8 +523,8 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             if (browser?.isVisible == true && browser.onBackPressed()) {
                 return@addCallback
             }
-            if (bottomNav.selectedItemId != R.id.nav_home) {
-                bottomNav.selectedItemId = R.id.nav_home
+            if (bottomNav.selectedItemId != R.id.nav_downloads) {
+                bottomNav.selectedItemId = R.id.nav_downloads
                 return@addCallback
             }
             isEnabled = false
@@ -401,13 +538,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                 it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
                 it.status == ItemStatus.SAVING || it.status == ItemStatus.RETRYING
             }
-            val badge = bottomNav.getOrCreateBadge(R.id.nav_downloads)
-            if (active > 0) {
-                badge.isVisible = true
-                badge.number    = active
-            } else {
-                badge.isVisible = false
-            }
+            bottomNav.updateBadge(active)
         }
 
         // Watches items sent through the Retry button; pops an IDM-style
@@ -469,16 +600,13 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         intent.action = null
         intent.data = null
 
-        bottomNav.selectedItemId = R.id.nav_home
+        bottomNav.selectedItemId = R.id.nav_downloads
 
-        // Magnet links and direct .torrent file URLs get the Editor dialog
-        // first (rename / check link / change save folder), same as ADM's
-        // "external download manager" popup -- instead of downloading
-        // immediately. Everything else (share links, fitgirl pages,
-        // generic direct URLs) keeps going straight to prepare/download,
-        // unchanged.
+        // External download manager flow: show a popup allowing user to
+        // copy/modify link, rename file, and change save folder in a
+        // collapsible section. Torrents also show all files for selection.
         if (LinkParser.isTorrentLink(url)) {
-            showIncomingTorrentDialog(url)
+            showAddTorrentDialog(prefillLink = url)
             return
         }
 
@@ -486,13 +614,8 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         if (needsPrepare) {
             triggerPrepare(listOf(url))
         } else {
-            triggerDownloadDirect(listOf(url))
+            showAddDownloadDialog(url)
         }
-    }
-
-    private fun showIncomingTorrentDialog(link: String) {
-        (supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment)
-            ?.showAddTorrentDialogForIncomingLink(link)
     }
 
     /**
@@ -519,19 +642,486 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
 
     private fun showFragment(tag: String) {
         val fm        = supportFragmentManager
-        val home      = fm.findFragmentByTag(TAG_HOME)      ?: return
         val browser   = fm.findFragmentByTag(TAG_BROWSER)   ?: return
         val downloads = fm.findFragmentByTag(TAG_DOWNLOADS) ?: return
         fm.beginTransaction().apply {
             when (tag) {
-                TAG_HOME      -> { show(home); hide(browser); hide(downloads) }
-                TAG_BROWSER   -> { hide(home); show(browser); hide(downloads) }
-                else          -> { hide(home); hide(browser); show(downloads) }
+                TAG_BROWSER -> { show(browser); hide(downloads) }
+                else        -> { hide(browser); show(downloads) }
             }
         }.commit()
     }
 
-    // ── HomeFragment.Callbacks ────────────────────────────────────────────
+    // ── Add Download / Torrent Dialogs ─────────────────────────────────────
+
+    private fun defaultSavePath(): String = if (Settings.saveToDownloadsFolder()) {
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+    } else {
+        File(Environment.getExternalStorageDirectory(), "Xmd").absolutePath
+    }
+
+    private fun resolveTreeUriToPath(treeUri: Uri): String? {
+        return runCatching {
+            val docId = DocumentsContract.getTreeDocumentId(treeUri)
+            val parts = docId.split(":", limit = 2)
+            val volume = parts.getOrNull(0)
+            val relativePath = parts.getOrNull(1).orEmpty()
+            if (!volume.equals("primary", ignoreCase = true)) return@runCatching null
+            val base = Environment.getExternalStorageDirectory()
+            (if (relativePath.isBlank()) base else File(base, relativePath)).absolutePath
+        }.getOrNull()
+    }
+
+    private fun magnetDisplayName(link: String): String? {
+        if (!LinkParser.isMagnetLink(link)) return null
+        val dn = Regex("[?&]dn=([^&]+)").find(link)?.groupValues?.get(1) ?: return null
+        return runCatching { Uri.decode(dn.replace('+', ' ')) }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun onTorrentFilePicked(uri: Uri) {
+        val displayName = queryDisplayName(uri)
+        if (displayName != null && !displayName.endsWith(".torrent", ignoreCase = true)) {
+            Toast.makeText(this, "Please select a .torrent file", Toast.LENGTH_SHORT).show()
+            return
+        }
+        runCatching {
+            contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
+        showAddTorrentDialog(prefillTorrentUri = uri, prefillDisplayName = displayName)
+    }
+
+    private fun queryDisplayName(uri: Uri): String? {
+        return runCatching {
+            contentResolver.query(
+                uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+            }
+        }.getOrNull()
+    }
+
+    /**
+     * Sizes the popup dialog to 90% of the phone screen width in portrait,
+     * while enforcing a maximum width of 500dp in landscape and on tablets
+     * so it never stretches awkwardly edge-to-edge on large displays.
+     */
+    private fun applyResponsiveDialogWidth(dialog: androidx.appcompat.app.AlertDialog) {
+        val window = dialog.window ?: return
+        val dm = resources.displayMetrics
+        val screenWidth = dm.widthPixels
+        val screenHeight = dm.heightPixels
+
+        val cornerRadiusPx = 28 * dm.density
+        val surfaceColor = MaterialColors.getColor(
+            this,
+            com.google.android.material.R.attr.colorSurface,
+            Color.WHITE
+        )
+        val shapeDrawable = MaterialShapeDrawable(
+            ShapeAppearanceModel.builder()
+                .setAllCornerSizes(cornerRadiusPx)
+                .build()
+        ).apply {
+            fillColor = ColorStateList.valueOf(surfaceColor)
+            elevation = 6 * dm.density
+        }
+        window.setBackgroundDrawable(shapeDrawable)
+        window.decorView.clipToOutline = true
+
+        val maxWidthPx = (500 * dm.density).toInt()
+
+        val isLandscape = screenWidth > screenHeight
+        val desiredWidth = if (isLandscape) {
+            (screenWidth * 0.60f).toInt().coerceAtMost(maxWidthPx)
+        } else {
+            (screenWidth * 0.90f).toInt().coerceAtMost(maxWidthPx)
+        }
+
+        val lp = window.attributes
+        lp.width = desiredWidth
+        window.attributes = lp
+        window.setLayout(desiredWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    fun showAddDownloadDialog(link: String? = null) {
+        val dialogView = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_add_download, null)
+
+        val linkInput = dialogView.findViewById<EditText>(R.id.downloadLinkInput)
+        val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadCopyLinkButton)
+        val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadPasteLinkButton)
+        val pickFileText = dialogView.findViewById<TextView>(R.id.downloadPickFileText)
+        val nameInput = dialogView.findViewById<EditText>(R.id.downloadNameInput)
+        val advancedHeader = dialogView.findViewById<View>(R.id.downloadAdvancedHeader)
+        val advancedChevron = dialogView.findViewById<ImageView>(R.id.downloadAdvancedChevron)
+        val advancedContent = dialogView.findViewById<View>(R.id.downloadAdvancedContent)
+        val saveToPathText = dialogView.findViewById<TextView>(R.id.downloadSaveToPathText)
+        val changePathButton = dialogView.findViewById<MaterialButton>(R.id.downloadChangePathButton)
+        val startButton = dialogView.findViewById<MaterialButton>(R.id.downloadStartButton)
+        val cancelButton = dialogView.findViewById<MaterialButton>(R.id.downloadCancelButton)
+
+        var customSaveDirPath: String? = null
+        var nameManuallyEdited = false
+
+        val initialLink = link?.trim().orEmpty()
+
+        if (initialLink.isNotEmpty()) {
+            linkInput.setText(initialLink)
+        }
+        saveToPathText.text = defaultSavePath()
+
+        var probeJob: Job? = null
+        fun updateNameForLink(currentLink: String) {
+            probeJob?.cancel()
+            if (nameManuallyEdited) return
+            if (LinkParser.isMagnetLink(currentLink)) {
+                val detected = magnetDisplayName(currentLink)
+                if (!detected.isNullOrBlank()) nameInput.setText(detected)
+            } else if (currentLink.isNotBlank()) {
+                val guessed = DownloadEngine.filenameFromLink(currentLink).ifBlank { DownloadEngine.filenameFromUrl(currentLink) }
+                if (guessed.isNotBlank()) nameInput.setText(guessed)
+                probeJob = lifecycleScope.launch {
+                    val probed = withContext(Dispatchers.IO) {
+                        DownloadEngine.probeRealFilename(filenameClient, currentLink)
+                    }
+                    if (!nameManuallyEdited && !probed.isNullOrBlank()) {
+                        nameInput.setText(probed)
+                    }
+                }
+            }
+        }
+
+        if (initialLink.isNotEmpty()) {
+            updateNameForLink(initialLink)
+        }
+
+        linkInput.doAfterTextChanged {
+            val text = it?.toString()?.trim().orEmpty()
+            updateNameForLink(text)
+        }
+
+        nameInput.doAfterTextChanged { nameManuallyEdited = true }
+
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.setOnDismissListener { probeJob?.cancel() }
+
+        pickFileText.setOnClickListener {
+            dialog.dismiss()
+            pickTorrentFileLauncher.launch(
+                arrayOf("application/x-bittorrent", "application/octet-stream")
+            )
+        }
+
+        copyLinkButton.setOnClickListener {
+            val text = linkInput.text?.toString()?.trim().orEmpty()
+            if (text.isNotEmpty()) {
+                clipboardManager.setPrimaryClip(ClipData.newPlainText("Download link", text))
+                Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        pasteLinkButton.setOnClickListener {
+            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
+            if (clipText.isNotEmpty()) {
+                linkInput.setText(clipText)
+                linkInput.setSelection(clipText.length)
+                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        advancedHeader.setOnClickListener {
+            val expanding = advancedContent.visibility != View.VISIBLE
+            advancedContent.visibility = if (expanding) View.VISIBLE else View.GONE
+            advancedChevron.animate().rotation(if (expanding) 270f else 90f).setDuration(150).start()
+        }
+
+        changePathButton.setOnClickListener {
+            pendingSaveDirCallback = { path ->
+                customSaveDirPath = path
+                saveToPathText.text = path
+            }
+            pickSaveDirLauncher.launch(null)
+        }
+
+        cancelButton.setOnClickListener { dialog.dismiss() }
+
+        startButton.setOnClickListener {
+            val finalLink = linkInput.text?.toString()?.trim().orEmpty()
+            if (finalLink.isEmpty()) {
+                Toast.makeText(this, "Enter a valid link", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val finalName = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
+            probeJob?.cancel()
+            dialog.dismiss()
+
+            if (LinkParser.isTorrentLink(finalLink)) {
+                showAddTorrentDialog(prefillLink = finalLink)
+            } else if (LinkParser.isShareLink(finalLink) || LinkParser.isFitgirlPage(finalLink)) {
+                triggerPrepare(listOf(finalLink))
+            } else {
+                triggerDownloadDirectCustom(finalLink, finalName, customSaveDirPath)
+            }
+        }
+
+        dialog.setOnShowListener { applyResponsiveDialogWidth(dialog) }
+        dialogView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyResponsiveDialogWidth(dialog)
+        }
+
+        dialog.show()
+        applyResponsiveDialogWidth(dialog)
+    }
+
+    fun showAddTorrentDialog(
+        prefillLink: String? = null,
+        prefillTorrentUri: Uri? = null,
+        prefillDisplayName: String? = null
+    ) {
+        val dialogView = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_add_torrent, null)
+
+        val linkInput = dialogView.findViewById<EditText>(R.id.torrentLinkInput)
+        val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.torrentCopyLinkButton)
+        val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.torrentPasteLinkButton)
+        val nameInput = dialogView.findViewById<EditText>(R.id.torrentNameInput)
+        val pickFileText = dialogView.findViewById<TextView>(R.id.torrentPickFileText)
+        val advancedHeader = dialogView.findViewById<View>(R.id.torrentAdvancedHeader)
+        val advancedChevron = dialogView.findViewById<ImageView>(R.id.torrentAdvancedChevron)
+        val advancedContent = dialogView.findViewById<View>(R.id.torrentAdvancedContent)
+        val saveToPathText = dialogView.findViewById<TextView>(R.id.torrentSaveToPathText)
+        val changePathButton = dialogView.findViewById<MaterialButton>(R.id.torrentChangePathButton)
+        val startButton = dialogView.findViewById<MaterialButton>(R.id.torrentStartButton)
+        val cancelButton = dialogView.findViewById<MaterialButton>(R.id.torrentCancelButton)
+
+        val filesCountText = dialogView.findViewById<TextView>(R.id.torrentFilesCountText)
+        val selectAllButton = dialogView.findViewById<MaterialButton>(R.id.torrentSelectAllButton)
+        val filesLoadingContainer = dialogView.findViewById<View>(R.id.torrentFilesLoadingContainer)
+        val filesErrorContainer = dialogView.findViewById<View>(R.id.torrentFilesErrorContainer)
+        val filesListCard = dialogView.findViewById<View>(R.id.torrentFilesListCard)
+        val filesRecyclerView = dialogView.findViewById<RecyclerView>(R.id.torrentFilesRecyclerView)
+
+        var customSaveDirPath: String? = null
+        var nameManuallyEdited = false
+        var fetchJob: Job? = null
+
+        saveToPathText.text = defaultSavePath()
+
+        val adapter = TorrentFileAdapter { count, bytes ->
+            val total = if (filesRecyclerView.adapter is TorrentFileAdapter) {
+                (filesRecyclerView.adapter as TorrentFileAdapter).getTotalCount()
+            } else count
+            filesCountText.text = "• $count of $total (${TorrentFileAdapter.formatBytes(bytes)})"
+            if (filesRecyclerView.adapter is TorrentFileAdapter) {
+                val allSelected = (filesRecyclerView.adapter as TorrentFileAdapter).areAllSelected()
+                selectAllButton.text = getString(
+                    if (allSelected) R.string.torrent_dialog_deselect_all else R.string.torrent_dialog_select_all
+                )
+            }
+            startButton.isEnabled = count > 0
+        }
+        filesRecyclerView.layoutManager = LinearLayoutManager(this)
+        filesRecyclerView.adapter = adapter
+
+        selectAllButton.setOnClickListener {
+            val select = !adapter.areAllSelected()
+            adapter.selectAll(select)
+        }
+
+        fun populateTorrentFiles(ti: TorrentInfo) {
+            val count = ti.numFiles()
+            val entries = (0 until count).map { idx ->
+                TorrentFileEntry(
+                    index = idx,
+                    path = runCatching { ti.files().filePath(idx) }.getOrNull() ?: "File ${idx + 1}",
+                    sizeBytes = runCatching { ti.files().fileSize(idx) }.getOrNull() ?: 0L,
+                    isSelected = true
+                )
+            }
+            adapter.setFiles(entries)
+            filesLoadingContainer.visibility = View.GONE
+            filesErrorContainer.visibility = View.GONE
+            filesListCard.visibility = View.VISIBLE
+            selectAllButton.visibility = View.VISIBLE
+        }
+
+        fun loadMetadataForMagnet(link: String) {
+            fetchJob?.cancel()
+            if (!LinkParser.isMagnetLink(link)) {
+                filesLoadingContainer.visibility = View.GONE
+                filesErrorContainer.visibility = View.GONE
+                filesListCard.visibility = View.GONE
+                selectAllButton.visibility = View.GONE
+                filesCountText.text = ""
+                return
+            }
+
+            filesLoadingContainer.visibility = View.VISIBLE
+            filesErrorContainer.visibility = View.GONE
+            filesListCard.visibility = View.GONE
+            selectAllButton.visibility = View.GONE
+            filesCountText.text = ""
+
+            fetchJob = lifecycleScope.launch {
+                val tempDir = File(cacheDir, "torrent_meta")
+                val bytes = withContext(Dispatchers.IO) {
+                    TorrentSession.fetchMetadata(link, timeoutSeconds = 25, tempDir)
+                }
+                if (bytes != null) {
+                    val ti = runCatching { TorrentInfo.bdecode(bytes) }.getOrNull()
+                    if (ti != null) {
+                        if (!nameManuallyEdited && ti.name().isNotBlank()) {
+                            nameInput.setText(ti.name())
+                        }
+                        populateTorrentFiles(ti)
+                        return@launch
+                    }
+                }
+                filesLoadingContainer.visibility = View.GONE
+                filesErrorContainer.visibility = View.VISIBLE
+                filesListCard.visibility = View.GONE
+                selectAllButton.visibility = View.GONE
+            }
+        }
+
+        fun updateNamePreview() {
+            if (nameManuallyEdited) return
+            val link = linkInput.text?.toString()?.trim().orEmpty()
+            val detected = magnetDisplayName(link)
+            if (!detected.isNullOrBlank()) {
+                nameInput.setText(detected)
+            }
+        }
+
+        linkInput.doAfterTextChanged {
+            val link = linkInput.text?.toString()?.trim().orEmpty()
+            updateNamePreview()
+            if (prefillTorrentUri == null && LinkParser.isMagnetLink(link)) {
+                loadMetadataForMagnet(link)
+            }
+        }
+        nameInput.doAfterTextChanged { nameManuallyEdited = true }
+
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        dialog.setOnDismissListener { fetchJob?.cancel() }
+
+        if (prefillTorrentUri != null) {
+            linkInput.setText(prefillTorrentUri.toString())
+            linkInput.isEnabled = false
+            pickFileText.visibility = View.GONE
+            copyLinkButton.visibility = View.GONE
+            pasteLinkButton.visibility = View.GONE
+            if (!prefillDisplayName.isNullOrBlank()) {
+                nameInput.setText(prefillDisplayName)
+            }
+            runCatching {
+                val bytes = contentResolver.openInputStream(prefillTorrentUri)?.use { it.readBytes() }
+                if (bytes != null) {
+                    val ti = TorrentInfo.bdecode(bytes)
+                    if (!nameManuallyEdited && ti.name().isNotBlank()) {
+                        nameInput.setText(ti.name())
+                    }
+                    populateTorrentFiles(ti)
+                }
+            }
+        } else if (!prefillLink.isNullOrBlank()) {
+            linkInput.setText(prefillLink)
+            nameManuallyEdited = false
+            updateNamePreview()
+            if (LinkParser.isMagnetLink(prefillLink)) {
+                loadMetadataForMagnet(prefillLink)
+            }
+        }
+
+        copyLinkButton.setOnClickListener {
+            val link = linkInput.text?.toString()?.trim().orEmpty()
+            if (link.isEmpty()) return@setOnClickListener
+            clipboardManager.setPrimaryClip(ClipData.newPlainText("Magnet link", link))
+            Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
+        }
+
+        pasteLinkButton.setOnClickListener {
+            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
+            if (clipText.isNotEmpty()) {
+                linkInput.setText(clipText)
+                linkInput.setSelection(clipText.length)
+                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        advancedHeader.setOnClickListener {
+            val expanding = advancedContent.visibility != View.VISIBLE
+            advancedContent.visibility = if (expanding) View.VISIBLE else View.GONE
+            advancedChevron.animate().rotation(if (expanding) 270f else 90f).setDuration(150).start()
+        }
+
+        changePathButton.setOnClickListener {
+            pendingSaveDirCallback = { path ->
+                customSaveDirPath = path
+                saveToPathText.text = path
+            }
+            pickSaveDirLauncher.launch(null)
+        }
+
+        pickFileText.setOnClickListener {
+            dialog.dismiss()
+            pickTorrentFileLauncher.launch(
+                arrayOf("application/x-bittorrent", "application/octet-stream")
+            )
+        }
+
+        cancelButton.setOnClickListener { dialog.dismiss() }
+
+        startButton.setOnClickListener {
+            if (adapter.itemCount > 0 && adapter.getSelectedCount() == 0) {
+                Toast.makeText(this, R.string.torrent_dialog_no_files_selected, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val selectedIndices = if (adapter.itemCount > 0) {
+                if (adapter.areAllSelected()) null else adapter.getSelectedIndices().joinToString(",")
+            } else null
+
+            val name = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
+
+            if (prefillTorrentUri != null) {
+                dialog.dismiss()
+                triggerDownloadTorrentFile(prefillTorrentUri, name, customSaveDirPath, selectedIndices)
+            } else {
+                val link = linkInput.text?.toString()?.trim().orEmpty()
+                if (!LinkParser.isTorrentLink(link)) {
+                    Toast.makeText(this, R.string.torrent_dialog_invalid_link, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                triggerDownloadTorrentMagnet(link, name, customSaveDirPath, selectedIndices)
+            }
+        }
+
+        dialog.setOnShowListener { applyResponsiveDialogWidth(dialog) }
+        dialogView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyResponsiveDialogWidth(dialog)
+        }
+
+        dialog.show()
+        applyResponsiveDialogWidth(dialog)
+    }
+
+    // ── Download Triggers ──────────────────────────────────────────────────
 
     override fun triggerPrepare(lines: List<String>) {
         lifecycleScope.launch {
@@ -546,16 +1136,16 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
     }
 
-    override fun triggerDownloadReady() {
+    fun triggerDownloadReady() {
         DownloadService.start(this)
         showDownloadStartedSnackbar()
     }
 
-    override fun openDownloadsTab() {
+    fun openDownloadsTab() {
         bottomNav.selectedItemId = R.id.nav_downloads
     }
 
-    override fun triggerDownloadDirect(lines: List<String>) {
+    fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
         val (youtubeLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
 
@@ -586,26 +1176,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         }
     }
 
-    override fun triggerDownloadTorrentFile(uri: Uri, displayName: String?) {
-        val link = uri.toString()
-        QueueRepository.setLinks(listOf(link))
-        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
-        if (item != null) {
-            QueueRepository.update(item.id) {
-                it.copy(directUrl = link, status = ItemStatus.READY, fileName = displayName ?: it.fileName)
-            }
-        }
-        DownloadService.start(this)
-        showDownloadStartedSnackbar()
-    }
-
-    /**
-     * From the Editor dialog (HomeFragment.showAddTorrentDialog) -- both the
-     * manual "+" button and an incoming external magnet/.torrent link go
-     * through here once the user hits Start, carrying whatever they
-     * customized (rename, save-folder override) along with it.
-     */
-    override fun triggerDownloadTorrentMagnet(link: String, name: String?, customSaveDirPath: String?) {
+    fun triggerDownloadDirectCustom(link: String, name: String?, customSaveDirPath: String?) {
         QueueRepository.setLinks(listOf(link))
         val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
         if (item != null) {
@@ -615,6 +1186,59 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
                     status = ItemStatus.READY,
                     fileName = name ?: it.fileName,
                     customSaveDirPath = customSaveDirPath
+                )
+            }
+        }
+        DownloadService.start(this)
+        showDownloadStartedSnackbar()
+    }
+
+    fun triggerDownloadTorrentFile(
+        uri: Uri,
+        displayName: String?,
+        customSaveDirPath: String?,
+        selectedFileIndices: String?
+    ) {
+        val link = uri.toString()
+        QueueRepository.setLinks(listOf(link))
+        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
+        if (item != null) {
+            QueueRepository.update(item.id) {
+                it.copy(
+                    directUrl = link,
+                    status = ItemStatus.READY,
+                    fileName = displayName ?: it.fileName,
+                    customSaveDirPath = customSaveDirPath,
+                    selectedFileIndices = selectedFileIndices
+                )
+            }
+        }
+        DownloadService.start(this)
+        showDownloadStartedSnackbar()
+    }
+
+    /**
+     * From the Editor dialog (showAddTorrentDialog) -- both the
+     * manual "+" button and an incoming external magnet/.torrent link go
+     * through here once the user hits Start, carrying whatever they
+     * customized (rename, save-folder override, selected files) along with it.
+     */
+    fun triggerDownloadTorrentMagnet(
+        link: String,
+        name: String?,
+        customSaveDirPath: String?,
+        selectedFileIndices: String?
+    ) {
+        QueueRepository.setLinks(listOf(link))
+        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
+        if (item != null) {
+            QueueRepository.update(item.id) {
+                it.copy(
+                    directUrl = link,
+                    status = ItemStatus.READY,
+                    fileName = name ?: it.fileName,
+                    customSaveDirPath = customSaveDirPath,
+                    selectedFileIndices = selectedFileIndices
                 )
             }
         }
@@ -667,7 +1291,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
             R.string.download_started_toast,
             Snackbar.LENGTH_LONG
         ).setAction(R.string.action_view) {
-            findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_downloads
+            bottomNav.selectedItemId = R.id.nav_downloads
         }
 
         val sideMargin = (16 * resources.displayMetrics.density).toInt()
@@ -850,7 +1474,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         supportFragmentManager.popBackStack(TAG_HISTORY, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         browser?.openUrl(url)
-        findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
+        bottomNav.selectedItemId = R.id.nav_browser
     }
 
     private fun openBookmarksScreen() {
@@ -868,7 +1492,7 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         supportFragmentManager.popBackStack(TAG_BOOKMARKS, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
         browser?.openUrl(url)
-        findViewById<BottomNavigationView>(R.id.bottomNav).selectedItemId = R.id.nav_browser
+        bottomNav.selectedItemId = R.id.nav_browser
     }
 
     // ── DownloadsFragment.Callbacks ─────────────────────────────────────────
@@ -1326,6 +1950,12 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
         startActivity(Intent(this, SettingsActivity::class.java).apply {
             if (category != null) putExtra(SettingsActivity.EXTRA_OPEN_CATEGORY, category)
         })
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     /**
@@ -1340,11 +1970,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
         Settings.setDarkMode(nowDark)
-        Toast.makeText(
-            this,
-            if (nowDark) getString(R.string.theme_mode_dark) else getString(R.string.theme_mode_light),
-            Toast.LENGTH_SHORT,
-        ).show()
         recreate()
     }
 
@@ -1352,7 +1977,6 @@ class MainActivity : AppCompatActivity(), HomeFragment.Callbacks, DownloadsFragm
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
-        private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
         private const val TAG_HISTORY   = "history"

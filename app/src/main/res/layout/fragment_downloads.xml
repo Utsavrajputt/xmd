@@ -117,19 +117,10 @@
                 android:id="@+id/emptyLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="No downloads yet"
+                android:text="@string/queue_empty_title"
                 android:textColor="?attr/colorOnSurface"
                 android:textStyle="bold"
                 android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/emptySubLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Add links in the Home tab"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
         </LinearLayout>
     </FrameLayout>
 

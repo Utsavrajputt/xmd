@@ -55,9 +55,30 @@ class SettingsActivity : AppCompatActivity(),
         // theme/dark-mode resolution as MainActivity/ChallengeActivity, so
         // this screen (and SettingsAppearanceFragment's recreate() calls)
         // actually repaint instead of recreating with the default theme.
-        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
+        com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+
+        val isDark = Settings.isDarkMode()
+        val isAmoled = isDark && Settings.isAmoledMode()
+
+        // Status bar must match the header (colorSurfaceContainerLow)
+        val headerColor = com.google.android.material.color.MaterialColors.getColor(
+            this,
+            com.google.android.material.R.attr.colorSurfaceContainerLow,
+            android.graphics.Color.BLACK
+        )
+        // Navigation bar matches the body background (pure black in AMOLED mode)
+        val navBarColor = if (isAmoled) android.graphics.Color.BLACK else com.google.android.material.color.MaterialColors.getColor(
+            this,
+            android.R.attr.colorBackground,
+            android.graphics.Color.BLACK
+        )
+        window.statusBarColor = headerColor
+        window.navigationBarColor = navBarColor
+        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = !isDark
+        insetsController.isAppearanceLightNavigationBars = !isDark
 
         headerTitle = findViewById(R.id.settingsHeaderTitle)
         findViewById<ImageButton>(R.id.settingsBackButton).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
@@ -103,12 +124,6 @@ class SettingsActivity : AppCompatActivity(),
     /** Called by [SettingsRootFragment] when a category row is tapped. */
     fun openCategory(fragment: Fragment, tag: String) {
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(
-                android.R.anim.fade_in,
-                android.R.anim.fade_out,
-                android.R.anim.fade_in,
-                android.R.anim.fade_out,
-            )
             .replace(R.id.settingsFragmentContainer, fragment, tag)
             .addToBackStack(tag)
             .commit()
@@ -211,6 +226,16 @@ class SettingsActivity : AppCompatActivity(),
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(intent, getString(R.string.export_websites_share_title)))
+    }
+
+    override fun finish() {
+        super.finish()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     companion object {

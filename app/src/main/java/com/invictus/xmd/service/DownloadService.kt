@@ -350,7 +350,7 @@ class DownloadService : LifecycleService() {
             val item = QueueRepository.claimNextReady() ?: break
             when {
                 item.platform == MediaPlatform.YOUTUBE -> downloadYoutube(item)
-                LinkParser.isTorrentLink(item.sourceUrl) -> downloadTorrentOne(item.id, item.sourceUrl, item.customSaveDirPath)
+                LinkParser.isTorrentLink(item.sourceUrl) -> downloadTorrentOne(item.id, item.sourceUrl, item.customSaveDirPath, item.selectedFileIndices)
                 else -> downloadOne(item.id, item.sourceUrl, item.directUrl, item.category)
             }
             kotlinx.coroutines.delay(BETWEEN_CLAIM_DELAY_MS)
@@ -464,7 +464,7 @@ class DownloadService : LifecycleService() {
      * that aren't wired up to Settings) -- straightforward "download it and
      * report progress" for now, mirroring downloadOne()'s status handling.
      */
-    private suspend fun downloadTorrentOne(itemId: String, sourceUrl: String, customSaveDirPath: String?) {
+    private suspend fun downloadTorrentOne(itemId: String, sourceUrl: String, customSaveDirPath: String?, selectedFileIndices: String?) {
         val engine = TorrentEngine(
             progress = { done, total, speed ->
                 QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
@@ -492,7 +492,7 @@ class DownloadService : LifecycleService() {
 
             val result = withContext(Dispatchers.IO) {
                 if (LinkParser.isMagnetLink(sourceUrl)) {
-                    engine.downloadMagnet(sourceUrl, baseDir)
+                    engine.downloadMagnet(sourceUrl, baseDir, selectedFileIndices)
                 } else if (sourceUrl.startsWith("content://")) {
                     // A .torrent file picked from local storage via the system file
                     // picker (HomeFragment's "Pick .torrent file" button) -- read its
@@ -501,7 +501,7 @@ class DownloadService : LifecycleService() {
                         .openInputStream(Uri.parse(sourceUrl))
                         ?.use { it.readBytes() }
                         ?: throw RuntimeException("Could not read the selected .torrent file")
-                    engine.downloadTorrentFile(bytes, baseDir)
+                    engine.downloadTorrentFile(bytes, baseDir, selectedFileIndices)
                 } else {
                     val bytes = client.newCall(okhttp3.Request.Builder().url(sourceUrl).build())
                         .execute().use { resp ->
@@ -510,7 +510,7 @@ class DownloadService : LifecycleService() {
                             }
                             resp.body?.bytes() ?: throw RuntimeException("Empty .torrent file")
                         }
-                    engine.downloadTorrentFile(bytes, baseDir)
+                    engine.downloadTorrentFile(bytes, baseDir, selectedFileIndices)
                 }
             }
 
@@ -520,12 +520,9 @@ class DownloadService : LifecycleService() {
                     // Single-file torrent: point straight at the file so
                     // "Open" can hand it to an external app. Multi-file
                     // torrents don't have one sensible "the file" to open --
-                    // filePath is left null and QueueAdapter hides Open for
-                    // those (see the numFiles check on the DONE branch there
-                    // isn't one currently, so this just means no usable path
-                    // was ever captured -- same effect).
+                    // filePath is left null unless exactly 1 file was selected.
                     filePath = if (result.numFiles == 1) {
-                        File(result.saveDir, result.name).absolutePath
+                        result.singleFilePath ?: File(result.saveDir, result.name).absolutePath
                     } else null,
                     status = ItemStatus.DONE
                 )
@@ -566,14 +563,11 @@ class DownloadService : LifecycleService() {
             try {
                 val directUrl = directUrlAtClaim ?: throw RuntimeException("No resolved URL")
 
-                // The URL path alone is unreliable for id-based download endpoints
-                // (pixeldrain.dev/api/file/<id>?download, hubcloud-generated links,
-                // etc.) -- that path segment is just an opaque id, not the real
-                // filename, which only ever appears in the response's
-                // Content-Disposition header. Ask the server first; fall back to
-                // the old URL/fragment-based naming if it doesn't answer with one.
-                val realName = withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(client, directUrl) }
-                val fileName = realName
+                val currentItem = QueueRepository.current().firstOrNull { it.id == itemId }
+                val customName = currentItem?.fileName?.takeUnless { it.isBlank() }
+                val realName = if (customName != null) customName else withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(client, directUrl) }
+                val fileName = customName
+                    ?: realName
                     ?: DownloadEngine.filenameFromLink(sourceUrl).ifBlank { DownloadEngine.filenameFromUrl(directUrl) }
 
                 // The source URL alone (e.g. a FuckingFast share link) often has no visible
@@ -595,7 +589,10 @@ class DownloadService : LifecycleService() {
                 val tempFile = File(tempDir, fileName)
                 destinationFile = tempFile
 
-                val finalDir = if (Settings.saveToDownloadsFolder()) {
+                val customDir = currentItem?.customSaveDirPath
+                val finalDir = if (!customDir.isNullOrBlank()) {
+                    File(customDir)
+                } else if (Settings.saveToDownloadsFolder()) {
                     // Chrome-style: flat, straight into the device's standard
                     // Download folder, no Xmd/<Category> subfolder at all.
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)

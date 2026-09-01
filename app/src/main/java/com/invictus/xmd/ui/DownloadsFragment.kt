@@ -93,7 +93,6 @@ class DownloadsFragment : Fragment() {
         val emptyContainer = view.findViewById<View>(R.id.emptyContainer)
         val emptyIconFrame = view.findViewById<View>(R.id.emptyIconFrame)
         val emptyLabel     = view.findViewById<android.widget.TextView>(R.id.emptyLabel)
-        val emptySubLabel  = view.findViewById<View>(R.id.emptySubLabel)
         val summaryBar     = view.findViewById<View>(R.id.queueSummaryBar)
         val summaryChips   = view.findViewById<ChipGroup>(R.id.queueSummaryChips)
         val cancelBtn       = view.findViewById<MaterialButton>(R.id.cancelButton)
@@ -112,7 +111,7 @@ class DownloadsFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {
                 currentQuery = s?.toString().orEmpty()
                 renderList(
-                    emptyContainer, emptyIconFrame, emptyLabel, emptySubLabel,
+                    emptyContainer, emptyIconFrame, emptyLabel,
                     summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
                 )
             }
@@ -121,7 +120,7 @@ class DownloadsFragment : Fragment() {
         QueueRepository.items.observe(viewLifecycleOwner) { list ->
             allItems = list
             renderList(
-                emptyContainer, emptyIconFrame, emptyLabel, emptySubLabel,
+                emptyContainer, emptyIconFrame, emptyLabel,
                 summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
             )
         }
@@ -136,7 +135,6 @@ class DownloadsFragment : Fragment() {
         emptyContainer: View,
         emptyIconFrame: View,
         emptyLabel: android.widget.TextView,
-        emptySubLabel: View,
         summaryBar: View,
         summaryChips: ChipGroup,
         cancelBtn: MaterialButton,
@@ -161,16 +159,13 @@ class DownloadsFragment : Fragment() {
 
         if (isEmpty) {
             // Distinguish "nothing downloaded yet" from "search matched
-            // nothing" -- the latter shouldn't show the downloads icon or
-            // the "Add links in the Home tab" tip, since neither applies
-            // when there ARE items, just none matching.
+            // nothing" -- the latter shouldn't show the downloads icon,
+            // since neither applies when there ARE items, just none matching.
             if (query.isNotEmpty()) {
                 emptyIconFrame.visibility = View.GONE
-                emptySubLabel.visibility = View.GONE
                 emptyLabel.text = getString(R.string.queue_search_empty)
             } else {
                 emptyIconFrame.visibility = View.VISIBLE
-                emptySubLabel.visibility = View.VISIBLE
                 emptyLabel.text = getString(R.string.queue_empty_title)
             }
             summaryBar.visibility = View.GONE

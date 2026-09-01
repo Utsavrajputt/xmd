@@ -22,15 +22,14 @@
             <ImageView
                 android:layout_width="26dp"
                 android:layout_height="26dp"
-                android:src="@drawable/ic_magnet"
+                android:src="@drawable/ic_download"
                 app:tint="@color/m3_primary"
-                android:layout_marginEnd="12dp"
-                android:contentDescription="@null" />
+                android:layout_marginEnd="12dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/torrent_dialog_title"
+                android:text="@string/download_dialog_title"
                 android:textColor="@color/m3_on_surface"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -55,7 +54,7 @@
                 android:letterSpacing="0.04" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/torrentCopyLinkButton"
+                android:id="@+id/downloadCopyLinkButton"
                 style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -71,7 +70,7 @@
                 android:contentDescription="@string/torrent_dialog_copy_link" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/torrentPasteLinkButton"
+                android:id="@+id/downloadPasteLinkButton"
                 style="@style/Widget.Material3.Button.IconButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -99,7 +98,7 @@
             app:cardBackgroundColor="@color/m3_surface_container">
 
             <EditText
-                android:id="@+id/torrentLinkInput"
+                android:id="@+id/downloadLinkInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minLines="2"
@@ -108,7 +107,7 @@
                 android:inputType="textMultiLine|textNoSuggestions"
                 android:background="@null"
                 android:padding="14dp"
-                android:hint="@string/torrent_dialog_link_hint"
+                android:hint="@string/download_dialog_link_hint"
                 android:textColorHint="@color/m3_on_surface_variant"
                 android:textColor="@color/m3_on_surface"
                 android:textSize="15sp" />
@@ -116,7 +115,7 @@
 
         <!-- Pick .torrent file instead -->
         <TextView
-            android:id="@+id/torrentPickFileText"
+            android:id="@+id/downloadPickFileText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -150,125 +149,22 @@
             app:cardBackgroundColor="@color/m3_surface_container">
 
             <EditText
-                android:id="@+id/torrentNameInput"
+                android:id="@+id/downloadNameInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="2"
                 android:inputType="text|textNoSuggestions"
                 android:background="@null"
                 android:padding="14dp"
-                android:hint="@string/torrent_dialog_name_placeholder"
+                android:hint="@string/download_dialog_name_placeholder"
                 android:textColorHint="@color/m3_on_surface_variant"
                 android:textColor="@color/m3_on_surface"
                 android:textSize="15sp" />
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Files Section -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="18dp"
-            android:layout_marginBottom="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/torrent_dialog_files_label"
-                android:textColor="@color/m3_on_surface_variant"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.04" />
-
-            <TextView
-                android:id="@+id/torrentFilesCountText"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textColor="@color/m3_on_surface_variant"
-                android:textSize="12sp"
-                android:layout_marginStart="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/torrentSelectAllButton"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/torrent_dialog_deselect_all"
-                android:textSize="13sp"
-                android:textColor="@color/m3_primary"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:visibility="gone" />
-        </LinearLayout>
-
-        <!-- Files loading container -->
-        <LinearLayout
-            android:id="@+id/torrentFilesLoadingContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone"
-            android:padding="12dp">
-
-            <ProgressBar
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:indeterminate="true"
-                android:layout_marginEnd="12dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/torrent_dialog_fetching_metadata"
-                android:textColor="@color/m3_on_surface_variant"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- Files error container -->
-        <LinearLayout
-            android:id="@+id/torrentFilesErrorContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/torrent_dialog_metadata_failed"
-                android:textColor="@color/m3_on_surface_variant"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- Files list card -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/torrentFilesListCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/m3_outline_variant"
-            app:cardBackgroundColor="@color/m3_surface_container">
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/torrentFilesRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:maxHeight="220dp"
-                android:padding="8dp"
-                android:scrollbars="vertical" />
-        </com.google.android.material.card.MaterialCardView>
-
         <!-- Collapsible Advanced section -->
         <LinearLayout
-            android:id="@+id/torrentAdvancedHeader"
+            android:id="@+id/downloadAdvancedHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -288,7 +184,7 @@
                 android:letterSpacing="0.04" />
 
             <ImageView
-                android:id="@+id/torrentAdvancedChevron"
+                android:id="@+id/downloadAdvancedChevron"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@drawable/ic_chevron_right"
@@ -297,7 +193,7 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/torrentAdvancedContent"
+            android:id="@+id/downloadAdvancedContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -331,7 +227,7 @@
                     android:paddingVertical="10dp">
 
                     <TextView
-                        android:id="@+id/torrentSaveToPathText"
+                        android:id="@+id/downloadSaveToPathText"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -341,7 +237,7 @@
                         android:ellipsize="middle" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/torrentChangePathButton"
+                        android:id="@+id/downloadChangePathButton"
                         style="@style/Widget.Material3.Button.TextButton"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -363,7 +259,7 @@
             android:layout_marginTop="26dp">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/torrentCancelButton"
+                android:id="@+id/downloadCancelButton"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
@@ -373,7 +269,7 @@
                 android:layout_marginEnd="8dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/torrentStartButton"
+                android:id="@+id/downloadStartButton"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"

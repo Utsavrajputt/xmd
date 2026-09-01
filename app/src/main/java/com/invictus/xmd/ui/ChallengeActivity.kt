@@ -44,7 +44,7 @@ class ChallengeActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(Settings.appTheme().resolvedStyleRes(Settings.isDarkMode()))
+        com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_challenge)
 

@@ -104,6 +104,7 @@
     <string name="about_made_by">Built with ♥️ by Invictus</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_hint">Tap a theme to apply it immediately.</string>
+    <string name="theme_system">System</string>
     <string name="theme_default">Default</string>
     <string name="theme_aurora">Aurora</string>
     <string name="theme_nord">Nord</string>
@@ -116,6 +117,8 @@
     <string name="theme_mode_light">Light mode</string>
     <string name="settings_dark_mode">Dark Mode</string>
     <string name="settings_dark_mode_hint">Switch between the dark and light variant of the selected theme. Tapping the header once does the same thing.</string>
+    <string name="settings_amoled_mode">AMOLED Dark</string>
+    <string name="settings_amoled_mode_hint">Use pure black background in dark mode while keeping theme accent colors.</string>
     <string name="settings_connections">Connections per Download</string>
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>
@@ -279,4 +282,25 @@
     <string name="queue_search_empty">No matching downloads.</string>
     <string name="queue_empty_title">No downloads yet</string>
 
+    <!-- Bottom Nav Tabs -->
+    <string name="tab_downloads">Downloads</string>
+    <string name="tab_add">Add</string>
+    <string name="tab_browser">Browser</string>
+
+    <!-- External download & torrent files selection -->
+    <string name="download_dialog_title">Add Download</string>
+    <string name="download_dialog_link_hint">https://...</string>
+    <string name="download_dialog_name_placeholder">Filename</string>
+    <string name="torrent_dialog_files_label">Files</string>
+    <string name="torrent_dialog_fetching_metadata">Fetching torrent metadata &amp; files…</string>
+    <string name="torrent_dialog_metadata_failed">Couldn\'t fetch metadata in time. All files will be downloaded.</string>
+    <string name="torrent_dialog_select_all">Select All</string>
+    <string name="torrent_dialog_deselect_all">Deselect All</string>
+    <string name="torrent_dialog_no_files_selected">Please select at least one file to download</string>
+    <string name="torrent_dialog_save_path_failed">Only folders on internal storage can be selected</string>
+    <string name="dialog_paste_link">Paste link</string>
+    <string name="clipboard_empty_toast">Clipboard is empty</string>
+    <string name="dialog_link_pasted_toast">Link pasted</string>
+    <string name="torrent_dialog_cancel">Cancel</string>
+    <string name="torrent_dialog_start">Start</string>
 </resources>

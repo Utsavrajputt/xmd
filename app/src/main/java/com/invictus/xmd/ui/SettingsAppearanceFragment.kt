@@ -11,7 +11,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -42,20 +41,28 @@ class SettingsAppearanceFragment : Fragment() {
         setupThemePicker(view.findViewById(R.id.themeSwatchContainer))
 
         val darkModeSwitch = view.findViewById<MaterialSwitch>(R.id.darkModeSwitch)
+        val amoledModeSwitch = view.findViewById<MaterialSwitch>(R.id.amoledModeSwitch)
+
         darkModeSwitch.isChecked = Settings.isDarkMode()
         darkModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked != Settings.isDarkMode()) toggleDarkMode()
+        }
+
+        val isDark = Settings.isDarkMode()
+        amoledModeSwitch.isChecked = Settings.isAmoledMode()
+        amoledModeSwitch.isEnabled = isDark
+        amoledModeSwitch.alpha = if (isDark) 1.0f else 0.5f
+        amoledModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked != Settings.isAmoledMode()) {
+                Settings.setAmoledMode(isChecked)
+                requireActivity().recreate()
+            }
         }
     }
 
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
         Settings.setDarkMode(nowDark)
-        Toast.makeText(
-            requireContext(),
-            if (nowDark) getString(R.string.theme_mode_dark) else getString(R.string.theme_mode_light),
-            Toast.LENGTH_SHORT,
-        ).show()
         requireActivity().recreate()
     }
 
@@ -65,17 +72,20 @@ class SettingsAppearanceFragment : Fragment() {
         val density = resources.displayMetrics.density
         val dp8 = (8 * density).toInt()
         val inflater = LayoutInflater.from(requireContext())
+        val isDark = Settings.isDarkMode()
+        val isAmoled = isDark && Settings.isAmoledMode()
+        val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(requireContext())
 
-        fun circleDrawable(colorHex: String) = GradientDrawable().apply {
+        fun circleDrawable(colorInt: Int) = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.parseColor(colorHex))
+            setColor(colorInt)
         }
 
-        fun roundRectDrawable(colorHex: String, radiusDp: Float, strokeColor: Int? = null, strokeWidthPx: Int = 0) =
+        fun roundRectDrawable(colorInt: Int, radiusDp: Float, strokeColor: Int? = null, strokeWidthPx: Int = 0) =
             GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = radiusDp * density
-                setColor(Color.parseColor(colorHex))
+                setColor(colorInt)
                 if (strokeColor != null) setStroke(strokeWidthPx, strokeColor)
             }
 
@@ -89,20 +99,48 @@ class SettingsAppearanceFragment : Fragment() {
             val checkIcon = item.findViewById<ImageView>(R.id.checkIcon)
             val nameView = item.findViewById<TextView>(R.id.themeName)
 
+            val primaryColor = if (theme == AppTheme.SYSTEM) {
+                MaterialColors.getColor(dynamicContext, com.google.android.material.R.attr.colorPrimary, Color.parseColor(theme.swatchPrimary))
+            } else {
+                Color.parseColor(theme.swatchPrimary)
+            }
+
+            val secondaryColor = if (theme == AppTheme.SYSTEM) {
+                MaterialColors.getColor(dynamicContext, com.google.android.material.R.attr.colorSecondary, Color.parseColor(theme.swatchSecondary))
+            } else {
+                Color.parseColor(theme.swatchSecondary)
+            }
+
+            val tertiaryColor = if (theme == AppTheme.SYSTEM) {
+                MaterialColors.getColor(dynamicContext, com.google.android.material.R.attr.colorTertiary, Color.parseColor(theme.swatchTertiary))
+            } else {
+                Color.parseColor(theme.swatchTertiary)
+            }
+
+            val bgColor = if (isAmoled) {
+                Color.BLACK
+            } else if (!isDark) {
+                Color.parseColor("#F5F7FA")
+            } else if (theme == AppTheme.SYSTEM) {
+                MaterialColors.getColor(dynamicContext, android.R.attr.colorBackground, Color.parseColor(theme.swatchBackground))
+            } else {
+                Color.parseColor(theme.swatchBackground)
+            }
+
             val isSelected = theme == current
             val ringStrokePx = (2 * density).toInt()
             ring.background = roundRectDrawable(
-                colorHex = "#00000000",
+                colorInt = Color.TRANSPARENT,
                 radiusDp = 16f,
-                strokeColor = if (isSelected) Color.parseColor(theme.swatchPrimary) else Color.TRANSPARENT,
+                strokeColor = if (isSelected) primaryColor else Color.TRANSPARENT,
                 strokeWidthPx = ringStrokePx,
             )
-            box.background = roundRectDrawable(theme.swatchBackground, 13f)
-            dotPrimary.background = circleDrawable(theme.swatchPrimary)
-            dotSecondary.background = circleDrawable(theme.swatchSecondary)
-            dotTertiary.background = circleDrawable(theme.swatchTertiary)
+            box.background = roundRectDrawable(bgColor, 13f)
+            dotPrimary.background = circleDrawable(primaryColor)
+            dotSecondary.background = circleDrawable(secondaryColor)
+            dotTertiary.background = circleDrawable(tertiaryColor)
             checkIcon.visibility = if (isSelected) View.VISIBLE else View.GONE
-            checkIcon.setColorFilter(Color.parseColor(theme.swatchPrimary))
+            checkIcon.setColorFilter(primaryColor)
 
             nameView.text = getString(theme.titleRes)
             nameView.setTextColor(MaterialColors.getColor(nameView, com.google.android.material.R.attr.colorOnSurface))

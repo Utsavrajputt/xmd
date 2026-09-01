@@ -1,8 +1,11 @@
 package com.invictus.xmd.ui.theme
 
+import android.app.Activity
 import androidx.annotation.StringRes
 import androidx.annotation.StyleRes
+import com.google.android.material.color.DynamicColors
 import com.invictus.xmd.R
+import com.invictus.xmd.core.Settings
 
 /**
  * The app's selectable color themes. Each one maps to a dark `Theme.Xmd.*`
@@ -28,6 +31,16 @@ enum class AppTheme(
     val swatchSecondary: String,
     val swatchTertiary: String,
 ) {
+    SYSTEM(
+        storageKey = "system",
+        titleRes = R.string.theme_system,
+        styleResDark = R.style.Theme_Xmd,
+        styleResLight = R.style.Theme_Xmd_Light,
+        swatchBackground = "#0E1521",
+        swatchPrimary = "#7CD4FF",
+        swatchSecondary = "#B7CAD6",
+        swatchTertiary = "#FFB4A0",
+    ),
     DEFAULT(
         storageKey = "default",
         titleRes = R.string.theme_default,
@@ -117,6 +130,27 @@ enum class AppTheme(
     fun resolvedStyleRes(isDark: Boolean): Int = if (isDark) styleResDark else styleResLight
 
     companion object {
-        fun fromKey(key: String?): AppTheme = entries.firstOrNull { it.storageKey == key } ?: DEFAULT
+        fun fromKey(key: String?): AppTheme = entries.firstOrNull { it.storageKey == key } ?: SYSTEM
+
+        /**
+         * Applies the active [AppTheme], dynamic Monet colors (if SYSTEM theme),
+         * and AMOLED pure-black overlay (if enabled in dark mode) to the given [Activity].
+         * Must be called in `Activity.onCreate()` before `setContentView()`.
+         */
+        fun applyTo(activity: Activity) {
+            val theme = Settings.appTheme()
+            val isDark = Settings.isDarkMode()
+            val isAmoled = Settings.isAmoledMode()
+
+            activity.setTheme(theme.resolvedStyleRes(isDark))
+
+            if (theme == SYSTEM) {
+                DynamicColors.applyToActivityIfAvailable(activity)
+            }
+
+            if (isDark && isAmoled) {
+                activity.theme.applyStyle(R.style.ThemeOverlay_Xmd_Amoled, true)
+            }
+        }
     }
 }

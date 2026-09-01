@@ -19,6 +19,7 @@ object Settings {
     private const val KEY_CONNECTIONS = "connections_per_download"
     private const val KEY_APP_THEME = "app_theme"
     private const val KEY_DARK_MODE = "app_dark_mode"
+    private const val KEY_AMOLED_MODE = "app_amoled_mode"
     private const val KEY_SPEED_LIMIT_KBPS = "speed_limit_kbps"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
@@ -46,6 +47,14 @@ object Settings {
     fun isDarkMode(): Boolean = prefs.getBoolean(KEY_DARK_MODE, true)
     fun setDarkMode(isDark: Boolean) {
         prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
+    }
+
+    /** AMOLED pure black dark mode. When enabled alongside [isDarkMode], the
+     *  body background is overridden to pitch black (#000000) while keeping
+     *  theme accent colors and header colors intact. */
+    fun isAmoledMode(): Boolean = prefs.getBoolean(KEY_AMOLED_MODE, false)
+    fun setAmoledMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AMOLED_MODE, enabled).apply()
     }
 
     fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 16)

@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/nav_home"
-        android:icon="@drawable/ic_tab_home"
-        android:title="Home" />
+        android:id="@+id/nav_downloads"
+        android:icon="@drawable/ic_tab_downloads"
+        android:title="@string/tab_downloads" />
+    <item
+        android:id="@+id/nav_add"
+        android:icon="@drawable/ic_add"
+        android:title="@string/tab_add" />
     <item
         android:id="@+id/nav_browser"
         android:icon="@drawable/ic_tab_browser"
-        android:title="Browser" />
-    <item
-        android:id="@+id/nav_downloads"
-        android:icon="@drawable/ic_tab_downloads"
-        android:title="Downloads" />
+        android:title="@string/tab_browser" />
 </menu>
