@@ -46,6 +46,7 @@ import com.invictus.xmd.service.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -76,6 +77,7 @@ import android.graphics.Typeface
 import androidx.core.view.isVisible
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import com.google.android.material.textfield.MaterialAutoCompleteTextView
 import com.google.android.material.textfield.TextInputLayout
 import okhttp3.Request
 import org.json.JSONObject
@@ -360,7 +362,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             return
         }
         toolbar.visibility = android.view.View.VISIBLE
-        toolbarTitle.text = getString(R.string.tab_downloads)
+        toolbarTitle.text = getString(R.string.app_header_title)
         currentTabTag = TAG_DOWNLOADS
     }
 
@@ -412,7 +414,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // on its own without catching taps anywhere else across the bar.
         val toolbarTitle = findViewById<TextView>(R.id.toolbarTitle)
         this.toolbarTitle = toolbarTitle
-        toolbarTitle.text = getString(R.string.tab_downloads)
+        toolbarTitle.text = getString(R.string.app_header_title)
         toolbarTitle.setOnClickListener { toggleDarkMode() }
 
         // Add fragments only on a fresh start (not after config-change)
@@ -497,7 +499,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     currentTabTag = TAG_DOWNLOADS
                     showFragment(TAG_DOWNLOADS)
                     toolbar.visibility = android.view.View.VISIBLE
-                    toolbarTitle.text = getString(R.string.tab_downloads)
+                    toolbarTitle.text = getString(R.string.app_header_title)
                     invalidateOptionsMenu()
                     true
                 }
@@ -753,6 +755,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     fun showAddDownloadDialog(link: String? = null) {
+        val trimmed = link?.trim().orEmpty()
+        if (LinkParser.isTorrentLink(trimmed) && trimmed.contains("xt=", ignoreCase = true)) {
+            showAddTorrentDialog(prefillLink = trimmed)
+            return
+        }
+
         val dialogView = LayoutInflater.from(this)
             .inflate(R.layout.dialog_add_download, null)
 
@@ -761,9 +769,26 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadPasteLinkButton)
         val pickFileText = dialogView.findViewById<TextView>(R.id.downloadPickFileText)
         val qualitySection = dialogView.findViewById<View>(R.id.downloadQualitySection)
-        val qualityDropdown = dialogView.findViewById<AutoCompleteTextView>(R.id.downloadQualityDropdown)
+        val qualityDropdown = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.downloadQualityDropdown)
         val audioFormatLayout = dialogView.findViewById<View>(R.id.downloadAudioFormatLayout)
-        val audioFormatDropdown = dialogView.findViewById<AutoCompleteTextView>(R.id.downloadAudioFormatDropdown)
+        val audioFormatDropdown = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.downloadAudioFormatDropdown)
+
+        val advancedStreamsSection = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsSection)
+        val advancedStreamsLoading = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsLoading)
+        val advancedStreamsEmpty = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsEmpty)
+        val advancedStreamsCard = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsCard)
+        val advancedStreamsScroll = dialogView.findViewById<androidx.core.widget.NestedScrollView>(R.id.downloadAdvancedStreamsScroll)
+        advancedStreamsScroll.isNestedScrollingEnabled = true
+        val advancedStreamsGroup = dialogView.findViewById<RadioGroup>(R.id.downloadAdvancedStreamsGroup)
+
+        advancedStreamsScroll.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
+
         val nameInput = dialogView.findViewById<EditText>(R.id.downloadNameInput)
         val advancedHeader = dialogView.findViewById<View>(R.id.downloadAdvancedHeader)
         val advancedChevron = dialogView.findViewById<ImageView>(R.id.downloadAdvancedChevron)
@@ -798,21 +823,113 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             "Opus" to Settings.AudioFormatPreset.OPUS,
             "Original" to Settings.AudioFormatPreset.ORIGINAL
         )
-        audioFormatDropdown.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_list_item_1, audioFormatList.map { it.first })
-        )
+        audioFormatDropdown.setSimpleItems(audioFormatList.map { it.first }.toTypedArray())
         val initialAudioLabel = audioFormatList.firstOrNull { it.second == selectedAudioFormatPreset }?.first ?: "MP3"
         audioFormatDropdown.setText(initialAudioLabel, false)
-        audioFormatDropdown.setOnClickListener { audioFormatDropdown.showDropDown() }
         audioFormatDropdown.setOnItemClickListener { _, _, position, _ ->
             selectedAudioFormatPreset = audioFormatList[position].second
+        }
+
+        var formatProbeJob: Job? = null
+        fun probeAdvancedFormats(currentLink: String) {
+            formatProbeJob?.cancel()
+            advancedStreamsGroup.removeAllViews()
+            if (!LinkParser.needsYtDlp(currentLink)) {
+                advancedStreamsSection.visibility = View.GONE
+                advancedStreamsCard.visibility = View.GONE
+                return
+            }
+            advancedStreamsSection.visibility = View.VISIBLE
+            advancedStreamsLoading.visibility = View.VISIBLE
+            advancedStreamsEmpty.visibility = View.GONE
+            advancedStreamsCard.visibility = View.GONE
+
+            formatProbeJob = lifecycleScope.launch {
+                val probe = withContext(Dispatchers.IO) {
+                    YtDlpManager.probeFormats(currentLink, this@MainActivity)
+                }
+                if (!isActive) return@launch
+                advancedStreamsLoading.visibility = View.GONE
+                if (probe.formats.isEmpty()) {
+                    advancedStreamsEmpty.visibility = View.VISIBLE
+                    advancedStreamsCard.visibility = View.GONE
+                    return@launch
+                }
+                advancedStreamsEmpty.visibility = View.GONE
+
+                val density = resources.displayMetrics.density
+                val sorted = probe.formats.sortedWith(
+                    compareByDescending<YtDlpManager.ProbedFormat> { it.height ?: -1 }
+                        .thenByDescending { it.fps ?: -1 }
+                        .thenByDescending { it.tbr ?: -1.0 }
+                )
+
+                val maxHeightPx = (210 * density).toInt()
+                val approxHeightPx = (sorted.size * 42 * density).toInt() + (8 * density).toInt()
+                advancedStreamsCard.layoutParams.height = minOf(maxHeightPx, approxHeightPx)
+                advancedStreamsCard.visibility = View.VISIBLE
+
+                sorted.forEach { format ->
+                    val sizeText = YtDlpManager.formatSize(format, probe.durationSeconds)
+                    val label = buildString {
+                        if (format.height != null) append("${format.height}p") else append("Audio")
+                        if (format.fps != null && format.fps > 30) append(" ${format.fps}fps")
+                        append(" · ${format.ext.uppercase()}")
+                        if (format.vcodec != null) append(" · ${format.vcodec.substringBefore('.')}")
+                        if (format.acodec != null && format.isAudioOnly) append(" · ${format.acodec.substringBefore('.')}")
+                        if (sizeText != null) append(" · $sizeText")
+                    }
+
+                    val row = AppCompatRadioButton(this@MainActivity).apply {
+                        id = View.generateViewId()
+                        text = label
+                        buttonDrawable = null
+                        setBackgroundResource(R.drawable.bg_stream_row_selector)
+                        setTextColor(ContextCompat.getColorStateList(this@MainActivity, R.color.text_radio_row))
+                        textSize = 13f
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        val padH = (12 * density).toInt()
+                        val padV = (10 * density).toInt()
+                        setPadding(padH, padV, padH, padV)
+                        val startIcon = if (format.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
+                        setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
+                        compoundDrawablePadding = (12 * density).toInt()
+                        tag = format
+                        layoutParams = RadioGroup.LayoutParams(
+                            RadioGroup.LayoutParams.MATCH_PARENT,
+                            RadioGroup.LayoutParams.WRAP_CONTENT
+                        ).apply {
+                            bottomMargin = (2 * density).toInt()
+                        }
+                    }
+                    advancedStreamsGroup.addView(row)
+                }
+
+                advancedStreamsGroup.setOnCheckedChangeListener { group, checkedId ->
+                    val checkedView = group.findViewById<RadioButton>(checkedId)
+                    val format = checkedView?.tag as? YtDlpManager.ProbedFormat ?: return@setOnCheckedChangeListener
+                    selectedQualityOption = YtDlpManager.QualityOption(
+                        label = checkedView.text.toString(),
+                        formatSelector = YtDlpManager.advancedSelector(format),
+                        isAudioOnly = format.isAudioOnly
+                    )
+                    if (format.isAudioOnly) {
+                        audioFormatLayout.visibility = View.VISIBLE
+                    } else {
+                        audioFormatLayout.visibility = View.GONE
+                    }
+                }
+            }
         }
 
         var currentQualityLink: String? = null
         fun updateQualitySection(currentLink: String) {
             if (!LinkParser.needsYtDlp(currentLink)) {
                 qualitySection.visibility = View.GONE
+                advancedStreamsSection.visibility = View.GONE
+                advancedStreamsCard.visibility = View.GONE
                 pickFileText.visibility = View.VISIBLE
+                formatProbeJob?.cancel()
                 return
             }
 
@@ -830,10 +947,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 ?: YtDlpManager.QualityOption("Audio only", YtDlpManager.AUDIO_ONLY_SELECTOR, isAudioOnly = true)
 
             val qualityItems = videoOpts.map { it.label } + "Audio only"
-            qualityDropdown.setAdapter(
-                ArrayAdapter(this, android.R.layout.simple_list_item_1, qualityItems)
-            )
-            qualityDropdown.setOnClickListener { qualityDropdown.showDropDown() }
+            qualityDropdown.setSimpleItems(qualityItems.toTypedArray())
 
             // Pick up default from yt-dlp Settings
             val savedQuality = Settings.ytDlpDefaultQualityLabel()
@@ -857,6 +971,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
             qualityDropdown.setOnItemClickListener { _, _, position, _ ->
                 val chosen = qualityItems[position]
+                advancedStreamsGroup.clearCheck()
                 if (chosen == "Audio only") {
                     audioFormatLayout.visibility = View.VISIBLE
                     selectedQualityOption = audioOpt
@@ -865,6 +980,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     selectedQualityOption = videoOpts.firstOrNull { it.label == chosen }
                 }
             }
+
+            probeAdvancedFormats(currentLink)
         }
 
         var probeJob: Job? = null
@@ -908,8 +1025,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             updateQualitySection(initialLink)
         }
 
+        var dialog: androidx.appcompat.app.AlertDialog? = null
+
         linkInput.doAfterTextChanged {
             val text = it?.toString()?.trim().orEmpty()
+            if (LinkParser.isTorrentLink(text) && text.contains("xt=", ignoreCase = true)) {
+                dialog?.dismiss()
+                showAddTorrentDialog(prefillLink = text)
+                return@doAfterTextChanged
+            }
             updateNameForLink(text)
             updateQualitySection(text)
         }
@@ -920,12 +1044,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
         }
 
-        val dialog = MaterialAlertDialogBuilder(this)
+        val alertDialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
             .setCancelable(true)
             .create()
+        dialog = alertDialog
 
-        dialog.setOnDismissListener { probeJob?.cancel() }
+        dialog.setOnDismissListener {
+            probeJob?.cancel()
+            formatProbeJob?.cancel()
+        }
 
         pickFileText.setOnClickListener {
             dialog.dismiss()
@@ -945,6 +1073,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         pasteLinkButton.setOnClickListener {
             val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
             if (clipText.isNotEmpty()) {
+                if (LinkParser.isTorrentLink(clipText) && clipText.contains("xt=", ignoreCase = true)) {
+                    dialog?.dismiss()
+                    showAddTorrentDialog(prefillLink = clipText)
+                    return@setOnClickListener
+                }
                 nameManuallyEdited = false
                 linkInput.setText(clipText)
                 linkInput.setSelection(clipText.length)
@@ -978,6 +1111,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
             val finalName = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
             probeJob?.cancel()
+            formatProbeJob?.cancel()
             dialog.dismiss()
 
             if (LinkParser.isTorrentLink(finalLink)) {

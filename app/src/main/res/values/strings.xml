@@ -20,7 +20,7 @@
     <string name="torrent_dialog_pick_file">Pick .torrent file instead</string>
     <string name="torrent_dialog_invalid_link">Paste a valid magnet link, or pick a .torrent file</string>
     <string name="torrent_dialog_copy_link">Copy link</string>
-    <string name="torrent_dialog_advanced_label">Advanced (save location)</string>
+    <string name="torrent_dialog_advanced_label">Advanced</string>
     <string name="torrent_dialog_save_to_label">Save to</string>
     <string name="torrent_dialog_save_to_default">Default location</string>
     <string name="torrent_dialog_change_path">Change</string>
@@ -304,4 +304,7 @@
     <string name="dialog_link_pasted_toast">Link pasted</string>
     <string name="torrent_dialog_cancel">Cancel</string>
     <string name="torrent_dialog_start">Start</string>
+    <string name="download_dialog_advanced_streams_title">Available Streams</string>
+    <string name="download_dialog_advanced_streams_probing">Probing available streams…</string>
+    <string name="download_dialog_advanced_streams_empty">No extra streams found</string>
 </resources>
