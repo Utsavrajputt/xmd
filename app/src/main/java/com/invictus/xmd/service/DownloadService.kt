@@ -423,7 +423,8 @@ class DownloadService : LifecycleService() {
                     fileName = file.name,
                     filePath = file.absolutePath,
                     progressPercent = 100,
-                    mediaStatusText = null
+                    mediaStatusText = null,
+                    downloadFinishedAtMs = System.currentTimeMillis()
                 )
             }
         } catch (e: Throwable) {
@@ -524,7 +525,8 @@ class DownloadService : LifecycleService() {
                     filePath = if (result.numFiles == 1) {
                         result.singleFilePath ?: File(result.saveDir, result.name).absolutePath
                     } else null,
-                    status = ItemStatus.DONE
+                    status = ItemStatus.DONE,
+                    downloadFinishedAtMs = System.currentTimeMillis()
                 )
             }
         } catch (e: DownloadCancelledException) {
@@ -628,7 +630,13 @@ class DownloadService : LifecycleService() {
                 withContext(Dispatchers.IO) { moveToPublicStorage(tempFile, finalFile) }
                 destinationFile = finalFile
 
-                QueueRepository.update(itemId) { it.copy(status = ItemStatus.DONE, filePath = finalFile.absolutePath) }
+                QueueRepository.update(itemId) {
+                    it.copy(
+                        status = ItemStatus.DONE,
+                        filePath = finalFile.absolutePath,
+                        downloadFinishedAtMs = System.currentTimeMillis()
+                    )
+                }
                 return
             } catch (e: DownloadCancelledException) {
                 destinationFile?.let { DownloadEngine.deletePartialFiles(it) }

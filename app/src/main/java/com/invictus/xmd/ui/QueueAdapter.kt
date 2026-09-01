@@ -14,6 +14,10 @@ import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.MediaPlatform
 import com.invictus.xmd.core.QueueItem
 import com.invictus.xmd.core.Settings
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class QueueAdapter(
     private val onPauseResume: (QueueItem) -> Unit,
@@ -28,12 +32,30 @@ class QueueAdapter(
     private val onLongPress: (QueueItem) -> Unit
 ) : ListAdapter<QueueItem, QueueAdapter.VH>(DIFF) {
 
+    private val dateFormat by lazy {
+        SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault())
+    }
+
+    private fun formatElapsedDuration(durationMs: Long): String {
+        val totalSecs = (durationMs / 1000).coerceAtLeast(1)
+        val hours = totalSecs / 3600
+        val mins = (totalSecs % 3600) / 60
+        val secs = totalSecs % 60
+        return when {
+            hours > 0 -> "${hours}h ${mins}m"
+            mins > 0 -> "${mins}m ${secs}s"
+            else -> "${secs}s"
+        }
+    }
+
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val indicator: View      = view.findViewById(R.id.statusIndicator)
         val title: TextView      = view.findViewById(R.id.itemTitle)
         val category: TextView   = view.findViewById(R.id.itemCategory)
         val status: TextView     = view.findViewById(R.id.itemStatus)
+        val sizeRow: View        = view.findViewById(R.id.itemSizeRow)
         val sizeText: TextView   = view.findViewById(R.id.itemSizeText)   // MB done / total MB
+        val completedMeta: TextView = view.findViewById(R.id.itemCompletedMeta)
         val progress: ProgressBar= view.findViewById(R.id.itemProgress)
         val speedEta: TextView   = view.findViewById(R.id.itemSpeedEta)   // speed + ETA
         val actions: View        = view.findViewById(R.id.itemActions)
@@ -92,9 +114,10 @@ class QueueAdapter(
             ItemStatus.FAILED           -> "✖  ${item.error ?: "Failed"}"
         }
 
-        // ── Size line (MB done / total MB for DIRECT; speed/size/ETA text for YouTube) ──
+        // ── Size line + completed meta (time taken & date on right) ───────
         when (item.status) {
             ItemStatus.DOWNLOADING, ItemStatus.PAUSED, ItemStatus.SAVING, ItemStatus.RETRYING -> {
+                holder.completedMeta.visibility = View.GONE
                 when {
                     item.platform == MediaPlatform.YOUTUBE -> {
                         if (!item.mediaStatusText.isNullOrBlank()) {
@@ -118,17 +141,50 @@ class QueueAdapter(
                     }
                     else -> holder.sizeText.visibility = View.GONE
                 }
+                holder.sizeRow.visibility = holder.sizeText.visibility
             }
             ItemStatus.DONE -> {
-                val bytes = if (item.bytesTotal > 0) item.bytesTotal else item.bytesDone
+                val bytes = when {
+                    item.bytesTotal > 0 -> item.bytesTotal
+                    item.bytesDone > 0 -> item.bytesDone
+                    else -> item.filePath?.let { File(it).takeIf { f -> f.exists() }?.length() } ?: 0L
+                }
                 if (bytes > 0) {
                     holder.sizeText.text = formatBytes(bytes)
                     holder.sizeText.visibility = View.VISIBLE
                 } else {
                     holder.sizeText.visibility = View.GONE
                 }
+
+                val finishedAt = when {
+                    item.downloadFinishedAtMs > 0 -> item.downloadFinishedAtMs
+                    else -> item.filePath?.let { File(it).takeIf { f -> f.exists() }?.lastModified() } ?: 0L
+                }
+                val durationMs = if (item.downloadStartedAtMs > 0 && finishedAt > item.downloadStartedAtMs) {
+                    finishedAt - item.downloadStartedAtMs
+                } else 0L
+
+                val parts = mutableListOf<String>()
+                if (durationMs > 500) {
+                    parts.add("Took ${formatElapsedDuration(durationMs)}")
+                }
+                if (finishedAt > 0) {
+                    parts.add(dateFormat.format(Date(finishedAt)))
+                }
+                if (parts.isNotEmpty()) {
+                    holder.completedMeta.text = parts.joinToString("  •  ")
+                    holder.completedMeta.visibility = View.VISIBLE
+                } else {
+                    holder.completedMeta.visibility = View.GONE
+                }
+
+                holder.sizeRow.visibility = if (bytes > 0 || parts.isNotEmpty()) View.VISIBLE else View.GONE
             }
-            else -> holder.sizeText.visibility = View.GONE
+            else -> {
+                holder.sizeText.visibility = View.GONE
+                holder.completedMeta.visibility = View.GONE
+                holder.sizeRow.visibility = View.GONE
+            }
         }
 
         // ── Progress bar ─────────────────────────────────────────────────
@@ -253,27 +309,75 @@ class QueueAdapter(
         // YouTube items never populate bytesTotal/bytesDone at all (percent-based,
         // not byte-based) -- branch on platform the same way the full bind does,
         // or this would always fall through to the `else -> GONE` case for them.
-        when {
-            item.platform == MediaPlatform.YOUTUBE -> {
-                if (!item.mediaStatusText.isNullOrBlank()) {
-                    holder.sizeText.text = item.mediaStatusText
-                    holder.sizeText.visibility = View.VISIBLE
-                } else if (item.status == ItemStatus.DOWNLOADING) {
-                    holder.sizeText.text = if (item.progressPercent >= 0) "${item.progressPercent}%" else "Connecting…"
+        when (item.status) {
+            ItemStatus.DOWNLOADING, ItemStatus.PAUSED, ItemStatus.SAVING, ItemStatus.RETRYING -> {
+                holder.completedMeta.visibility = View.GONE
+                when {
+                    item.platform == MediaPlatform.YOUTUBE -> {
+                        if (!item.mediaStatusText.isNullOrBlank()) {
+                            holder.sizeText.text = item.mediaStatusText
+                            holder.sizeText.visibility = View.VISIBLE
+                        } else if (item.status == ItemStatus.DOWNLOADING) {
+                            holder.sizeText.text = if (item.progressPercent >= 0) "${item.progressPercent}%" else "Connecting…"
+                            holder.sizeText.visibility = View.VISIBLE
+                        } else {
+                            holder.sizeText.visibility = View.GONE
+                        }
+                    }
+                    item.bytesTotal > 0 -> {
+                        holder.sizeText.text = "${formatBytes(item.bytesDone)} / ${formatBytes(item.bytesTotal)}"
+                        holder.sizeText.visibility = View.VISIBLE
+                    }
+                    item.bytesDone > 0 -> {
+                        holder.sizeText.text = formatBytes(item.bytesDone)
+                        holder.sizeText.visibility = View.VISIBLE
+                    }
+                    else -> holder.sizeText.visibility = View.GONE
+                }
+                holder.sizeRow.visibility = holder.sizeText.visibility
+            }
+            ItemStatus.DONE -> {
+                val bytes = when {
+                    item.bytesTotal > 0 -> item.bytesTotal
+                    item.bytesDone > 0 -> item.bytesDone
+                    else -> item.filePath?.let { File(it).takeIf { f -> f.exists() }?.length() } ?: 0L
+                }
+                if (bytes > 0) {
+                    holder.sizeText.text = formatBytes(bytes)
                     holder.sizeText.visibility = View.VISIBLE
                 } else {
                     holder.sizeText.visibility = View.GONE
                 }
+
+                val finishedAt = when {
+                    item.downloadFinishedAtMs > 0 -> item.downloadFinishedAtMs
+                    else -> item.filePath?.let { File(it).takeIf { f -> f.exists() }?.lastModified() } ?: 0L
+                }
+                val durationMs = if (item.downloadStartedAtMs > 0 && finishedAt > item.downloadStartedAtMs) {
+                    finishedAt - item.downloadStartedAtMs
+                } else 0L
+
+                val parts = mutableListOf<String>()
+                if (durationMs > 500) {
+                    parts.add("Took ${formatElapsedDuration(durationMs)}")
+                }
+                if (finishedAt > 0) {
+                    parts.add(dateFormat.format(Date(finishedAt)))
+                }
+                if (parts.isNotEmpty()) {
+                    holder.completedMeta.text = parts.joinToString("  •  ")
+                    holder.completedMeta.visibility = View.VISIBLE
+                } else {
+                    holder.completedMeta.visibility = View.GONE
+                }
+
+                holder.sizeRow.visibility = if (bytes > 0 || parts.isNotEmpty()) View.VISIBLE else View.GONE
             }
-            item.bytesTotal > 0 -> {
-                holder.sizeText.text = "${formatBytes(item.bytesDone)} / ${formatBytes(item.bytesTotal)}"
-                holder.sizeText.visibility = View.VISIBLE
+            else -> {
+                holder.sizeText.visibility = View.GONE
+                holder.completedMeta.visibility = View.GONE
+                holder.sizeRow.visibility = View.GONE
             }
-            item.bytesDone > 0 -> {
-                holder.sizeText.text = formatBytes(item.bytesDone)
-                holder.sizeText.visibility = View.VISIBLE
-            }
-            else -> holder.sizeText.visibility = View.GONE
         }
 
         if (item.status == ItemStatus.DOWNLOADING) {

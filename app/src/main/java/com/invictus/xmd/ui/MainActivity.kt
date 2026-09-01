@@ -775,8 +775,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
         var customSaveDirPath: String? = null
         var nameManuallyEdited = false
+        var isProgrammaticNameChange = false
         var selectedQualityOption: YtDlpManager.QualityOption? = null
         var selectedAudioFormatPreset: Settings.AudioFormatPreset = Settings.presetAudioFormat()
+
+        fun setNameText(text: String) {
+            isProgrammaticNameChange = true
+            nameInput.setText(text)
+            isProgrammaticNameChange = false
+        }
 
         val initialLink = link?.trim().orEmpty()
 
@@ -864,27 +871,33 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         fun updateNameForLink(currentLink: String) {
             probeJob?.cancel()
             if (nameManuallyEdited) return
+            if (currentLink.isBlank()) {
+                setNameText("")
+                return
+            }
             if (LinkParser.isMagnetLink(currentLink)) {
                 val detected = magnetDisplayName(currentLink)
-                if (!detected.isNullOrBlank()) nameInput.setText(detected)
+                if (!detected.isNullOrBlank()) setNameText(detected)
             } else if (LinkParser.isYoutubeLink(currentLink)) {
+                val fallback = extractYoutubeFallbackName(currentLink)
+                setNameText(fallback)
                 probeJob = lifecycleScope.launch {
                     val probed = withContext(Dispatchers.IO) {
                         probeYoutubeTitle(currentLink)
                     }
                     if (!nameManuallyEdited && !probed.isNullOrBlank()) {
-                        nameInput.setText(probed)
+                        setNameText(probed)
                     }
                 }
-            } else if (currentLink.isNotBlank()) {
+            } else {
                 val guessed = DownloadEngine.filenameFromLink(currentLink).ifBlank { DownloadEngine.filenameFromUrl(currentLink) }
-                if (guessed.isNotBlank()) nameInput.setText(guessed)
+                if (guessed.isNotBlank()) setNameText(guessed)
                 probeJob = lifecycleScope.launch {
                     val probed = withContext(Dispatchers.IO) {
                         DownloadEngine.probeRealFilename(filenameClient, currentLink)
                     }
                     if (!nameManuallyEdited && !probed.isNullOrBlank()) {
-                        nameInput.setText(probed)
+                        setNameText(probed)
                     }
                 }
             }
@@ -901,7 +914,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             updateQualitySection(text)
         }
 
-        nameInput.doAfterTextChanged { nameManuallyEdited = true }
+        nameInput.doAfterTextChanged {
+            if (!isProgrammaticNameChange && nameInput.hasFocus()) {
+                nameManuallyEdited = true
+            }
+        }
 
         val dialog = MaterialAlertDialogBuilder(this)
             .setView(dialogView)
@@ -928,6 +945,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         pasteLinkButton.setOnClickListener {
             val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
             if (clipText.isNotEmpty()) {
+                nameManuallyEdited = false
                 linkInput.setText(clipText)
                 linkInput.setSelection(clipText.length)
                 Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
@@ -1363,11 +1381,24 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         showDownloadStartedSnackbar()
     }
 
+    private fun extractYoutubeFallbackName(url: String): String {
+        val clean = url.trim()
+        val id = when {
+            clean.contains("youtu.be/") -> clean.substringAfter("youtu.be/").substringBefore("?").substringBefore("/")
+            clean.contains("/shorts/") -> clean.substringAfter("/shorts/").substringBefore("?").substringBefore("/")
+            clean.contains("v=") -> Regex("""[?&]v=([^&]+)""").find(clean)?.groupValues?.get(1)
+            else -> null
+        }
+        return if (!id.isNullOrBlank()) "YouTube ($id)" else "YouTube Video"
+    }
+
     private fun probeYoutubeTitle(url: String): String? {
         return runCatching {
-            val encoded = URLEncoder.encode(url, "UTF-8")
+            val cleanUrl = url.trim()
+            val encoded = URLEncoder.encode(cleanUrl, "UTF-8")
             val req = Request.Builder()
                 .url("https://www.youtube.com/oembed?url=$encoded&format=json")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                 .build()
             filenameClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) return@use null

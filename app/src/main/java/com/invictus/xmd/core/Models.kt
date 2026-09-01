@@ -85,6 +85,7 @@ data class QueueItem(
     var bytesTotal: Long = 0L,
     var speedBps: Double = 0.0,
     var downloadStartedAtMs: Long = 0L,
+    var downloadFinishedAtMs: Long = 0L,
     var category: DownloadCategory = DownloadCategory.default(),
 
     /**

@@ -69,16 +69,37 @@
                 android:maxLines="2"
                 android:ellipsize="end" />
 
-            <!-- SIZE LINE: "234.5 MB / 1.2 GB" — shown during download, pause, done -->
-            <TextView
-                android:id="@+id/itemSizeText"
+            <!-- SIZE & COMPLETED META ROW: size on left, time taken + date on right -->
+            <LinearLayout
+                android:id="@+id/itemSizeRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/itemSizeText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/itemCompletedMeta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:gravity="end"
+                    android:textAlignment="viewEnd"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <!-- Progress bar -->
             <com.google.android.material.progressindicator.LinearProgressIndicator

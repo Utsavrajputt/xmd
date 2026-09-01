@@ -12,7 +12,7 @@ import com.invictus.xmd.core.Shortcut
 import com.invictus.xmd.core.HistoryEntry
 import com.invictus.xmd.core.QueueItem
 
-@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 11, exportSchema = false)
+@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 12, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -149,6 +149,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v11 -> v12: adds downloadFinishedAtMs to queue_items.
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN downloadFinishedAtMs INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -158,7 +165,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
                     )
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).

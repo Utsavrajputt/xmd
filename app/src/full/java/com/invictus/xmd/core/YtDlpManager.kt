@@ -531,6 +531,7 @@ object YtDlpManager {
         request.addOption("--no-colors")
         request.addOption("--no-quiet")
         request.addOption("--progress")
+        request.addOption("--extractor-args", "youtube:player_client=android,web")
         request.addOption("--print", "after_move:filepath")
 
         if (option.isAudioOnly) {
