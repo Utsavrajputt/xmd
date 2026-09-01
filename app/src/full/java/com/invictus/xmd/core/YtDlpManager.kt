@@ -437,11 +437,11 @@ object YtDlpManager {
     // Matches yt-dlp's standard download-progress line, e.g.:
     // "[download]  42.5% of   10.32MiB at    1.21MiB/s ETA 00:07"
     // "[download] 100% of 3.45MiB in 00:02"
-    // Percent is always present when this matches; size/speed/eta are each
-    // optional since yt-dlp omits speed+ETA on the final "100% ... in ..." line.
-    private val DOWNLOAD_LINE = Regex(
-        """\[download]\s+([\d.]+)%(?:\s+of\s+~?\s*([\d.]+\s*\w*i?B))?(?:\s+at\s+([\d.]+\s*\w*i?B/s))?(?:\s+ETA\s+(\S+))?"""
-    )
+    private val ANSI_REGEX = Regex("""\u001B\[[0-?]*[ -/]*[@-~]""")
+    private val DOWNLOAD_PERCENT = Regex("""\[download\]\s+([\d.]+)%""")
+    private val DOWNLOAD_SIZE = Regex("""\bof\s+(~?\s*[\d.]+\s*[a-zA-Z]+)""")
+    private val DOWNLOAD_SPEED = Regex("""\bat\s+([\d.]+\s*[a-zA-Z/]+)""")
+    private val DOWNLOAD_ETA = Regex("""\bETA\s+(\S+)""")
 
     // Postprocessing stage markers -- these lines have no percentage at all,
     // so they only feed statusText (percent stays at whatever it last was).
@@ -449,36 +449,31 @@ object YtDlpManager {
 
     /**
      * Parses one line of yt-dlp's stdout into a [DownloadProgress], or null
-     * if the line has nothing progress-related in it (most lines don't --
-     * yt-dlp prints a lot of [info]/[youtube] noise per run).
-     *
-     * This exists because youtubedl-android's own progress callback only
-     * reliably fires during the raw download phase -- once yt-dlp moves into
-     * postprocessing (merging video+audio, extracting/converting audio,
-     * embedding the thumbnail, writing metadata), the library's regex
-     * doesn't recognize those lines as progress at all, so relying on it
-     * alone leaves the UI stuck showing stale/no percentage for however long
-     * that phase takes. Parsing the raw line ourselves means every stage
-     * shows *something* instead of a frozen "Downloading…".
+     * if the line has nothing progress-related in it.
      */
-    private fun parseProgressLine(line: String, lastPercent: Int): DownloadProgress? {
-        DOWNLOAD_LINE.find(line)?.let { m ->
-            val percent = m.groupValues[1].toFloatOrNull()?.toInt()?.coerceIn(0, 100) ?: lastPercent
-            val size = m.groupValues[2].trim()
-            val speed = m.groupValues[3].trim()
-            val eta = m.groupValues[4].trim()
+    private fun parseProgressLine(rawLine: String, lastPercent: Int): DownloadProgress? {
+        val line = rawLine.replace(ANSI_REGEX, "").trim()
+        val percentMatch = DOWNLOAD_PERCENT.find(line)
+        if (percentMatch != null) {
+            val percent = percentMatch.groupValues[1].toFloatOrNull()?.toInt()?.coerceIn(0, 100) ?: lastPercent
+            val size = DOWNLOAD_SIZE.find(line)?.groupValues?.get(1)?.trim()
+            val speed = DOWNLOAD_SPEED.find(line)?.groupValues?.get(1)?.trim()?.takeUnless { it.startsWith("Unknown", ignoreCase = true) }
+            val eta = DOWNLOAD_ETA.find(line)?.groupValues?.get(1)?.trim()?.takeUnless { it.equals("Unknown", ignoreCase = true) }
             val status = buildString {
-                if (speed.isNotEmpty()) append(speed)
-                if (size.isNotEmpty()) {
+                if (!speed.isNullOrEmpty()) append(speed)
+                if (!size.isNullOrEmpty()) {
                     if (isNotEmpty()) append(" · ")
                     append(size)
                 }
-                if (eta.isNotEmpty() && eta != "Unknown") {
+                if (!eta.isNullOrEmpty()) {
                     if (isNotEmpty()) append(" · ")
                     append("ETA $eta")
                 }
             }.ifEmpty { null }
             return DownloadProgress(percent, status)
+        }
+        if (line.startsWith("[download] Destination:")) {
+            return DownloadProgress(lastPercent.coerceAtLeast(0), "Starting download…")
         }
         STAGE_LINE.find(line)?.let { m ->
             val stageLabel = when (m.groupValues[1]) {
@@ -490,11 +485,10 @@ object YtDlpManager {
                 "VideoConvertor" -> "Converting video…"
                 else -> null
             }
-            // Keep the last known download percent through postprocessing --
-            // it's already effectively "done" downloading at this point, and
-            // jumping back to an unknown/lower percent would look like a
-            // regression to the user.
             return DownloadProgress(lastPercent.coerceAtLeast(0), stageLabel)
+        }
+        if (line.startsWith("[youtube]") || line.startsWith("[info]")) {
+            return DownloadProgress(lastPercent.coerceAtLeast(0), "Connecting & preparing…")
         }
         return null
     }
@@ -534,6 +528,9 @@ object YtDlpManager {
         request.addOption("--no-mtime")
         request.addOption("--no-playlist")
         request.addOption("--newline")
+        request.addOption("--no-colors")
+        request.addOption("--no-quiet")
+        request.addOption("--progress")
         request.addOption("--print", "after_move:filepath")
 
         if (option.isAudioOnly) {
@@ -594,16 +591,21 @@ object YtDlpManager {
             } else if (progress >= 0f) {
                 val fallbackPercent = progress.toInt().coerceIn(0, 100)
                 lastPercent = fallbackPercent
-                onProgress(DownloadProgress(fallbackPercent, null))
+                onProgress(DownloadProgress(fallbackPercent, "Downloading…"))
             }
         }
 
-        val printedPath = response.out
+        val resolved = response.out
             .lineSequence()
-            .map { it.trim() }
-            .lastOrNull { it.isNotEmpty() }
-
-        val resolved = printedPath?.let { File(it) }?.takeIf { it.isFile }
+            .map { it.trim().replace(ANSI_REGEX, "") }
+            .firstOrNull { line ->
+                line.isNotEmpty() && !line.startsWith("[") && File(line).isFile
+            }?.let { File(it) }
+            ?: response.out
+                .lineSequence()
+                .map { it.trim().replace(ANSI_REGEX, "") }
+                .lastOrNull { it.isNotEmpty() && !it.startsWith("[") && File(it).isFile }
+                ?.let { File(it) }
             ?: outputDir.listFiles()
                 ?.filter { it.isFile }
                 ?.maxByOrNull { it.lastModified() }

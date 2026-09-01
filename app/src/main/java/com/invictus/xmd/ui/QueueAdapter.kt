@@ -97,8 +97,11 @@ class QueueAdapter(
             ItemStatus.DOWNLOADING, ItemStatus.PAUSED, ItemStatus.SAVING, ItemStatus.RETRYING -> {
                 when {
                     item.platform == MediaPlatform.YOUTUBE -> {
-                        if (item.mediaStatusText != null) {
+                        if (!item.mediaStatusText.isNullOrBlank()) {
                             holder.sizeText.text = item.mediaStatusText
+                            holder.sizeText.visibility = View.VISIBLE
+                        } else if (item.status == ItemStatus.DOWNLOADING) {
+                            holder.sizeText.text = if (item.progressPercent >= 0) "${item.progressPercent}%" else "Connecting…"
                             holder.sizeText.visibility = View.VISIBLE
                         } else {
                             holder.sizeText.visibility = View.GONE
@@ -133,27 +136,35 @@ class QueueAdapter(
             ItemStatus.DOWNLOADING -> {
                 if (item.platform == MediaPlatform.YOUTUBE) {
                     if (item.progressPercent >= 0) {
+                        holder.progress.isIndeterminate = false
                         holder.progress.progress = item.progressPercent
-                        holder.progress.visibility = View.VISIBLE
                     } else {
-                        holder.progress.visibility = View.GONE
+                        holder.progress.isIndeterminate = true
                     }
+                    holder.progress.visibility = View.VISIBLE
                 } else if (item.bytesTotal > 0) {
+                    holder.progress.isIndeterminate = false
                     holder.progress.progress = ((item.bytesDone * 100) / item.bytesTotal).toInt()
                     holder.progress.visibility = View.VISIBLE
                 } else {
-                    holder.progress.visibility = View.GONE
+                    holder.progress.isIndeterminate = true
+                    holder.progress.visibility = View.VISIBLE
                 }
             }
             ItemStatus.DONE -> {
+                holder.progress.isIndeterminate = false
                 holder.progress.progress = 100
                 holder.progress.visibility = View.VISIBLE
             }
             ItemStatus.SAVING -> {
+                holder.progress.isIndeterminate = false
                 holder.progress.progress = 100
                 holder.progress.visibility = View.VISIBLE
             }
-            else -> holder.progress.visibility = View.GONE
+            else -> {
+                holder.progress.isIndeterminate = false
+                holder.progress.visibility = View.GONE
+            }
         }
 
         // ── Speed + ETA line ─────────────────────────────────────────────
@@ -244,8 +255,11 @@ class QueueAdapter(
         // or this would always fall through to the `else -> GONE` case for them.
         when {
             item.platform == MediaPlatform.YOUTUBE -> {
-                if (item.mediaStatusText != null) {
+                if (!item.mediaStatusText.isNullOrBlank()) {
                     holder.sizeText.text = item.mediaStatusText
+                    holder.sizeText.visibility = View.VISIBLE
+                } else if (item.status == ItemStatus.DOWNLOADING) {
+                    holder.sizeText.text = if (item.progressPercent >= 0) "${item.progressPercent}%" else "Connecting…"
                     holder.sizeText.visibility = View.VISIBLE
                 } else {
                     holder.sizeText.visibility = View.GONE
@@ -265,16 +279,19 @@ class QueueAdapter(
         if (item.status == ItemStatus.DOWNLOADING) {
             if (item.platform == MediaPlatform.YOUTUBE) {
                 if (item.progressPercent >= 0) {
+                    holder.progress.isIndeterminate = false
                     holder.progress.progress = item.progressPercent
-                    holder.progress.visibility = View.VISIBLE
                 } else {
-                    holder.progress.visibility = View.GONE
+                    holder.progress.isIndeterminate = true
                 }
+                holder.progress.visibility = View.VISIBLE
             } else if (item.bytesTotal > 0) {
+                holder.progress.isIndeterminate = false
                 holder.progress.progress = ((item.bytesDone * 100) / item.bytesTotal).toInt()
                 holder.progress.visibility = View.VISIBLE
             } else {
-                holder.progress.visibility = View.GONE
+                holder.progress.isIndeterminate = true
+                holder.progress.visibility = View.VISIBLE
             }
         }
 
