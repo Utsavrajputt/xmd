@@ -74,7 +74,13 @@ import kotlinx.coroutines.Job
 import org.libtorrent4j.TorrentInfo
 import android.graphics.Typeface
 import androidx.core.view.isVisible
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import com.google.android.material.textfield.TextInputLayout
+import okhttp3.Request
+import org.json.JSONObject
 import java.io.File
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -754,6 +760,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadCopyLinkButton)
         val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadPasteLinkButton)
         val pickFileText = dialogView.findViewById<TextView>(R.id.downloadPickFileText)
+        val qualitySection = dialogView.findViewById<View>(R.id.downloadQualitySection)
+        val qualityDropdown = dialogView.findViewById<AutoCompleteTextView>(R.id.downloadQualityDropdown)
+        val audioFormatLayout = dialogView.findViewById<View>(R.id.downloadAudioFormatLayout)
+        val audioFormatDropdown = dialogView.findViewById<AutoCompleteTextView>(R.id.downloadAudioFormatDropdown)
         val nameInput = dialogView.findViewById<EditText>(R.id.downloadNameInput)
         val advancedHeader = dialogView.findViewById<View>(R.id.downloadAdvancedHeader)
         val advancedChevron = dialogView.findViewById<ImageView>(R.id.downloadAdvancedChevron)
@@ -765,6 +775,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
         var customSaveDirPath: String? = null
         var nameManuallyEdited = false
+        var selectedQualityOption: YtDlpManager.QualityOption? = null
+        var selectedAudioFormatPreset: Settings.AudioFormatPreset = Settings.presetAudioFormat()
 
         val initialLink = link?.trim().orEmpty()
 
@@ -773,6 +785,81 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
         saveToPathText.text = defaultSavePath()
 
+        val audioFormatList = listOf(
+            "MP3" to Settings.AudioFormatPreset.MP3,
+            "M4A" to Settings.AudioFormatPreset.M4A,
+            "Opus" to Settings.AudioFormatPreset.OPUS,
+            "Original" to Settings.AudioFormatPreset.ORIGINAL
+        )
+        audioFormatDropdown.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, audioFormatList.map { it.first })
+        )
+        val initialAudioLabel = audioFormatList.firstOrNull { it.second == selectedAudioFormatPreset }?.first ?: "MP3"
+        audioFormatDropdown.setText(initialAudioLabel, false)
+        audioFormatDropdown.setOnClickListener { audioFormatDropdown.showDropDown() }
+        audioFormatDropdown.setOnItemClickListener { _, _, position, _ ->
+            selectedAudioFormatPreset = audioFormatList[position].second
+        }
+
+        var currentQualityLink: String? = null
+        fun updateQualitySection(currentLink: String) {
+            if (!LinkParser.needsYtDlp(currentLink)) {
+                qualitySection.visibility = View.GONE
+                pickFileText.visibility = View.VISIBLE
+                return
+            }
+
+            qualitySection.visibility = View.VISIBLE
+            pickFileText.visibility = View.GONE
+
+            if (currentQualityLink == currentLink) return
+            currentQualityLink = currentLink
+
+            val isGeneric = !LinkParser.isYoutubeLink(currentLink)
+            val rawOptions = YtDlpManager.standardQualityOptions(isGenericOrHls = isGeneric)
+
+            val videoOpts = rawOptions.filter { !it.isAudioOnly }
+            val audioOpt = rawOptions.firstOrNull { it.isAudioOnly }
+                ?: YtDlpManager.QualityOption("Audio only", YtDlpManager.AUDIO_ONLY_SELECTOR, isAudioOnly = true)
+
+            val qualityItems = videoOpts.map { it.label } + "Audio only"
+            qualityDropdown.setAdapter(
+                ArrayAdapter(this, android.R.layout.simple_list_item_1, qualityItems)
+            )
+            qualityDropdown.setOnClickListener { qualityDropdown.showDropDown() }
+
+            // Pick up default from yt-dlp Settings
+            val savedQuality = Settings.ytDlpDefaultQualityLabel()
+            val initialSelectedLabel: String = when {
+                savedQuality.startsWith("Audio only", ignoreCase = true) -> "Audio only"
+                savedQuality.isNotBlank() && qualityItems.contains(savedQuality) -> savedQuality
+                qualityItems.contains("1080p") -> "1080p"
+                qualityItems.contains("720p") -> "720p"
+                else -> qualityItems.firstOrNull() ?: "1080p"
+            }
+
+            qualityDropdown.setText(initialSelectedLabel, false)
+
+            if (initialSelectedLabel == "Audio only") {
+                audioFormatLayout.visibility = View.VISIBLE
+                selectedQualityOption = audioOpt
+            } else {
+                audioFormatLayout.visibility = View.GONE
+                selectedQualityOption = videoOpts.firstOrNull { it.label == initialSelectedLabel }
+            }
+
+            qualityDropdown.setOnItemClickListener { _, _, position, _ ->
+                val chosen = qualityItems[position]
+                if (chosen == "Audio only") {
+                    audioFormatLayout.visibility = View.VISIBLE
+                    selectedQualityOption = audioOpt
+                } else {
+                    audioFormatLayout.visibility = View.GONE
+                    selectedQualityOption = videoOpts.firstOrNull { it.label == chosen }
+                }
+            }
+        }
+
         var probeJob: Job? = null
         fun updateNameForLink(currentLink: String) {
             probeJob?.cancel()
@@ -780,6 +867,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             if (LinkParser.isMagnetLink(currentLink)) {
                 val detected = magnetDisplayName(currentLink)
                 if (!detected.isNullOrBlank()) nameInput.setText(detected)
+            } else if (LinkParser.isYoutubeLink(currentLink)) {
+                probeJob = lifecycleScope.launch {
+                    val probed = withContext(Dispatchers.IO) {
+                        probeYoutubeTitle(currentLink)
+                    }
+                    if (!nameManuallyEdited && !probed.isNullOrBlank()) {
+                        nameInput.setText(probed)
+                    }
+                }
             } else if (currentLink.isNotBlank()) {
                 val guessed = DownloadEngine.filenameFromLink(currentLink).ifBlank { DownloadEngine.filenameFromUrl(currentLink) }
                 if (guessed.isNotBlank()) nameInput.setText(guessed)
@@ -796,11 +892,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
         if (initialLink.isNotEmpty()) {
             updateNameForLink(initialLink)
+            updateQualitySection(initialLink)
         }
 
         linkInput.doAfterTextChanged {
             val text = it?.toString()?.trim().orEmpty()
             updateNameForLink(text)
+            updateQualitySection(text)
         }
 
         nameInput.doAfterTextChanged { nameManuallyEdited = true }
@@ -868,6 +966,14 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 showAddTorrentDialog(prefillLink = finalLink)
             } else if (LinkParser.isShareLink(finalLink) || LinkParser.isFitgirlPage(finalLink)) {
                 triggerPrepare(listOf(finalLink))
+            } else if (LinkParser.needsYtDlp(finalLink)) {
+                triggerDownloadYoutubeCustom(
+                    finalLink,
+                    finalName,
+                    customSaveDirPath,
+                    selectedQualityOption,
+                    selectedAudioFormatPreset
+                )
             } else {
                 triggerDownloadDirectCustom(finalLink, finalName, customSaveDirPath)
             }
@@ -1191,6 +1297,84 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
         DownloadService.start(this)
         showDownloadStartedSnackbar()
+    }
+
+    fun triggerDownloadYoutubeCustom(
+        link: String,
+        name: String?,
+        customSaveDirPath: String?,
+        chosenQuality: YtDlpManager.QualityOption?,
+        chosenAudioPreset: Settings.AudioFormatPreset = Settings.presetAudioFormat()
+    ) {
+        if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Not supported in this build")
+                .setMessage("This is the Lite build, which doesn't include the yt-dlp engine needed for YouTube, HLS (.m3u8), or DASH (.mpd) links. Download the Full build from the app's Releases page to use this.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+        if (!YtDlpManager.isInstalled(this)) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("yt-dlp not installed")
+                .setMessage("This link needs the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
+                .setPositiveButton("Install now") { _, _ -> openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+
+        val quality = chosenQuality ?: run {
+            val options = YtDlpManager.standardQualityOptions(isGenericOrHls = !LinkParser.isYoutubeLink(link))
+            options.firstOrNull { it.label.startsWith("1080p") } ?: options.firstOrNull()
+        }
+
+        if (quality == null) {
+            Toast.makeText(this, "Could not resolve quality", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (quality.isAudioOnly) {
+            Settings.setPresetAudioFormat(chosenAudioPreset)
+        }
+
+        val formatLabel = if (quality.isAudioOnly) {
+            "Audio (${chosenAudioPreset.name})"
+        } else {
+            quality.label
+        }
+
+        QueueRepository.setLinks(listOf(link))
+        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
+        if (item != null) {
+            QueueRepository.update(item.id) {
+                it.copy(
+                    status = ItemStatus.READY,
+                    platform = MediaPlatform.YOUTUBE,
+                    mediaFormatSelector = quality.formatSelector,
+                    mediaFormatLabel = formatLabel,
+                    category = if (quality.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS,
+                    fileName = name ?: it.fileName,
+                    customSaveDirPath = customSaveDirPath
+                )
+            }
+        }
+        DownloadService.start(this)
+        showDownloadStartedSnackbar()
+    }
+
+    private fun probeYoutubeTitle(url: String): String? {
+        return runCatching {
+            val encoded = URLEncoder.encode(url, "UTF-8")
+            val req = Request.Builder()
+                .url("https://www.youtube.com/oembed?url=$encoded&format=json")
+                .build()
+            filenameClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@use null
+                val body = resp.body?.string() ?: return@use null
+                JSONObject(body).optString("title").takeIf { it.isNotBlank() }
+            }
+        }.getOrNull()
     }
 
     fun triggerDownloadTorrentFile(

@@ -291,6 +291,7 @@
     <string name="download_dialog_title">Add Download</string>
     <string name="download_dialog_link_hint">https://...</string>
     <string name="download_dialog_name_placeholder">Filename</string>
+    <string name="download_dialog_quality_label">Resolution &amp; Format</string>
     <string name="torrent_dialog_files_label">Files</string>
     <string name="torrent_dialog_fetching_metadata">Fetching torrent metadata &amp; files…</string>
     <string name="torrent_dialog_metadata_failed">Couldn\'t fetch metadata in time. All files will be downloaded.</string>
