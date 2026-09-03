@@ -144,7 +144,7 @@ fun CategoryRow(
             )
         }
         Icon(
-            painter = painterResource(R.drawable.ic_chevron_right),
+            painter = painterResource(XmdIcons.ChevronRight),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
@@ -218,7 +218,7 @@ fun ThemeSwatchItem(
             }
             if (isSelected) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_check),
+                    painter = painterResource(XmdIcons.Check),
                     contentDescription = null,
                     tint = primaryColor,
                     modifier = Modifier

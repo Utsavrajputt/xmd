@@ -281,6 +281,23 @@
     <string name="queue_search_hint">Search downloads</string>
     <string name="queue_search_empty">No matching downloads.</string>
     <string name="queue_empty_title">No downloads yet</string>
+    <string name="download_filter_all">All</string>
+    <string name="download_filter_active">Active</string>
+    <string name="download_filter_waiting">Waiting</string>
+    <string name="download_filter_completed">Completed</string>
+    <string name="download_filter_failed">Failed</string>
+    <string name="full_build_required_title">Not supported in this build</string>
+    <string name="full_build_required_message">This is the Lite build, which does not include the yt-dlp engine needed for YouTube, HLS (.m3u8), or DASH (.mpd) links. Install the Full build from Releases to use these links.</string>
+    <string name="ytdlp_not_installed_title">yt-dlp not installed</string>
+    <string name="ytdlp_not_installed_message">This link needs the yt-dlp downloader. Install it from Settings first.</string>
+    <string name="action_install_now">Install now</string>
+    <string name="link_expired_title">Link expired</string>
+    <string name="link_expired_message">%1$s\n\nThis download link has expired or is no longer available.</string>
+    <string name="action_fetch_link">Fetch link</string>
+    <string name="storage_permission_title">Storage permission required</string>
+    <string name="storage_permission_message">Xmd needs all-files access to save downloads in its internal-storage folder. Tap Allow on the next screen.</string>
+    <string name="action_allow">Allow</string>
+    <string name="storage_permission_denied">Downloads will fail without storage permission.</string>
 
     <!-- Bottom Nav Tabs -->
     <string name="tab_downloads">Downloads</string>

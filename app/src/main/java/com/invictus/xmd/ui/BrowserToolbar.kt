@@ -105,6 +105,7 @@ fun BrowserToolbarRow(
     onTabsTap: () -> Unit,
     tabsCount: Int,
     onOverflowTap: () -> Unit,
+    overflowMenu: @Composable () -> Unit,
     progress: Int,
     progressVisible: Boolean,
 ) {
@@ -125,7 +126,7 @@ fun BrowserToolbarRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ToolbarIconButton(
-                    iconRes = R.drawable.ic_home,
+                    iconRes = XmdIcons.Home,
                     contentDescription = stringResource(R.string.action_home),
                     onClick = onHomeTap,
                 )
@@ -145,7 +146,7 @@ fun BrowserToolbarRow(
                     onBookmarkTap = onBookmarkTap,
                 )
                 ToolbarIconButton(
-                    iconRes = R.drawable.ic_add,
+                    iconRes = XmdIcons.Add,
                     contentDescription = stringResource(R.string.action_new_tab),
                     onClick = onNewTabTap,
                     modifier = Modifier.padding(start = 2.dp),
@@ -155,11 +156,14 @@ fun BrowserToolbarRow(
                     contentDescription = stringResource(R.string.action_tabs),
                     onClick = onTabsTap,
                 )
-                ToolbarIconButton(
-                    iconRes = R.drawable.ic_more_vert,
-                    contentDescription = stringResource(R.string.action_more),
-                    onClick = onOverflowTap,
-                )
+                Box {
+                    ToolbarIconButton(
+                        iconRes = XmdIcons.More,
+                        contentDescription = stringResource(R.string.action_more),
+                        onClick = onOverflowTap,
+                    )
+                    overflowMenu()
+                }
             }
         }
         // Chrome-style thin progress line sitting on the address bar
@@ -238,7 +242,7 @@ private fun AddressPill(
         ) {
             if (securityIconVisible) {
                 Icon(
-                    painter = painterResource(if (isSecure) R.drawable.ic_lock else R.drawable.ic_lock_open),
+                    painter = painterResource(if (isSecure) XmdIcons.Lock else XmdIcons.LockOpen),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -301,7 +305,7 @@ private fun AddressPill(
                 ) {
                     Icon(
                         painter = painterResource(
-                            if (bookmarkFilled) R.drawable.ic_star_filled else R.drawable.ic_star_outline
+                            if (bookmarkFilled) XmdIcons.Bookmark else XmdIcons.BookmarkAdd
                         ),
                         contentDescription = stringResource(R.string.action_add_shortcut),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,

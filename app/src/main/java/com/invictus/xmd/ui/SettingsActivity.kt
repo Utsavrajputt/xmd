@@ -10,25 +10,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -38,7 +38,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.ui.theme.XmdTheme
@@ -69,6 +68,7 @@ import java.util.Locale
 class SettingsActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
+    private var importCandidates: List<File>? by mutableStateOf(null)
 
     // Must be registered before onStart -- declared as a property so it's
     // set up during Activity construction, same requirement as any other
@@ -130,10 +130,25 @@ class SettingsActivity : ComponentActivity() {
                     onImportWebsites = ::startWebImportFlow,
                     onExportWebsites = ::startWebExportFlow,
                 )
+                importCandidates?.let { files ->
+                    val storageRoot = Environment.getExternalStorageDirectory().path
+                    AppChoiceDialog(
+                        title = stringResource(R.string.import_websites_title),
+                        choices = files.map { it.path.removePrefix(storageRoot).trimStart('/') },
+                        dismissLabel = stringResource(android.R.string.cancel),
+                        onChoice = { index ->
+                            val selected = files.getOrNull(index)
+                            importCandidates = null
+                            if (selected != null) runWebImport(selected)
+                        },
+                        onDismiss = { importCandidates = null },
+                    )
+                }
             }
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SettingsScreenRoot(
         navController: NavHostController,
@@ -148,25 +163,20 @@ class SettingsActivity : ComponentActivity() {
 
         Surface(color = MaterialTheme.colorScheme.background) {
             Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                    Text(
-                        text = stringResource(titleRes),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f).padding(start = 12.dp),
-                    )
-                }
+                TopAppBar(
+                    title = { Text(stringResource(titleRes)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painter = painterResource(XmdIcons.ArrowBack),
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                )
 
                 NavHost(
                     navController = navController,
@@ -216,13 +226,7 @@ class SettingsActivity : ComponentActivity() {
     }
 
     private fun showImportCandidatesDialog(files: List<File>) {
-        val storageRoot = Environment.getExternalStorageDirectory().path
-        val labels = files.map { it.path.removePrefix(storageRoot).trimStart('/') }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.import_websites_title)
-            .setItems(labels) { _, which -> runWebImport(files[which]) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        importCandidates = files
     }
 
     private fun runWebImport(file: File) {

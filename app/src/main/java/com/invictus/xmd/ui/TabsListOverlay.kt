@@ -22,9 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -155,7 +152,7 @@ fun TabsListOverlay(
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Add,
+                                painter = painterResource(XmdIcons.Add),
                                 contentDescription = stringResource(R.string.action_new_tab),
                             )
                         }
@@ -220,7 +217,7 @@ private fun TabRow(
             )
             IconButton(onClick = onCloseClick) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
+                    painter = painterResource(XmdIcons.Close),
                     contentDescription = stringResource(R.string.action_dismiss),
                     tint = onTonalColor,
                 )
@@ -259,7 +256,7 @@ private fun TabFavicon(item: TabOverlayItem, tint: Color) {
         } else {
             Icon(
                 painter = painterResource(
-                    if (item.isPrivate) R.drawable.ic_private_tab else R.drawable.ic_link
+                    if (item.isPrivate) XmdIcons.VisibilityOff else XmdIcons.Link
                 ),
                 contentDescription = null,
                 tint = Color(0xFF1A1A1A),

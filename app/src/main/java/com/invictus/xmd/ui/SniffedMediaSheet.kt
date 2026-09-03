@@ -99,8 +99,8 @@ private fun SniffedMediaRow(
             .padding(vertical = 2.dp),
     ) {
         val icon = when (stream.kind) {
-            MediaSniffer.Kind.DIRECT_AUDIO -> R.drawable.ic_music_note
-            else -> R.drawable.ic_video
+            MediaSniffer.Kind.DIRECT_AUDIO -> XmdIcons.Music
+            else -> XmdIcons.Video
         }
         Icon(
             painter = painterResource(icon),
@@ -125,7 +125,7 @@ private fun SniffedMediaRow(
         )
         IconButton(onClick = onCopyClick) {
             Icon(
-                painter = painterResource(R.drawable.ic_link),
+                painter = painterResource(XmdIcons.Link),
                 contentDescription = stringResource(R.string.torrent_dialog_copy_link),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(18.dp),

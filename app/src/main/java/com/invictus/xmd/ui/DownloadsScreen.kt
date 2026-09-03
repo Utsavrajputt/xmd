@@ -22,14 +22,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,7 +87,7 @@ fun DownloadsScreen(
 ) {
     // Same filter as DownloadsFragment.renderList: filename OR sourceUrl,
     // case-insensitive substring.
-    val list = remember(items, query) {
+    val queryMatches = remember(items, query) {
         val q = query.trim()
         if (q.isEmpty()) {
             items
@@ -96,6 +97,11 @@ fun DownloadsScreen(
                     item.sourceUrl.contains(q, ignoreCase = true)
             }
         }
+    }
+    var selectedFilterName by rememberSaveable { mutableStateOf(DownloadFilter.All.name) }
+    val selectedFilter = DownloadFilter.valueOf(selectedFilterName)
+    val list = remember(queryMatches, selectedFilter) {
+        queryMatches.filter(selectedFilter::matches)
     }
 
     // Long-press options menu / rename / delete-confirm dialog state --
@@ -110,14 +116,7 @@ fun DownloadsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        // ── Summary chips bar ───────────────────────────────────────────
-        // Recomputed from `list` on every recomposition, but Compose only
-        // actually redraws the Row when the derived `parts` value changes
-        // (structural equality) -- same "skip the rebuild when labels
-        // haven't moved" effect the old removeAllViews()-guard achieved
-        // manually, without needing to hand-roll it here.
-        val summaryParts = remember(list) { buildSummaryParts(list) }
-        if (summaryParts.isNotEmpty()) {
+        if (items.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -126,7 +125,35 @@ fun DownloadsScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                summaryParts.forEach { label -> SummaryChip(label) }
+                DownloadFilter.entries.forEach { filter ->
+                    val count = queryMatches.count(filter::matches)
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = { selectedFilterName = filter.name },
+                        label = {
+                            Text(
+                                text = "${stringResource(filter.labelRes)} $count",
+                                fontSize = 12.sp,
+                            )
+                        },
+                        leadingIcon = if (selectedFilter == filter) {
+                            {
+                                Icon(
+                                    painter = painterResource(XmdIcons.Check),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    )
+                }
             }
         }
 
@@ -239,44 +266,30 @@ fun DownloadsScreen(
     }
 }
 
-private fun buildSummaryParts(list: List<QueueItem>): List<String> {
-    val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
-    val ready = list.count { it.status == ItemStatus.READY }
-    val resolving = list.count {
-        it.status == ItemStatus.PENDING || it.status == ItemStatus.RESOLVING || it.status == ItemStatus.NEEDS_CHALLENGE
-    }
-    val paused = list.count { it.status == ItemStatus.PAUSED }
-    val retrying = list.count { it.status == ItemStatus.RETRYING }
-    val saving = list.count { it.status == ItemStatus.SAVING }
-    val done = list.count { it.status == ItemStatus.DONE }
-    val failed = list.count { it.status == ItemStatus.FAILED }
+private enum class DownloadFilter(val labelRes: Int) {
+    All(R.string.download_filter_all),
+    Active(R.string.download_filter_active),
+    Waiting(R.string.download_filter_waiting),
+    Completed(R.string.download_filter_completed),
+    Failed(R.string.download_filter_failed);
 
-    return buildList {
-        if (downloading > 0) add("$downloading downloading")
-        if (ready > 0) add("$ready ready")
-        if (resolving > 0) add("$resolving resolving")
-        if (paused > 0) add("$paused paused")
-        if (retrying > 0) add("$retrying retrying")
-        if (saving > 0) add("$saving saving")
-        if (done > 0) add("$done done")
-        if (failed > 0) add("$failed failed")
+    fun matches(item: QueueItem): Boolean = when (this) {
+        All -> true
+        Active -> item.status in setOf(
+            ItemStatus.DOWNLOADING,
+            ItemStatus.PAUSED,
+            ItemStatus.RETRYING,
+            ItemStatus.SAVING,
+        )
+        Waiting -> item.status in setOf(
+            ItemStatus.PENDING,
+            ItemStatus.RESOLVING,
+            ItemStatus.NEEDS_CHALLENGE,
+            ItemStatus.READY,
+        )
+        Completed -> item.status == ItemStatus.DONE
+        Failed -> item.status == ItemStatus.FAILED
     }
-}
-
-@Composable
-private fun SummaryChip(label: String) {
-    SuggestionChip(
-        onClick = {},
-        enabled = false,
-        label = { Text(label, fontSize = 12.sp) },
-        colors = SuggestionChipDefaults.suggestionChipColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-            disabledLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
-        border = null,
-    )
 }
 
 @Composable
@@ -295,7 +308,7 @@ private fun EmptyState(showIcon: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_downloads),
+                    painter = painterResource(XmdIcons.Downloads),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(36.dp),

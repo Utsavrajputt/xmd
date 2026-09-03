@@ -52,39 +52,6 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
 
-        <!-- ==========================================================
-             Material 3 Expressive shape system — bigger, bolder,
-             more varied corner rounding than baseline M3, applied
-             through the theme's shape-appearance slots so every
-             component built on them (cards, buttons, dialogs, sheets,
-             text fields) picks it up automatically.
-             ========================================================== -->
-        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Xmd.ExtraSmall</item>
-        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Xmd.Small</item>
-        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Xmd.Medium</item>
-        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Xmd.Large</item>
-        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Xmd.ExtraLarge</item>
-
-        <!-- Expressive typography: slightly bolder, friendlier titles -->
-        <item name="textAppearanceTitleLarge">@style/TextAppearance.Xmd.TitleLarge</item>
-        <item name="textAppearanceTitleMedium">@style/TextAppearance.Xmd.TitleMedium</item>
-        <item name="textAppearanceLabelLarge">@style/TextAppearance.Xmd.LabelLarge</item>
-
-        <!-- Component defaults -->
-        <item name="materialButtonStyle">@style/Widget.Xmd.Button</item>
-        <item name="materialButtonOutlinedStyle">@style/Widget.Xmd.Button.Outlined</item>
-        <item name="borderlessButtonStyle">@style/Widget.Xmd.Button.Text</item>
-        <item name="materialCardViewStyle">@style/Widget.Xmd.CardView</item>
-        <item name="chipStyle">@style/Widget.Xmd.Chip</item>
-        <item name="bottomNavigationStyle">@style/Widget.Xmd.BottomNavigationView</item>
-        <item name="floatingActionButtonStyle">@style/Widget.Xmd.FloatingActionButton</item>
-        <item name="toolbarStyle">@style/Widget.Xmd.Toolbar</item>
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Xmd.AlertDialog</item>
-        <item name="textInputStyle">@style/Widget.Xmd.TextInputLayout</item>
-        <item name="linearProgressIndicatorStyle">@style/Widget.Xmd.ProgressIndicator</item>
-        <item name="switchStyle">@style/Widget.Xmd.Switch</item>
-        <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
-        <item name="snackbarStyle">@style/Widget.Xmd.Snackbar</item>
     </style>
 
     <!-- ==============================================================
@@ -99,31 +66,6 @@
          AppTheme.resolvedStyleRes().
          ============================================================== -->
     <style name="Theme.Xmd.LightBase" parent="Theme.Material3.Light.NoActionBar">
-        <item name="shapeAppearanceCornerExtraSmall">@style/ShapeAppearance.Xmd.ExtraSmall</item>
-        <item name="shapeAppearanceCornerSmall">@style/ShapeAppearance.Xmd.Small</item>
-        <item name="shapeAppearanceCornerMedium">@style/ShapeAppearance.Xmd.Medium</item>
-        <item name="shapeAppearanceCornerLarge">@style/ShapeAppearance.Xmd.Large</item>
-        <item name="shapeAppearanceCornerExtraLarge">@style/ShapeAppearance.Xmd.ExtraLarge</item>
-
-        <item name="textAppearanceTitleLarge">@style/TextAppearance.Xmd.TitleLarge</item>
-        <item name="textAppearanceTitleMedium">@style/TextAppearance.Xmd.TitleMedium</item>
-        <item name="textAppearanceLabelLarge">@style/TextAppearance.Xmd.LabelLarge</item>
-
-        <item name="materialButtonStyle">@style/Widget.Xmd.Button</item>
-        <item name="materialButtonOutlinedStyle">@style/Widget.Xmd.Button.Outlined</item>
-        <item name="borderlessButtonStyle">@style/Widget.Xmd.Button.Text</item>
-        <item name="materialCardViewStyle">@style/Widget.Xmd.CardView</item>
-        <item name="chipStyle">@style/Widget.Xmd.Chip</item>
-        <item name="bottomNavigationStyle">@style/Widget.Xmd.BottomNavigationView</item>
-        <item name="floatingActionButtonStyle">@style/Widget.Xmd.FloatingActionButton</item>
-        <item name="toolbarStyle">@style/Widget.Xmd.Toolbar</item>
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Xmd.AlertDialog</item>
-        <item name="textInputStyle">@style/Widget.Xmd.TextInputLayout</item>
-        <item name="linearProgressIndicatorStyle">@style/Widget.Xmd.ProgressIndicator</item>
-        <item name="switchStyle">@style/Widget.Xmd.Switch</item>
-        <item name="materialSwitchStyle">@style/Widget.Xmd.Switch</item>
-        <item name="snackbarStyle">@style/Widget.Xmd.Snackbar</item>
-
         <item name="android:statusBarColor">?attr/colorSurfaceContainerLow</item>
         <item name="android:navigationBarColor">?android:attr/colorBackground</item>
         <item name="android:windowLightStatusBar">true</item>
@@ -943,19 +885,6 @@
         <item name="android:textColor">?attr/colorOnSecondaryContainer</item>
     </style>
 
-    <style name="Widget.Xmd.BottomNavigationView" parent="Widget.Material3.BottomNavigationView">
-        <item name="android:background">?attr/colorSurfaceContainerLow</item>
-        <item name="itemIconTint">@color/bottom_nav_colors</item>
-        <item name="itemTextColor">@color/bottom_nav_colors</item>
-        <item name="itemActiveIndicatorStyle">@style/Widget.Xmd.BottomNavigationView.ActiveIndicator</item>
-        <item name="elevation">0dp</item>
-    </style>
-
-    <style name="Widget.Xmd.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:color">?attr/colorPrimaryContainer</item>
-        <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Full</item>
-    </style>
-
     <!-- Expressive FAB: bold squircle-ish large shape rather than a plain circle -->
     <style name="Widget.Xmd.FloatingActionButton" parent="Widget.Material3.FloatingActionButton.Primary">
         <item name="shapeAppearance">@style/ShapeAppearance.Xmd.Large</item>
@@ -1004,12 +933,6 @@
         <item name="trackCornerRadius">8dp</item>
     </style>
 
-    <style name="Widget.Xmd.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
-        <item name="android:thumb">@drawable/bg_switch_thumb</item>
-        <item name="thumbTint">?attr/colorOnPrimary</item>
-        <item name="trackTint">?attr/colorPrimary</item>
-    </style>
-
     <!-- ==============================================================
          Expressive "filled tonal" icon buttons — a soft tonal-container
          circle behind icon-only actions (toolbar/browser controls, list
@@ -1028,35 +951,6 @@
         <item name="backgroundTint">?attr/colorPrimaryContainer</item>
         <item name="iconTint">?attr/colorOnPrimaryContainer</item>
         <item name="rippleColor">?attr/colorOnPrimaryContainer</item>
-    </style>
-
-    <!-- Status / count pill — small filled-tonal capsule used for badges
-         like download counts, active-torrent status, etc. -->
-    <style name="Widget.Xmd.StatusPill" parent="">
-        <item name="android:background">@drawable/bg_status_pill</item>
-        <item name="android:textColor">?attr/colorOnTertiaryContainer</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textSize">12sp</item>
-        <item name="android:paddingHorizontal">12dp</item>
-        <item name="android:paddingVertical">4dp</item>
-        <item name="android:gravity">center</item>
-    </style>
-
-    <!-- Tonal choice row — a RadioButton restyled as a full-width tappable
-         card: the default radio dot is hidden, the row itself fills with
-         a tonal color and a trailing checkmark fades in when selected. Used
-         for DNS mode, quality picker, and similar single-choice lists where
-         a bare RadioButton list reads as flat/dated. -->
-    <style name="Widget.Xmd.RadioRow" parent="Widget.AppCompat.CompoundButton.RadioButton">
-        <item name="android:button">@null</item>
-        <item name="android:background">@drawable/bg_radio_row_selector</item>
-        <item name="android:drawableEnd">@drawable/ic_check_selector</item>
-        <item name="android:textColor">@color/text_radio_row</item>
-        <item name="android:paddingHorizontal">16dp</item>
-        <item name="android:paddingVertical">12dp</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:lineSpacingExtra">2dp</item>
-        <item name="android:gravity">center_vertical</item>
     </style>
 
     <!-- AMOLED Dark Overlay — overrides ONLY the body background and base surfaces to pitch black (#000000)

@@ -334,7 +334,7 @@ private fun QualityOptionRow(
             .padding(vertical = 10.dp),
     ) {
         Icon(
-            painter = painterResource(if (option.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video),
+            painter = painterResource(if (option.isAudioOnly) XmdIcons.Music else XmdIcons.Video),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),

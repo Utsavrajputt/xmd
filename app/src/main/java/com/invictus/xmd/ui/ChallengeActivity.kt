@@ -45,17 +45,8 @@ import com.invictus.xmd.ui.theme.XmdTheme
  *
  * Kotlin port of ff_downloader/core/browser_resolver.py's interactive flow.
  *
- * Phase B conversion: chrome (toolbar + status line) moved to Compose,
- * `ComponentActivity` + `setContent {}` instead of `AppCompatActivity` +
- * `setContentView(R.layout.activity_challenge)` -- the first Activity in
- * this codebase to go Compose-first rather than hosting a ComposeView
- * inside an XML layout, deliberately picked as the smallest such
- * conversion (warm-up before Phase C's NavHost work). The WebView itself
- * is unchanged -- Compose has no native WebView, so it's wrapped in
- * [AndroidView] via `remember { WebView(context) }` instead of a
- * `lateinit var` field. All polling/JS-bridge/timeout logic below is
- * untouched from the pre-Compose version, only the View<->Compose plumbing
- * around it changed.
+ * The toolbar, status line, and screen structure are Compose. The WebView
+ * remains the required platform interop surface and is hosted by [AndroidView].
  *
  * Back handling uses [androidx.activity.OnBackPressedDispatcher] (matches
  * MainActivity's `addCallback` pattern) instead of overriding the
@@ -183,7 +174,7 @@ class ChallengeActivity : ComponentActivity() {
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                painterResource(R.drawable.ic_arrow_back),
+                                painterResource(XmdIcons.ArrowBack),
                                 contentDescription = stringResource(android.R.string.cancel),
                             )
                         }

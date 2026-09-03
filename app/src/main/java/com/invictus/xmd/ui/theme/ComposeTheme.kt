@@ -3,13 +3,56 @@ package com.invictus.xmd.ui.theme
 import android.content.Context
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.google.android.material.color.MaterialColors
+import com.invictus.xmd.R
+
+private val HeadingFont = FontFamily(
+    Font(R.font.space_grotesk_semibold, weight = FontWeight.SemiBold),
+)
+
+private val ExpressiveShapes = Shapes(
+    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+    small = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+    medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+    large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(36.dp),
+)
+
+private val DefaultTypography = Typography()
+
+private fun TextStyle.xmd(fontFamily: FontFamily = this.fontFamily ?: FontFamily.Default): TextStyle =
+    copy(fontFamily = fontFamily, letterSpacing = 0.sp)
+
+private val ExpressiveTypography = Typography(
+    displayLarge = DefaultTypography.displayLarge.xmd(HeadingFont),
+    displayMedium = DefaultTypography.displayMedium.xmd(HeadingFont),
+    displaySmall = DefaultTypography.displaySmall.xmd(HeadingFont),
+    headlineLarge = DefaultTypography.headlineLarge.xmd(HeadingFont),
+    headlineMedium = DefaultTypography.headlineMedium.xmd(HeadingFont),
+    headlineSmall = DefaultTypography.headlineSmall.xmd(HeadingFont),
+    titleLarge = DefaultTypography.titleLarge.xmd(HeadingFont),
+    titleMedium = DefaultTypography.titleMedium.xmd(HeadingFont),
+    titleSmall = DefaultTypography.titleSmall.xmd(HeadingFont),
+    bodyLarge = DefaultTypography.bodyLarge.xmd(),
+    bodyMedium = DefaultTypography.bodyMedium.xmd(),
+    bodySmall = DefaultTypography.bodySmall.xmd(),
+    labelLarge = DefaultTypography.labelLarge.xmd(),
+    labelMedium = DefaultTypography.labelMedium.xmd(),
+    labelSmall = DefaultTypography.labelSmall.xmd(),
+)
 
 /**
  * Bridges the app's existing XML theme system (see [AppTheme], applied via
@@ -39,7 +82,8 @@ fun XmdTheme(content: @Composable () -> Unit) {
     val colorScheme = remember(context.theme) { context.toComposeColorScheme() }
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography(),
+        typography = ExpressiveTypography,
+        shapes = ExpressiveShapes,
         content = content,
     )
 }

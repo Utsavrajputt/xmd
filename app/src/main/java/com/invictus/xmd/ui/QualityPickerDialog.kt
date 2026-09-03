@@ -96,7 +96,7 @@ fun QualityPickerDialog(
                     )
                     Icon(
                         painter = painterResource(
-                            if (advancedExpanded) R.drawable.ic_arrow_down else R.drawable.ic_chevron_right
+                            if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight
                         ),
                         contentDescription = null,
                     )

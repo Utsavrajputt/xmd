@@ -141,7 +141,7 @@ fun FindInPageBar(
             )
             IconButton(onClick = onPrev, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_arrow_up),
+                    painter = painterResource(XmdIcons.ArrowUp),
                     contentDescription = stringResource(R.string.find_in_page_prev),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
@@ -149,7 +149,7 @@ fun FindInPageBar(
             }
             IconButton(onClick = onNext, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_arrow_down),
+                    painter = painterResource(XmdIcons.ArrowDown),
                     contentDescription = stringResource(R.string.find_in_page_next),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
@@ -157,7 +157,7 @@ fun FindInPageBar(
             }
             IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_close),
+                    painter = painterResource(XmdIcons.Close),
                     contentDescription = stringResource(R.string.action_dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
