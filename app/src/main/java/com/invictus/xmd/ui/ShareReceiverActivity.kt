@@ -2,17 +2,41 @@ package com.invictus.xmd.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.ContextThemeWrapper
-import android.view.Gravity
-import android.view.View
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.AppCompatRadioButton
-import androidx.core.content.ContextCompat
-import com.google.android.material.bottomsheet.BottomSheetDialog
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.R
 import com.invictus.xmd.core.DownloadCategory
@@ -24,6 +48,8 @@ import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.YtDlpManager
 import com.invictus.xmd.service.DownloadService
+import com.invictus.xmd.ui.theme.XmdTheme
+import kotlinx.coroutines.launch
 
 /**
  * Entry point for links handed to xmd from another app's "external
@@ -40,6 +66,11 @@ import com.invictus.xmd.service.DownloadService
  * YouTube, nothing at all for a plain direct-download link) and finishes
  * itself the moment a choice is made, exactly like YTDLnis/Seal do.
  *
+ * The quality-picker UI itself is Compose (see [YtDlpQualitySheet] below).
+ * The Activity window remains transparent through the manifest bootstrap
+ * theme while [XmdTheme] resolves the selected Kotlin-owned palette for the
+ * sheet content.
+ *
  * Deliberately narrow in scope: only YouTube/HLS/DASH links (quality
  * picker) and
  * plain generic-download links (queue + start immediately, no UI) are
@@ -48,26 +79,6 @@ import com.invictus.xmd.service.DownloadService
  * a visible screen, so there's no point pretending otherwise.
  */
 class ShareReceiverActivity : AppCompatActivity() {
-
-    // Colors/typography for the sheet are resolved against a wrapped
-    // context using the user's actual theme + light/dark choice, same
-    // values MainActivity applies via setTheme() -- but applied here to
-    // the sheet's context only, not the activity's own (deliberately
-    // invisible) window theme.
-    private val themedContext by lazy {
-        val theme = Settings.appTheme()
-        val isDark = Settings.isDarkMode()
-        val baseWrapper = ContextThemeWrapper(this, theme.resolvedStyleRes(isDark))
-        val context = if (theme == com.invictus.xmd.ui.theme.AppTheme.SYSTEM) {
-            com.google.android.material.color.DynamicColors.wrapContextIfAvailable(baseWrapper)
-        } else {
-            baseWrapper
-        }
-        if (isDark && Settings.isAmoledMode()) {
-            context.theme.applyStyle(R.style.ThemeOverlay_Xmd_Amoled, true)
-        }
-        context
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +90,7 @@ class ShareReceiverActivity : AppCompatActivity() {
         val isHttp = url != null && (url.startsWith("http://") || url.startsWith("https://"))
         val isMagnet = url != null && url.startsWith("magnet:", ignoreCase = true)
         if (url.isNullOrEmpty() || !(isHttp || isMagnet)) {
-            Toast.makeText(this, "No link found to download", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.share_no_link_found, Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -95,7 +106,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             LinkParser.isGenericDownloadUrl(url) -> {
                 QueueRepository.update(item.id) { it.copy(directUrl = url, status = ItemStatus.READY) }
                 DownloadService.start(this)
-                Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
                 finish()
             }
             LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url) -> {
@@ -111,8 +122,13 @@ class ShareReceiverActivity : AppCompatActivity() {
                 finish()
             }
             else -> {
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Not a valid URL: $url") }
-                Toast.makeText(this, "Not a supported link", Toast.LENGTH_SHORT).show()
+                QueueRepository.update(item.id) {
+                    it.copy(
+                        status = ItemStatus.FAILED,
+                        error = getString(R.string.download_invalid_url_error, url),
+                    )
+                }
+                Toast.makeText(this, R.string.share_unsupported_link, Toast.LENGTH_SHORT).show()
                 finish()
             }
         }
@@ -131,100 +147,193 @@ class ShareReceiverActivity : AppCompatActivity() {
 
     private fun showYtDlpQualitySheet(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            Toast.makeText(this, "This link needs the Full build of xmd", Toast.LENGTH_LONG).show()
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Needs the Full build") }
+            Toast.makeText(this, R.string.share_full_build_required, Toast.LENGTH_LONG).show()
+            QueueRepository.update(item.id) {
+                it.copy(
+                    status = ItemStatus.FAILED,
+                    error = getString(R.string.download_full_build_required_error),
+                )
+            }
             finish()
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
-            Toast.makeText(this, "Install yt-dlp from xmd's Settings first", Toast.LENGTH_LONG).show()
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed") }
+            Toast.makeText(this, R.string.share_ytdlp_install_required, Toast.LENGTH_LONG).show()
+            QueueRepository.update(item.id) {
+                it.copy(status = ItemStatus.FAILED, error = getString(R.string.ytdlp_not_installed_title))
+            }
             finish()
             return
         }
 
-        val dialog = BottomSheetDialog(themedContext)
-        val view = layoutInflater.cloneInContext(themedContext).inflate(R.layout.sheet_share_quality, null)
-        dialog.setContentView(view)
-        dialog.setCancelable(true)
-
-        view.findViewById<TextView>(R.id.sheetTitle).text = item.fileName ?: "Choose quality"
-        view.findViewById<TextView>(R.id.sheetSubtitle).apply {
-            text = item.sourceUrl
-            visibility = View.VISIBLE
-        }
-
-        val group = view.findViewById<RadioGroup>(R.id.qualityGroup)
         val options = YtDlpManager.standardQualityOptions(
             isGenericOrHls = !LinkParser.isYoutubeLink(item.sourceUrl)
         )
-        options.forEach { option ->
-            // Plain platform RadioButton with an AppCompat-lineage style
-            // resource crashes off-theme here the same way it would in
-            // MainActivity's picker (see resolveYoutube's comment) --
-            // AppCompatRadioButton built + styled by hand instead.
-            val row = AppCompatRadioButton(themedContext)
-            row.id = View.generateViewId()
-            row.text = option.label
-            row.isClickable = true
-            row.buttonDrawable = null
-            row.setBackgroundResource(R.drawable.bg_radio_row_selector)
-            row.setTextColor(ContextCompat.getColorStateList(themedContext, R.color.text_radio_row))
-            row.textSize = 14f
-            row.gravity = Gravity.CENTER_VERTICAL
-            val density = resources.displayMetrics.density
-            row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
-            val startIcon = if (option.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
-            row.setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
-            row.compoundDrawablePadding = (12 * density).toInt()
-            row.tag = option
-            row.layoutParams = RadioGroup.LayoutParams(
-                RadioGroup.LayoutParams.MATCH_PARENT,
-                RadioGroup.LayoutParams.WRAP_CONTENT
-            )
-            group.addView(row)
+
+        setContent {
+            XmdTheme {
+                YtDlpQualitySheet(
+                        title = item.fileName ?: item.sourceUrl,
+                        subtitle = item.sourceUrl,
+                        options = options,
+                        // Same default as the old picker: one below the
+                        // top of the ladder (1440p) rather than either
+                        // extreme.
+                        initialSelectedIndex = 1,
+                        onDownload = { chosen ->
+                            QueueRepository.update(item.id) {
+                                it.copy(
+                                    status = ItemStatus.READY,
+                                    platform = MediaPlatform.YOUTUBE,
+                                    mediaFormatSelector = chosen.formatSelector,
+                                    mediaFormatLabel = chosen.label,
+                                    category = if (chosen.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
+                                )
+                            }
+                            DownloadService.start(this@ShareReceiverActivity)
+                            Toast.makeText(
+                                this@ShareReceiverActivity,
+                                R.string.download_started_confirmation,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                        onCancelled = {
+                            QueueRepository.update(item.id) {
+                                it.copy(
+                                    status = ItemStatus.FAILED,
+                                    error = getString(R.string.download_cancelled_error),
+                                )
+                            }
+                        },
+                        onClosed = { finish() },
+                )
+            }
         }
-        // Same default as MainActivity's picker: one below the top of the
-        // ladder (1440p) rather than either extreme.
-        (group.getChildAt(1) as? RadioButton)?.isChecked = true
+    }
+}
 
-        var resolved = false
+/**
+ * Compose replacement for sheet_share_quality.xml + the RadioGroup rows
+ * ShareReceiverActivity used to build by hand. [onDownload] fires once with
+ * the chosen option when Download is tapped; otherwise (Cancel button,
+ * swipe-down, or scrim tap) [onCancelled] fires. [onClosed] always fires
+ * last, once the sheet has finished animating away -- the caller's cue to
+ * finish() the host Activity.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun YtDlpQualitySheet(
+    title: String,
+    subtitle: String,
+    options: List<YtDlpManager.QualityOption>,
+    initialSelectedIndex: Int,
+    onDownload: (YtDlpManager.QualityOption) -> Unit,
+    onCancelled: () -> Unit,
+    onClosed: () -> Unit,
+) {
+    var selectedIndex by remember { mutableIntStateOf(initialSelectedIndex.coerceIn(0, options.lastIndex)) }
+    var resolved by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-        view.findViewById<View>(R.id.btnDownload).setOnClickListener {
-            val checked = group.findViewById<RadioButton>(group.checkedRadioButtonId)
-            val chosen = checked?.tag as? YtDlpManager.QualityOption
-            resolved = true
-            if (chosen == null) {
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
-            } else {
-                QueueRepository.update(item.id) {
-                    it.copy(
-                        status = ItemStatus.READY,
-                        platform = MediaPlatform.YOUTUBE,
-                        mediaFormatSelector = chosen.formatSelector,
-                        mediaFormatLabel = chosen.label,
-                        category = if (chosen.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
+    fun closeSheet() {
+        scope.launch {
+            sheetState.hide()
+        }.invokeOnCompletion {
+            if (!sheetState.isVisible) {
+                if (!resolved) onCancelled()
+                onClosed()
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = {
+            if (!resolved) onCancelled()
+            onClosed()
+        },
+        sheetState = sheetState,
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                options.forEachIndexed { index, option ->
+                    QualityOptionRow(
+                        option = option,
+                        selected = index == selectedIndex,
+                        onClick = { selectedIndex = index },
                     )
                 }
-                DownloadService.start(this)
-                Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show()
             }
-            dialog.dismiss()
-        }
-        view.findViewById<View>(R.id.btnCancel).setOnClickListener { dialog.dismiss() }
 
-        dialog.setOnDismissListener {
-            if (!resolved) {
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 20.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = { closeSheet() }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+                Button(
+                    onClick = {
+                        resolved = true
+                        onDownload(options[selectedIndex])
+                        closeSheet()
+                    },
+                    modifier = Modifier.padding(start = 8.dp),
+                ) {
+                    Text(stringResource(R.string.action_download_direct))
+                }
             }
-            // Whether downloaded, cancelled, or swiped away -- this
-            // activity's only job was to get the sheet up, so it's done
-            // either way. Finishing here (not immediately after dismiss())
-            // is what lets the caller app stay in front the whole time;
-            // there's nothing left for xmd to show.
-            finish()
         }
+    }
+}
 
-        dialog.show()
+@Composable
+private fun QualityOptionRow(
+    option: YtDlpManager.QualityOption,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick)
+            .padding(vertical = 10.dp),
+    ) {
+        Icon(
+            painter = painterResource(if (option.isAudioOnly) XmdIcons.Music else XmdIcons.Video),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = option.label,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f).padding(start = 12.dp),
+        )
+        RadioButton(selected = selected, onClick = onClick)
     }
 }

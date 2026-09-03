@@ -9,27 +9,23 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings as AndroidSettings
 import android.view.GestureDetector
-import android.view.Menu
-import android.view.MenuItem
 import android.view.MotionEvent
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.RelativeSizeSpan
-import android.widget.EditText
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import androidx.appcompat.widget.AppCompatRadioButton
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
+import androidx.lifecycle.repeatOnLifecycle
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.core.DnsOverHttpsResolver
@@ -53,35 +49,15 @@ import okhttp3.OkHttpClient
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
-import android.text.TextWatcher
-import android.text.Editable
-import android.widget.ImageView
 import androidx.activity.result.ActivityResultLauncher
-import androidx.core.widget.doAfterTextChanged
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.color.MaterialColors
-import com.google.android.material.shape.MaterialShapeDrawable
-import com.google.android.material.shape.ShapeAppearanceModel
+import androidx.compose.ui.graphics.toArgb
 import com.invictus.xmd.core.DownloadEngine
 import com.invictus.xmd.core.TorrentSession
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Job
 import org.libtorrent4j.TorrentInfo
-import android.graphics.Typeface
-import androidx.core.view.isVisible
-import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
-import com.google.android.material.textfield.MaterialAutoCompleteTextView
-import com.google.android.material.textfield.TextInputLayout
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
@@ -89,135 +65,153 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HistoryFragment.Callbacks, BookmarkFragment.Callbacks {
+class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks,
+    HomeFragment.Callbacks {
+    private var mainDestination: MainDestination by mutableStateOf(MainDestination.Downloads)
+    private var navigationItems: List<MainNavigationItem> by mutableStateOf(MainNavigationItem.entries.toList())
+    private var activeDownloadCount: Int by mutableIntStateOf(0)
+    private var headerSearchActive: Boolean by mutableStateOf(false)
+    private var headerSearchQuery: String by mutableStateOf("")
+    private var savedPagesDestination: SavedPagesDestination? by mutableStateOf(null)
+    private val snackbarHostState = SnackbarHostState()
+    private var messageDialogState: AppMessageDialogState? by mutableStateOf(null)
+    // Activity-owned dialog state is rendered by MainShell's root composition.
+    private var dnsSettingsDialogOpen: Boolean by mutableStateOf(false)
 
-    data class NavMenuItem(val itemId: Int)
+    // Phase A: state for the 3 dialogs converted this phase, same
+    // `by mutableStateOf` + null-means-closed pattern as dnsSettingsDialogOpen.
+    private data class AddDownloadDialogState(val initialLink: String)
 
-    inner class ExpressiveNavBar(
-        val layout: View,
-        val downloadsItem: View,
-        val browserItem: View,
-        val downloadsIcon: ImageView,
-        val downloadsLabel: TextView,
-        val downloadsBadge: TextView,
-        val browserIcon: ImageView,
-        val browserLabel: TextView,
-        val addFab: View
-    ) {
-        private var itemSelectedListener: ((NavMenuItem) -> Boolean)? = null
+    private data class AddTorrentDialogState(
+        val prefillLink: String?,
+        val prefillTorrentUri: Uri?,
+        val prefillDisplayName: String?,
+        val filesState: TorrentFilesUiState,
+    )
 
-        var selectedItemId: Int = R.id.nav_downloads
-            set(value) {
-                val changed = field != value
-                field = value
-                updateVisuals(value)
-                if (changed) {
-                    itemSelectedListener?.invoke(NavMenuItem(value))
-                }
-            }
+    private data class QualityPickerState(
+        val titleText: String,
+        val standardOptions: List<YtDlpManager.QualityOption>,
+        val advancedFormats: List<YtDlpManager.ProbedFormat>,
+        val advancedLoading: Boolean,
+        val durationSeconds: Int?,
+        val onConfirm: (YtDlpManager.QualityOption?) -> Unit,
+        val onDismiss: () -> Unit,
+    )
 
-        var visibility: Int
-            get() = layout.visibility
-            set(value) { layout.visibility = value }
-
-        val height: Int
-            get() = layout.height
-
-        init {
-            downloadsItem.setOnClickListener {
-                selectedItemId = R.id.nav_downloads
-            }
-            browserItem.setOnClickListener {
-                selectedItemId = R.id.nav_browser
-            }
-            addFab.setOnClickListener {
-                showAddDownloadDialog()
-            }
-            updateVisuals(selectedItemId)
-        }
-
-        fun setOnItemSelectedListener(listener: (NavMenuItem) -> Boolean) {
-            itemSelectedListener = listener
-        }
-
-        fun updateBadge(count: Int) {
-            if (count > 0) {
-                downloadsBadge.visibility = View.VISIBLE
-                downloadsBadge.text = if (count > 99) "99+" else count.toString()
-            } else {
-                downloadsBadge.visibility = View.GONE
-            }
-        }
-
-        fun updateVisuals(selectedId: Int) {
-            val isDownloads = selectedId == R.id.nav_downloads
-
-            val activeBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_active)
-            val inactiveBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_inactive)
-
-            val colorActive = MaterialColors.getColor(
-                this@MainActivity,
-                com.google.android.material.R.attr.colorOnSecondaryContainer,
-                Color.BLACK
-            )
-            val colorInactive = MaterialColors.getColor(
-                this@MainActivity,
-                com.google.android.material.R.attr.colorOnSurfaceVariant,
-                Color.GRAY
-            )
-
-            // Only show icon on the current (active) tab, like Google Photos
-            val density = resources.displayMetrics.density
-            val iconMargin = (8 * density).toInt()
-
-            downloadsIcon.visibility = if (isDownloads) View.VISIBLE else View.GONE
-            (downloadsLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.marginStart = if (isDownloads) iconMargin else 0
-                downloadsLabel.layoutParams = lp
-            }
-
-            browserIcon.visibility = if (!isDownloads) View.VISIBLE else View.GONE
-            (browserLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.marginStart = if (!isDownloads) iconMargin else 0
-                browserLabel.layoutParams = lp
-            }
-
-            downloadsItem.background = if (isDownloads) activeBg else inactiveBg
-            downloadsIcon.imageTintList = ColorStateList.valueOf(if (isDownloads) colorActive else colorInactive)
-            downloadsLabel.setTextColor(if (isDownloads) colorActive else colorInactive)
-            downloadsLabel.setTypeface(null, if (isDownloads) Typeface.BOLD else Typeface.NORMAL)
-
-            browserItem.background = if (!isDownloads) activeBg else inactiveBg
-            browserIcon.imageTintList = ColorStateList.valueOf(if (!isDownloads) colorActive else colorInactive)
-            browserLabel.setTextColor(if (!isDownloads) colorActive else colorInactive)
-            browserLabel.setTypeface(null, if (!isDownloads) Typeface.BOLD else Typeface.NORMAL)
-        }
-    }
-
-    private lateinit var bottomNav: ExpressiveNavBar
-    private lateinit var toolbar: androidx.appcompat.widget.Toolbar
-    private lateinit var toolbarTitle: TextView
-    private lateinit var headerNormalLayout: View
-    private lateinit var headerSearchLayout: View
-    private lateinit var headerSearchInput: EditText
-    private lateinit var headerSearchClearButton: View
+    private var addDownloadDialogState: AddDownloadDialogState? by mutableStateOf(null)
+    private var addTorrentDialogState: AddTorrentDialogState? by mutableStateOf(null)
+    private var qualityPickerState: QualityPickerState? by mutableStateOf(null)
+    private var qualityPickerRequestToken: Any? = null
+    private var torrentMetadataJob: Job? = null
 
     private fun openHeaderSearch() {
-        headerNormalLayout.visibility = View.GONE
-        headerSearchLayout.visibility = View.VISIBLE
-        headerSearchInput.requestFocus()
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.showSoftInput(headerSearchInput, InputMethodManager.SHOW_IMPLICIT)
+        headerSearchActive = true
     }
 
     private fun closeHeaderSearch() {
-        if (::headerSearchLayout.isInitialized && headerSearchLayout.visibility == View.VISIBLE) {
-            headerSearchInput.text?.clear()
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.hideSoftInputFromWindow(headerSearchInput.windowToken, 0)
-            headerSearchLayout.visibility = View.GONE
-            headerNormalLayout.visibility = View.VISIBLE
-            (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.setFilterQuery("")
+        headerSearchActive = false
+        updateHeaderSearchQuery("")
+    }
+
+    private fun updateHeaderSearchQuery(query: String) {
+        headerSearchQuery = query
+        downloadsFragment()?.setFilterQuery(query)
+    }
+
+    private fun showMessageDialog(state: AppMessageDialogState) {
+        val previous = messageDialogState
+        messageDialogState = null
+        previous?.onDismiss?.invoke()
+        messageDialogState = state
+    }
+
+    private fun finishMessageDialog(state: AppMessageDialogState, action: () -> Unit) {
+        if (messageDialogState !== state) return
+        messageDialogState = null
+        action()
+    }
+
+    private fun navigationItemFor(tabId: String): MainNavigationItem? = when (tabId) {
+        Settings.TabId.HOME -> MainNavigationItem.Home
+        Settings.TabId.DOWNLOADS -> MainNavigationItem.Downloads
+        Settings.TabId.ADD -> MainNavigationItem.Add
+        Settings.TabId.BROWSER -> MainNavigationItem.Browser
+        else -> null
+    }
+
+    private fun destinationFor(tabId: String): MainDestination? = when (tabId) {
+        Settings.TabId.HOME -> MainDestination.Home
+        Settings.TabId.DOWNLOADS -> MainDestination.Downloads
+        Settings.TabId.BROWSER -> MainDestination.Browser
+        else -> null
+    }
+
+    private fun configuredNavigationItems(): List<MainNavigationItem> {
+        val hiddenTabs = Settings.hiddenTabs()
+        return Settings.tabOrder()
+            .filterNot { tabId -> tabId in hiddenTabs }
+            .mapNotNull(::navigationItemFor)
+    }
+
+    private fun configuredDefaultDestination(): MainDestination =
+        destinationFor(Settings.defaultTab()) ?: MainDestination.Downloads
+
+    private fun tagFor(destination: MainDestination): String = when (destination) {
+        MainDestination.Home -> TAG_HOME
+        MainDestination.Downloads -> TAG_DOWNLOADS
+        MainDestination.Browser -> TAG_BROWSER
+    }
+
+    private fun selectMainDestination(destination: MainDestination) {
+        savedPagesDestination = null
+        closeHeaderSearch()
+        mainDestination = destination
+        currentTabTag = tagFor(destination)
+        showFragment(currentTabTag)
+    }
+
+    private fun homeFragment(): HomeFragment? =
+        supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment
+
+    private fun browserFragment(): BrowserFragment? =
+        supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
+
+    private fun downloadsFragment(): DownloadsFragment? =
+        supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment
+
+    private fun ensureMainFragments(container: androidx.fragment.app.FragmentContainerView) {
+        container.post {
+            if (isFinishing || supportFragmentManager.isStateSaved) return@post
+            val home = homeFragment()
+            val browser = browserFragment()
+            val downloads = downloadsFragment()
+            if (home == null || browser == null || downloads == null) {
+                val targetHome = home ?: HomeFragment()
+                val targetBrowser = browser ?: BrowserFragment()
+                val targetDownloads = downloads ?: DownloadsFragment()
+                supportFragmentManager.beginTransaction().apply {
+                    setReorderingAllowed(true)
+                    if (home == null) add(container.id, targetHome, TAG_HOME)
+                    if (downloads == null) add(container.id, targetDownloads, TAG_DOWNLOADS)
+                    if (browser == null) add(container.id, targetBrowser, TAG_BROWSER)
+                    when (mainDestination) {
+                        MainDestination.Home -> {
+                            hide(targetDownloads)
+                            hide(targetBrowser)
+                        }
+                        MainDestination.Downloads -> {
+                            hide(targetHome)
+                            hide(targetBrowser)
+                        }
+                        MainDestination.Browser -> {
+                            hide(targetHome)
+                            hide(targetDownloads)
+                        }
+                    }
+                }.commitNow()
+            }
+            showFragment(currentTabTag)
         }
     }
 
@@ -257,7 +251,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private var currentTabTag: String = TAG_DOWNLOADS
 
-    private val bottomNavSwipeOrder = listOf(R.id.nav_downloads, R.id.nav_browser)
+    private val bottomNavSwipeOrder: List<MainDestination>
+        get() = navigationItems.mapNotNull { item -> item.destination }
 
     private val bottomNavSwipeDetector by lazy {
         val minDistancePx = 80 * resources.displayMetrics.density
@@ -270,18 +265,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 val dy = e2.y - e1.y
                 if (kotlin.math.abs(dx) < minDistancePx) return false
                 if (kotlin.math.abs(dx) < kotlin.math.abs(dy) * 2) return false
-                val currentIndex = bottomNavSwipeOrder.indexOf(bottomNav.selectedItemId)
+                val currentIndex = bottomNavSwipeOrder.indexOf(mainDestination)
                 if (currentIndex == -1) return false
                 val step = if (dx < 0) 1 else -1
                 val newIndex = (currentIndex + step).coerceIn(0, bottomNavSwipeOrder.size - 1)
-                if (newIndex != currentIndex) bottomNav.selectedItemId = bottomNavSwipeOrder[newIndex]
+                if (newIndex != currentIndex) selectMainDestination(bottomNavSwipeOrder[newIndex])
                 return true
             }
         })
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (::bottomNav.isInitialized) bottomNavSwipeDetector.onTouchEvent(ev)
+        bottomNavSwipeDetector.onTouchEvent(ev)
         return super.dispatchTouchEvent(ev)
     }
 
@@ -310,7 +305,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if (!granted) {
             Toast.makeText(
                 this,
-                "Storage permission denied — downloads will fail.",
+                getString(R.string.storage_permission_denied),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -328,7 +323,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if (!granted) {
             Toast.makeText(
                 this,
-                "Notifications denied — you won't see download progress.",
+                getString(R.string.notification_permission_denied),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -347,16 +342,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     /**
      * Re-syncs the toolbar's visibility with whichever tab fragment is
      * actually showing right now. Needed because the toolbar is only ever
-     * hidden/shown from inside bottomNav's tap listener (see onCreate) --
-     * that's fine while the process stays alive, but if Android kills this
-     * activity in the background (common on low battery / low memory) and
-     * the user reopens it from Recents, onCreate reruns and the toolbar's
-     * view is recreated at its default (visible) state, while
-     * BottomNavigationView restores its selected tab on its own without
-     * ever calling that listener -- so it was possible to come back to the
-     * Browser tab with the "Xmd" toolbar wrongly showing above the
-     * Browser's own address bar. Calling this every onResume (not just
-     * after a fresh process start) covers both cases cheaply.
+    * Re-syncs Compose navigation state from restored Fragment visibility
+    * after process recreation.
      */
     override fun onResume() {
         super.onResume()
@@ -374,43 +361,40 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             recreate()
             return
         }
+        navigationItems = configuredNavigationItems()
         syncToolbarWithVisibleFragment()
+        if (mainDestination !in bottomNavSwipeOrder) {
+            val fallback = configuredDefaultDestination()
+                .takeIf { destination -> destination in bottomNavSwipeOrder }
+                ?: bottomNavSwipeOrder.firstOrNull()
+            fallback?.let(::selectMainDestination)
+        }
     }
 
     private fun syncToolbarWithVisibleFragment() {
         val fm = supportFragmentManager
-        val browserVisible = fm.findFragmentByTag(TAG_BROWSER)?.isHidden == false
+        val home = fm.findFragmentByTag(TAG_HOME)
+        val downloads = fm.findFragmentByTag(TAG_DOWNLOADS)
+        val browser = fm.findFragmentByTag(TAG_BROWSER)
+        if (home == null && downloads == null && browser == null) return
+
+        val browserVisible = browser?.isHidden == false
         if (browserVisible) {
             closeHeaderSearch()
-            // The Browser fragment's own address bar is the top bar here --
-            // the shared app toolbar (and its title) would just duplicate it.
-            toolbar.visibility = android.view.View.GONE
+            mainDestination = MainDestination.Browser
             currentTabTag = TAG_BROWSER
             return
         }
-        toolbar.visibility = android.view.View.VISIBLE
-        toolbarTitle.text = getString(R.string.app_header_title)
-        currentTabTag = TAG_DOWNLOADS
+        val homeVisible = home?.isHidden == false
+        mainDestination = if (homeVisible) MainDestination.Home else MainDestination.Downloads
+        currentTabTag = tagFor(mainDestination)
     }
 
     private fun applySystemBarColors() {
         val isDark = Settings.isDarkMode()
-        val isAmoled = isDark && Settings.isAmoledMode()
-
-        // Status bar must match the header (colorSurfaceContainerLow)
-        val headerColor = MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurfaceContainerLow,
-            Color.BLACK
-        )
-        // Navigation bar matches the body background (pure black in AMOLED mode)
-        val navBarColor = if (isAmoled) Color.BLACK else MaterialColors.getColor(
-            this,
-            android.R.attr.colorBackground,
-            Color.BLACK
-        )
-        window.statusBarColor = headerColor
-        window.navigationBarColor = navBarColor
+        val colorScheme = resolveCurrentXmdColorScheme(this)
+        window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
 
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = !isDark
@@ -427,163 +411,244 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedIsAmoled = Settings.isAmoledMode()
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        applySystemBarColors()
-
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        this.toolbar = toolbar
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
-
-        val toolbarTitle = findViewById<TextView>(R.id.toolbarTitle)
-        this.toolbarTitle = toolbarTitle
-        toolbarTitle.text = getString(R.string.app_header_title)
-        toolbarTitle.setOnClickListener { toggleDarkMode() }
-
-        headerNormalLayout = findViewById(R.id.headerNormalLayout)
-        headerSearchLayout = findViewById(R.id.headerSearchLayout)
-        headerSearchInput = findViewById(R.id.headerSearchInput)
-        headerSearchClearButton = findViewById(R.id.headerSearchClearButton)
-
-        val headerSearchButton = findViewById<View>(R.id.headerSearchButton)
-        val headerSettingsButton = findViewById<View>(R.id.headerSettingsButton)
-        val headerSearchBackButton = findViewById<View>(R.id.headerSearchBackButton)
-
-        headerSearchButton.setOnClickListener { openHeaderSearch() }
-        headerSettingsButton.setOnClickListener { openSettingsScreen() }
-        headerSearchBackButton.setOnClickListener { closeHeaderSearch() }
-        headerSearchClearButton.setOnClickListener { headerSearchInput.text?.clear() }
-
-        headerSearchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                val query = s?.toString().orEmpty()
-                headerSearchClearButton.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
-                (supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment)?.setFilterQuery(query)
-            }
-        })
-
-        // Add fragments only on a fresh start (not after config-change)
+        navigationItems = configuredNavigationItems()
         if (savedInstanceState == null) {
-            val downloads = DownloadsFragment()
-            val browser   = BrowserFragment()
-            supportFragmentManager.beginTransaction()
-                .add(R.id.fragmentContainer, downloads, TAG_DOWNLOADS)
-                .add(R.id.fragmentContainer, browser,   TAG_BROWSER)
-                .hide(browser)   // Downloads is the initial tab
-                .commit()
+            mainDestination = configuredDefaultDestination()
+            currentTabTag = tagFor(mainDestination)
         }
-
-        val navBarLayout = findViewById<View>(R.id.navBarLayout)
-        bottomNav = ExpressiveNavBar(
-            layout = navBarLayout,
-            downloadsItem = findViewById(R.id.navItemDownloads),
-            browserItem = findViewById(R.id.navItemBrowser),
-            downloadsIcon = findViewById(R.id.navDownloadsIcon),
-            downloadsLabel = findViewById(R.id.navDownloadsLabel),
-            downloadsBadge = findViewById(R.id.navDownloadsBadge),
-            browserIcon = findViewById(R.id.navBrowserIcon),
-            browserLabel = findViewById(R.id.navBrowserLabel),
-            addFab = findViewById(R.id.navAddFab)
-        )
-
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(navBarLayout) { view, insets ->
-            val navBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
-            val basePaddingBottom = (12 * resources.displayMetrics.density).toInt()
-            view.setPadding(
-                view.paddingLeft,
-                view.paddingTop,
-                view.paddingRight,
-                navBars.bottom + basePaddingBottom
-            )
-            insets
-        }
-
-        // adjustResize needs somewhere for the keyboard's shrink to go so an
-        // EditText near the bottom (e.g. the browser's find-in-page bar or
-        // address bar) isn't left sitting underneath the keyboard -- so
-        // contentColumn's own bottom padding is set to the IME height while
-        // it's open, and back to 0 once it closes. (bottomNav itself is
-        // handled separately below -- see the global-layout listener.)
-        val contentColumn = findViewById<android.view.View>(R.id.contentColumn)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(contentColumn) { view, insets ->
-            val imeHeight = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom
-            view.setPadding(view.paddingLeft, view.paddingTop, view.paddingRight, imeHeight)
-            insets
-        }
-
-        // Hide bottomNav entirely while the soft keyboard is open (paste-links
-        // box, browser find-in-page, address bar, any dialog EditText, etc.)
-        // instead of leaving it floating right above the keys. Covers every
-        // fragment from one place since it lives on the Activity's root view.
-        val rootContentView = findViewById<android.view.View>(android.R.id.content)
-        val fragmentContainer = findViewById<android.view.View>(R.id.fragmentContainer)
-        rootContentView.viewTreeObserver.addOnGlobalLayoutListener {
-            val visibleFrame = android.graphics.Rect()
-            rootContentView.getWindowVisibleDisplayFrame(visibleFrame)
-            val rootHeight = rootContentView.rootView.height
-            val keyboardHeight = rootHeight - visibleFrame.bottom
-            val keyboardOpen = rootHeight > 0 && keyboardHeight > rootHeight * 0.15
-            bottomNav.visibility = if (keyboardOpen) android.view.View.GONE else android.view.View.VISIBLE
-
-            if (bottomNav.height > 0) {
-                fragmentContainer.setPadding(
-                    fragmentContainer.paddingLeft,
-                    fragmentContainer.paddingTop,
-                    fragmentContainer.paddingRight,
-                    if (keyboardOpen) 0 else bottomNav.height
+        savedPagesDestination = savedInstanceState
+            ?.getString(STATE_SAVED_PAGES_DESTINATION)
+            ?.let { savedName ->
+                SavedPagesDestination.entries.firstOrNull { destination ->
+                    destination.name == savedName
+                }
+            }
+        applySystemBarColors()
+        setContent {
+            com.invictus.xmd.ui.theme.XmdTheme {
+                MainShell(
+                    destination = mainDestination,
+                    navigationItems = navigationItems,
+                    activeDownloadCount = activeDownloadCount,
+                    searchActive = headerSearchActive,
+                    searchQuery = headerSearchQuery,
+                    snackbarHostState = snackbarHostState,
+                    onSearchActiveChange = { active ->
+                        if (active) openHeaderSearch() else closeHeaderSearch()
+                    },
+                    onSearchQueryChange = ::updateHeaderSearchQuery,
+                    onDestinationSelected = ::selectMainDestination,
+                    onAddDownload = { showAddDownloadDialog() },
+                    onOpenSettings = { openSettingsScreen() },
+                    onToggleTheme = ::toggleDarkMode,
+                    onContainerReady = ::ensureMainFragments,
+                    overlay = {
+                        savedPagesDestination?.let { destination ->
+                            SavedPagesOverlay(
+                                destination = destination,
+                                onBack = { savedPagesDestination = null },
+                                onOpenUrl = { url ->
+                                    savedPagesDestination = null
+                                    browserFragment()?.openUrl(url)
+                                    selectMainDestination(MainDestination.Browser)
+                                },
+                            )
+                        }
+                    },
                 )
-            }
-        }
 
-        bottomNav.setOnItemSelectedListener { item ->
-            if (supportFragmentManager.backStackEntryCount > 0) {
-                supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
-            }
-            when (item.itemId) {
-                R.id.nav_downloads -> {
-                    currentTabTag = TAG_DOWNLOADS
-                    showFragment(TAG_DOWNLOADS)
-                    toolbar.visibility = android.view.View.VISIBLE
-                    toolbarTitle.text = getString(R.string.app_header_title)
-                    invalidateOptionsMenu()
-                    true
+                if (dnsSettingsDialogOpen) {
+                    DnsSettingsDialog(
+                        currentMode = Settings.dnsMode(),
+                        currentCustomUrl = Settings.dnsCustomUrl(),
+                        onDismiss = { dnsSettingsDialogOpen = false },
+                        onSave = { mode, customUrl ->
+                            if (mode == Settings.DnsMode.CUSTOM) {
+                                Settings.setDnsCustomUrl(customUrl)
+                            }
+                            Settings.setDnsMode(mode)
+                            dnsSettingsDialogOpen = false
+                        },
+                        onInvalidCustomUrl = {
+                            Toast.makeText(this, R.string.dns_custom_url_needed, Toast.LENGTH_SHORT).show()
+                        },
+                    )
                 }
-                R.id.nav_add -> {
-                    showAddDownloadDialog()
-                    false
+
+                addDownloadDialogState?.let { state ->
+                    AddDownloadDialog(
+                        initialLink = state.initialLink,
+                        defaultSavePath = defaultSavePath(),
+                        magnetDisplayName = { magnetDisplayName(it) },
+                        extractYoutubeFallbackName = { extractYoutubeFallbackName(it) },
+                        probeYoutubeTitle = { link -> withContext(Dispatchers.IO) { probeYoutubeTitle(link) } },
+                        probeRealFilename = { link ->
+                            withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(filenameClient, link) }
+                        },
+                        onDetectedTorrentLink = { link ->
+                            addDownloadDialogState = null
+                            showAddTorrentDialog(prefillLink = link)
+                        },
+                        onPickTorrentFile = {
+                            addDownloadDialogState = null
+                            pickTorrentFileLauncher.launch(
+                                arrayOf("application/x-bittorrent", "application/octet-stream")
+                            )
+                        },
+                        onCopyLink = { text ->
+                            if (text.isNotBlank()) {
+                                clipboardManager.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        getString(R.string.clipboard_download_link_label),
+                                        text,
+                                    )
+                                )
+                                Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onPasteRequest = {
+                            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
+                            if (clipText.isBlank()) {
+                                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
+                                null
+                            } else {
+                                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
+                                clipText
+                            }
+                        },
+                        onChangeSaveDir = { onPicked ->
+                            pendingSaveDirCallback = onPicked
+                            pickSaveDirLauncher.launch(null)
+                        },
+                        onDismiss = { addDownloadDialogState = null },
+                        onStart = { link, name, saveDir, quality, audioFormat ->
+                            addDownloadDialogState = null
+                            when {
+                                LinkParser.isTorrentLink(link) -> showAddTorrentDialog(prefillLink = link)
+                                LinkParser.isShareLink(link) || LinkParser.isFitgirlPage(link) ->
+                                    triggerPrepare(listOf(link))
+                                LinkParser.needsYtDlp(link) ->
+                                    triggerDownloadYoutubeCustom(link, name, saveDir, quality, audioFormat)
+                                else -> triggerDownloadDirectCustom(link, name, saveDir)
+                            }
+                        },
+                    )
                 }
-                R.id.nav_browser -> {
-                    currentTabTag = TAG_BROWSER
-                    showFragment(TAG_BROWSER)
-                    toolbar.visibility = android.view.View.GONE
-                    invalidateOptionsMenu()
-                    true
+
+                addTorrentDialogState?.let { state ->
+                    AddTorrentDialog(
+                        prefillLink = state.prefillLink,
+                        prefillTorrentUri = state.prefillTorrentUri,
+                        prefillDisplayName = state.prefillDisplayName,
+                        defaultSavePath = defaultSavePath(),
+                        filesState = state.filesState,
+                        onLinkChanged = { newLink -> onAddTorrentLinkChanged(newLink) },
+                        onCopyLink = { text ->
+                            if (text.isNotBlank()) {
+                                clipboardManager.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        getString(R.string.clipboard_magnet_link_label),
+                                        text,
+                                    )
+                                )
+                                Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        onPasteRequest = {
+                            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
+                            if (clipText.isBlank()) {
+                                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
+                                null
+                            } else {
+                                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
+                                clipText
+                            }
+                        },
+                        onPickTorrentFile = {
+                            addTorrentDialogState = null
+                            pickTorrentFileLauncher.launch(
+                                arrayOf("application/x-bittorrent", "application/octet-stream")
+                            )
+                        },
+                        onToggleFile = { index -> toggleTorrentFileSelection(index) },
+                        onToggleSelectAll = { toggleTorrentSelectAll() },
+                        onChangeSaveDir = { onPicked ->
+                            pendingSaveDirCallback = onPicked
+                            pickSaveDirLauncher.launch(null)
+                        },
+                        onDismiss = {
+                            torrentMetadataJob?.cancel()
+                            addTorrentDialogState = null
+                        },
+                        onStart = onStart@{ link, name, saveDir, totalFiles, selectedCount, selectedIndices ->
+                            if (totalFiles > 0 && selectedCount == 0) {
+                                Toast.makeText(this, R.string.torrent_dialog_no_files_selected, Toast.LENGTH_SHORT).show()
+                                return@onStart
+                            }
+                            val uri = state.prefillTorrentUri
+                            if (uri != null) {
+                                addTorrentDialogState = null
+                                triggerDownloadTorrentFile(uri, name, saveDir, selectedIndices)
+                            } else if (!LinkParser.isTorrentLink(link)) {
+                                Toast.makeText(this, R.string.torrent_dialog_invalid_link, Toast.LENGTH_SHORT).show()
+                            } else {
+                                addTorrentDialogState = null
+                                triggerDownloadTorrentMagnet(link, name, saveDir, selectedIndices)
+                            }
+                        },
+                    )
                 }
-                else -> false
+
+                qualityPickerState?.let { state ->
+                    QualityPickerDialog(
+                        titleText = state.titleText,
+                        standardOptions = state.standardOptions,
+                        advancedFormats = state.advancedFormats,
+                        advancedLoading = state.advancedLoading,
+                        durationSeconds = state.durationSeconds,
+                        onDismiss = state.onDismiss,
+                        onConfirm = state.onConfirm,
+                    )
+                }
+
+                messageDialogState?.let { state ->
+                    AppMessageDialog(
+                        state = state,
+                        onConfirm = { finishMessageDialog(state, state.onConfirm) },
+                        onDismissRequest = { finishMessageDialog(state, state.onDismiss) },
+                        onDismissAction = {
+                            finishMessageDialog(state, state.onDismissAction ?: state.onDismiss)
+                        },
+                    )
+                }
             }
         }
 
         // Back handling, gesture or button:
-        //  1. Browser tab with page history / a loaded page -> step back through it.
-        //  2. Browser tab -> jump to Downloads tab first before exiting.
-        //  3. Already on Downloads tab -> exit the app.
+        //  1. History/Bookmarks overlay open (Phase D) -> pop its own stack.
+        //  2. Browser tab with page history / a loaded page -> step back through it.
+        //  3. Any non-default tab -> jump to the configured default tab.
+        //  4. Already on the default tab -> exit the app.
         onBackPressedDispatcher.addCallback(this) {
-            if (::headerSearchLayout.isInitialized && headerSearchLayout.visibility == View.VISIBLE) {
+            if (headerSearchActive) {
                 closeHeaderSearch()
+                return@addCallback
+            }
+            if (savedPagesDestination != null) {
+                savedPagesDestination = null
                 return@addCallback
             }
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack()
                 return@addCallback
             }
-            val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
+            val browser = browserFragment()
             if (browser?.isVisible == true && browser.onBackPressed()) {
                 return@addCallback
             }
-            if (bottomNav.selectedItemId != R.id.nav_downloads) {
-                bottomNav.selectedItemId = R.id.nav_downloads
+            val defaultDestination = configuredDefaultDestination()
+            if (mainDestination != defaultDestination) {
+                selectMainDestination(defaultDestination)
                 return@addCallback
             }
             isEnabled = false
@@ -592,12 +657,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         // Active-download badge on the Downloads tab
-        QueueRepository.items.observe(this) { list ->
-            val active = list.count {
-                it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
-                it.status == ItemStatus.SAVING || it.status == ItemStatus.RETRYING
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                QueueRepository.items.collect { list ->
+                    val active = list.count {
+                        it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
+                        it.status == ItemStatus.SAVING || it.status == ItemStatus.RETRYING
+                    }
+                    activeDownloadCount = active
+                }
             }
-            bottomNav.updateBadge(active)
         }
 
         // Watches items sent through the Retry button; pops an IDM-style
@@ -605,18 +674,22 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // item lands back on FAILED with an expired-link error, whether that
         // failure happened at resolve-time or later during the actual
         // download.
-        QueueRepository.items.observe(this) { list ->
-            list.forEach { item ->
-                if (item.id !in pendingRetryIds) return@forEach
-                when (item.status) {
-                    ItemStatus.FAILED -> {
-                        pendingRetryIds.remove(item.id)
-                        if (item.error?.contains("expired", ignoreCase = true) == true) {
-                            showExpiredLinkDialog(item)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                QueueRepository.items.collect { list ->
+                    list.forEach { item ->
+                        if (item.id !in pendingRetryIds) return@forEach
+                        when (item.status) {
+                            ItemStatus.FAILED -> {
+                                pendingRetryIds.remove(item.id)
+                                if (item.error?.contains("expired", ignoreCase = true) == true) {
+                                    showExpiredLinkDialog(item)
+                                }
+                            }
+                            ItemStatus.DONE -> pendingRetryIds.remove(item.id) // succeeded, stop watching
+                            else -> {} // still resolving/downloading -- keep watching
                         }
                     }
-                    ItemStatus.DONE -> pendingRetryIds.remove(item.id) // succeeded, stop watching
-                    else -> {} // still resolving/downloading -- keep watching
                 }
             }
         }
@@ -625,6 +698,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         checkNotificationPermission()
         autoResumePendingDownloads()
         handleIncomingIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        savedPagesDestination?.let { destination ->
+            outState.putString(STATE_SAVED_PAGES_DESTINATION, destination.name)
+        }
+        super.onSaveInstanceState(outState)
     }
 
     // ── Incoming links (external download-manager / share target) ──────────
@@ -659,7 +739,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         intent.action = null
         intent.data = null
 
-        bottomNav.selectedItemId = R.id.nav_downloads
+        selectMainDestination(MainDestination.Downloads)
 
         // External download manager flow: show a popup allowing user to
         // copy/modify link, rename file, and change save folder in a
@@ -701,13 +781,14 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private fun showFragment(tag: String) {
         val fm        = supportFragmentManager
+        val home      = fm.findFragmentByTag(TAG_HOME)      ?: return
         val browser   = fm.findFragmentByTag(TAG_BROWSER)   ?: return
         val downloads = fm.findFragmentByTag(TAG_DOWNLOADS) ?: return
         fm.beginTransaction().apply {
-            when (tag) {
-                TAG_BROWSER -> { show(browser); hide(downloads) }
-                else        -> { hide(browser); show(downloads) }
-            }
+            listOf(TAG_HOME to home, TAG_DOWNLOADS to downloads, TAG_BROWSER to browser)
+                .forEach { (fragmentTag, fragment) ->
+                    if (fragmentTag == tag) show(fragment) else hide(fragment)
+                }
         }.commit()
     }
 
@@ -740,7 +821,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun onTorrentFilePicked(uri: Uri) {
         val displayName = queryDisplayName(uri)
         if (displayName != null && !displayName.endsWith(".torrent", ignoreCase = true)) {
-            Toast.makeText(this, "Please select a .torrent file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.torrent_file_invalid_type, Toast.LENGTH_SHORT).show()
             return
         }
         runCatching {
@@ -762,433 +843,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }.getOrNull()
     }
 
-    /**
-     * Sizes the popup dialog to 90% of the phone screen width in portrait,
-     * while enforcing a maximum width of 500dp in landscape and on tablets
-     * so it never stretches awkwardly edge-to-edge on large displays.
-     */
-    private fun applyResponsiveDialogWidth(dialog: androidx.appcompat.app.AlertDialog) {
-        val window = dialog.window ?: return
-        val dm = resources.displayMetrics
-        val screenWidth = dm.widthPixels
-        val screenHeight = dm.heightPixels
-
-        val cornerRadiusPx = 28 * dm.density
-        val surfaceColor = MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurface,
-            Color.WHITE
-        )
-        val shapeDrawable = MaterialShapeDrawable(
-            ShapeAppearanceModel.builder()
-                .setAllCornerSizes(cornerRadiusPx)
-                .build()
-        ).apply {
-            fillColor = ColorStateList.valueOf(surfaceColor)
-            elevation = 6 * dm.density
-        }
-        window.setBackgroundDrawable(shapeDrawable)
-        window.decorView.clipToOutline = true
-
-        val maxWidthPx = (500 * dm.density).toInt()
-
-        val isLandscape = screenWidth > screenHeight
-        val desiredWidth = if (isLandscape) {
-            (screenWidth * 0.60f).toInt().coerceAtMost(maxWidthPx)
-        } else {
-            (screenWidth * 0.90f).toInt().coerceAtMost(maxWidthPx)
-        }
-
-        val lp = window.attributes
-        lp.width = desiredWidth
-        window.attributes = lp
-        window.setLayout(desiredWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
-    }
-
     fun showAddDownloadDialog(link: String? = null) {
         val trimmed = link?.trim().orEmpty()
         if (LinkParser.isTorrentLink(trimmed) && trimmed.contains("xt=", ignoreCase = true)) {
             showAddTorrentDialog(prefillLink = trimmed)
             return
         }
-
-        val dialogView = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_add_download, null)
-
-        val linkInput = dialogView.findViewById<EditText>(R.id.downloadLinkInput)
-        val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadCopyLinkButton)
-        val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.downloadPasteLinkButton)
-        val pickFileText = dialogView.findViewById<TextView>(R.id.downloadPickFileText)
-        val qualitySection = dialogView.findViewById<View>(R.id.downloadQualitySection)
-        val qualityDropdown = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.downloadQualityDropdown)
-        val audioFormatLayout = dialogView.findViewById<View>(R.id.downloadAudioFormatLayout)
-        val audioFormatDropdown = dialogView.findViewById<MaterialAutoCompleteTextView>(R.id.downloadAudioFormatDropdown)
-
-        val advancedStreamsSection = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsSection)
-        val advancedStreamsLoading = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsLoading)
-        val advancedStreamsEmpty = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsEmpty)
-        val advancedStreamsCard = dialogView.findViewById<View>(R.id.downloadAdvancedStreamsCard)
-        val advancedStreamsScroll = dialogView.findViewById<androidx.core.widget.NestedScrollView>(R.id.downloadAdvancedStreamsScroll)
-        advancedStreamsScroll.isNestedScrollingEnabled = true
-        val advancedStreamsGroup = dialogView.findViewById<RadioGroup>(R.id.downloadAdvancedStreamsGroup)
-
-        advancedStreamsScroll.setOnTouchListener { v, event ->
-            when (event.actionMasked) {
-                android.view.MotionEvent.ACTION_DOWN -> v.parent.requestDisallowInterceptTouchEvent(true)
-                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> v.parent.requestDisallowInterceptTouchEvent(false)
-            }
-            false
-        }
-
-        val nameInput = dialogView.findViewById<EditText>(R.id.downloadNameInput)
-        val advancedHeader = dialogView.findViewById<View>(R.id.downloadAdvancedHeader)
-        val advancedChevron = dialogView.findViewById<ImageView>(R.id.downloadAdvancedChevron)
-        val advancedContent = dialogView.findViewById<View>(R.id.downloadAdvancedContent)
-        val saveToPathText = dialogView.findViewById<TextView>(R.id.downloadSaveToPathText)
-        val changePathButton = dialogView.findViewById<MaterialButton>(R.id.downloadChangePathButton)
-        val startButton = dialogView.findViewById<MaterialButton>(R.id.downloadStartButton)
-        val cancelButton = dialogView.findViewById<MaterialButton>(R.id.downloadCancelButton)
-
-        var customSaveDirPath: String? = null
-        var nameManuallyEdited = false
-        var isProgrammaticNameChange = false
-        var selectedQualityOption: YtDlpManager.QualityOption? = null
-        var selectedAudioFormatPreset: Settings.AudioFormatPreset = Settings.presetAudioFormat()
-
-        fun setNameText(text: String) {
-            isProgrammaticNameChange = true
-            nameInput.setText(text)
-            isProgrammaticNameChange = false
-        }
-
-        val initialLink = link?.trim().orEmpty()
-
-        if (initialLink.isNotEmpty()) {
-            linkInput.setText(initialLink)
-        }
-        saveToPathText.text = defaultSavePath()
-
-        val audioFormatList = listOf(
-            "MP3" to Settings.AudioFormatPreset.MP3,
-            "M4A" to Settings.AudioFormatPreset.M4A,
-            "Opus" to Settings.AudioFormatPreset.OPUS,
-            "Original" to Settings.AudioFormatPreset.ORIGINAL
-        )
-        audioFormatDropdown.setSimpleItems(audioFormatList.map { it.first }.toTypedArray())
-        val initialAudioLabel = audioFormatList.firstOrNull { it.second == selectedAudioFormatPreset }?.first ?: "MP3"
-        audioFormatDropdown.setText(initialAudioLabel, false)
-        audioFormatDropdown.setOnItemClickListener { _, _, position, _ ->
-            selectedAudioFormatPreset = audioFormatList[position].second
-        }
-
-        var formatProbeJob: Job? = null
-        fun probeAdvancedFormats(currentLink: String) {
-            formatProbeJob?.cancel()
-            advancedStreamsGroup.removeAllViews()
-            if (!LinkParser.needsYtDlp(currentLink)) {
-                advancedStreamsSection.visibility = View.GONE
-                advancedStreamsCard.visibility = View.GONE
-                return
-            }
-            advancedStreamsSection.visibility = View.VISIBLE
-            advancedStreamsLoading.visibility = View.VISIBLE
-            advancedStreamsEmpty.visibility = View.GONE
-            advancedStreamsCard.visibility = View.GONE
-
-            formatProbeJob = lifecycleScope.launch {
-                val probe = withContext(Dispatchers.IO) {
-                    YtDlpManager.probeFormats(currentLink, this@MainActivity)
-                }
-                if (!isActive) return@launch
-                advancedStreamsLoading.visibility = View.GONE
-                if (probe.formats.isEmpty()) {
-                    advancedStreamsEmpty.visibility = View.VISIBLE
-                    advancedStreamsCard.visibility = View.GONE
-                    return@launch
-                }
-                advancedStreamsEmpty.visibility = View.GONE
-
-                val density = resources.displayMetrics.density
-                val sorted = probe.formats.sortedWith(
-                    compareByDescending<YtDlpManager.ProbedFormat> { it.height ?: -1 }
-                        .thenByDescending { it.fps ?: -1 }
-                        .thenByDescending { it.tbr ?: -1.0 }
-                )
-
-                val maxHeightPx = (210 * density).toInt()
-                val approxHeightPx = (sorted.size * 42 * density).toInt() + (8 * density).toInt()
-                advancedStreamsCard.layoutParams.height = minOf(maxHeightPx, approxHeightPx)
-                advancedStreamsCard.visibility = View.VISIBLE
-
-                sorted.forEach { format ->
-                    val sizeText = YtDlpManager.formatSize(format, probe.durationSeconds)
-                    val label = buildString {
-                        if (format.height != null) append("${format.height}p") else append("Audio")
-                        if (format.fps != null && format.fps > 30) append(" ${format.fps}fps")
-                        append(" · ${format.ext.uppercase()}")
-                        if (format.vcodec != null) append(" · ${format.vcodec.substringBefore('.')}")
-                        if (format.acodec != null && format.isAudioOnly) append(" · ${format.acodec.substringBefore('.')}")
-                        if (sizeText != null) append(" · $sizeText")
-                    }
-
-                    val row = AppCompatRadioButton(this@MainActivity).apply {
-                        id = View.generateViewId()
-                        text = label
-                        buttonDrawable = null
-                        setBackgroundResource(R.drawable.bg_stream_row_selector)
-                        setTextColor(ContextCompat.getColorStateList(this@MainActivity, R.color.text_radio_row))
-                        textSize = 13f
-                        gravity = android.view.Gravity.CENTER_VERTICAL
-                        val padH = (12 * density).toInt()
-                        val padV = (10 * density).toInt()
-                        setPadding(padH, padV, padH, padV)
-                        val startIcon = if (format.isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
-                        setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
-                        compoundDrawablePadding = (12 * density).toInt()
-                        tag = format
-                        layoutParams = RadioGroup.LayoutParams(
-                            RadioGroup.LayoutParams.MATCH_PARENT,
-                            RadioGroup.LayoutParams.WRAP_CONTENT
-                        ).apply {
-                            bottomMargin = (2 * density).toInt()
-                        }
-                    }
-                    advancedStreamsGroup.addView(row)
-                }
-
-                advancedStreamsGroup.setOnCheckedChangeListener { group, checkedId ->
-                    val checkedView = group.findViewById<RadioButton>(checkedId)
-                    val format = checkedView?.tag as? YtDlpManager.ProbedFormat ?: return@setOnCheckedChangeListener
-                    selectedQualityOption = YtDlpManager.QualityOption(
-                        label = checkedView.text.toString(),
-                        formatSelector = YtDlpManager.advancedSelector(format),
-                        isAudioOnly = format.isAudioOnly
-                    )
-                    if (format.isAudioOnly) {
-                        audioFormatLayout.visibility = View.VISIBLE
-                    } else {
-                        audioFormatLayout.visibility = View.GONE
-                    }
-                }
-            }
-        }
-
-        var currentQualityLink: String? = null
-        fun updateQualitySection(currentLink: String) {
-            if (!LinkParser.needsYtDlp(currentLink)) {
-                qualitySection.visibility = View.GONE
-                advancedStreamsSection.visibility = View.GONE
-                advancedStreamsCard.visibility = View.GONE
-                pickFileText.visibility = View.VISIBLE
-                formatProbeJob?.cancel()
-                return
-            }
-
-            qualitySection.visibility = View.VISIBLE
-            pickFileText.visibility = View.GONE
-
-            if (currentQualityLink == currentLink) return
-            currentQualityLink = currentLink
-
-            val isGeneric = !LinkParser.isYoutubeLink(currentLink)
-            val rawOptions = YtDlpManager.standardQualityOptions(isGenericOrHls = isGeneric)
-
-            val videoOpts = rawOptions.filter { !it.isAudioOnly }
-            val audioOpt = rawOptions.firstOrNull { it.isAudioOnly }
-                ?: YtDlpManager.QualityOption("Audio only", YtDlpManager.AUDIO_ONLY_SELECTOR, isAudioOnly = true)
-
-            val qualityItems = videoOpts.map { it.label } + "Audio only"
-            qualityDropdown.setSimpleItems(qualityItems.toTypedArray())
-
-            // Pick up default from yt-dlp Settings
-            val savedQuality = Settings.ytDlpDefaultQualityLabel()
-            val initialSelectedLabel: String = when {
-                savedQuality.startsWith("Audio only", ignoreCase = true) -> "Audio only"
-                savedQuality.isNotBlank() && qualityItems.contains(savedQuality) -> savedQuality
-                qualityItems.contains("1080p") -> "1080p"
-                qualityItems.contains("720p") -> "720p"
-                else -> qualityItems.firstOrNull() ?: "1080p"
-            }
-
-            qualityDropdown.setText(initialSelectedLabel, false)
-
-            if (initialSelectedLabel == "Audio only") {
-                audioFormatLayout.visibility = View.VISIBLE
-                selectedQualityOption = audioOpt
-            } else {
-                audioFormatLayout.visibility = View.GONE
-                selectedQualityOption = videoOpts.firstOrNull { it.label == initialSelectedLabel }
-            }
-
-            qualityDropdown.setOnItemClickListener { _, _, position, _ ->
-                val chosen = qualityItems[position]
-                advancedStreamsGroup.clearCheck()
-                if (chosen == "Audio only") {
-                    audioFormatLayout.visibility = View.VISIBLE
-                    selectedQualityOption = audioOpt
-                } else {
-                    audioFormatLayout.visibility = View.GONE
-                    selectedQualityOption = videoOpts.firstOrNull { it.label == chosen }
-                }
-            }
-
-            probeAdvancedFormats(currentLink)
-        }
-
-        var probeJob: Job? = null
-        fun updateNameForLink(currentLink: String) {
-            probeJob?.cancel()
-            if (nameManuallyEdited) return
-            if (currentLink.isBlank()) {
-                setNameText("")
-                return
-            }
-            if (LinkParser.isMagnetLink(currentLink)) {
-                val detected = magnetDisplayName(currentLink)
-                if (!detected.isNullOrBlank()) setNameText(detected)
-            } else if (LinkParser.isYoutubeLink(currentLink)) {
-                val fallback = extractYoutubeFallbackName(currentLink)
-                setNameText(fallback)
-                probeJob = lifecycleScope.launch {
-                    val probed = withContext(Dispatchers.IO) {
-                        probeYoutubeTitle(currentLink)
-                    }
-                    if (!nameManuallyEdited && !probed.isNullOrBlank()) {
-                        setNameText(probed)
-                    }
-                }
-            } else {
-                val guessed = DownloadEngine.filenameFromLink(currentLink).ifBlank { DownloadEngine.filenameFromUrl(currentLink) }
-                if (guessed.isNotBlank()) setNameText(guessed)
-                probeJob = lifecycleScope.launch {
-                    val probed = withContext(Dispatchers.IO) {
-                        DownloadEngine.probeRealFilename(filenameClient, currentLink)
-                    }
-                    if (!nameManuallyEdited && !probed.isNullOrBlank()) {
-                        setNameText(probed)
-                    }
-                }
-            }
-        }
-
-        if (initialLink.isNotEmpty()) {
-            updateNameForLink(initialLink)
-            updateQualitySection(initialLink)
-        }
-
-        var dialog: androidx.appcompat.app.AlertDialog? = null
-
-        linkInput.doAfterTextChanged {
-            val text = it?.toString()?.trim().orEmpty()
-            if (LinkParser.isTorrentLink(text) && text.contains("xt=", ignoreCase = true)) {
-                dialog?.dismiss()
-                showAddTorrentDialog(prefillLink = text)
-                return@doAfterTextChanged
-            }
-            updateNameForLink(text)
-            updateQualitySection(text)
-        }
-
-        nameInput.doAfterTextChanged {
-            if (!isProgrammaticNameChange && nameInput.hasFocus()) {
-                nameManuallyEdited = true
-            }
-        }
-
-        val alertDialog = MaterialAlertDialogBuilder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-        dialog = alertDialog
-
-        dialog.setOnDismissListener {
-            probeJob?.cancel()
-            formatProbeJob?.cancel()
-        }
-
-        pickFileText.setOnClickListener {
-            dialog.dismiss()
-            pickTorrentFileLauncher.launch(
-                arrayOf("application/x-bittorrent", "application/octet-stream")
-            )
-        }
-
-        copyLinkButton.setOnClickListener {
-            val text = linkInput.text?.toString()?.trim().orEmpty()
-            if (text.isNotEmpty()) {
-                clipboardManager.setPrimaryClip(ClipData.newPlainText("Download link", text))
-                Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        pasteLinkButton.setOnClickListener {
-            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
-            if (clipText.isNotEmpty()) {
-                if (LinkParser.isTorrentLink(clipText) && clipText.contains("xt=", ignoreCase = true)) {
-                    dialog?.dismiss()
-                    showAddTorrentDialog(prefillLink = clipText)
-                    return@setOnClickListener
-                }
-                nameManuallyEdited = false
-                linkInput.setText(clipText)
-                linkInput.setSelection(clipText.length)
-                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        advancedHeader.setOnClickListener {
-            val expanding = advancedContent.visibility != View.VISIBLE
-            advancedContent.visibility = if (expanding) View.VISIBLE else View.GONE
-            advancedChevron.animate().rotation(if (expanding) 270f else 90f).setDuration(150).start()
-        }
-
-        changePathButton.setOnClickListener {
-            pendingSaveDirCallback = { path ->
-                customSaveDirPath = path
-                saveToPathText.text = path
-            }
-            pickSaveDirLauncher.launch(null)
-        }
-
-        cancelButton.setOnClickListener { dialog.dismiss() }
-
-        startButton.setOnClickListener {
-            val finalLink = linkInput.text?.toString()?.trim().orEmpty()
-            if (finalLink.isEmpty()) {
-                Toast.makeText(this, "Enter a valid link", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val finalName = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
-            probeJob?.cancel()
-            formatProbeJob?.cancel()
-            dialog.dismiss()
-
-            if (LinkParser.isTorrentLink(finalLink)) {
-                showAddTorrentDialog(prefillLink = finalLink)
-            } else if (LinkParser.isShareLink(finalLink) || LinkParser.isFitgirlPage(finalLink)) {
-                triggerPrepare(listOf(finalLink))
-            } else if (LinkParser.needsYtDlp(finalLink)) {
-                triggerDownloadYoutubeCustom(
-                    finalLink,
-                    finalName,
-                    customSaveDirPath,
-                    selectedQualityOption,
-                    selectedAudioFormatPreset
-                )
-            } else {
-                triggerDownloadDirectCustom(finalLink, finalName, customSaveDirPath)
-            }
-        }
-
-        dialog.setOnShowListener { applyResponsiveDialogWidth(dialog) }
-        dialogView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyResponsiveDialogWidth(dialog)
-        }
-
-        dialog.show()
-        applyResponsiveDialogWidth(dialog)
+        addDownloadDialogState = AddDownloadDialogState(initialLink = trimmed)
     }
 
     fun showAddTorrentDialog(
@@ -1196,238 +857,90 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         prefillTorrentUri: Uri? = null,
         prefillDisplayName: String? = null
     ) {
-        val dialogView = LayoutInflater.from(this)
-            .inflate(R.layout.dialog_add_torrent, null)
-
-        val linkInput = dialogView.findViewById<EditText>(R.id.torrentLinkInput)
-        val copyLinkButton = dialogView.findViewById<MaterialButton>(R.id.torrentCopyLinkButton)
-        val pasteLinkButton = dialogView.findViewById<MaterialButton>(R.id.torrentPasteLinkButton)
-        val nameInput = dialogView.findViewById<EditText>(R.id.torrentNameInput)
-        val pickFileText = dialogView.findViewById<TextView>(R.id.torrentPickFileText)
-        val advancedHeader = dialogView.findViewById<View>(R.id.torrentAdvancedHeader)
-        val advancedChevron = dialogView.findViewById<ImageView>(R.id.torrentAdvancedChevron)
-        val advancedContent = dialogView.findViewById<View>(R.id.torrentAdvancedContent)
-        val saveToPathText = dialogView.findViewById<TextView>(R.id.torrentSaveToPathText)
-        val changePathButton = dialogView.findViewById<MaterialButton>(R.id.torrentChangePathButton)
-        val startButton = dialogView.findViewById<MaterialButton>(R.id.torrentStartButton)
-        val cancelButton = dialogView.findViewById<MaterialButton>(R.id.torrentCancelButton)
-
-        val filesCountText = dialogView.findViewById<TextView>(R.id.torrentFilesCountText)
-        val selectAllButton = dialogView.findViewById<MaterialButton>(R.id.torrentSelectAllButton)
-        val filesLoadingContainer = dialogView.findViewById<View>(R.id.torrentFilesLoadingContainer)
-        val filesErrorContainer = dialogView.findViewById<View>(R.id.torrentFilesErrorContainer)
-        val filesListCard = dialogView.findViewById<View>(R.id.torrentFilesListCard)
-        val filesRecyclerView = dialogView.findViewById<RecyclerView>(R.id.torrentFilesRecyclerView)
-
-        var customSaveDirPath: String? = null
-        var nameManuallyEdited = false
-        var fetchJob: Job? = null
-
-        saveToPathText.text = defaultSavePath()
-
-        val adapter = TorrentFileAdapter { count, bytes ->
-            val total = if (filesRecyclerView.adapter is TorrentFileAdapter) {
-                (filesRecyclerView.adapter as TorrentFileAdapter).getTotalCount()
-            } else count
-            filesCountText.text = "• $count of $total (${TorrentFileAdapter.formatBytes(bytes)})"
-            if (filesRecyclerView.adapter is TorrentFileAdapter) {
-                val allSelected = (filesRecyclerView.adapter as TorrentFileAdapter).areAllSelected()
-                selectAllButton.text = getString(
-                    if (allSelected) R.string.torrent_dialog_deselect_all else R.string.torrent_dialog_select_all
-                )
-            }
-            startButton.isEnabled = count > 0
-        }
-        filesRecyclerView.layoutManager = LinearLayoutManager(this)
-        filesRecyclerView.adapter = adapter
-
-        selectAllButton.setOnClickListener {
-            val select = !adapter.areAllSelected()
-            adapter.selectAll(select)
-        }
-
-        fun populateTorrentFiles(ti: TorrentInfo) {
-            val count = ti.numFiles()
-            val entries = (0 until count).map { idx ->
-                TorrentFileEntry(
-                    index = idx,
-                    path = runCatching { ti.files().filePath(idx) }.getOrNull() ?: "File ${idx + 1}",
-                    sizeBytes = runCatching { ti.files().fileSize(idx) }.getOrNull() ?: 0L,
-                    isSelected = true
-                )
-            }
-            adapter.setFiles(entries)
-            filesLoadingContainer.visibility = View.GONE
-            filesErrorContainer.visibility = View.GONE
-            filesListCard.visibility = View.VISIBLE
-            selectAllButton.visibility = View.VISIBLE
-        }
-
-        fun loadMetadataForMagnet(link: String) {
-            fetchJob?.cancel()
-            if (!LinkParser.isMagnetLink(link)) {
-                filesLoadingContainer.visibility = View.GONE
-                filesErrorContainer.visibility = View.GONE
-                filesListCard.visibility = View.GONE
-                selectAllButton.visibility = View.GONE
-                filesCountText.text = ""
-                return
-            }
-
-            filesLoadingContainer.visibility = View.VISIBLE
-            filesErrorContainer.visibility = View.GONE
-            filesListCard.visibility = View.GONE
-            selectAllButton.visibility = View.GONE
-            filesCountText.text = ""
-
-            fetchJob = lifecycleScope.launch {
-                val tempDir = File(cacheDir, "torrent_meta")
-                val bytes = withContext(Dispatchers.IO) {
-                    TorrentSession.fetchMetadata(link, timeoutSeconds = 25, tempDir)
-                }
-                if (bytes != null) {
-                    val ti = runCatching { TorrentInfo.bdecode(bytes) }.getOrNull()
-                    if (ti != null) {
-                        if (!nameManuallyEdited && ti.name().isNotBlank()) {
-                            nameInput.setText(ti.name())
-                        }
-                        populateTorrentFiles(ti)
-                        return@launch
-                    }
-                }
-                filesLoadingContainer.visibility = View.GONE
-                filesErrorContainer.visibility = View.VISIBLE
-                filesListCard.visibility = View.GONE
-                selectAllButton.visibility = View.GONE
-            }
-        }
-
-        fun updateNamePreview() {
-            if (nameManuallyEdited) return
-            val link = linkInput.text?.toString()?.trim().orEmpty()
-            val detected = magnetDisplayName(link)
-            if (!detected.isNullOrBlank()) {
-                nameInput.setText(detected)
-            }
-        }
-
-        linkInput.doAfterTextChanged {
-            val link = linkInput.text?.toString()?.trim().orEmpty()
-            updateNamePreview()
-            if (prefillTorrentUri == null && LinkParser.isMagnetLink(link)) {
-                loadMetadataForMagnet(link)
-            }
-        }
-        nameInput.doAfterTextChanged { nameManuallyEdited = true }
-
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setView(dialogView)
-            .setCancelable(true)
-            .create()
-
-        dialog.setOnDismissListener { fetchJob?.cancel() }
-
-        if (prefillTorrentUri != null) {
-            linkInput.setText(prefillTorrentUri.toString())
-            linkInput.isEnabled = false
-            pickFileText.visibility = View.GONE
-            copyLinkButton.visibility = View.GONE
-            pasteLinkButton.visibility = View.GONE
-            if (!prefillDisplayName.isNullOrBlank()) {
-                nameInput.setText(prefillDisplayName)
-            }
-            runCatching {
-                val bytes = contentResolver.openInputStream(prefillTorrentUri)?.use { it.readBytes() }
-                if (bytes != null) {
-                    val ti = TorrentInfo.bdecode(bytes)
-                    if (!nameManuallyEdited && ti.name().isNotBlank()) {
-                        nameInput.setText(ti.name())
-                    }
-                    populateTorrentFiles(ti)
+        torrentMetadataJob?.cancel()
+        addTorrentDialogState = AddTorrentDialogState(
+            prefillLink = prefillLink,
+            prefillTorrentUri = prefillTorrentUri,
+            prefillDisplayName = prefillDisplayName,
+            filesState = TorrentFilesUiState(),
+        )
+        when {
+            prefillTorrentUri != null -> {
+                lifecycleScope.launch {
+                    val ti = runCatching {
+                        contentResolver.openInputStream(prefillTorrentUri)?.use { it.readBytes() }
+                            ?.let { TorrentInfo.bdecode(it) }
+                    }.getOrNull()
+                    if (ti != null) applyTorrentInfoToDialog(ti)
                 }
             }
-        } else if (!prefillLink.isNullOrBlank()) {
-            linkInput.setText(prefillLink)
-            nameManuallyEdited = false
-            updateNamePreview()
-            if (LinkParser.isMagnetLink(prefillLink)) {
-                loadMetadataForMagnet(prefillLink)
+            !prefillLink.isNullOrBlank() && LinkParser.isMagnetLink(prefillLink) -> {
+                loadTorrentMetadataForMagnet(prefillLink)
             }
         }
+    }
 
-        copyLinkButton.setOnClickListener {
-            val link = linkInput.text?.toString()?.trim().orEmpty()
-            if (link.isEmpty()) return@setOnClickListener
-            clipboardManager.setPrimaryClip(ClipData.newPlainText("Magnet link", link))
-            Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
+    /**
+     * Called on every AddTorrentDialog link-field edit (mirrors the old
+     * linkInput.doAfterTextChanged). Re-fetches metadata for a newly-typed
+     * magnet link, or clears any stale file list once the field no longer
+     * holds one -- matches loadMetadataForMagnet()'s own early-return branch.
+     */
+    private fun onAddTorrentLinkChanged(link: String) {
+        val state = addTorrentDialogState ?: return
+        addTorrentDialogState = state.copy(prefillLink = link)
+        if (state.prefillTorrentUri == null && LinkParser.isMagnetLink(link)) {
+            loadTorrentMetadataForMagnet(link)
+        } else if (!LinkParser.isMagnetLink(link)) {
+            torrentMetadataJob?.cancel()
+            addTorrentDialogState = addTorrentDialogState?.copy(filesState = TorrentFilesUiState())
         }
+    }
 
-        pasteLinkButton.setOnClickListener {
-            val clipText = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
-            if (clipText.isNotEmpty()) {
-                linkInput.setText(clipText)
-                linkInput.setSelection(clipText.length)
-                Toast.makeText(this, R.string.dialog_link_pasted_toast, Toast.LENGTH_SHORT).show()
+    private fun loadTorrentMetadataForMagnet(link: String) {
+        torrentMetadataJob?.cancel()
+        addTorrentDialogState = addTorrentDialogState?.copy(filesState = TorrentFilesUiState(loading = true))
+        torrentMetadataJob = lifecycleScope.launch {
+            val tempDir = File(cacheDir, "torrent_meta")
+            val bytes = withContext(Dispatchers.IO) {
+                TorrentSession.fetchMetadata(link, timeoutSeconds = 25, tempDir)
+            }
+            val ti = bytes?.let { runCatching { TorrentInfo.bdecode(it) }.getOrNull() }
+            if (ti != null) {
+                applyTorrentInfoToDialog(ti)
             } else {
-                Toast.makeText(this, R.string.clipboard_empty_toast, Toast.LENGTH_SHORT).show()
+                addTorrentDialogState = addTorrentDialogState?.copy(filesState = TorrentFilesUiState(error = true))
             }
         }
+    }
 
-        advancedHeader.setOnClickListener {
-            val expanding = advancedContent.visibility != View.VISIBLE
-            advancedContent.visibility = if (expanding) View.VISIBLE else View.GONE
-            advancedChevron.animate().rotation(if (expanding) 270f else 90f).setDuration(150).start()
-        }
-
-        changePathButton.setOnClickListener {
-            pendingSaveDirCallback = { path ->
-                customSaveDirPath = path
-                saveToPathText.text = path
-            }
-            pickSaveDirLauncher.launch(null)
-        }
-
-        pickFileText.setOnClickListener {
-            dialog.dismiss()
-            pickTorrentFileLauncher.launch(
-                arrayOf("application/x-bittorrent", "application/octet-stream")
+    private fun applyTorrentInfoToDialog(ti: TorrentInfo) {
+        val count = ti.numFiles()
+        val entries = (0 until count).map { idx ->
+            TorrentFileRow(
+                index = idx,
+                path = runCatching { ti.files().filePath(idx) }.getOrNull() ?: "File ${idx + 1}",
+                sizeBytes = runCatching { ti.files().fileSize(idx) }.getOrNull() ?: 0L,
+                isSelected = true,
             )
         }
+        val detectedName = ti.name().takeIf { it.isNotBlank() }
+        addTorrentDialogState = addTorrentDialogState?.copy(
+            filesState = TorrentFilesUiState(files = entries, magnetDetectedName = detectedName)
+        )
+    }
 
-        cancelButton.setOnClickListener { dialog.dismiss() }
+    private fun toggleTorrentFileSelection(index: Int) {
+        val state = addTorrentDialogState ?: return
+        val updated = state.filesState.files.map { if (it.index == index) it.copy(isSelected = !it.isSelected) else it }
+        addTorrentDialogState = state.copy(filesState = state.filesState.copy(files = updated))
+    }
 
-        startButton.setOnClickListener {
-            if (adapter.itemCount > 0 && adapter.getSelectedCount() == 0) {
-                Toast.makeText(this, R.string.torrent_dialog_no_files_selected, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val selectedIndices = if (adapter.itemCount > 0) {
-                if (adapter.areAllSelected()) null else adapter.getSelectedIndices().joinToString(",")
-            } else null
-
-            val name = nameInput.text?.toString()?.trim().takeUnless { it.isNullOrBlank() }
-
-            if (prefillTorrentUri != null) {
-                dialog.dismiss()
-                triggerDownloadTorrentFile(prefillTorrentUri, name, customSaveDirPath, selectedIndices)
-            } else {
-                val link = linkInput.text?.toString()?.trim().orEmpty()
-                if (!LinkParser.isTorrentLink(link)) {
-                    Toast.makeText(this, R.string.torrent_dialog_invalid_link, Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                dialog.dismiss()
-                triggerDownloadTorrentMagnet(link, name, customSaveDirPath, selectedIndices)
-            }
-        }
-
-        dialog.setOnShowListener { applyResponsiveDialogWidth(dialog) }
-        dialogView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyResponsiveDialogWidth(dialog)
-        }
-
-        dialog.show()
-        applyResponsiveDialogWidth(dialog)
+    private fun toggleTorrentSelectAll() {
+        val state = addTorrentDialogState ?: return
+        val allSelected = state.filesState.files.isNotEmpty() && state.filesState.files.all { it.isSelected }
+        val updated = state.filesState.files.map { it.copy(isSelected = !allSelected) }
+        addTorrentDialogState = state.copy(filesState = state.filesState.copy(files = updated))
     }
 
     // ── Download Triggers ──────────────────────────────────────────────────
@@ -1445,16 +958,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    fun triggerDownloadReady() {
+    override fun triggerDownloadReady() {
         DownloadService.start(this)
         showDownloadStartedSnackbar()
     }
 
-    fun openDownloadsTab() {
-        bottomNav.selectedItemId = R.id.nav_downloads
+    override fun openDownloadsTab() {
+        selectMainDestination(MainDestination.Downloads)
     }
 
-    fun triggerDownloadDirect(lines: List<String>) {
+    override fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
         val (youtubeLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
 
@@ -1510,20 +1023,25 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         chosenAudioPreset: Settings.AudioFormatPreset = Settings.presetAudioFormat()
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Not supported in this build")
-                .setMessage("This is the Lite build, which doesn't include the yt-dlp engine needed for YouTube, HLS (.m3u8), or DASH (.mpd) links. Download the Full build from the app's Releases page to use this.")
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            showMessageDialog(
+                AppMessageDialogState(
+                    title = getString(R.string.full_build_required_title),
+                    message = getString(R.string.full_build_required_message),
+                    confirmLabel = getString(android.R.string.ok),
+                )
+            )
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("yt-dlp not installed")
-                .setMessage("This link needs the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
-                .setPositiveButton("Install now") { _, _ -> openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE) }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            showMessageDialog(
+                AppMessageDialogState(
+                    title = getString(R.string.ytdlp_not_installed_title),
+                    message = getString(R.string.ytdlp_not_installed_message),
+                    confirmLabel = getString(R.string.action_install_now),
+                    dismissLabel = getString(android.R.string.cancel),
+                    onConfirm = { openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE) },
+                )
+            )
             return
         }
 
@@ -1533,7 +1051,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         if (quality == null) {
-            Toast.makeText(this, "Could not resolve quality", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.download_quality_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -1646,93 +1164,33 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         showDownloadStartedSnackbar()
     }
 
-    /**
-     * Downloads kick off in the background with no screen change, so without
-     * this the user has no confirmation anything happened. Mirrors the
-     * "Starting download… VIEW" pattern from stock browsers, but as a
-     * rounded, floating M3 card (Widget.Xmd.Snackbar shape/theme) instead
-     * of the stock flat full-width bar: hugs its text instead of stretching
-     * edge-to-edge, and sits clear of the bottom nav.
-     *
-     * fragmentContainer is a CoordinatorLayout (not a plain FrameLayout)
-     * specifically so Snackbar.make() finds it while walking up the view
-     * tree — otherwise Material falls back to the Activity's root content
-     * view, which spans behind the bottom nav and produces a full-width bar
-     * that overlaps it. With a real CoordinatorLayout anchor, the bar is
-     * naturally confined above the nav with no manual bottom-margin hack
-     * needed. Used for every download entry point — direct links,
-     * torrents/magnets, FuckingFast, and in-app browser — since they all
-     * funnel through this one helper.
-     */
+    /** Shows a Material 3 snackbar for download entry points outside the queue screen. */
     private fun showDownloadStartedSnackbar() {
-        // Don't show the "Starting download… VIEW" nudge if the user is
-        // already sitting on the Downloads screen -- the VIEW action would
-        // just be pointing them at where they already are.
-        //
-        // Checked against currentTabTag, not the Downloads fragment's
-        // isHidden state -- isHidden only flips once its
-        // FragmentTransaction.commit() actually lands, which is scheduled
-        // on the next main-thread pass rather than applied immediately.
-        // Any flow that switches tabs and then calls this in the same
-        // frame (e.g. handleIncomingIntent jumping to Home right before
-        // starting a download) was reading the *pre-switch* isHidden
-        // value, which made this guard fire -- and the snackbar go
-        // missing -- from every tab, not just Downloads. (This replaced an
-        // earlier bottomNav.selectedItemId check that had the same kind of
-        // staleness problem for a different reason.) currentTabTag is a
-        // plain field written synchronously the moment a tab is chosen, so
-        // there's no async gap left to race.
         if (currentTabTag == TAG_DOWNLOADS) {
             return
         }
-
-        val snackbar = Snackbar.make(
-            findViewById(R.id.fragmentContainer),
-            R.string.download_started_toast,
-            Snackbar.LENGTH_LONG
-        ).setAction(R.string.action_view) {
-            bottomNav.selectedItemId = R.id.nav_downloads
+        lifecycleScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = getString(R.string.download_started_toast),
+                actionLabel = getString(R.string.action_view),
+                withDismissAction = true,
+                duration = SnackbarDuration.Long,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                selectMainDestination(MainDestination.Downloads)
+            }
         }
-
-        val sideMargin = (16 * resources.displayMetrics.density).toInt()
-        val bottomGap = (16 * resources.displayMetrics.density).toInt()
-        val snackbarView = snackbar.view
-        (snackbarView.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.let { params ->
-            params.width = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            params.gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
-            params.setMargins(sideMargin, params.topMargin, sideMargin, bottomGap)
-            snackbarView.layoutParams = params
-        }
-        snackbarView.elevation = 6 * resources.displayMetrics.density
-
-        snackbar.show()
     }
 
     // ── BrowserFragment.Callbacks ───────────────────────────────────────────
 
-    // Chrome-style overflow: a PopupMenu anchored directly under the 3-dot
-    // button (right-aligned via Gravity.END) instead of a centered
-    // AlertDialog, so it drops down from the icon the way Chrome's overflow
-    // menu does rather than looking like a generic popup.
-    override fun openBrowserMenu(anchor: android.view.View) {
-        val browserFragment = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
-        val popup = androidx.appcompat.widget.PopupMenu(this, anchor, android.view.Gravity.END)
-        popup.menuInflater.inflate(R.menu.browser_overflow_menu, popup.menu)
-        popup.menu.findItem(R.id.menu_desktop_site)?.isChecked = browserFragment?.isDesktopModeOn() == true
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.menu_refresh -> { reloadBrowserTab(); true }
-                R.id.menu_find_in_page -> { browserFragment?.showFindInPage(); true }
-                R.id.menu_desktop_site -> { browserFragment?.toggleDesktopModeForCurrentTab(); true }
-                R.id.menu_private_dns -> { showDnsSettingsDialog(); true }
-                R.id.menu_bookmarks -> { openBookmarksScreen(); true }
-                R.id.menu_history -> { openHistoryScreen(); true }
-                R.id.menu_clear_browsing_data -> { showClearBrowsingDataDialog(); true }
-                R.id.menu_settings -> { openSettingsScreen(); true }
-                else -> false
-            }
+    override fun onBrowserMenuAction(action: BrowserMenuAction) {
+        when (action) {
+            BrowserMenuAction.PrivateDns -> showDnsSettingsDialog()
+            BrowserMenuAction.Bookmarks -> openBookmarksScreen()
+            BrowserMenuAction.History -> openHistoryScreen()
+            BrowserMenuAction.Settings -> openSettingsScreen()
         }
-        popup.show()
     }
 
     override fun triggerSniffedMedia(url: String, needsPicker: Boolean) {
@@ -1748,151 +1206,20 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    private fun reloadBrowserTab() {
-        (supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment)?.reloadActiveTab()
-    }
-
-    /** Overflow menu's "Clear browsing data" -- Chrome-style checklist dialog.
-     *  All three boxes start checked (matches Chrome's default selection). */
-    private fun showClearBrowsingDataDialog() {
-        val options = arrayOf(
-            getString(R.string.clear_data_history),
-            getString(R.string.clear_data_cookies),
-            getString(R.string.clear_data_cache)
-        )
-        val checked = booleanArrayOf(true, true, true)
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.clear_data_title)
-            .setMultiChoiceItems(options, checked) { _, which, isChecked -> checked[which] = isChecked }
-            .setPositiveButton(R.string.clear_data_action) { _, _ ->
-                val browserFragment = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
-                browserFragment?.clearBrowsingData(
-                    clearHistory = checked[0],
-                    clearCookies = checked[1],
-                    clearCache = checked[2]
-                )
-                android.widget.Toast.makeText(this, R.string.clear_data_cleared_toast, android.widget.Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    /** Builds a two-line radio-row label: the provider name on top and its
-     *  DoH address underneath in a smaller, dimmer style (mirrors Android's
-     *  own Private DNS picker, which shows the resolved host under each option). */
-    private fun labelWithAddress(title: String, address: String): SpannableString {
-        val full = "$title\n$address"
-        val spannable = SpannableString(full)
-        val addressStart = title.length + 1
-        spannable.setSpan(
-            RelativeSizeSpan(0.8f),
-            addressStart, full.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        spannable.setSpan(
-            ForegroundColorSpan(ContextCompat.getColor(this, R.color.m3_on_surface_variant)),
-            addressStart, full.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        return spannable
-    }
-
+    /** Opens the Compose DnsSettingsDialog in the activity root composition.
+     *  This used to build+show a MaterialAlertDialogBuilder
+     *  wrapping dialog_dns_settings.xml right here; all of that now lives in
+     *  ui/DnsSettingsDialog.kt, this function is just the open trigger. */
     private fun showDnsSettingsDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_dns_settings, null)
-        val group = dialogView.findViewById<RadioGroup>(R.id.dnsModeGroup)
-        val optionAdguard = dialogView.findViewById<RadioButton>(R.id.dnsOptionAdguard)
-        val optionGoogle = dialogView.findViewById<RadioButton>(R.id.dnsOptionGoogle)
-        val optionCloudflare = dialogView.findViewById<RadioButton>(R.id.dnsOptionCloudflare)
-        val optionCloudflareAdblock = dialogView.findViewById<RadioButton>(R.id.dnsOptionCloudflareAdblock)
-        val optionOff = dialogView.findViewById<RadioButton>(R.id.dnsOptionOff)
-        val optionCustom = dialogView.findViewById<RadioButton>(R.id.dnsOptionCustom)
-        val customUrlInput = dialogView.findViewById<EditText>(R.id.dnsCustomUrlInput)
-        val customUrlLayout = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.dnsCustomUrlLayout)
-
-        optionAdguard.text = labelWithAddress(getString(R.string.dns_mode_adguard), DnsOverHttpsResolver.ADGUARD_DOH_URL)
-        optionGoogle.text = labelWithAddress(getString(R.string.dns_mode_google), DnsOverHttpsResolver.GOOGLE_DOH_URL)
-        optionCloudflare.text = labelWithAddress(getString(R.string.dns_mode_cloudflare), DnsOverHttpsResolver.CLOUDFLARE_DOH_URL)
-        optionCloudflareAdblock.text = labelWithAddress(getString(R.string.dns_mode_cloudflare_adblock), DnsOverHttpsResolver.CLOUDFLARE_ADBLOCK_DOH_URL)
-
-        when (Settings.dnsMode()) {
-            Settings.DnsMode.ADGUARD -> optionAdguard.isChecked = true
-            Settings.DnsMode.GOOGLE -> optionGoogle.isChecked = true
-            Settings.DnsMode.CLOUDFLARE -> optionCloudflare.isChecked = true
-            Settings.DnsMode.CLOUDFLARE_ADBLOCK -> optionCloudflareAdblock.isChecked = true
-            Settings.DnsMode.OFF -> optionOff.isChecked = true
-            Settings.DnsMode.CUSTOM -> optionCustom.isChecked = true
-        }
-        customUrlInput.setText(Settings.dnsCustomUrl())
-        customUrlLayout.visibility = if (optionCustom.isChecked) android.view.View.VISIBLE else android.view.View.GONE
-
-        group.setOnCheckedChangeListener { _, checkedId ->
-            customUrlLayout.visibility =
-                if (checkedId == R.id.dnsOptionCustom) android.view.View.VISIBLE else android.view.View.GONE
-        }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.dns_settings_title)
-            .setView(dialogView)
-            .setPositiveButton(R.string.settings_save) { _, _ ->
-                when (group.checkedRadioButtonId) {
-                    R.id.dnsOptionOff -> Settings.setDnsMode(Settings.DnsMode.OFF)
-                    R.id.dnsOptionGoogle -> Settings.setDnsMode(Settings.DnsMode.GOOGLE)
-                    R.id.dnsOptionCloudflare -> Settings.setDnsMode(Settings.DnsMode.CLOUDFLARE)
-                    R.id.dnsOptionCloudflareAdblock -> Settings.setDnsMode(Settings.DnsMode.CLOUDFLARE_ADBLOCK)
-                    R.id.dnsOptionCustom -> {
-                        val url = customUrlInput.text?.toString()?.trim().orEmpty()
-                        if (url.isEmpty() || !(url.startsWith("http://") || url.startsWith("https://"))) {
-                            Toast.makeText(this, R.string.dns_custom_url_needed, Toast.LENGTH_SHORT).show()
-                            return@setPositiveButton
-                        }
-                        Settings.setDnsCustomUrl(url)
-                        Settings.setDnsMode(Settings.DnsMode.CUSTOM)
-                    }
-                    else -> Settings.setDnsMode(Settings.DnsMode.ADGUARD)
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        dnsSettingsDialogOpen = true
     }
 
     private fun openHistoryScreen() {
-        supportFragmentManager.beginTransaction()
-            .add(R.id.fragmentContainer, HistoryFragment(), TAG_HISTORY)
-            .addToBackStack(TAG_HISTORY)
-            .commit()
-    }
-
-    // ── HistoryFragment.Callbacks ───────────────────────────────────────────
-
-    override fun openInBrowser(url: String) {
-        // History was added via addToBackStack (see openHistoryScreen), so it's
-        // still layered on top of the tab fragments here -- without popping it
-        // first, tapping a history entry would open the link in Browser
-        // underneath while History stayed visible on top, making it look like
-        // the tap "went nowhere" / landed on the wrong screen.
-        supportFragmentManager.popBackStack(TAG_HISTORY, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
-        val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
-        browser?.openUrl(url)
-        bottomNav.selectedItemId = R.id.nav_browser
+        savedPagesDestination = SavedPagesDestination.History
     }
 
     private fun openBookmarksScreen() {
-        supportFragmentManager.beginTransaction()
-            .add(R.id.fragmentContainer, BookmarkFragment(), TAG_BOOKMARKS)
-            .addToBackStack(TAG_BOOKMARKS)
-            .commit()
-    }
-
-    // ── BookmarkFragment.Callbacks ──────────────────────────────────────────
-
-    override fun openBookmarkInBrowser(url: String) {
-        // Same reasoning as openInBrowser() above -- pop Bookmarks off the
-        // back stack first so the navigation is visibly landing on Browser.
-        supportFragmentManager.popBackStack(TAG_BOOKMARKS, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
-        val browser = supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
-        browser?.openUrl(url)
-        bottomNav.selectedItemId = R.id.nav_browser
+        savedPagesDestination = SavedPagesDestination.Bookmarks
     }
 
     // ── DownloadsFragment.Callbacks ─────────────────────────────────────────
@@ -1954,19 +1281,19 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      * one) -- looping back into this same check if it expires again.
      */
     private fun showExpiredLinkDialog(item: QueueItem) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Link Expired")
-            .setMessage(
-                "${item.fileName ?: item.sourceUrl}\n\n" +
-                "This download link has expired or is no longer available."
+        showMessageDialog(
+            AppMessageDialogState(
+                title = getString(R.string.link_expired_title),
+                message = getString(R.string.link_expired_message, item.fileName ?: item.sourceUrl),
+                confirmLabel = getString(R.string.action_fetch_link),
+                dismissLabel = getString(R.string.action_clear),
+                onConfirm = { retryItem(item.id) },
+                onDismissAction = {
+                    pendingRetryIds.remove(item.id)
+                    QueueRepository.removeItem(item.id)
+                },
             )
-            .setPositiveButton("Fetch Link") { _, _ -> retryItem(item.id) }
-            .setNegativeButton("Clear") { _, _ ->
-                pendingRetryIds.remove(item.id)
-                QueueRepository.removeItem(item.id)
-            }
-            .setCancelable(true)
-            .show()
+        )
     }
 
     // ── Resolve logic (uses challengeLauncher — must live in Activity) ────
@@ -2015,7 +1342,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         QueueRepository.update(item.id) { it.copy(status = ItemStatus.NEEDS_CHALLENGE) }
 
         val (directUrl, error) = suspendCancellableCoroutine<Pair<String?, String?>> { cont ->
-            pendingChallengeContinuation = { url, err -> cont.resume(url to err) }
+            val continuation: (String?, String?) -> Unit = { url, err ->
+                if (cont.isActive) cont.resume(url to err)
+            }
+            pendingChallengeContinuation = continuation
+            cont.invokeOnCancellation {
+                if (pendingChallengeContinuation === continuation) {
+                    pendingChallengeContinuation = null
+                }
+            }
             val intent = Intent(this@MainActivity, ChallengeActivity::class.java)
                 .putExtra(ChallengeActivity.EXTRA_SHARE_URL, item.sourceUrl)
                 .putExtra(ChallengeActivity.EXTRA_FILE_ID,  fileId)
@@ -2051,11 +1386,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      */
     private suspend fun resolveYoutube(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            MaterialAlertDialogBuilder(this)
-                .setTitle("Not supported in this build")
-                .setMessage("This is the Lite build, which doesn't include the yt-dlp engine needed for YouTube, HLS (.m3u8), or DASH (.mpd) links. Download the Full build from the app's Releases page to use this.")
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            showMessageDialog(
+                AppMessageDialogState(
+                    title = getString(R.string.full_build_required_title),
+                    message = getString(R.string.full_build_required_message),
+                    confirmLabel = getString(android.R.string.ok),
+                )
+            )
             QueueRepository.update(item.id) {
                 it.copy(status = ItemStatus.FAILED, error = "Needs the Full build")
             }
@@ -2063,15 +1400,21 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
         if (!YtDlpManager.isInstalled(this)) {
             val openSettings = suspendCancellableCoroutine<Boolean> { cont ->
-                val dialog = MaterialAlertDialogBuilder(this)
-                    .setTitle("yt-dlp not installed")
-                    .setMessage("This link needs the yt-dlp downloader, which isn't installed yet. Install it from Settings first.")
-                    .setPositiveButton("Install now") { _, _ -> cont.resume(true) }
-                    .setNegativeButton(android.R.string.cancel) { _, _ -> cont.resume(false) }
-                    .setOnCancelListener { cont.resume(false) }
-                    .create()
-                cont.invokeOnCancellation { dialog.dismiss() }
-                dialog.show()
+                val complete: (Boolean) -> Unit = { result ->
+                    if (cont.isActive) cont.resume(result)
+                }
+                val state = AppMessageDialogState(
+                    title = getString(R.string.ytdlp_not_installed_title),
+                    message = getString(R.string.ytdlp_not_installed_message),
+                    confirmLabel = getString(R.string.action_install_now),
+                    dismissLabel = getString(android.R.string.cancel),
+                    onConfirm = { complete(true) },
+                    onDismiss = { complete(false) },
+                )
+                showMessageDialog(state)
+                cont.invokeOnCancellation {
+                    if (messageDialogState === state) messageDialogState = null
+                }
             }
             QueueRepository.update(item.id) {
                 it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed")
@@ -2100,143 +1443,50 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 ?: options.firstOrNull { it.isAudioOnly && savedLabel.startsWith("Audio only") }
         } else {
             suspendCancellableCoroutine<YtDlpManager.QualityOption?> { cont ->
-            val dialogView = layoutInflater.inflate(R.layout.dialog_quality_picker, null)
-            val group = dialogView.findViewById<RadioGroup>(R.id.qualityGroup)
-            val density = resources.displayMetrics.density
-
-            // Shared row builder -- used for both the standard ladder above
-            // and the advanced (real-probe) list below, so the two always
-            // look identical. tag carries whichever value the positive
-            // button should resolve for that row (a fixed QualityOption
-            // for the standard ladder, or a ProbedFormat for advanced --
-            // resolved into a QualityOption at OK-click time).
-            fun buildRow(label: String, isAudioOnly: Boolean, tag: Any): AppCompatRadioButton {
-                // AppCompatRadioButton, not the platform RadioButton -- it
-                // handles its own compound-button tinting internally, so it
-                // can be constructed programmatically like this safely. A
-                // plain platform RadioButton() built with an AppCompat-
-                // lineage style (Widget.Xmd.RadioRow extends
-                // Widget.AppCompat.CompoundButton.RadioButton) as its
-                // defStyleRes bypasses AppCompatViewInflater entirely
-                // (that only runs for XML-inflated views) and crashes with
-                // "requires Theme.AppCompat" the moment it's measured/drawn.
-                // Styling that Widget.Xmd.RadioRow would have applied via
-                // XML is replicated by hand below instead.
-                val row = AppCompatRadioButton(this)
-                row.id = android.view.View.generateViewId()
-                row.text = label
-                row.isClickable = true
-                row.buttonDrawable = null
-                row.setBackgroundResource(R.drawable.bg_radio_row_selector)
-                row.setTextColor(ContextCompat.getColorStateList(this, R.color.text_radio_row))
-                row.textSize = 14f
-                row.gravity = android.view.Gravity.CENTER_VERTICAL
-                row.setPadding((16 * density).toInt(), (14 * density).toInt(), (16 * density).toInt(), (14 * density).toInt())
-                val startIcon = if (isAudioOnly) R.drawable.ic_music_note else R.drawable.ic_video
-                row.setCompoundDrawablesWithIntrinsicBounds(startIcon, 0, R.drawable.ic_check_selector, 0)
-                row.compoundDrawablePadding = (12 * density).toInt()
-                row.tag = tag
-                row.layoutParams = RadioGroup.LayoutParams(
-                    RadioGroup.LayoutParams.MATCH_PARENT,
-                    RadioGroup.LayoutParams.WRAP_CONTENT
-                )
-                return row
-            }
-
-            options.forEach { option -> group.addView(buildRow(option.label, option.isAudioOnly, option)) }
-            // Default selection: the option one below the top of the ladder
-            // (1440p) reads as a sane, non-extreme default rather than
-            // pre-selecting either end of the quality range.
-            (group.getChildAt(1) as? RadioButton)?.isChecked = true
-
-            // ── Advanced settings: real probed formats (FPS/codec/exact size) ──
-            val advancedHeader  = dialogView.findViewById<android.view.View>(R.id.advancedHeader)
-            val advancedChevron = dialogView.findViewById<android.widget.ImageView>(R.id.advancedChevron)
-            val advancedContent = dialogView.findViewById<android.view.View>(R.id.advancedContent)
-            val advancedProgress = dialogView.findViewById<android.view.View>(R.id.advancedProgress)
-            val advancedEmptyText = dialogView.findViewById<TextView>(R.id.advancedEmptyText)
-            val advancedGroup = dialogView.findViewById<RadioGroup>(R.id.advancedGroup)
-
-            // Cleared once the picker dialog resolves (OK/Cancel/dismiss) so
-            // a slow probe landing after the user already answered doesn't
-            // touch dead dialog views.
-            var probeCallbackAlive = true
-
-            // Kicked off immediately (not lazily on expand) so the result is
-            // typically ready the moment the user taps "Advanced" -- this is
-            // a real yt-dlp --dump-json network round-trip, so it runs on
-            // Dispatchers.IO in the background while the standard ladder
-            // above is already interactive.
-            lifecycleScope.launch {
-                val probe = withContext(Dispatchers.IO) {
-                    YtDlpManager.probeFormats(item.sourceUrl, this@MainActivity)
+                val requestToken = Any()
+                qualityPickerRequestToken = requestToken
+                fun complete(result: YtDlpManager.QualityOption?) {
+                    if (qualityPickerRequestToken !== requestToken) return
+                    qualityPickerRequestToken = null
+                    qualityPickerState = null
+                    if (cont.isActive) cont.resume(result)
                 }
-                if (!probeCallbackAlive) return@launch
-
-                advancedProgress.visibility = android.view.View.GONE
-                if (probe.formats.isEmpty()) {
-                    advancedEmptyText.visibility = android.view.View.VISIBLE
-                    return@launch
-                }
-
-                // Highest quality first -- video streams (by height, then
-                // fps) ahead of audio-only, matching the standard ladder's
-                // high-to-low ordering above.
-                val sorted = probe.formats.sortedWith(
-                    compareByDescending<YtDlpManager.ProbedFormat> { it.height ?: -1 }
-                        .thenByDescending { it.fps ?: -1 }
+                qualityPickerState = QualityPickerState(
+                    titleText = item.fileName ?: "Choose quality",
+                    standardOptions = options,
+                    advancedFormats = emptyList(),
+                    advancedLoading = true,
+                    durationSeconds = null,
+                    onConfirm = ::complete,
+                    onDismiss = { complete(null) },
                 )
-                sorted.forEach { format ->
-                    val sizeText = YtDlpManager.formatSize(format, probe.durationSeconds)
-                    val label = buildString {
-                        if (format.height != null) append("${format.height}p") else append("Audio")
-                        if (format.fps != null) append(" ${format.fps}fps")
-                        append(" · ${format.ext.uppercase()}")
-                        if (format.vcodec != null) append(" · ${format.vcodec.substringBefore('.')}")
-                        if (sizeText != null) append(" · $sizeText")
+                val probeJob = lifecycleScope.launch {
+                    val probe = withContext(Dispatchers.IO) {
+                        YtDlpManager.probeFormats(item.sourceUrl, this@MainActivity)
                     }
-                    advancedGroup.addView(buildRow(label, format.isAudioOnly, format))
-                }
-            }
-
-            advancedHeader.setOnClickListener {
-                val expanding = advancedContent.visibility != android.view.View.VISIBLE
-                advancedContent.visibility = if (expanding) android.view.View.VISIBLE else android.view.View.GONE
-                advancedChevron.animate().rotation(if (expanding) 180f else 0f).setDuration(150).start()
-            }
-
-            val dialog = MaterialAlertDialogBuilder(this)
-                .setTitle(item.fileName ?: "Choose quality")
-                .setView(dialogView)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    // Advanced list wins if the user picked a row there --
-                    // its RadioGroup and the standard qualityGroup are
-                    // separate groups (independent selection state), so
-                    // whichever one actually has a checked row is the
-                    // user's real choice; advanced is checked first since
-                    // picking there is the more deliberate, overriding action.
-                    val advancedChecked = advancedGroup.findViewById<RadioButton>(advancedGroup.checkedRadioButtonId)
-                    val checkedTag = advancedChecked?.tag
-                        ?: group.findViewById<RadioButton>(group.checkedRadioButtonId)?.tag
-                    val resolved = when (checkedTag) {
-                        is YtDlpManager.QualityOption -> checkedTag
-                        is YtDlpManager.ProbedFormat -> YtDlpManager.QualityOption(
-                            label = checkedTag.formatId,
-                            formatSelector = YtDlpManager.advancedSelector(checkedTag),
-                            isAudioOnly = checkedTag.isAudioOnly
+                    // Highest quality first -- video streams (by height, then
+                    // fps, then bitrate) ahead of audio-only, matching the
+                    // standard ladder's high-to-low ordering above.
+                    val sorted = probe.formats.sortedWith(
+                        compareByDescending<YtDlpManager.ProbedFormat> { it.height ?: -1 }
+                            .thenByDescending { it.fps ?: -1 }
+                            .thenByDescending { it.tbr ?: -1.0 }
+                    )
+                    if (qualityPickerRequestToken === requestToken) {
+                        qualityPickerState = qualityPickerState?.copy(
+                            advancedLoading = false,
+                            advancedFormats = sorted,
+                            durationSeconds = probe.durationSeconds,
                         )
-                        else -> null
                     }
-                    cont.resume(resolved)
                 }
-                .setOnCancelListener { cont.resume(null) }
-                .setNegativeButton(R.string.action_cancel) { d, _ -> d.cancel() }
-                .create()
-            cont.invokeOnCancellation {
-                probeCallbackAlive = false
-                dialog.dismiss()
-            }
-            dialog.show()
+                cont.invokeOnCancellation {
+                    probeJob.cancel()
+                    if (qualityPickerRequestToken === requestToken) {
+                        qualityPickerRequestToken = null
+                        qualityPickerState = null
+                    }
+                }
             }
         }
 
@@ -2267,28 +1517,29 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun checkStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                MaterialAlertDialogBuilder(this)
-                    .setTitle("Storage Permission Required")
-                    .setMessage(
-                        "This app needs 'All files access' to save downloads to the " +
-                        "\"Xmd\" folder in your internal storage.\n\nTap Allow on the next screen."
-                    )
-                    .setPositiveButton("Allow") { _, _ ->
-                        startActivity(
-                            Intent(
-                                AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                Uri.fromParts("package", packageName, null)
+                showMessageDialog(
+                    AppMessageDialogState(
+                        title = getString(R.string.storage_permission_title),
+                        message = getString(R.string.storage_permission_message),
+                        confirmLabel = getString(R.string.action_allow),
+                        dismissLabel = getString(android.R.string.cancel),
+                        onConfirm = {
+                            startActivity(
+                                Intent(
+                                    AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.fromParts("package", packageName, null)
+                                )
                             )
-                        )
-                    }
-                    .setNegativeButton("Cancel") { _, _ ->
-                        Toast.makeText(
-                            this,
-                            "Downloads will fail without storage permission.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    .show()
+                        },
+                        onDismissAction = {
+                            Toast.makeText(
+                                this,
+                                R.string.storage_permission_denied,
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        },
+                    )
+                )
             }
         } else {
             if (ContextCompat.checkSelfPermission(
@@ -2311,21 +1562,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-    }
-
-    // ── Options menu ──────────────────────────────────────────────────────
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        return false
-    }
-
-    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        return false
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_settings) { openSettingsScreen(); return true }
-        return super.onOptionsItemSelected(item)
     }
 
     /**
@@ -2352,8 +1588,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     /**
      * Flips dark/light mode for whichever color theme is currently active --
      * triggered by tapping the toolbar title. Same pattern as the
-     * duplicate in SettingsAppearanceFragment.toggleDarkMode() (used there
-     * for the Dark Mode switch in Settings > Appearance): save the pick,
+     * duplicate in SettingsActivity's AppearanceRoute onDarkModeChanged
+     * (used there for the Dark Mode switch in Settings > Appearance): save the pick,
      * toast the new mode, then recreate() since a theme is only read in
      * onCreate(), before super.onCreate(). Two copies exist because each
      * needs to recreate() its *own* Activity instance.
@@ -2368,9 +1604,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
+        private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
-        private const val TAG_HISTORY   = "history"
-        private const val TAG_BOOKMARKS = "bookmarks"
+        private const val STATE_SAVED_PAGES_DESTINATION = "saved_pages_destination"
     }
 }

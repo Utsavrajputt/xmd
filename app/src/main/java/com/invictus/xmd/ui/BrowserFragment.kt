@@ -2,51 +2,40 @@ package com.invictus.xmd.ui
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.Toast
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.invictus.xmd.R
 import com.invictus.xmd.core.BookmarkRepository
-import com.invictus.xmd.core.Shortcut
 import com.invictus.xmd.core.ShortcutRepository
-import com.invictus.xmd.core.DnsOverHttpsResolver
 import com.invictus.xmd.core.DownloadEngine
-import com.invictus.xmd.core.FaviconLoader
 import com.invictus.xmd.core.HistoryRepository
 import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.SuggestApi
+import com.invictus.xmd.ui.BrowserViewModel.BrowserTabState as BrowserTab
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.ConnectionPool
-import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -81,12 +70,7 @@ class BrowserFragment : Fragment() {
     interface Callbacks {
         /** Same handoff HomeFragment uses for pasted links -- expands + queues + resolves. */
         fun triggerPrepare(lines: List<String>)
-        /** Opens the Browser's own overflow menu (Private DNS, History) --
-         *  deliberately separate from the app-wide download Settings dialog,
-         *  which the Browser's overflow no longer opens. [anchor] is the
-         *  3-dot button itself, so the menu can be anchored/dropped down
-         *  from it Chrome-style instead of popping up as a centered dialog. */
-        fun openBrowserMenu(anchor: View)
+        fun onBrowserMenuAction(action: BrowserMenuAction)
         /** A stream MediaSniffer picked up was tapped in the "videos found"
          *  sheet. HLS/DASH ([needsPicker] true) routes through the same
          *  quality-picker flow as a YouTube link (resolveYoutube reused
@@ -124,98 +108,149 @@ class BrowserFragment : Fragment() {
                 "Chrome/120.0.0.0 Mobile Safari/537.36"
     }
 
-    /**
-     * One open tab. Each tab owns its WebView lazily -- created on first
-     * navigation, possibly torn down later under pool pressure -- so a
-     * pile of "New tab" entries sitting on the speed dial costs nothing.
-     * [webViewState] is the WebView.saveState() snapshot taken whenever
-     * this tab's WebView gets torn down (LRU eviction, or explicitly
-     * reset to blank), letting a later visit restore instantly instead
-     * of reloading from the network.
-     */
-    private data class BrowserTab(
-        val id: Long,
-        var url: String? = null,
-        var title: String = "New tab",
-        var webView: WebView? = null,
-        var webViewState: android.os.Bundle? = null,
-        var isLoading: Boolean = false,
-        var progress: Int = 0,
-        // Chrome-style per-tab "Desktop site" toggle -- swaps the WebView's
-        // user agent + viewport handling and reloads. Lives on the tab (not
-        // globally) since real browsers scope this to the page you're on.
-        var isDesktopMode: Boolean = false,
-        // Private/incognito tab: no HistoryRepository writes, and its own
-        // isolated cookie jar torn down when the tab closes (see
-        // closeTab/destroyTabWebView) instead of the shared persistent one.
-        val isPrivate: Boolean = false,
-        // Streams MediaSniffer has found on this tab's current page, keyed
-        // by URL to dedupe -- insertion-ordered so the sheet lists them in
-        // discovery order. Cleared on every navigation (onPageStarted).
-        // shouldInterceptRequest can fire concurrently from more than one
-        // WebView background thread for parallel sub-resource loads, so
-        // this needs to be a synchronized map, not a plain LinkedHashMap.
-        val sniffedMedia: MutableMap<String, com.invictus.xmd.core.MediaSniffer.Sniffed> =
-            java.util.Collections.synchronizedMap(LinkedHashMap())
-    )
+    // Tab metadata now lives in BrowserViewModel (see BrowserViewModel.kt --
+    // Phase 5 migration, step 1) so it survives this Fragment's view being
+    // recreated. The `BrowserTab` alias (import at top of file; Kotlin
+    // doesn't allow a typealias nested inside a class) keeps every existing
+    // `BrowserTab` reference in this file (type annotations,
+    // `BrowserTab(id = ...)` constructor calls) working unchanged. The
+    // WebView itself and its saveState() snapshot are deliberately NOT part
+    // of this class -- see webViews/webViewStates below and the "WebView
+    // pool" section for why those stayed Fragment-side.
 
-    private lateinit var newTabButton: ImageButton
-    private lateinit var homeButton: ImageButton
-    private lateinit var urlInput: EditText
-    private lateinit var tabsButton: FrameLayout
-    private lateinit var tabsCount: android.widget.TextView
-    private lateinit var overflowButton: ImageButton
-    private lateinit var pageProgress: LinearProgressIndicator
-    private lateinit var siteSecurityIcon: ImageView
-    private lateinit var bookmarkStarButton: ImageButton
+    private lateinit var browserRoot: androidx.compose.ui.platform.ComposeView
     private lateinit var webViewSwipeRefresh: SwipeRefreshLayout
     private lateinit var webViewContainer: FrameLayout
-    private lateinit var navLoadingVeil: View
-    private lateinit var speedDialContainer: View
-    private lateinit var speedDialGrid: RecyclerView
-    private lateinit var shortcutReorderToggle: android.widget.TextView
-    private var shortcutTouchHelper: androidx.recyclerview.widget.ItemTouchHelper? = null
-    private lateinit var addLinkFab: FloatingActionButton
-    private lateinit var sniffedMediaFab: com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-    private lateinit var suggestionsCard: MaterialCardView
-    private lateinit var suggestionsList: RecyclerView
-    private lateinit var findInPageBar: MaterialCardView
-    private lateinit var findInPageInput: EditText
-    private lateinit var findInPageMatchCount: android.widget.TextView
-    private lateinit var findInPagePrev: ImageButton
-    private lateinit var findInPageNext: ImageButton
-    private lateinit var findInPageClose: ImageButton
 
-    private lateinit var adapter: ShortcutAdapter
-    private lateinit var suggestionAdapter: SuggestionAdapter
+    private val shortcutsViewModel: ShortcutsViewModel by viewModels()
 
-    // The icon Uri the user just picked in the add/edit shortcut dialog,
-    // set by pickIconLauncher's callback and read back when the dialog's
-    // positive button is tapped. Cleared once consumed or when the dialog
-    // is dismissed without saving.
-    private var pendingIconUri: android.net.Uri? = null
-    private var pendingIconPreview: ImageView? = null
+    // Photo picker has to stay registered here -- a ViewModel can't hold an
+    // ActivityResultLauncher -- but everything downstream of the picked Uri
+    // (preview, persistence) now lives in ShortcutsViewModel.
     private val pickIconLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
-            if (uri != null) {
-                pendingIconUri = uri
-                pendingIconPreview?.let { preview ->
-                    preview.imageTintList = null
-                    preview.setPadding(0, 0, 0, 0)
-                    preview.setImageURI(uri)
-                }
-            }
+            if (uri != null) shortcutsViewModel.onIconPicked(uri)
         }
     private var lastDetectedLink: String? = null
+    private var speedDialVisible: Boolean by mutableStateOf(true)
+    private var browserMenuExpanded: Boolean by mutableStateOf(false)
+    private var clearBrowsingDataDialogOpen: Boolean by mutableStateOf(false)
+    private var downloadPrompt: BrowserDownloadPrompt? by mutableStateOf(null)
+    // Compose State (not just a plain var) so browserDialogHost's
+    // setContent lambda recomposes when this changes -- non-null shows
+    // SniffedMediaSheet with this exact snapshot, same one-shot
+    // synchronized-map read showSniffedMediaSheet() always did; null
+    // (initial, or after onDismiss) means "sheet not shown". `by` here
+    // needs the getValue/setValue imports below (see the Phase 4 lesson
+    // on extension functions in COMPOSE_MIGRATION.md) -- a fully-qualified
+    // mutableStateOf() call alone wouldn't be enough.
+    private var sniffedSheetStreams: List<com.invictus.xmd.core.MediaSniffer.Sniffed>?
+            by mutableStateOf(null)
+    // Drives browserDialogHost's LinkContextMenu branch -- non-null shows
+    // the menu at that state's (touchX, touchY), null means "not shown".
+    // See showLinkContextMenu() for how the coordinates get translated from
+    // webView-local to browserDialogHost-local before landing here.
+    private var linkContextMenuState: LinkContextMenuState? by mutableStateOf(null)
+    // Drives browserDialogHost's AddBookmarkDialog branch -- non-null shows
+    // the dialog prefilled with whatever showAddBookmarkDialog() was called
+    // with (current tab's URL/title, or an explicit prefill).
+    private data class AddBookmarkDialogState(val prefillUrl: String?, val prefillTitle: String?)
+    private var addBookmarkDialogState: AddBookmarkDialogState? by mutableStateOf(null)
+    // Drives suggestionsCard's Compose content -- see that field's comment.
+    // Empty list == dropdown hidden, same meaning View.GONE used to carry.
+    private var suggestionItems: List<Suggestion> by mutableStateOf(emptyList())
     private var suggestJob: Job? = null
+    // Drives tabsListOverlay's visibility -- see showTabsOverlay()/
+    // hideTabsOverlay() and TabsListOverlay.kt's doc comment.
+    private var tabsOverlayVisible: Boolean by mutableStateOf(false)
+    // One-shot snapshot of `tabs`, same reason sniffedSheetStreams is a
+    // snapshot rather than reading BrowserViewModel.tabs live: that list
+    // isn't Compose-observable. Refreshed explicitly in
+    // refreshTabsOverlaySnapshot() after every mutation while the overlay
+    // can be showing (currently just closeTab()).
+    private var tabsOverlaySnapshot: List<TabOverlayItem> by mutableStateOf(emptyList())
     // Mirrors BookmarkRepository.bookmarks (URLs only) so the address-bar
     // star can flip filled/outline instantly without a DB round-trip on
     // every tab switch -- kept in sync by the observer in setupSpeedDial().
     private var bookmarkedUrls: Set<String> = emptySet()
 
-    private val tabs = mutableListOf(BrowserTab(id = 0L))
-    private var currentTabIndex = 0
-    private var nextTabId = 1L
+    // ── Phase F: findInPageOverlay / navLoadingVeil / browserFabs state ───
+    // Drives FindInPageBar's setContent lambda below -- see
+    // setupFindInPage()/showFindInPage()/hideFindInPage(). Mirrors what
+    // findInPageBar.visibility used to hold directly.
+    private var findInPageVisible: Boolean by mutableStateOf(false)
+    // Mirrors the old findInPageInput.text -- "field on the Fragment,
+    // composable renders it" pattern, same as addressBarText.
+    private var findInPageQuery: String by mutableStateOf("")
+    // Mirrors the old findInPageMatchCount.text ("$current/$numberOfMatches").
+    private var findInPageMatchText: String by mutableStateOf("0/0")
+    // Bumped (never read for its value) each time showFindInPage() opens
+    // the bar, so FindInPageBar's LaunchedEffect can request focus + show
+    // the IME -- same "signal bump" pattern addressBarClearFocusSignal uses.
+    private var findInPageFocusSignal: Int by mutableStateOf(0)
+    // Drives NavLoadingVeil's visibility -- see showNavLoadingVeil()/
+    // hideNavLoadingVeil(). Mirrors the old navLoadingVeil.visibility.
+    private var navLoadingVeilVisible: Boolean by mutableStateOf(false)
+    // Drives BrowserFabs' two FABs -- see checkPageForLinks()/
+    // clearDetectedLink()/updateSniffedMediaFab(). Mirror the old
+    // addLinkFab.visibility / sniffedMediaFab.visibility+text.
+    private var detectedLinkVisible: Boolean by mutableStateOf(false)
+    private var sniffedMediaFabVisible: Boolean by mutableStateOf(false)
+    private var sniffedMediaFabText: String by mutableStateOf("")
+
+    // ── Phase E: browserToolbar's state ──────────────────────────────────
+    // Drives BrowserToolbarRow's setContent lambda below -- same "field on
+    // the Fragment, composable reads it" pattern sniffedSheetStreams/
+    // linkContextMenuState/suggestionItems above already use. Mirrors what
+    // urlInput/pageProgress/siteSecurityIcon/bookmarkStarButton/tabsCount
+    // used to hold directly on their Views.
+    private var addressBarText: String by mutableStateOf("")
+    // Read-only mirror of BrowserToolbarRow's TextField focus state,
+    // reported up via its onAddressFocusChange callback -- same gate
+    // urlInput.hasFocus() used to provide in the old TextWatcher, so a
+    // programmatic addressBarText set (onPageStarted, applyTabUiState,
+    // etc.) still doesn't trigger scheduleSuggest. Plain var, not Compose
+    // state: nothing renders off this directly.
+    private var addressBarFocused: Boolean = false
+    // Bumped (never read for its value, just its change) to tell
+    // BrowserToolbarRow's composition to clear focus + hide the IME --
+    // replaces the old urlInput.clearFocus() + hideSoftInputFromWindow()
+    // calls at the end of loadUrl(); see BrowserToolbar.kt's doc comment
+    // for why this can't just be an imperative call from here anymore.
+    private var addressBarClearFocusSignal: Int by mutableStateOf(0)
+    private var securityIconVisible: Boolean by mutableStateOf(false)
+    private var siteIsSecure: Boolean by mutableStateOf(true)
+    private var bookmarkStarVisible: Boolean by mutableStateOf(false)
+    private var bookmarkStarFilled: Boolean by mutableStateOf(false)
+    private var toolbarProgress: Int by mutableStateOf(0)
+    private var toolbarProgressVisible: Boolean by mutableStateOf(false)
+    private var tabsCountValue: Int by mutableStateOf(1)
+
+    private val browserViewModel: BrowserViewModel by viewModels()
+
+    // Thin pass-through onto browserViewModel's fields -- keeps every
+    // existing `tabs`/`currentTabIndex`/`nextTabId` reference below working
+    // unchanged while the actual storage now lives in the ViewModel.
+    private val tabs get() = browserViewModel.tabs
+    private var currentTabIndex: Int
+        get() = browserViewModel.currentTabIndex
+        set(value) { browserViewModel.currentTabIndex = value }
+    private var nextTabId: Long
+        get() = browserViewModel.nextTabId
+        set(value) { browserViewModel.nextTabId = value }
+
+    // Live WebView pool, keyed by tab id -- Context-bound and
+    // View-lifecycle-bound, so unlike the tab metadata above these stay
+    // owned by the Fragment itself rather than the ViewModel (see
+    // BrowserViewModel's class doc for why). [webViewStates] is the
+    // WebView.saveState() snapshot taken whenever a tab's WebView gets
+    // torn down (LRU eviction, or explicitly reset to blank), letting a
+    // later visit restore instantly instead of reloading from the network.
+    private val webViews = mutableMapOf<Long, WebView>()
+    private val webViewStates = mutableMapOf<Long, android.os.Bundle>()
+
+    private fun webViewFor(tab: BrowserTab?): WebView? = tab?.let { webViews[it.id] }
+
     // Most-recently-used order of tab IDs that currently have a live
     // WebView, oldest first. Drives LRU eviction in evictIfNeeded().
     private val tabAccessOrder = mutableListOf<Long>()
@@ -236,124 +271,245 @@ class BrowserFragment : Fragment() {
         .readTimeout(5, TimeUnit.SECONDS)
         .build()
 
-    // ── DNS-over-HTTPS client (Browser-only; see DnsOverHttpsResolver) ─────
-    // Rebuilt whenever the DNS setting changes (mode or custom URL) --
-    // cheap to construct, and this keeps every subsequent request using
-    // whatever the user picked without needing a restart. Null when DNS
-    // mode is OFF, in which case shouldInterceptRequest below lets WebView
-    // handle the request itself (system DNS) instead of intercepting.
-    // shouldInterceptRequest fires on WebView's own background thread(s)
-    // and can run for several sub-resources -- across potentially several
-    // live tabs -- concurrently, so this cache is guarded rather than
-    // plain vars, and the client itself is sized for real concurrency
-    // (see currentDohClient) instead of OkHttp's default 5-per-host cap,
-    // which was serializing sub-resource fetches from the same CDN host.
-    @Volatile private var dohClient: OkHttpClient? = null
-    @Volatile private var dohClientSignature: String? = null
-    private val dohClientLock = Any()
-
-    /** (Re)builds dohClient only if the effective DNS setting actually changed. */
-    private fun currentDohClient(): OkHttpClient? {
-        val mode = Settings.dnsMode()
-        if (mode == Settings.DnsMode.OFF) {
-            return null
-        }
-        val dohUrl = when (mode) {
-            Settings.DnsMode.CUSTOM -> Settings.dnsCustomUrl().ifBlank { DnsOverHttpsResolver.ADGUARD_DOH_URL }
-            Settings.DnsMode.GOOGLE -> DnsOverHttpsResolver.GOOGLE_DOH_URL
-            Settings.DnsMode.CLOUDFLARE -> DnsOverHttpsResolver.CLOUDFLARE_DOH_URL
-            Settings.DnsMode.CLOUDFLARE_ADBLOCK -> DnsOverHttpsResolver.CLOUDFLARE_ADBLOCK_DOH_URL
-            else -> DnsOverHttpsResolver.ADGUARD_DOH_URL
-        }
-        val signature = "$mode:$dohUrl"
-        if (signature == dohClientSignature) return dohClient
-
-        synchronized(dohClientLock) {
-            if (signature == dohClientSignature) return dohClient
-            val built = OkHttpClient.Builder()
-                .dns(DnsOverHttpsResolver(dohUrl))
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                // Default OkHttp concurrency (64 total / 5 per host) throttles
-                // pages that pull many sub-resources from the same CDN host --
-                // each shouldInterceptRequest call blocks its WebView thread
-                // until the response comes back, so a tight per-host cap
-                // serializes what should be parallel fetches. Raised to match
-                // what a real browser keeps open per origin.
-                .dispatcher(Dispatcher().apply {
-                    maxRequests = 64
-                    maxRequestsPerHost = 16
-                })
-                .connectionPool(ConnectionPool(24, 5, TimeUnit.MINUTES))
-                .build()
-            dohClient = built
-            dohClientSignature = signature
-            return built
-        }
-    }
-
-    /** Warms the DoH resolver's host cache for [url] in the background right
-     *  as navigation starts, so by the time shouldInterceptRequest actually
-     *  needs the address it's often already resolved instead of paying a
-     *  DNS round-trip on the critical path of the very first request. */
-    private fun prefetchDns(url: String) {
-        val client = currentDohClient() ?: return
-        val host = runCatching { android.net.Uri.parse(url).host }.getOrNull() ?: return
-        lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { client.dns.lookup(host) }
-        }
-    }
+    // DoH client construction (currentDohClient) + prefetchDns now live on
+    // browserViewModel -- see BrowserViewModel.kt. Both are pure
+    // OkHttp/Settings logic with no View dependency, so they moved as-is;
+    // call sites below now go through browserViewModel.currentDohClient()/
+    // browserViewModel.prefetchDns() instead.
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_browser, container, false)
+    ): View = androidx.compose.ui.platform.ComposeView(requireContext()).apply {
+        browserRoot = this
+        setViewCompositionStrategy(
+            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+        )
+        setContent {
+            com.invictus.xmd.ui.theme.XmdTheme {
+                BrowserScreen(
+                    speedDialVisible = speedDialVisible,
+                    toolbar = {
+                        BrowserToolbarRow(
+                            addressText = addressBarText,
+                            onAddressTextChange = { text ->
+                                addressBarText = text
+                                if (addressBarFocused) scheduleSuggest(text)
+                            },
+                            onAddressFocusChange = { focused ->
+                                addressBarFocused = focused
+                                if (!focused) hideSuggestions()
+                            },
+                            onGo = { loadUrl(addressBarText) },
+                            clearFocusSignal = addressBarClearFocusSignal,
+                            securityIconVisible = securityIconVisible,
+                            isSecure = siteIsSecure,
+                            bookmarkVisible = bookmarkStarVisible,
+                            bookmarkFilled = bookmarkStarFilled,
+                            onBookmarkTap = ::onBookmarkStarTapped,
+                            onHomeTap = ::goHome,
+                            onNewTabTap = ::addNewTab,
+                            onTabsTap = ::showTabsOverlay,
+                            tabsCount = tabsCountValue,
+                            onOverflowTap = { browserMenuExpanded = true },
+                            overflowMenu = {
+                                BrowserOverflowMenu(
+                                    expanded = browserMenuExpanded,
+                                    desktopSiteEnabled = isCurrentTabDesktopMode(),
+                                    currentPageAvailable = currentPageUrl() != null,
+                                    onDismiss = { browserMenuExpanded = false },
+                                    onRefresh = ::reloadActiveTab,
+                                    onFindInPage = ::showFindInPage,
+                                    onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
+                                    onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
+                                    onSharePage = { currentPageUrl()?.let(::shareLink) },
+                                    onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
+                                    onAction = { action ->
+                                        (activity as? Callbacks)?.onBrowserMenuAction(action)
+                                    },
+                                )
+                            },
+                            progress = toolbarProgress,
+                            progressVisible = toolbarProgressVisible,
+                        )
+                    },
+                    onWebViewHostReady = { swipeRefresh, containerView ->
+                        webViewSwipeRefresh = swipeRefresh
+                        webViewContainer = containerView
+                        setupPullToRefresh()
+                    },
+                    speedDial = {
+                        ShortcutsScreen(
+                            viewModel = shortcutsViewModel,
+                            onOpenUrl = { shortcut ->
+                                addressBarText = shortcut.url
+                                loadUrl(shortcut.url)
+                            },
+                            onPickIcon = { pickIconLauncher.launch("image/*") },
+                        )
+                    },
+                    suggestions = {
+                        AddressBarSuggestions(
+                            suggestions = suggestionItems,
+                            onTap = { item ->
+                                when (item) {
+                                    is Suggestion.History -> {
+                                        addressBarText = item.url
+                                        loadUrl(item.url)
+                                    }
+                                    is Suggestion.Search -> {
+                                        addressBarText = item.text
+                                        loadUrl(item.text)
+                                    }
+                                }
+                            },
+                            onAddTap = { phrase ->
+                                val url = normalizeToUrl(phrase)
+                                ShortcutRepository.add(title = phrase, url = url)
+                                Toast.makeText(
+                                    requireContext(),
+                                    R.string.shortcut_added_toast,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        )
+                    },
+                    findInPage = {
+                        FindInPageBar(
+                            visible = findInPageVisible,
+                            query = findInPageQuery,
+                            onQueryChange = ::onFindInPageQueryChange,
+                            matchText = findInPageMatchText,
+                            onPrev = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(false) },
+                            onNext = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(true) },
+                            onClose = ::hideFindInPage,
+                            requestFocus = findInPageFocusSignal,
+                        )
+                    },
+                    loadingVeil = { NavLoadingVeil(visible = navLoadingVeilVisible) },
+                    floatingActions = {
+                        BrowserFabs(
+                            detectedLinkVisible = detectedLinkVisible,
+                            onDetectedLinkTap = ::onAddLinkClicked,
+                            sniffedMediaVisible = sniffedMediaFabVisible,
+                            sniffedMediaText = sniffedMediaFabText,
+                            onSniffedMediaTap = ::showSniffedMediaSheet,
+                        )
+                    },
+                    dialogs = {
+                        sniffedSheetStreams?.let { streams ->
+                            SniffedMediaSheet(
+                                streams = streams,
+                                onStreamSelected = { stream ->
+                                    val needsPicker = with(com.invictus.xmd.core.MediaSniffer) {
+                                        stream.kind.needsQualityPicker()
+                                    }
+                                    (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
+                                },
+                                onCopyLink = ::copyLinkToClipboard,
+                                onDismiss = { sniffedSheetStreams = null },
+                            )
+                        }
+                        linkContextMenuState?.let { menuState ->
+                            LinkContextMenu(
+                                state = menuState,
+                                onDismiss = { linkContextMenuState = null },
+                                onOpenNewTab = ::openUrlInNewTab,
+                                onOpenImageNewTab = ::openUrlInNewTab,
+                                onDownloadImage = { url -> onWebViewDownloadRequested(url, null, "image/*") },
+                                onCopyLinkAddress = ::copyLinkToClipboard,
+                                onShareLink = ::shareLink,
+                            )
+                        }
+                        addBookmarkDialogState?.let { state ->
+                            AddBookmarkDialog(
+                                initialUrl = state.prefillUrl,
+                                initialTitle = state.prefillTitle,
+                                onDismiss = { addBookmarkDialogState = null },
+                                onConfirm = { url, title, alsoAddShortcut ->
+                                    if (url.isBlank()) {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            R.string.bookmark_needs_url,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        return@AddBookmarkDialog
+                                    }
+                                    val normalized = normalizeToUrl(url.trim())
+                                    val trimmedTitle = title.trim()
+                                    BookmarkRepository.add(trimmedTitle, normalized)
+                                    if (alsoAddShortcut) ShortcutRepository.add(trimmedTitle, normalized)
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.bookmark_added_toast,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    addBookmarkDialogState = null
+                                },
+                            )
+                        }
+                        if (clearBrowsingDataDialogOpen) {
+                            ClearBrowsingDataDialog(
+                                onDismiss = { clearBrowsingDataDialogOpen = false },
+                                onClear = { history, cookies, cache ->
+                                    clearBrowsingData(history, cookies, cache)
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.clear_data_cleared_toast,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                },
+                            )
+                        }
+                        downloadPrompt?.let { prompt ->
+                            BrowserDownloadConfirmationDialog(
+                                prompt = prompt,
+                                onDismiss = { downloadPrompt = null },
+                                onCopyLink = ::copyLinkToClipboard,
+                                onAddToDownloads = { url ->
+                                    (activity as? Callbacks)?.triggerPrepare(listOf(url))
+                                },
+                            )
+                        }
+                    },
+                    tabsOverlay = {
+                        TabsListOverlay(
+                            visible = tabsOverlayVisible,
+                            tabs = tabsOverlaySnapshot,
+                            currentTabId = tabs.getOrNull(currentTabIndex)?.id,
+                            onSwitch = { id ->
+                                val index = tabs.indexOfFirst { it.id == id }
+                                if (index != -1) switchToTab(index)
+                                hideTabsOverlay()
+                            },
+                            onClose = { id ->
+                                val index = tabs.indexOfFirst { it.id == id }
+                                if (index != -1) closeTab(index)
+                                refreshTabsOverlaySnapshot()
+                            },
+                            onAddNew = {
+                                addNewTab()
+                                hideTabsOverlay()
+                            },
+                            onDismiss = ::hideTabsOverlay,
+                        )
+                    },
+                )
+            }
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        newTabButton = view.findViewById(R.id.newTabButton)
-        homeButton = view.findViewById(R.id.homeButton)
-        urlInput = view.findViewById(R.id.urlInput)
-        tabsButton = view.findViewById(R.id.tabsButton)
-        tabsCount = view.findViewById(R.id.tabsCount)
-        overflowButton = view.findViewById(R.id.overflowButton)
-        pageProgress = view.findViewById(R.id.pageProgress)
-        siteSecurityIcon = view.findViewById(R.id.siteSecurityIcon)
-        bookmarkStarButton = view.findViewById(R.id.bookmarkStarButton)
-        webViewSwipeRefresh = view.findViewById(R.id.webViewSwipeRefresh)
-        webViewContainer = view.findViewById(R.id.webViewContainer)
-        navLoadingVeil = view.findViewById(R.id.navLoadingVeil)
-        speedDialContainer = view.findViewById(R.id.speedDialContainer)
-        speedDialGrid = view.findViewById(R.id.speedDialGrid)
-        shortcutReorderToggle = view.findViewById(R.id.shortcutReorderToggle)
-        addLinkFab = view.findViewById(R.id.addLinkFab)
-        sniffedMediaFab = view.findViewById(R.id.sniffedMediaFab)
-        suggestionsCard = view.findViewById(R.id.suggestionsCard)
-        suggestionsList = view.findViewById(R.id.suggestionsList)
-        findInPageBar = view.findViewById(R.id.findInPageBar)
-        findInPageInput = view.findViewById(R.id.findInPageInput)
-        findInPageMatchCount = view.findViewById(R.id.findInPageMatchCount)
-        findInPagePrev = view.findViewById(R.id.findInPagePrev)
-        findInPageNext = view.findViewById(R.id.findInPageNext)
-        findInPageClose = view.findViewById(R.id.findInPageClose)
-
         setupSpeedDial()
-        setupAddressBar()
-        setupSuggestions()
-        setupPullToRefresh()
-        setupFindInPage()
-
-        newTabButton.setOnClickListener { addNewTab() }
-        homeButton.setOnClickListener { goHome() }
-        tabsButton.setOnClickListener { showTabsDialog() }
-        overflowButton.setOnClickListener { (activity as? Callbacks)?.openBrowserMenu(overflowButton) }
-        addLinkFab.setOnClickListener { onAddLinkClicked() }
-        sniffedMediaFab.setOnClickListener { showSniffedMediaSheet() }
-        bookmarkStarButton.setOnClickListener { onBookmarkStarTapped() }
-
-        // Start on the speed-dial ("new tab") page.
-        showSpeedDial()
         updateTabsCount()
+        view.post {
+            val currentTab = tabs.getOrNull(currentTabIndex)
+            if (currentTab?.url.isNullOrBlank()) {
+                showSpeedDial()
+            } else {
+                activateTab(currentTabIndex, previousView = null)
+            }
+        }
     }
 
     /**
@@ -370,6 +526,19 @@ class BrowserFragment : Fragment() {
         CookieManager.getInstance().flush()
     }
 
+    override fun onDestroyView() {
+        suggestJob?.cancel()
+        tabs.toList().forEach(::destroyTabWebView)
+        fullscreenView?.let { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+        }
+        fullscreenCallback?.onCustomViewHidden()
+        fullscreenView = null
+        fullscreenCallback = null
+        setImmersiveMode(false)
+        super.onDestroyView()
+    }
+
     /**
      * Chrome-style pull-to-refresh: only fires when the active WebView is
      * already scrolled to the top (setOnChildScrollUpCallback), same as
@@ -379,12 +548,14 @@ class BrowserFragment : Fragment() {
      * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
      */
     private fun setupPullToRefresh() {
-        webViewSwipeRefresh.setColorSchemeColors(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
+        webViewSwipeRefresh.setColorSchemeColors(
+            resolveCurrentXmdColorScheme(requireContext()).primary.toArgb()
+        )
         webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
-            tabs.getOrNull(currentTabIndex)?.webView?.canScrollVertically(-1) == true
+            webViewFor(tabs.getOrNull(currentTabIndex))?.canScrollVertically(-1) == true
         }
         webViewSwipeRefresh.setOnRefreshListener {
-            val webView = tabs.getOrNull(currentTabIndex)?.webView
+            val webView = webViewFor(tabs.getOrNull(currentTabIndex))
             if (webView == null) {
                 webViewSwipeRefresh.isRefreshing = false
             } else {
@@ -393,16 +564,11 @@ class BrowserFragment : Fragment() {
         }
     }
 
-    /** Called from MainActivity's overflow menu "Refresh" item. */
-    fun reloadActiveTab() {
-        tabs.getOrNull(currentTabIndex)?.webView?.reload()
+    private fun reloadActiveTab() {
+        webViewFor(tabs.getOrNull(currentTabIndex))?.reload()
     }
 
-    /** Called from MainActivity's overflow menu "Desktop site" checkbox. */
-    fun toggleDesktopModeForCurrentTab() = toggleDesktopMode()
-
-    /** Called from MainActivity to set the checkbox's checked state before showing the menu. */
-    fun isDesktopModeOn(): Boolean = isCurrentTabDesktopMode()
+    private fun toggleDesktopModeForCurrentTab() = toggleDesktopMode()
 
     /** Overflow menu's "Clear browsing data" dialog result. Cache/cookies
      *  are cleared through every currently-live WebView (any tab whose
@@ -410,15 +576,15 @@ class BrowserFragment : Fragment() {
      *  clear anyway) since there's no single global handle for either --
      *  each WebView instance owns its own cache, though the cookie jar
      *  itself is shared, so clearing it once via any instance is enough. */
-    fun clearBrowsingData(clearHistory: Boolean, clearCookies: Boolean, clearCache: Boolean) {
+    private fun clearBrowsingData(clearHistory: Boolean, clearCookies: Boolean, clearCache: Boolean) {
         if (clearHistory) HistoryRepository.clearAll()
         if (clearCache) {
-            tabs.mapNotNull { it.webView }.forEach { it.clearCache(true) }
+            tabs.mapNotNull { webViewFor(it) }.forEach { it.clearCache(true) }
         }
         if (clearCookies) {
             CookieManager.getInstance().removeAllCookies(null)
             CookieManager.getInstance().flush()
-            tabs.mapNotNull { it.webView }.forEach {
+            tabs.mapNotNull { webViewFor(it) }.forEach {
                 android.webkit.WebStorage.getInstance().deleteAllData()
                 it.clearFormData()
             }
@@ -445,7 +611,7 @@ class BrowserFragment : Fragment() {
 
     /** Returns [tab]'s live WebView, creating (or restoring) it if needed. */
     private fun ensureWebView(tab: BrowserTab): WebView {
-        tab.webView?.let { touchLru(tab.id); return it }
+        webViews[tab.id]?.let { touchLru(tab.id); return it }
 
         val wv = WebView(requireContext()).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -456,7 +622,7 @@ class BrowserFragment : Fragment() {
         }
         configureWebView(wv, tab)
         webViewContainer.addView(wv)
-        tab.webView = wv
+        webViews[tab.id] = wv
         touchLru(tab.id)
         evictIfNeeded()
         return wv
@@ -466,15 +632,15 @@ class BrowserFragment : Fragment() {
      *  visit can restore instantly instead of reloading from the network. */
     private fun destroyTabWebView(tab: BrowserTab) {
         tabAccessOrder.remove(tab.id)
-        val wv = tab.webView ?: return
+        val wv = webViews[tab.id] ?: return
         if (!tab.isPrivate) {
             val bundle = android.os.Bundle()
-            if (wv.saveState(bundle) != null) tab.webViewState = bundle
+            if (wv.saveState(bundle) != null) webViewStates[tab.id] = bundle
         }
         webViewContainer.removeView(wv)
         wv.stopLoading()
         wv.destroy()
-        tab.webView = null
+        webViews.remove(tab.id)
     }
 
     /** Never evicts the currently active tab, even if it's the oldest entry. */
@@ -492,7 +658,7 @@ class BrowserFragment : Fragment() {
         destroyTabWebView(tab)
         tab.url = null
         tab.title = "New tab"
-        tab.webViewState = null
+        webViewStates.remove(tab.id)
         tab.isLoading = false
         tab.progress = 0
     }
@@ -531,24 +697,29 @@ class BrowserFragment : Fragment() {
             if (isCurrentTab(tab)) onWebViewDownloadRequested(url, contentDisposition, mimeType)
         }
 
+
         // Chrome-style long-press menu on links/images. hitTestResult never
         // carries the touch coordinates itself, so a lightweight touch
-        // listener tracks the last down-point purely to anchor the popup
+        // listener tracks the last down-point purely to anchor the menu
         // where the finger actually was; it never consumes the event
         // (always returns false) so normal scrolling/tapping/scrubbing is
-        // completely untouched.
-        var lastTouchX = 0f
-        var lastTouchY = 0f
+        // completely untouched. Raw (screen) coordinates, not view-local --
+        // see showLinkContextMenu() for why, now that the menu itself lives
+        // in browserDialogHost (a different view in the hierarchy than
+        // webView) instead of the old invisible-anchor-View-in-
+        // webViewContainer trick.
+        var lastTouchRawX = 0f
+        var lastTouchRawY = 0f
         webView.setOnTouchListener { _, event ->
             if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-                lastTouchX = event.x
-                lastTouchY = event.y
+                lastTouchRawX = event.rawX
+                lastTouchRawY = event.rawY
             }
             false
         }
         webView.setOnLongClickListener {
             val result = webView.hitTestResult
-            showLinkContextMenu(webView, result, lastTouchX, lastTouchY)
+            showLinkContextMenu(result, lastTouchRawX, lastTouchRawY)
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -558,9 +729,9 @@ class BrowserFragment : Fragment() {
                 tab.progress = 0
                 tab.sniffedMedia.clear()
                 if (isCurrentTab(tab)) {
-                    pageProgress.setProgressCompat(0, false)
-                    pageProgress.show()
-                    urlInput.setText(url)
+                    toolbarProgress = 0
+                    toolbarProgressVisible = true
+                    addressBarText = url.orEmpty()
                     updateSecurityIcon(tab)
                     clearDetectedLink()
                     updateSniffedMediaFab(tab)
@@ -576,7 +747,7 @@ class BrowserFragment : Fragment() {
                     HistoryRepository.record(url, title)
                 }
                 if (isCurrentTab(tab)) {
-                    pageProgress.hide()
+                    toolbarProgressVisible = false
                     webViewSwipeRefresh.isRefreshing = false
                     hideNavLoadingVeil()
                     url?.let { checkPageForLinks(it) }
@@ -680,7 +851,7 @@ class BrowserFragment : Fragment() {
              * needs to handle itself for redirects/cookies/etc.) is left
              * to fall through to WebView's own network stack by returning
              * null, same as if this override didn't exist. When DNS mode
-             * is OFF, currentDohClient() returns null and every request
+             * is OFF, browserViewModel.currentDohClient() returns null and every request
              * falls through untouched -- zero overhead in that mode.
              */
             override fun shouldInterceptRequest(
@@ -705,7 +876,7 @@ class BrowserFragment : Fragment() {
                 sniffRequest(view, request)
 
                 if (request.method != "GET") return null
-                val client = currentDohClient() ?: return null
+                val client = browserViewModel.currentDohClient() ?: return null
                 val url = request.url.toString()
                 if (!url.startsWith("http")) return null
 
@@ -782,9 +953,10 @@ class BrowserFragment : Fragment() {
                     // waiting for onPageFinished (which can lag behind on
                     // pages that keep loading subresources after DOM-ready).
                     if (newProgress >= 100) {
-                        pageProgress.hide()
+                        toolbarProgressVisible = false
                     } else {
-                        pageProgress.setProgressCompat(newProgress, true)
+                        toolbarProgress = newProgress
+                        toolbarProgressVisible = true
                     }
                 }
             }
@@ -839,7 +1011,7 @@ class BrowserFragment : Fragment() {
      *  ask WebView to exit fullscreen from the app side (it then calls our
      *  onHideCustomView override above to actually tear the view down). */
     fun exitFullscreenVideo() {
-        tabs.getOrNull(currentTabIndex)?.webView?.webChromeClient?.onHideCustomView()
+        webViewFor(tabs.getOrNull(currentTabIndex))?.webChromeClient?.onHideCustomView()
     }
 
     private fun setImmersiveMode(enabled: Boolean) {
@@ -865,8 +1037,16 @@ class BrowserFragment : Fragment() {
      * fall back to the Downloads tab instead of exiting.
      */
     fun onBackPressed(): Boolean {
+        // The old BottomSheetDialog consumed back presses for free (Android's
+        // Dialog window intercepts them); tabsListOverlay is a plain
+        // full-bleed ComposeView, not a Dialog, so that has to be replicated
+        // by hand here or back would fall through to the WebView underneath.
+        if (tabsOverlayVisible) {
+            hideTabsOverlay()
+            return true
+        }
         val tab = tabs.getOrNull(currentTabIndex) ?: return false
-        val view = tab.webView
+        val view = webViewFor(tab)
         if (view != null && view.visibility == View.VISIBLE) {
             if (view.canGoBack()) {
                 showNavLoadingVeil()
@@ -881,62 +1061,10 @@ class BrowserFragment : Fragment() {
     }
 
     // ── Address bar ──────────────────────────────────────────────────────
-
-    private fun setupAddressBar() {
-        urlInput.setOnEditorActionListener { _, actionId, event ->
-            val isGo = actionId == EditorInfo.IME_ACTION_GO ||
-                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN)
-            if (isGo) {
-                loadUrl(urlInput.text?.toString().orEmpty())
-                true
-            } else false
-        }
-
-        urlInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (!urlInput.hasFocus()) return // programmatic sets (e.g. onPageStarted) shouldn't trigger suggest
-                scheduleSuggest(s?.toString().orEmpty())
-            }
-        })
-
-        // Chrome-style collapse: while not focused, show just the domain so
-        // the bar reads clean; focusing expands it back to the full URL for
-        // editing (full text is always what's actually in the EditText --
-        // this only swaps the *displayed* selection/cursor state on focus).
-        urlInput.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                hideSuggestions()
-            } else {
-                urlInput.selectAll()
-            }
-        }
-    }
-
-    private fun setupSuggestions() {
-        suggestionAdapter = SuggestionAdapter(
-            onTap = { item ->
-                when (item) {
-                    is SuggestionAdapter.Suggestion.History -> {
-                        urlInput.setText(item.url)
-                        loadUrl(item.url)
-                    }
-                    is SuggestionAdapter.Suggestion.Search -> {
-                        urlInput.setText(item.text)
-                        loadUrl(item.text)
-                    }
-                }
-            },
-            onAddTap = { phrase ->
-                val url = normalizeToUrl(phrase)
-                ShortcutRepository.add(title = phrase, url = url)
-                Toast.makeText(requireContext(), R.string.shortcut_added_toast, Toast.LENGTH_SHORT).show()
-            }
-        )
-        suggestionsList.layoutManager = LinearLayoutManager(requireContext())
-        suggestionsList.adapter = suggestionAdapter
-    }
+    // setupAddressBar() (urlInput's editor-action listener, TextWatcher,
+    // focus-change listener) is gone -- that logic now lives in
+    // BrowserToolbarRow's onGo/onAddressTextChange/onAddressFocusChange
+    // lambdas, wired once in onViewCreated's browserToolbar.setContent.
 
     /**
      * 2-3 letters is enough to start querying, debounced ~150ms so we're not
@@ -956,62 +1084,56 @@ class BrowserFragment : Fragment() {
             hideSuggestions()
             return
         }
-        val historyMatches = (HistoryRepository.entries.value ?: emptyList())
+        val historyMatches = HistoryRepository.entries.value
             .filter { it.title.contains(trimmed, ignoreCase = true) || it.url.contains(trimmed, ignoreCase = true) }
             .take(MAX_HISTORY_SUGGESTIONS)
-            .map { SuggestionAdapter.Suggestion.History(text = it.title, url = it.url) }
+            .map { Suggestion.History(text = it.title, url = it.url) }
 
         // History is already in memory, so it renders on this frame instead
         // of waiting on the debounce + network round-trip below -- only the
         // search half of the list is provisional at this point.
         if (historyMatches.isNotEmpty()) {
-            suggestionAdapter.submitList(historyMatches)
-            suggestionsCard.visibility = View.VISIBLE
+            suggestionItems = historyMatches
         }
 
         suggestJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(150)
             val searchResults = withContext(Dispatchers.IO) { SuggestApi.suggest(trimmed, suggestClient) }
             if (!isAdded) return@launch
-            val merged = historyMatches + searchResults.map { SuggestionAdapter.Suggestion.Search(it) }
+            val merged = historyMatches + searchResults.map { Suggestion.Search(it) }
             if (merged.isEmpty()) {
                 hideSuggestions()
             } else {
-                suggestionAdapter.submitList(merged)
-                suggestionsCard.visibility = View.VISIBLE
+                suggestionItems = merged
             }
         }
     }
 
     private fun hideSuggestions() {
         suggestJob?.cancel()
-        suggestionsCard.visibility = View.GONE
+        suggestionItems = emptyList()
     }
 
     // ── Find in page ──────────────────────────────────────────────────────
+    // Phase F: was setupFindInPage() wiring a TextWatcher + 3 click
+    // listeners onto real Views; FindInPageBar's setContent lambda
+    // (onViewCreated) now wires the same callbacks directly, so there's no
+    // separate setup function left to call -- onFindInPageQueryChange below
+    // is the TextWatcher's afterTextChanged logic, unchanged.
 
-    private fun setupFindInPage() {
-        findInPageInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                val webView = tabs.getOrNull(currentTabIndex)?.webView ?: return
-                val query = s?.toString().orEmpty()
-                if (query.isEmpty()) {
-                    webView.clearMatches()
-                    findInPageMatchCount.text = "0/0"
-                } else {
-                    webView.findAllAsync(query)
-                }
-            }
-        })
-        findInPagePrev.setOnClickListener {
-            tabs.getOrNull(currentTabIndex)?.webView?.findNext(false)
+    /** Same logic the old TextWatcher's afterTextChanged had -- updates
+     *  findInPageQuery (so FindInPageBar's TextField reflects the edit)
+     *  and re-runs the WebView's find-in-page search, or clears matches on
+     *  an empty query. */
+    private fun onFindInPageQueryChange(query: String) {
+        findInPageQuery = query
+        val webView = webViewFor(tabs.getOrNull(currentTabIndex)) ?: return
+        if (query.isEmpty()) {
+            webView.clearMatches()
+            findInPageMatchText = "0/0"
+        } else {
+            webView.findAllAsync(query)
         }
-        findInPageNext.setOnClickListener {
-            tabs.getOrNull(currentTabIndex)?.webView?.findNext(true)
-        }
-        findInPageClose.setOnClickListener { hideFindInPage() }
     }
 
     /** Opened from the overflow menu's "Find in page" item. Wires the
@@ -1019,39 +1141,41 @@ class BrowserFragment : Fragment() {
      *  up front) since the active WebView instance can change between
      *  opens as tabs get created/switched/evicted. */
     fun showFindInPage() {
-        val webView = tabs.getOrNull(currentTabIndex)?.webView ?: return
+        val webView = webViewFor(tabs.getOrNull(currentTabIndex)) ?: return
         webView.setFindListener { activeMatchOrdinal, numberOfMatches, isDoneCounting ->
             if (!isDoneCounting) return@setFindListener
             val current = if (numberOfMatches == 0) 0 else activeMatchOrdinal + 1
-            findInPageMatchCount.text = "$current/$numberOfMatches"
+            findInPageMatchText = "$current/$numberOfMatches"
         }
-        findInPageBar.visibility = View.VISIBLE
-        findInPageInput.requestFocus()
-        val imm = requireContext().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
-        imm?.showSoftInput(findInPageInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        findInPageVisible = true
+        // FindInPageBar's LaunchedEffect(requestFocus) does the actual
+        // focus-request + IME-show, same as the old requestFocus() +
+        // showSoftInput(SHOW_IMPLICIT) pair -- see that composable's doc
+        // comment in BrowserOverlays.kt for why this can't be an
+        // imperative call from here anymore.
+        findInPageFocusSignal++
     }
 
     private fun hideFindInPage() {
-        tabs.getOrNull(currentTabIndex)?.webView?.let {
+        webViewFor(tabs.getOrNull(currentTabIndex))?.let {
             it.clearMatches()
             it.setFindListener(null)
         }
-        findInPageInput.setText("")
-        findInPageBar.visibility = View.GONE
+        findInPageQuery = ""
+        findInPageMatchText = "0/0"
+        findInPageVisible = false
         val imm = requireContext().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
-        imm?.hideSoftInputFromWindow(findInPageInput.windowToken, 0)
+        imm?.hideSoftInputFromWindow(view?.windowToken, 0)
     }
 
     private fun updateSecurityIcon(tab: BrowserTab) {
         val url = tab.url
         if (url.isNullOrBlank() || !url.startsWith("http")) {
-            siteSecurityIcon.visibility = View.GONE
+            securityIconVisible = false
             return
         }
-        siteSecurityIcon.visibility = View.VISIBLE
-        siteSecurityIcon.setImageResource(
-            if (url.startsWith("https")) R.drawable.ic_lock else R.drawable.ic_lock_open
-        )
+        securityIconVisible = true
+        siteIsSecure = url.startsWith("https")
     }
 
     /** Filled star when the loaded page's URL is already saved as a
@@ -1060,13 +1184,11 @@ class BrowserFragment : Fragment() {
     private fun updateBookmarkStar(tab: BrowserTab) {
         val url = tab.url
         if (url.isNullOrBlank() || !url.startsWith("http")) {
-            bookmarkStarButton.visibility = View.GONE
+            bookmarkStarVisible = false
             return
         }
-        bookmarkStarButton.visibility = View.VISIBLE
-        bookmarkStarButton.setImageResource(
-            if (url in bookmarkedUrls) R.drawable.ic_star_filled else R.drawable.ic_star_outline
-        )
+        bookmarkStarVisible = true
+        bookmarkStarFilled = url in bookmarkedUrls
     }
 
     /** Star tapped: adds the current page as a bookmark (via the Add
@@ -1077,7 +1199,7 @@ class BrowserFragment : Fragment() {
     private fun onBookmarkStarTapped() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         val url = tab.url ?: return
-        val existing = BookmarkRepository.bookmarks.value?.firstOrNull { it.url == url }
+        val existing = BookmarkRepository.bookmarks.value.firstOrNull { it.url == url }
         if (existing != null) {
             BookmarkRepository.remove(existing)
             Toast.makeText(requireContext(), R.string.bookmark_removed_toast, Toast.LENGTH_SHORT).show()
@@ -1090,11 +1212,11 @@ class BrowserFragment : Fragment() {
      *  stop icon, download-link FAB) from [tab]'s own state. Call whenever
      *  [tab] becomes the active one. */
     private fun applyTabUiState(tab: BrowserTab) {
-        urlInput.setText(tab.url)
+        addressBarText = tab.url.orEmpty()
         updateSecurityIcon(tab)
         updateBookmarkStar(tab)
-        pageProgress.setProgressCompat(tab.progress, false)
-        if (tab.isLoading) pageProgress.show() else pageProgress.hide()
+        toolbarProgress = tab.progress
+        toolbarProgressVisible = tab.isLoading
         webViewSwipeRefresh.isRefreshing = false
         val url = tab.url
         if (url != null) checkPageForLinks(url) else clearDetectedLink()
@@ -1121,20 +1243,21 @@ class BrowserFragment : Fragment() {
         // Fresh explicit navigation -- any previously saved restore state
         // is now stale, so don't let a future pool eviction/recreate bring
         // back the old page instead of this one.
-        tab.webViewState = null
+        webViewStates.remove(tab.id)
         applyTabUiState(tab)
         showNavLoadingVeil()
-        prefetchDns(url)
+        browserViewModel.prefetchDns(url)
 
         val view = ensureWebView(tab)
         view.alpha = 1f
         view.visibility = View.VISIBLE
         view.loadUrl(url)
 
-        // Drop keyboard focus so the address bar doesn't stay expanded.
-        urlInput.clearFocus()
-        val imm = requireContext().getSystemService(android.view.inputmethod.InputMethodManager::class.java)
-        imm?.hideSoftInputFromWindow(urlInput.windowToken, 0)
+        // Drop keyboard focus so the address bar doesn't stay expanded --
+        // browserToolbar's TextField owns focus now, so this is a signal
+        // bump its LaunchedEffect reacts to (see BrowserToolbar.kt) instead
+        // of a direct View.clearFocus() + hideSoftInputFromWindow() call.
+        addressBarClearFocusSignal++
     }
 
     /** Bare host/search text -> https URL; anything already URL-shaped is passed through. */
@@ -1149,104 +1272,41 @@ class BrowserFragment : Fragment() {
 
     // ── Speed dial (new tab) ─────────────────────────────────────────────
 
+    /** ShortcutsScreen's own content + grid + reorder + dialogs is wired up
+     *  in onViewCreated when speedDialContainer's ComposeView is set up --
+     *  this now just keeps the toolbar bookmark-star in sync, which was
+     *  always a separate concern from the speed-dial tiles themselves. */
     private fun setupSpeedDial() {
-        adapter = ShortcutAdapter(
-            onTap = { shortcut -> urlInput.setText(shortcut.url); loadUrl(shortcut.url) },
-            onLongPress = { shortcut -> showShortcutOptionsDialog(shortcut) },
-            onAddTap = { showAddShortcutDialog(prefillUrl = null) },
-            onStartDrag = { holder -> shortcutTouchHelper?.startDrag(holder) }
-        )
-        speedDialGrid.layoutManager = GridLayoutManager(requireContext(), 4)
-        speedDialGrid.adapter = adapter
-
-        val touchHelper = androidx.recyclerview.widget.ItemTouchHelper(ShortcutDragCallback(adapter))
-        touchHelper.attachToRecyclerView(speedDialGrid)
-        shortcutTouchHelper = touchHelper
-
-        shortcutReorderToggle.setOnClickListener {
-            if (adapter.reorderMode) {
-                // "Done" -- persist whatever order dragging left the grid in.
-                ShortcutRepository.reorder(adapter.currentIds())
-                adapter.reorderMode = false
-                shortcutReorderToggle.setText(R.string.action_reorder)
-            } else {
-                adapter.reorderMode = true
-                shortcutReorderToggle.setText(R.string.action_done)
+        // Drives the star toggle in the toolbar (updateBookmarkStar), which
+        // reflects real Bookmarks, not Shortcuts. BookmarkRepository.bookmarks
+        // is a StateFlow (Bookmarks/History screens now collect it via
+        // Compose), so this is a lifecycle-scoped collect instead of
+        // LiveData.observe.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                BookmarkRepository.bookmarks.collect { list ->
+                    bookmarkedUrls = list.map { it.url }.toSet()
+                    tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
+                }
             }
         }
-
-        ShortcutRepository.shortcuts.observe(viewLifecycleOwner) { list ->
-            // While actively dragging, the adapter's in-memory order is the
-            // source of truth -- don't let a DB observer fire (e.g. from an
-            // unrelated add/remove elsewhere) and stomp the drag in
-            // progress. Once reorder mode ends, this resumes normally.
-            if (!adapter.reorderMode) adapter.submitList(list)
-        }
-
-        // Separate from the speed-dial tiles above -- this drives the star
-        // toggle in the toolbar (updateBookmarkStar), which reflects real
-        // Bookmarks, not Shortcuts.
-        BookmarkRepository.bookmarks.observe(viewLifecycleOwner) { list ->
-            bookmarkedUrls = list.map { it.url }.toSet()
-            tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
-        }
-    }
-
-    /** Drag-only (no swipe-to-dismiss) ItemTouchHelper callback for the
-     *  speed-dial grid. Only active while [ShortcutAdapter.reorderMode] is
-     *  on -- the fragment starts a drag itself via onStartDrag when a tile
-     *  is long-pressed in that mode, so this doesn't need to detect
-     *  long-press starts on its own. The trailing "+" add tile is never a
-     *  drag target in either direction. */
-    private class ShortcutDragCallback(
-        private val adapter: ShortcutAdapter
-    ) : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
-        androidx.recyclerview.widget.ItemTouchHelper.UP or androidx.recyclerview.widget.ItemTouchHelper.DOWN or
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT,
-        0
-    ) {
-        override fun isLongPressDragEnabled(): Boolean = false
-
-        override fun onMove(
-            recyclerView: RecyclerView,
-            viewHolder: RecyclerView.ViewHolder,
-            target: RecyclerView.ViewHolder
-        ): Boolean {
-            val from = viewHolder.bindingAdapterPosition
-            val to = target.bindingAdapterPosition
-            if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
-            // Last item is always the "+" add tile -- never a valid drag target.
-            if (to >= adapter.itemCount - 1) return false
-            adapter.moveItem(from, to)
-            return true
-        }
-
-        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-            // No swipe-to-dismiss on speed-dial tiles; unused.
-        }
-
-        override fun canDropOver(
-            recyclerView: RecyclerView,
-            current: RecyclerView.ViewHolder,
-            target: RecyclerView.ViewHolder
-        ): Boolean = target.bindingAdapterPosition < adapter.itemCount - 1
     }
 
     private fun showSpeedDial() {
-        speedDialContainer.visibility = View.VISIBLE
-        urlInput.setText("")
-        siteSecurityIcon.visibility = View.GONE
-        bookmarkStarButton.visibility = View.GONE
-        pageProgress.hide()
-        webViewSwipeRefresh.isRefreshing = false
+        speedDialVisible = true
+        addressBarText = ""
+        securityIconVisible = false
+        bookmarkStarVisible = false
+        toolbarProgressVisible = false
+        if (::webViewSwipeRefresh.isInitialized) webViewSwipeRefresh.isRefreshing = false
         hideSuggestions()
         clearDetectedLink()
-        sniffedMediaFab.visibility = View.GONE
+        sniffedMediaFabVisible = false
         hideNavLoadingVeil()
     }
 
     private fun showWebView() {
-        speedDialContainer.visibility = View.GONE
+        speedDialVisible = false
     }
 
     /**
@@ -1259,179 +1319,45 @@ class BrowserFragment : Fragment() {
      * actually finished (or failed) loading.
      */
     private fun showNavLoadingVeil() {
-        navLoadingVeil.visibility = View.VISIBLE
-        navLoadingVeil.bringToFront()
+        navLoadingVeilVisible = true
     }
 
     private fun hideNavLoadingVeil() {
-        navLoadingVeil.visibility = View.GONE
+        navLoadingVeilVisible = false
     }
 
-    private fun showAddShortcutDialog(prefillUrl: String?, prefillTitle: String? = null) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_shortcut, null)
-        val titleInput = dialogView.findViewById<EditText>(R.id.shortcutTitleInput)
-        val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
-        urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
-        titleInput.setText(prefillTitle)
-        wireIconPicker(dialogView)
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.add_bookmark_title)
-            .setView(dialogView)
-            .setPositiveButton(R.string.action_add) { _, _ ->
-                val url = urlField.text?.toString()?.trim().orEmpty()
-                if (url.isEmpty()) {
-                    Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val normalized = normalizeToUrl(url)
-                val title = titleInput.text?.toString()?.trim().orEmpty()
-                val pickedIcon = pendingIconUri
-                if (pickedIcon != null) {
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        ShortcutRepository.addWithIcon(requireContext(), title, normalized, pickedIcon)
-                    }
-                } else {
-                    ShortcutRepository.add(title, normalized)
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setOnDismissListener { pendingIconUri = null; pendingIconPreview = null }
-            .show()
-    }
-
-    /** Wires the icon-preview tile in dialog_add_shortcut.xml to launch the
-     *  system photo picker, and (for edits) shows the shortcut's current
-     *  icon -- custom if it has one, else its live favicon. */
-    private fun wireIconPicker(dialogView: View, existing: Shortcut? = null) {
-        pendingIconUri = null
-        val previewCard = dialogView.findViewById<MaterialCardView>(R.id.shortcutIconPreviewCard)
-        val preview = dialogView.findViewById<ImageView>(R.id.shortcutIconPreview)
-        val pickLabel = dialogView.findViewById<android.widget.TextView>(R.id.shortcutIconPickLabel)
-        pendingIconPreview = preview
-
-        val customPath = existing?.customIconPath
-        if (customPath != null) {
-            val bitmap = runCatching { android.graphics.BitmapFactory.decodeFile(customPath) }.getOrNull()
-            if (bitmap != null) {
-                preview.imageTintList = null
-                preview.setPadding(0, 0, 0, 0)
-                preview.setImageBitmap(bitmap)
-            }
-        } else if (existing != null) {
-            viewLifecycleOwner.lifecycleScope.launch {
-                val bitmap = kotlinx.coroutines.withContext(Dispatchers.IO) { FaviconLoader.load(existing.url) }
-                if (bitmap != null) {
-                    preview.imageTintList = null
-                    preview.setPadding(0, 0, 0, 0)
-                    preview.setImageBitmap(bitmap)
-                }
-            }
-        }
-
-        val launchPicker = { pickIconLauncher.launch("image/*") }
-        previewCard.setOnClickListener { launchPicker() }
-        pickLabel.setOnClickListener { launchPicker() }
-    }
-
-    private fun showShortcutOptionsDialog(shortcut: Shortcut) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(shortcut.title)
-            .setItems(arrayOf(getString(R.string.edit_bookmark_title), getString(R.string.action_delete))) { _, which ->
-                when (which) {
-                    0 -> showEditShortcutDialog(shortcut)
-                    1 -> ShortcutRepository.remove(shortcut)
-                }
-            }
-            .show()
-    }
-
-    private fun showEditShortcutDialog(shortcut: Shortcut) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_shortcut, null)
-        val titleInput = dialogView.findViewById<EditText>(R.id.shortcutTitleInput)
-        val urlField = dialogView.findViewById<EditText>(R.id.shortcutUrlInput)
-        titleInput.setText(shortcut.title)
-        urlField.setText(shortcut.url)
-        wireIconPicker(dialogView, existing = shortcut)
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.edit_bookmark_title)
-            .setPositiveButton(R.string.settings_save) { _, _ ->
-                val url = urlField.text?.toString()?.trim().orEmpty()
-                if (url.isEmpty()) {
-                    Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val normalized = normalizeToUrl(url)
-                val newTitle = (titleInput.text?.toString()?.trim().orEmpty())
-                    .ifBlank { runCatching { java.net.URI(normalized).host }.getOrNull() ?: normalized }
-                val pickedIcon = pendingIconUri
-                if (pickedIcon != null) {
-                    viewLifecycleOwner.lifecycleScope.launch {
-                        val path = ShortcutRepository.copyIconToInternalStorage(requireContext(), pickedIcon, shortcut.id)
-                        // update() preserves id + sortOrder -- editing a
-                        // tile no longer bumps it to the end of the grid.
-                        ShortcutRepository.update(
-                            shortcut.copy(
-                                title = newTitle,
-                                url = normalized,
-                                customIconPath = path ?: shortcut.customIconPath
-                            )
-                        )
-                    }
-                } else {
-                    ShortcutRepository.update(
-                        shortcut.copy(title = newTitle, url = normalized)
-                    )
-                }
-            }
-            .setView(dialogView)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setOnDismissListener { pendingIconUri = null; pendingIconPreview = null }
-            .show()
-    }
+    // Add/edit/options dialogs for shortcuts are now Compose (see
+    // ShortcutsScreen.kt's AddEditShortcutDialog/ShortcutOptionsDialog),
+    // driven by ShortcutsViewModel -- showAddShortcutDialog/wireIconPicker/
+    // showShortcutOptionsDialog/showEditShortcutDialog used to live here.
 
     /** Star-button flow: saves a real Bookmark for the current page. The
      *  checkbox additionally creates a matching speed-dial Shortcut in the
      *  same tap -- the two lists stay independent after that (removing the
-     *  bookmark later never removes the shortcut, and vice versa). */
+     *  bookmark later never removes the shortcut, and vice versa).
+     *
+     *  Post-migration-audit conversion: was a MaterialAlertDialogBuilder +
+     *  dialog_add_bookmark.xml inflate, now just sets Compose state read by
+     *  browserDialogHost's AddBookmarkDialog branch (see onViewCreated).
+     *  Validation/persist logic (empty-URL toast, normalizeToUrl,
+     *  BookmarkRepository/ShortcutRepository.add, success toast) moved into
+     *  that branch's onConfirm lambda -- this function now only computes
+     *  the prefill. */
     private fun showAddBookmarkDialog(prefillUrl: String?, prefillTitle: String? = null) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_bookmark, null)
-        val titleInput = dialogView.findViewById<EditText>(R.id.bookmarkTitleInput)
-        val urlField = dialogView.findViewById<EditText>(R.id.bookmarkUrlInput)
-        val alsoAddShortcutCheckbox = dialogView.findViewById<android.widget.CheckBox>(R.id.bookmarkAlsoAddShortcutCheckbox)
-        urlField.setText(prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url)
-        titleInput.setText(prefillTitle)
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.add_bookmark_dialog_title)
-            .setView(dialogView)
-            .setPositiveButton(R.string.action_add) { _, _ ->
-                val url = urlField.text?.toString()?.trim().orEmpty()
-                if (url.isEmpty()) {
-                    Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val normalized = normalizeToUrl(url)
-                val title = titleInput.text?.toString()?.trim().orEmpty()
-                BookmarkRepository.add(title, normalized)
-                if (alsoAddShortcutCheckbox.isChecked) {
-                    ShortcutRepository.add(title, normalized)
-                }
-                Toast.makeText(requireContext(), R.string.bookmark_added_toast, Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        addBookmarkDialogState = AddBookmarkDialogState(
+            prefillUrl = prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url,
+            prefillTitle = prefillTitle,
+        )
     }
 
     // ── Tabs ─────────────────────────────────────────────────────────────
 
     private fun updateTabsCount() {
-        tabsCount.text = tabs.size.toString()
+        tabsCountValue = tabs.size
     }
 
     private fun addNewTab() {
-        val previousView = tabs.getOrNull(currentTabIndex)?.webView
+        val previousView = webViewFor(tabs.getOrNull(currentTabIndex))
         tabs.add(BrowserTab(id = nextTabId++))
         currentTabIndex = tabs.lastIndex
         previousView?.let {
@@ -1459,7 +1385,7 @@ class BrowserFragment : Fragment() {
      */
     private fun activateTab(
         index: Int,
-        previousView: WebView? = tabs.getOrNull(currentTabIndex)?.webView
+        previousView: WebView? = webViewFor(tabs.getOrNull(currentTabIndex))
     ) {
         currentTabIndex = index
         val tab = tabs[index]
@@ -1481,11 +1407,11 @@ class BrowserFragment : Fragment() {
 
         showWebView()
         applyTabUiState(tab)
-        val hadLiveView = tab.webView != null
+        val hadLiveView = webViewFor(tab) != null
         val view = ensureWebView(tab)
         if (!hadLiveView) {
             showNavLoadingVeil()
-            val state = tab.webViewState
+            val state = webViewStates[tab.id]
             if (state != null) {
                 // Restores from WebView's own cache/history -- no network
                 // round-trip, so this is still fast even on a pool miss.
@@ -1549,168 +1475,26 @@ class BrowserFragment : Fragment() {
     }
 
     /**
-     * Tabs tray: a bottom sheet (not a modal dialog) listing every open tab
-     * as a compact pill -- round icon, title, close X -- with a floating
-     * "+" beneath the list instead of a dialog footer button.
+     * Tabs tray. Phase 5 conversion -- see TabsListOverlay.kt's doc comment
+     * for the full reasoning (was a BottomSheetDialog built in this
+     * function; now tabsListOverlay, a Compose-native full-bleed overlay).
+     * Every tab is still closable including the last one -- closeTab()
+     * resets it to a fresh "New tab" (speed dial) in that case, same as
+     * before.
      */
-    private fun showTabsDialog() {
-        val context = requireContext()
-        fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
+    private fun showTabsOverlay() {
+        refreshTabsOverlaySnapshot()
+        tabsOverlayVisible = true
+    }
 
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(context)
+    private fun hideTabsOverlay() {
+        tabsOverlayVisible = false
+    }
 
-        val root = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(20))
+    private fun refreshTabsOverlaySnapshot() {
+        tabsOverlaySnapshot = tabs.map { tab ->
+            TabOverlayItem(id = tab.id, title = tab.title, url = tab.url, isPrivate = tab.isPrivate)
         }
-
-        val rowsContainer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(rowsContainer)
-
-        val addRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
-            setPadding(0, dp(10), 0, 0)
-        }
-        addRow.addView(
-            com.google.android.material.floatingactionbutton.FloatingActionButton(context).apply {
-                setImageResource(R.drawable.ic_add)
-                size = com.google.android.material.floatingactionbutton.FloatingActionButton.SIZE_MINI
-                contentDescription = getString(R.string.action_new_tab)
-                setOnClickListener {
-                    addNewTab()
-                    dialog.dismiss()
-                }
-            }
-        )
-        root.addView(addRow)
-
-        fun refreshRows() {
-            rowsContainer.removeAllViews()
-            tabs.forEachIndexed { index, tab ->
-                val isActive = index == currentTabIndex
-                // Private tabs get a fixed dark tonal treatment regardless of
-                // active/inactive state or app theme -- same idea as Chrome's
-                // distinct grey/black incognito tab strip, so it's visually
-                // obvious at a glance which tabs won't show up in history.
-                val tonalColor = when {
-                    tab.isPrivate -> android.graphics.Color.parseColor(if (isActive) "#3A3A3A" else "#2A2A2A")
-                    isActive -> resolveThemeColor(com.google.android.material.R.attr.colorSecondaryContainer)
-                    else -> resolveThemeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh)
-                }
-                val onTonalColor = if (tab.isPrivate) {
-                    android.graphics.Color.WHITE
-                } else {
-                    resolveThemeColor(
-                        if (isActive) com.google.android.material.R.attr.colorOnSecondaryContainer
-                        else com.google.android.material.R.attr.colorOnSurface
-                    )
-                }
-
-                // Pill-shaped card (fully rounded, not just rounded-corner)
-                // with a round icon avatar -- the reference tray's rows read
-                // as floating chips rather than settings-style list items.
-                val row = MaterialCardView(context).apply {
-                    radius = dp(28).toFloat()
-                    cardElevation = 0f
-                    strokeWidth = 0
-                    setCardBackgroundColor(tonalColor)
-                    isClickable = true
-                    isFocusable = true
-                    rippleColor = android.content.res.ColorStateList.valueOf(onTonalColor)
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply { setMargins(0, 0, 0, dp(8)) }
-                    alpha = 0f
-                    translationY = dp(14).toFloat()
-                }
-
-                val innerRow = LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = android.view.Gravity.CENTER_VERTICAL
-                    setPadding(dp(8), dp(8), dp(10), dp(8))
-                }
-
-                val faviconBox = FrameLayout(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(dp(32), dp(32)).apply {
-                        marginEnd = dp(12)
-                    }
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.OVAL
-                        setColor(android.graphics.Color.WHITE)
-                    }
-                }
-                val favicon = ImageView(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(dp(16), dp(16)).apply {
-                        gravity = android.view.Gravity.CENTER
-                    }
-                    setImageResource(if (tab.isPrivate) R.drawable.ic_private_tab else R.drawable.ic_link)
-                    setColorFilter(android.graphics.Color.parseColor("#1A1A1A"))
-                }
-                faviconBox.addView(favicon)
-                // Private tabs always show the incognito glyph, never the
-                // site's real favicon -- fetching/showing it here would be a
-                // minor but real leak of what a "private" tab is looking at.
-                if (!tab.isPrivate) {
-                    tab.url?.let { url ->
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            val bitmap = withContext(Dispatchers.IO) { FaviconLoader.load(url) }
-                            if (bitmap != null) {
-                                favicon.clearColorFilter()
-                                favicon.layoutParams = FrameLayout.LayoutParams(dp(20), dp(20)).apply {
-                                    gravity = android.view.Gravity.CENTER
-                                }
-                                favicon.setImageBitmap(bitmap)
-                            }
-                        }
-                    }
-                }
-
-                val label = android.widget.TextView(context).apply {
-                    text = tab.title.ifBlank { tab.url ?: "New tab" }
-                    setTextColor(onTonalColor)
-                    textSize = 14f
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                }
-
-                val closeBtn = ImageButton(context).apply {
-                    setImageResource(R.drawable.ic_close)
-                    background = null
-                    setColorFilter(onTonalColor)
-                    setPadding(dp(8), dp(8), dp(8), dp(8))
-                    contentDescription = getString(R.string.action_dismiss)
-                    // Every tab is closable, including the last one -- closeTab()
-                    // resets it to a fresh "New tab" (speed dial) in that case,
-                    // so a new tab effectively opens automatically.
-                    setOnClickListener {
-                        row.animate().alpha(0f).translationX(dp(40).toFloat()).setDuration(120).withEndAction {
-                            closeTab(index)
-                            refreshRows()
-                        }.start()
-                    }
-                }
-                row.setOnClickListener {
-                    switchToTab(index)
-                    dialog.dismiss()
-                }
-                innerRow.addView(faviconBox)
-                innerRow.addView(label)
-                innerRow.addView(closeBtn)
-                row.addView(innerRow)
-                rowsContainer.addView(row)
-                // Small staggered fade+rise entrance so the list doesn't just pop in.
-                row.animate().alpha(1f).translationY(0f)
-                    .setStartDelay((index * 24L).coerceAtMost(200L))
-                    .setDuration(160)
-                    .start()
-            }
-        }
-        refreshRows()
-
-        dialog.setContentView(root)
-        dialog.show()
     }
 
     // ── Link auto-detect ─────────────────────────────────────────────────
@@ -1737,25 +1521,15 @@ class BrowserFragment : Fragment() {
      */
     private fun onWebViewDownloadRequested(url: String, contentDisposition: String?, mimeType: String?) {
         val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
-        var resolvedName = guessedName
+        downloadPrompt = BrowserDownloadPrompt(url = url, fileName = guessedName)
 
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.download_confirm_title)
-            .setMessage(getString(R.string.download_confirm_message, guessedName))
-            .setPositiveButton(R.string.action_add_to_downloads) { _, _ ->
-                (activity as? Callbacks)?.triggerPrepare(listOf(url))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.action_copy_link) { _, _ -> copyLinkToClipboard(url) }
-            .show()
-
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val probed = withContext(Dispatchers.IO) {
                 DownloadEngine.probeRealFilename(filenameClient, url)
             }
-            if (probed != null && probed != resolvedName && dialog.isShowing) {
-                resolvedName = probed
-                dialog.setMessage(getString(R.string.download_confirm_message, probed))
+            val currentPrompt = downloadPrompt
+            if (probed != null && currentPrompt?.url == url && probed != currentPrompt.fileName) {
+                downloadPrompt = currentPrompt.copy(fileName = probed)
             }
         }
     }
@@ -1772,7 +1546,7 @@ class BrowserFragment : Fragment() {
     private fun checkPageForLinks(url: String) {
         if (LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url)) {
             lastDetectedLink = url
-            addLinkFab.visibility = View.VISIBLE
+            detectedLinkVisible = true
         } else {
             clearDetectedLink()
         }
@@ -1780,7 +1554,7 @@ class BrowserFragment : Fragment() {
 
     private fun clearDetectedLink() {
         lastDetectedLink = null
-        addLinkFab.visibility = View.GONE
+        detectedLinkVisible = false
     }
 
     /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
@@ -1791,21 +1565,25 @@ class BrowserFragment : Fragment() {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
         if (count == 0) {
-            sniffedMediaFab.visibility = View.GONE
+            sniffedMediaFabVisible = false
             return
         }
-        sniffedMediaFab.text = if (count == 1) {
+        sniffedMediaFabText = if (count == 1) {
             getString(R.string.sniffed_media_chip_one)
         } else {
             getString(R.string.sniffed_media_chip_many, count)
         }
-        sniffedMediaFab.visibility = View.VISIBLE
+        sniffedMediaFabVisible = true
     }
 
-    /** Bottom sheet listing every stream in the current tab's sniffedMedia,
-     *  tapping a row hands it straight to Callbacks.triggerSniffedMedia; each
-     *  row also carries a copy button to grab the raw URL without starting
-     *  a download. */
+    /** Opens the Compose SniffedMediaSheet (see browserDialogHost's
+     *  setContent in onViewCreated) listing every stream in the current
+     *  tab's sniffedMedia. Tapping a row hands it straight to
+     *  Callbacks.triggerSniffedMedia; each row also carries a copy button
+     *  to grab the raw URL without starting a download. Phase 5 conversion
+     *  -- this used to hand-build a BottomSheetDialog + one LinearLayout
+     *  row per stream here; all of that now lives in SniffedMediaSheet.kt,
+     *  this function is just the snapshot-and-open trigger. */
     private fun showSniffedMediaSheet() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         // Snapshot under the same lock shouldInterceptRequest writes under --
@@ -1813,75 +1591,7 @@ class BrowserFragment : Fragment() {
         // thread) can't race a concurrent write (WebView background thread).
         val streams = synchronized(tab.sniffedMedia) { tab.sniffedMedia.values.toList() }
         if (streams.isEmpty()) return
-
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.sheet_sniffed_media, null)
-        dialog.setContentView(view)
-
-        val list = view.findViewById<LinearLayout>(R.id.sniffedMediaList)
-        val density = resources.displayMetrics.density
-        streams.forEach { stream ->
-            // Row is now a label (tap = download, same as before) plus a
-            // trailing copy button, instead of one full-width TextView --
-            // lets the user grab the raw media URL without kicking off a
-            // download, same tonal round-icon-button pattern used for
-            // "Copy link" in the Add Torrent dialog.
-            val rowContainer = LinearLayout(requireContext())
-            rowContainer.orientation = LinearLayout.HORIZONTAL
-            rowContainer.gravity = android.view.Gravity.CENTER_VERTICAL
-            rowContainer.layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-
-            val row = android.widget.TextView(requireContext())
-            row.text = com.invictus.xmd.core.MediaSniffer.guessLabel(stream.url)
-            row.isClickable = true
-            row.isFocusable = true
-            row.setBackgroundResource(R.drawable.bg_radio_row_selector)
-            row.setTextColor(androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.text_radio_row))
-            row.textSize = 14f
-            row.maxLines = 1
-            row.ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
-            row.gravity = android.view.Gravity.CENTER_VERTICAL
-            row.setPadding((16 * density).toInt(), (14 * density).toInt(), (8 * density).toInt(), (14 * density).toInt())
-            row.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            val icon = when (stream.kind) {
-                com.invictus.xmd.core.MediaSniffer.Kind.DIRECT_AUDIO -> R.drawable.ic_music_note
-                else -> R.drawable.ic_video
-            }
-            row.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0)
-            row.compoundDrawablePadding = (12 * density).toInt()
-            row.setOnClickListener {
-                val needsPicker = with(com.invictus.xmd.core.MediaSniffer) { stream.kind.needsQualityPicker() }
-                (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
-                dialog.dismiss()
-            }
-
-            val copyButton = ImageButton(requireContext())
-            val buttonSize = (32 * density).toInt()
-            copyButton.layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize).apply {
-                marginEnd = (12 * density).toInt()
-            }
-            copyButton.setBackgroundResource(R.drawable.bg_icon_button_tonal)
-            copyButton.setImageResource(R.drawable.ic_link)
-            copyButton.imageTintList = android.content.res.ColorStateList.valueOf(
-                resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer)
-            )
-            copyButton.scaleType = android.widget.ImageView.ScaleType.CENTER_INSIDE
-            val iconInset = (8 * density).toInt()
-            copyButton.setPadding(iconInset, iconInset, iconInset, iconInset)
-            copyButton.contentDescription = getString(R.string.torrent_dialog_copy_link)
-            // Doesn't dismiss the sheet -- copying one stream's link
-            // shouldn't stop the user from picking or copying another.
-            copyButton.setOnClickListener { copyLinkToClipboard(stream.url) }
-
-            rowContainer.addView(row)
-            rowContainer.addView(copyButton)
-            list.addView(rowContainer)
-        }
-
-        dialog.show()
+        sniffedSheetStreams = streams
     }
 
     /** Applies (or reverts) desktop-site emulation on [webView]: a desktop
@@ -1911,7 +1621,7 @@ class BrowserFragment : Fragment() {
     private fun toggleDesktopMode() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         tab.isDesktopMode = !tab.isDesktopMode
-        val webView = tab.webView ?: return
+        val webView = webViewFor(tab) ?: return
         applyDesktopMode(webView, tab.isDesktopMode)
         val currentUrl = webView.url ?: tab.url
         if (currentUrl != null) {
@@ -1934,21 +1644,22 @@ class BrowserFragment : Fragment() {
     // ── Long-press link/image context menu ──────────────────────────────
 
     /**
-     * Chrome-style long-press menu. [webView].hitTestResult only ever
-     * reports SRC_ANCHOR_TYPE (plain link), SRC_IMAGE_ANCHOR_TYPE (an
-     * image wrapped in a link, e.g. `<a href><img></a>`), or IMAGE_TYPE
-     * (a bare image, no link) for what we care about here -- anything
-     * else (plain text, unlinked page area) shows no menu at all, same
-     * as a real browser. Returns true from the long-click listener only
-     * when a menu was actually shown, so an unrecognized hit falls
-     * through to WebView's own default long-press behavior (text
-     * selection) instead of silently eating the gesture.
+     * Chrome-style long-press menu. hitTestResult only ever reports
+     * SRC_ANCHOR_TYPE (plain link), SRC_IMAGE_ANCHOR_TYPE (an image wrapped
+     * in a link, e.g. `<a href><img></a>`), or IMAGE_TYPE (a bare image, no
+     * link) for what we care about here -- anything else (plain text,
+     * unlinked page area) shows no menu at all, same as a real browser.
+     * Returns true from the long-click listener only when a menu was
+     * actually shown, so an unrecognized hit falls through to WebView's
+     * own default long-press behavior (text selection) instead of
+     * silently eating the gesture.
+     *
+    * The menu is anchored to the touch point inside the single Compose root.
      */
     private fun showLinkContextMenu(
-        webView: WebView,
         result: WebView.HitTestResult,
-        touchX: Float,
-        touchY: Float
+        rawTouchX: Float,
+        rawTouchY: Float
     ): Boolean {
         val linkUrl: String?
         val imageUrl: String?
@@ -1973,49 +1684,21 @@ class BrowserFragment : Fragment() {
         }
         if (linkUrl.isNullOrBlank() && imageUrl.isNullOrBlank()) return false
 
-        // Popup has no view of its own to anchor to at an arbitrary point,
-        // so drop a 1x1 invisible anchor into the container at the last
-        // touch position and remove it once the menu closes.
-        val density = resources.displayMetrics.density
-        val anchor = View(requireContext())
-        val anchorSize = (1 * density).toInt().coerceAtLeast(1)
-        webViewContainer.addView(
-            anchor,
-            FrameLayout.LayoutParams(anchorSize, anchorSize).apply {
-                leftMargin = touchX.toInt()
-                topMargin = touchY.toInt()
-            }
+        val hostLocation = IntArray(2)
+        browserRoot.getLocationOnScreen(hostLocation)
+        linkContextMenuState = LinkContextMenuState(
+            touchX = rawTouchX - hostLocation[0],
+            touchY = rawTouchY - hostLocation[1],
+            linkUrl = linkUrl,
+            imageUrl = imageUrl,
         )
-
-        val popup = android.widget.PopupMenu(requireContext(), anchor)
-        popup.menuInflater.inflate(R.menu.link_context_menu, popup.menu)
-        popup.menu.findItem(R.id.link_menu_open_new_tab).isVisible = !linkUrl.isNullOrBlank()
-        popup.menu.findItem(R.id.link_menu_copy_link_address).isVisible = !linkUrl.isNullOrBlank()
-        popup.menu.findItem(R.id.link_menu_share_link).isVisible = !linkUrl.isNullOrBlank()
-        popup.menu.findItem(R.id.link_menu_open_image_new_tab).isVisible = !imageUrl.isNullOrBlank()
-        popup.menu.findItem(R.id.link_menu_download_image).isVisible = !imageUrl.isNullOrBlank()
-
-        popup.setOnDismissListener { webViewContainer.removeView(anchor) }
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.link_menu_open_new_tab -> linkUrl?.let { openUrlInNewTab(it) }
-                R.id.link_menu_open_image_new_tab -> imageUrl?.let { openUrlInNewTab(it) }
-                R.id.link_menu_download_image -> imageUrl?.let {
-                    onWebViewDownloadRequested(it, null, "image/*")
-                }
-                R.id.link_menu_copy_link_address -> linkUrl?.let { copyLinkToClipboard(it) }
-                R.id.link_menu_share_link -> linkUrl?.let { shareLink(it) }
-            }
-            true
-        }
-        popup.show()
         return true
     }
 
     /** Opens [url] in a brand-new background... actually foreground tab,
      *  Chrome-style: the new tab becomes current and is shown immediately. */
     private fun openUrlInNewTab(url: String) {
-        val previousView = tabs.getOrNull(currentTabIndex)?.webView
+        val previousView = webViewFor(tabs.getOrNull(currentTabIndex))
         val newTab = BrowserTab(id = nextTabId++, url = url)
         tabs.add(newTab)
         currentTabIndex = tabs.lastIndex
@@ -2030,9 +1713,14 @@ class BrowserFragment : Fragment() {
     private fun copyLinkToClipboard(url: String) {
         val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                 as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Link", url))
+        clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText(getString(R.string.clipboard_link_label), url)
+        )
         Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
     }
+
+    private fun currentPageUrl(): String? = tabs.getOrNull(currentTabIndex)?.url
+        ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
 
     private fun shareLink(url: String) {
         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -2042,12 +1730,4 @@ class BrowserFragment : Fragment() {
         startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
     }
 
-    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
-     *  of a static @color resource, so tab-switcher rows, the favicon tint,
-     *  and the pull-to-refresh spinner all follow the selected app theme. */
-    private fun resolveThemeColor(attrResId: Int): Int {
-        val tv = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(attrResId, tv, true)
-        return tv.data
-    }
 }

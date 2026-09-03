@@ -4,18 +4,45 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.widget.ImageButton
-import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.addCallback
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.invictus.xmd.R
-import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.ShortcutRepository
+import com.invictus.xmd.ui.theme.XmdTheme
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,21 +53,24 @@ import java.util.Locale
 
 /**
  * Dedicated Settings screen -- replaces the old single-dialog Settings UI.
- * This Activity hosts a root category list ([SettingsRootFragment]); tapping
- * a category pushes its Fragment into [R.id.settingsFragmentContainer] via
- * addToBackStack, same manual FragmentManager pattern MainActivity already
- * uses for Home/Downloads/Browser/History (no Jetpack Navigation component
- * in this codebase, so we don't introduce one here either).
+ * Fully Compose now: a self-drawn header (back button + title) plus a
+ * navigation-compose [NavHost], one route per category -- replaces the old
+ * manual-FragmentManager + addToBackStack push/pop that every other screen
+ * in this codebase still uses (Settings is the first screen to move to
+ * real Jetpack Navigation; Home/Downloads/Browser/History stay on the
+ * manual pattern, untouched by this phase).
  *
- * The header (back button + title) is drawn once here rather than per
- * fragment; each pushed fragment updates [setHeaderTitle] instead of
- * carrying its own toolbar, matching the self-drawn-header convention
- * already used by HistoryFragment.
+ * Each `*Screen.kt` composable (SettingsRootScreen, SettingsAppearanceScreen,
+ * etc.) is unchanged from the Fragment-hosted era -- they were already pure
+ * state-in/callback-out composables with no Fragment/Activity API calls, so
+ * they drop into route bodies as-is. Only their old ComposeView-hosting
+ * Fragment wrappers (SettingsRootFragment, SettingsAppearanceFragment, ...)
+ * are retired by this phase, along with activity_settings.xml.
  */
-class SettingsActivity : AppCompatActivity(),
-    SettingsBrowserFragment.Callbacks {
+class SettingsActivity : ComponentActivity() {
 
-    private lateinit var headerTitle: TextView
+    private lateinit var navController: NavHostController
+    private var importCandidates: List<File>? by mutableStateOf(null)
 
     // Must be registered before onStart -- declared as a property so it's
     // set up during Activity construction, same requirement as any other
@@ -53,101 +83,126 @@ class SettingsActivity : AppCompatActivity(),
         // Must run before super.onCreate() -- Activity.setTheme() only
         // takes effect if called before the window/decor is created. Same
         // theme/dark-mode resolution as MainActivity/ChallengeActivity, so
-        // this screen (and SettingsAppearanceFragment's recreate() calls)
+        // this screen (and SettingsAppearanceScreen's recreate() calls)
         // actually repaint instead of recreating with the default theme.
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_settings)
 
-        val isDark = Settings.isDarkMode()
-        val isAmoled = isDark && Settings.isAmoledMode()
-
-        // Status bar must match the header (colorSurfaceContainerLow)
-        val headerColor = com.google.android.material.color.MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurfaceContainerLow,
-            android.graphics.Color.BLACK
-        )
-        // Navigation bar matches the body background (pure black in AMOLED mode)
-        val navBarColor = if (isAmoled) android.graphics.Color.BLACK else com.google.android.material.color.MaterialColors.getColor(
-            this,
-            android.R.attr.colorBackground,
-            android.graphics.Color.BLACK
-        )
-        window.statusBarColor = headerColor
-        window.navigationBarColor = navBarColor
-        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        val isDark = com.invictus.xmd.core.Settings.isDarkMode()
+        val colorScheme = resolveCurrentXmdColorScheme(this)
+        window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
 
-        headerTitle = findViewById(R.id.settingsHeaderTitle)
-        findViewById<ImageButton>(R.id.settingsBackButton).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        // Deep-link straight into a category (e.g. the "Install now" button
+        // on the yt-dlp-not-installed dialog) instead of always landing on
+        // the root list -- see EXTRA_OPEN_CATEGORY. Resolved once up front
+        // (rather than via LaunchedEffect after first composition) so the
+        // NavHost's startDestination is correct on the very first frame --
+        // avoids a root->youtube flash that a post-composition navigate()
+        // would cause.
+        val startRoute = if (intent.getStringExtra(EXTRA_OPEN_CATEGORY) == CATEGORY_YOUTUBE) {
+            Route.YOUTUBE
+        } else {
+            Route.ROOT
+        }
 
-        if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.settingsFragmentContainer, SettingsRootFragment(), TAG_ROOT)
-                .commit()
-            // Deep-link straight into a category (e.g. the "Install now"
-            // button on the yt-dlp-not-installed dialog) instead of always
-            // landing on the root list -- see EXTRA_OPEN_CATEGORY.
-            if (intent.getStringExtra(EXTRA_OPEN_CATEGORY) == CATEGORY_YOUTUBE) {
-                openCategory(SettingsYoutubeFragment(), "settings_youtube")
+        setContent {
+            navController = rememberNavController()
+            XmdTheme {
+                SettingsScreenRoot(
+                    navController = navController,
+                    startRoute = startRoute,
+                    onBack = { onBackPressedDispatcher.onBackPressed() },
+                    onImportWebsites = ::startWebImportFlow,
+                    onExportWebsites = ::startWebExportFlow,
+                )
+                importCandidates?.let { files ->
+                    val storageRoot = Environment.getExternalStorageDirectory().path
+                    AppChoiceDialog(
+                        title = stringResource(R.string.import_websites_title),
+                        choices = files.map { it.path.removePrefix(storageRoot).trimStart('/') },
+                        dismissLabel = stringResource(android.R.string.cancel),
+                        onChoice = { index ->
+                            val selected = files.getOrNull(index)
+                            importCandidates = null
+                            if (selected != null) runWebImport(selected)
+                        },
+                        onDismiss = { importCandidates = null },
+                    )
+                }
             }
         }
+    }
 
-        // Keep the header title in sync with whichever fragment is on top,
-        // including after a system back navigation pops the back stack.
-        supportFragmentManager.addOnBackStackChangedListener { syncHeaderTitle() }
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun SettingsScreenRoot(
+        navController: NavHostController,
+        startRoute: String,
+        onBack: () -> Unit,
+        onImportWebsites: () -> Unit,
+        onExportWebsites: () -> Unit,
+    ) {
+        val backStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = backStackEntry?.destination?.route ?: startRoute
+        val titleRes = routeTitles[currentRoute] ?: R.string.settings_title
 
-        onBackPressedDispatcher.addCallback(this) {
-            if (supportFragmentManager.backStackEntryCount > 0) {
-                supportFragmentManager.popBackStack()
-            } else {
-                finish()
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(titleRes)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painter = painterResource(XmdIcons.ArrowBack),
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                )
+
+                NavHost(
+                    navController = navController,
+                    startDestination = startRoute,
+                    modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
+                ) {
+                    composable(Route.ROOT) {
+                        SettingsRootScreen(
+                            showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
+                            onOpenAppearance = { navController.navigate(Route.APPEARANCE) },
+                            onOpenConnections = { navController.navigate(Route.CONNECTIONS) },
+                            onOpenBrowser = { navController.navigate(Route.BROWSER) },
+                            onOpenDownloads = { navController.navigate(Route.DOWNLOADS) },
+                            onOpenYoutube = { navController.navigate(Route.YOUTUBE) },
+                            onOpenAbout = { navController.navigate(Route.ABOUT) },
+                        )
+                    }
+                    composable(Route.APPEARANCE) { AppearanceRoute(this@SettingsActivity) }
+                    composable(Route.CONNECTIONS) { ConnectionsRoute() }
+                    composable(Route.DOWNLOADS) { DownloadsRoute() }
+                    composable(Route.BROWSER) {
+                        BrowserRoute(onImportWebsites = onImportWebsites, onExportWebsites = onExportWebsites)
+                    }
+                    composable(Route.YOUTUBE) { YoutubeRoute() }
+                    composable(Route.ABOUT) { AboutRoute() }
+                }
             }
         }
     }
 
-    private fun syncHeaderTitle() {
-        val top = supportFragmentManager.findFragmentById(R.id.settingsFragmentContainer)
-        headerTitle.text = when (top) {
-            is SettingsAppearanceFragment -> getString(R.string.settings_category_appearance)
-            is SettingsConnectionsFragment -> getString(R.string.settings_category_connections)
-            is SettingsBrowserFragment -> getString(R.string.settings_category_browser)
-            is SettingsDownloadsFragment -> getString(R.string.settings_category_downloads)
-            is SettingsYoutubeFragment -> getString(R.string.settings_category_youtube)
-            is AboutFragment -> getString(R.string.settings_category_about)
-            else -> getString(R.string.settings_title)
-        }
-    }
-
-    /** Called by [SettingsRootFragment] when a category row is tapped. */
-    fun openCategory(fragment: Fragment, tag: String) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.settingsFragmentContainer, fragment, tag)
-            .addToBackStack(tag)
-            .commit()
-        // Title updates on the next frame via addOnBackStackChangedListener,
-        // but set it immediately too so there's no stale-title flash before
-        // that callback fires.
-        headerTitle.text = when (fragment) {
-            is SettingsAppearanceFragment -> getString(R.string.settings_category_appearance)
-            is SettingsConnectionsFragment -> getString(R.string.settings_category_connections)
-            is SettingsBrowserFragment -> getString(R.string.settings_category_browser)
-            is SettingsDownloadsFragment -> getString(R.string.settings_category_downloads)
-            is SettingsYoutubeFragment -> getString(R.string.settings_category_youtube)
-            is AboutFragment -> getString(R.string.settings_category_about)
-            else -> getString(R.string.settings_title)
-        }
-    }
-
-    // ── SettingsBrowserFragment.Callbacks: website source-pack import ────
+    // ── website source-pack import ────────────────────────────────────
     // Moved verbatim from MainActivity.startWebImportFlow() / friends -- the
     // Import Websites action lives in the Downloads settings screen now, and
     // this logic is fully self-contained (ShortcutRepository only), so it's
     // relocated here rather than delegated back across Activities.
 
-    override fun startWebImportFlow() {
+    private fun startWebImportFlow() {
         Toast.makeText(this, R.string.import_websites_scanning, Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
             val files = withContext(Dispatchers.IO) { ShortcutRepository.findImportCandidates() }
@@ -160,13 +215,7 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     private fun showImportCandidatesDialog(files: List<File>) {
-        val storageRoot = Environment.getExternalStorageDirectory().path
-        val labels = files.map { it.path.removePrefix(storageRoot).trimStart('/') }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.import_websites_title)
-            .setItems(labels) { _, which -> runWebImport(files[which]) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        importCandidates = files
     }
 
     private fun runWebImport(file: File) {
@@ -181,12 +230,12 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    // ── SettingsBrowserFragment.Callbacks: website source-pack export ────
+    // ── website source-pack export ────────────────────────────────────
     // User picks the save location via SAF (Save As) rather than a fixed
     // Downloads/Xmd path, then the file is shared immediately after saving
     // so it's one tap from "Export Now" to sending it to someone.
 
-    override fun startWebExportFlow() {
+    private fun startWebExportFlow() {
         lifecycleScope.launch {
             val count = ShortcutRepository.count()
             if (count == 0) {
@@ -207,8 +256,11 @@ class SettingsActivity : AppCompatActivity(),
             val json = ShortcutRepository.exportWebsitesJson()
             val written = withContext(Dispatchers.IO) {
                 runCatching {
-                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-                }.isSuccess
+                    contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray())
+                        true
+                    } ?: false
+                }.getOrDefault(false)
             }
             if (!written) {
                 Toast.makeText(this@SettingsActivity, R.string.export_websites_failed, Toast.LENGTH_SHORT).show()
@@ -239,11 +291,397 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     companion object {
-        private const val TAG_ROOT = "settings_root"
-
         /** Intent extra: which category to land on directly, skipping the
          *  root list. See [CATEGORY_YOUTUBE]. */
         const val EXTRA_OPEN_CATEGORY = "open_category"
         const val CATEGORY_YOUTUBE = "youtube"
     }
+}
+
+/** NavHost route strings, one per Settings category screen. */
+private object Route {
+    const val ROOT = "root"
+    const val APPEARANCE = "appearance"
+    const val CONNECTIONS = "connections"
+    const val DOWNLOADS = "downloads"
+    const val BROWSER = "browser"
+    const val YOUTUBE = "youtube"
+    const val ABOUT = "about"
+}
+
+/** Route -> header title, replaces the old syncHeaderTitle()'s Fragment-type switch. */
+private val routeTitles: Map<String, Int> = mapOf(
+    Route.APPEARANCE to R.string.settings_category_appearance,
+    Route.CONNECTIONS to R.string.settings_category_connections,
+    Route.BROWSER to R.string.settings_category_browser,
+    Route.DOWNLOADS to R.string.settings_category_downloads,
+    Route.YOUTUBE to R.string.settings_category_youtube,
+    Route.ABOUT to R.string.settings_category_about,
+)
+
+// ── Route bodies ──────────────────────────────────────────────────────────
+// Each wraps the matching *Screen.kt composable exactly as its retired
+// Fragment did, replacing Fragment-scoped calls (getString/requireContext/
+// requireActivity/lifecycleScope/startActivity) with their Compose
+// equivalents (stringResource/LocalContext.current/rememberCoroutineScope).
+// The *Screen.kt composables themselves are untouched -- same signatures.
+
+@Composable
+private fun AppearanceRoute(activity: ComponentActivity) {
+    // Local state exists only so the screen doesn't visibly lag between tap
+    // and activity.recreate() actually repainting -- recreate() is still
+    // the source of truth for every persisted value. Same behavior as the
+    // retired SettingsAppearanceFragment; ComponentActivity.recreate() is
+    // the same API AppCompatActivity inherited it from.
+    var currentTheme by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.appTheme())
+    }
+    var isDark by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.isDarkMode())
+    }
+    var isAmoled by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.isAmoledMode())
+    }
+    // Tab config doesn't need activity.recreate() from here -- this screen
+    // doesn't show the nav bar itself; MainActivity notices the change and
+    // recreates on its own next onResume (same mechanism as the theme
+    // fields above), so this just needs to persist + keep local state fresh
+    // for immediate visual feedback while still on this screen.
+    var tabOrder by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.tabOrder())
+    }
+    var hiddenTabs by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.hiddenTabs())
+    }
+    var defaultTab by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.defaultTab())
+    }
+
+    SettingsAppearanceScreen(
+        currentTheme = currentTheme,
+        isDark = isDark,
+        isAmoled = isAmoled,
+        onThemeSelected = { theme ->
+            if (theme != com.invictus.xmd.core.Settings.appTheme()) {
+                currentTheme = theme
+                com.invictus.xmd.core.Settings.setAppTheme(theme)
+                activity.recreate()
+            }
+        },
+        onDarkModeChanged = { checked ->
+            if (checked != com.invictus.xmd.core.Settings.isDarkMode()) {
+                isDark = checked
+                com.invictus.xmd.core.Settings.setDarkMode(checked)
+                activity.recreate()
+            }
+        },
+        onAmoledModeChanged = { checked ->
+            if (checked != com.invictus.xmd.core.Settings.isAmoledMode()) {
+                isAmoled = checked
+                com.invictus.xmd.core.Settings.setAmoledMode(checked)
+                activity.recreate()
+            }
+        },
+        tabOrder = tabOrder,
+        hiddenTabs = hiddenTabs,
+        defaultTab = defaultTab,
+        onMoveTab = { fromIndex, toIndex ->
+            val updated = tabOrder.toMutableList()
+            val moved = updated.removeAt(fromIndex)
+            updated.add(toIndex, moved)
+            tabOrder = updated
+            com.invictus.xmd.core.Settings.setTabOrder(updated)
+        },
+        onToggleTabVisible = { tabId, visible ->
+            val updated = hiddenTabs.toMutableSet()
+            if (visible) updated -= tabId else updated += tabId
+            hiddenTabs = updated
+            com.invictus.xmd.core.Settings.setHiddenTabs(updated)
+            // The now-hidden (or newly-visible) tab might have been --
+            // or might become -- the default; re-read it the same way
+            // Settings.defaultTab() would self-heal on its own next read.
+            defaultTab = com.invictus.xmd.core.Settings.defaultTab()
+        },
+        onDefaultTabSelected = { tabId ->
+            defaultTab = tabId
+            com.invictus.xmd.core.Settings.setDefaultTab(tabId)
+        },
+    )
+}
+
+@Composable
+private fun ConnectionsRoute() {
+    val context = LocalContext.current
+    SettingsConnectionsScreen(
+        initialConnections = com.invictus.xmd.core.Settings.connectionsPerDownload(),
+        initialSpeedLimitKBps = com.invictus.xmd.core.Settings.speedLimitKBps(),
+        initialMaxConcurrent = com.invictus.xmd.core.Settings.maxConcurrentDownloads(),
+        onSave = { connections, speedLimitKBps, maxConcurrent ->
+            com.invictus.xmd.core.Settings.setConnectionsPerDownload(connections)
+            com.invictus.xmd.core.Settings.setSpeedLimitKBps(speedLimitKBps)
+            com.invictus.xmd.core.Settings.setMaxConcurrentDownloads(maxConcurrent)
+            Toast.makeText(context, R.string.settings_saved, Toast.LENGTH_SHORT).show()
+        },
+    )
+}
+
+@Composable
+private fun DownloadsRoute() {
+    val context = LocalContext.current
+    var autoRetry by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.autoRetryEnabled())
+    }
+    var saveToDownloads by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.saveToDownloadsFolder())
+    }
+    var wifiOnly by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.wifiOnlyDownloads())
+    }
+
+    SettingsDownloadsScreen(
+        autoRetry = autoRetry,
+        saveToDownloads = saveToDownloads,
+        wifiOnly = wifiOnly,
+        onAutoRetryChanged = { checked ->
+            autoRetry = checked
+            com.invictus.xmd.core.Settings.setAutoRetryEnabled(checked)
+        },
+        onSaveToDownloadsChanged = { checked ->
+            saveToDownloads = checked
+            com.invictus.xmd.core.Settings.setSaveToDownloadsFolder(checked)
+        },
+        onWifiOnlyChanged = { checked ->
+            val wifiOnlyJustEnabled = checked && !com.invictus.xmd.core.Settings.wifiOnlyDownloads()
+            wifiOnly = checked
+            com.invictus.xmd.core.Settings.setWifiOnlyDownloads(checked)
+            if (wifiOnlyJustEnabled && !com.invictus.xmd.core.NetworkMonitor.isOnWifi(context)) {
+                // Turned ON while already on cellular -- the setting only
+                // reacts to a live network *transition* otherwise, so
+                // without this any download already in flight would keep
+                // running on cellular until the next Wi-Fi drop/regain.
+                com.invictus.xmd.service.DownloadService.pauseForWifiOnly(context)
+            }
+        },
+    )
+}
+
+@Composable
+private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> Unit) {
+    var adblockEnabled by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.adblockEnabled())
+    }
+    SettingsBrowserScreen(
+        adblockEnabled = adblockEnabled,
+        onAdblockChanged = { checked ->
+            adblockEnabled = checked
+            com.invictus.xmd.core.Settings.setAdblockEnabled(checked)
+        },
+        onImportWebsites = onImportWebsites,
+        onExportWebsites = onExportWebsites,
+    )
+}
+
+@Composable
+private fun YoutubeRoute() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val containerOptions = listOf(
+        stringResource(R.string.preset_any) to com.invictus.xmd.core.Settings.ContainerPreset.ANY,
+        stringResource(R.string.preset_container_mp4) to com.invictus.xmd.core.Settings.ContainerPreset.MP4,
+        stringResource(R.string.preset_container_webm) to com.invictus.xmd.core.Settings.ContainerPreset.WEBM
+    )
+    val fpsOptions = listOf(
+        stringResource(R.string.preset_any) to com.invictus.xmd.core.Settings.FpsPreset.ANY,
+        stringResource(R.string.preset_fps_30) to com.invictus.xmd.core.Settings.FpsPreset.FPS30,
+        stringResource(R.string.preset_fps_60) to com.invictus.xmd.core.Settings.FpsPreset.FPS60
+    )
+    val codecOptions = listOf(
+        stringResource(R.string.preset_any) to com.invictus.xmd.core.Settings.CodecPreset.ANY,
+        stringResource(R.string.preset_codec_avc) to com.invictus.xmd.core.Settings.CodecPreset.AVC,
+        stringResource(R.string.preset_codec_vp9) to com.invictus.xmd.core.Settings.CodecPreset.VP9,
+        stringResource(R.string.preset_codec_av1) to com.invictus.xmd.core.Settings.CodecPreset.AV1
+    )
+    val audioFormatOptions = listOf(
+        stringResource(R.string.audio_format_mp3) to com.invictus.xmd.core.Settings.AudioFormatPreset.MP3,
+        stringResource(R.string.audio_format_m4a) to com.invictus.xmd.core.Settings.AudioFormatPreset.M4A,
+        stringResource(R.string.audio_format_opus) to com.invictus.xmd.core.Settings.AudioFormatPreset.OPUS,
+        stringResource(R.string.audio_format_original) to com.invictus.xmd.core.Settings.AudioFormatPreset.ORIGINAL
+    )
+
+    // "Ask always" (blank stored value) first, then one entry per
+    // standardQualityOptions() label, same order as the picker dialog
+    // itself so the two stay visually consistent.
+    val askAlwaysLabel = stringResource(R.string.quality_ask_always)
+    val qualityLabels = listOf(askAlwaysLabel) +
+        com.invictus.xmd.core.YtDlpManager.standardQualityOptions().map { it.label }
+
+    fun resolveInitialQualityLabel(): String {
+        val savedLabel = com.invictus.xmd.core.Settings.ytDlpDefaultQualityLabel()
+        return when {
+            savedLabel.isBlank() -> askAlwaysLabel
+            qualityLabels.contains(savedLabel) -> savedLabel
+            // Saved before the audio format preset changed (see the
+            // matching resolveYoutube() fallback) -- show the current
+            // audio-only label instead of a stale "(MP3)" that's no longer
+            // in the list.
+            savedLabel.startsWith("Audio only") ->
+                qualityLabels.firstOrNull { it.startsWith("Audio only") } ?: savedLabel
+            else -> savedLabel
+        }
+    }
+
+    var selectedQualityLabel by remember {
+        mutableStateOf(resolveInitialQualityLabel())
+    }
+    var selectedContainerLabel by remember {
+        mutableStateOf(containerOptions.first { it.second == com.invictus.xmd.core.Settings.presetContainer() }.first)
+    }
+    var selectedFpsLabel by remember {
+        mutableStateOf(fpsOptions.first { it.second == com.invictus.xmd.core.Settings.presetFps() }.first)
+    }
+    var selectedCodecLabel by remember {
+        mutableStateOf(codecOptions.first { it.second == com.invictus.xmd.core.Settings.presetCodec() }.first)
+    }
+    var selectedAudioFormatLabel by remember {
+        mutableStateOf(audioFormatOptions.first { it.second == com.invictus.xmd.core.Settings.presetAudioFormat() }.first)
+    }
+
+    var ytDlpInstalled by remember {
+        mutableStateOf(com.invictus.xmd.core.YtDlpManager.isInstalled(context))
+    }
+    var ytDlpUsingNightly by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.ytDlpUseNightly())
+    }
+    var ytDlpOpState by remember {
+        mutableStateOf<YtDlpOpState>(YtDlpOpState.Idle)
+    }
+
+    fun refreshYtDlpStatus() {
+        ytDlpInstalled = com.invictus.xmd.core.YtDlpManager.isInstalled(context)
+        ytDlpUsingNightly = com.invictus.xmd.core.Settings.ytDlpUseNightly()
+    }
+
+    SettingsYoutubeScreen(
+        liteMode = !com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
+        hintText = stringResource(R.string.settings_ytdlp_hint),
+        qualityLabels = qualityLabels,
+        selectedQualityLabel = selectedQualityLabel,
+        onQualityChanged = { index ->
+            val chosenLabel = qualityLabels[index]
+            selectedQualityLabel = chosenLabel
+            com.invictus.xmd.core.Settings.setYtDlpDefaultQualityLabel(
+                if (chosenLabel == askAlwaysLabel) "" else chosenLabel
+            )
+        },
+        containerOptions = containerOptions.map { it.first },
+        selectedContainer = selectedContainerLabel,
+        onContainerChanged = { index ->
+            selectedContainerLabel = containerOptions[index].first
+            com.invictus.xmd.core.Settings.setPresetContainer(containerOptions[index].second)
+        },
+        fpsOptions = fpsOptions.map { it.first },
+        selectedFps = selectedFpsLabel,
+        onFpsChanged = { index ->
+            selectedFpsLabel = fpsOptions[index].first
+            com.invictus.xmd.core.Settings.setPresetFps(fpsOptions[index].second)
+        },
+        codecOptions = codecOptions.map { it.first },
+        selectedCodec = selectedCodecLabel,
+        onCodecChanged = { index ->
+            selectedCodecLabel = codecOptions[index].first
+            com.invictus.xmd.core.Settings.setPresetCodec(codecOptions[index].second)
+        },
+        audioFormatOptions = audioFormatOptions.map { it.first },
+        selectedAudioFormat = selectedAudioFormatLabel,
+        onAudioFormatChanged = { index ->
+            selectedAudioFormatLabel = audioFormatOptions[index].first
+            com.invictus.xmd.core.Settings.setPresetAudioFormat(audioFormatOptions[index].second)
+        },
+        ytDlpInstalled = ytDlpInstalled,
+        ytDlpUsingNightly = ytDlpUsingNightly,
+        ytDlpOpState = ytDlpOpState,
+        onInstallOrDeleteClick = {
+            if (ytDlpInstalled) {
+                com.invictus.xmd.core.YtDlpManager.delete(context)
+                Toast.makeText(context, R.string.settings_ytdlp_removed, Toast.LENGTH_SHORT).show()
+                refreshYtDlpStatus()
+            } else {
+                ytDlpOpState = YtDlpOpState.Installing
+                scope.launch {
+                    val error = withContext(Dispatchers.IO) { com.invictus.xmd.core.YtDlpManager.install(context) }
+                    // Show the exact failure reason instead of a generic
+                    // message -- install() only unpacks bundled assets, no
+                    // network involved, so a guessed "check your
+                    // connection" message would usually be wrong.
+                    Toast.makeText(
+                        context,
+                        error?.let { "Install failed: $it" } ?: "yt-dlp installed",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    refreshYtDlpStatus()
+                    ytDlpOpState = YtDlpOpState.Idle
+                }
+            }
+        },
+        onUpdateClick = {
+            ytDlpOpState = YtDlpOpState.Updating
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { com.invictus.xmd.core.YtDlpManager.update(context) }
+                Toast.makeText(
+                    context,
+                    result?.let { "yt-dlp: $it" } ?: "Update failed — check your connection",
+                    Toast.LENGTH_LONG
+                ).show()
+                refreshYtDlpStatus()
+                ytDlpOpState = YtDlpOpState.Idle
+            }
+        },
+        onNightlyToggleClick = {
+            val switchingToNightly = !ytDlpUsingNightly
+            ytDlpOpState = YtDlpOpState.SwitchingChannel(switchingToNightly)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    com.invictus.xmd.core.YtDlpManager.switchChannel(context, switchingToNightly)
+                }
+                Toast.makeText(
+                    context,
+                    result?.let { "yt-dlp: $it" } ?: "Switch failed — check your connection",
+                    Toast.LENGTH_LONG
+                ).show()
+                refreshYtDlpStatus()
+                ytDlpOpState = YtDlpOpState.Idle
+            }
+        },
+    )
+}
+
+@Composable
+private fun AboutRoute() {
+    val context = LocalContext.current
+    val developers = listOf(
+        "Utsav Rajput" to "Developer",
+        "Arnab Sadhukhan" to "Developer",
+        "Ritesh Pandit" to "Developer",
+    )
+    val credits = buildList {
+        add("libtorrent4j" to stringResource(R.string.about_credit_libtorrent_desc))
+        if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT) {
+            add("yt-dlp (youtubedl-android)" to stringResource(R.string.about_credit_ytdlp_desc))
+        }
+        add("OkHttp" to stringResource(R.string.about_credit_okhttp_desc))
+        add("jsoup" to stringResource(R.string.about_credit_jsoup_desc))
+        add("Room" to stringResource(R.string.about_credit_room_desc))
+        add("Kotlin Coroutines" to stringResource(R.string.about_credit_coroutines_desc))
+    }
+
+    AboutScreen(
+        versionText = stringResource(R.string.about_version_format, com.invictus.xmd.BuildConfig.VERSION_NAME),
+        onGithubClick = {
+            val url = context.getString(R.string.about_github_url)
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        },
+        developers = developers,
+        credits = credits,
+    )
 }

@@ -1,12 +1,14 @@
 package com.invictus.xmd.core
 
 import android.content.Context
-import androidx.lifecycle.LiveData
 import com.invictus.xmd.core.db.AppDatabase
 import com.invictus.xmd.core.db.BookmarkDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -23,13 +25,19 @@ object BookmarkRepository {
     private lateinit var dao: BookmarkDao
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    lateinit var bookmarks: LiveData<List<Bookmark>>
+    lateinit var bookmarks: StateFlow<List<Bookmark>>
         private set
 
     fun init(context: Context) {
         if (::dao.isInitialized) return
         dao = AppDatabase.get(context).bookmarkDao()
+        // WhileSubscribed(5000) -- keeps the query alive briefly across the
+        // Bookmarks screen being backgrounded/recreated (e.g. rotation),
+        // same tolerance collectAsStateWithLifecycle() expects, without
+        // holding the DB flow open for the whole app lifetime like
+        // Eagerly would.
         bookmarks = dao.observeAll()
+            .stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
     fun add(title: String, url: String) {

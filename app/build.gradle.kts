@@ -1,12 +1,13 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt")
 }
 
 android {
     namespace = "com.invictus.xmd"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.invictus.xmd"
@@ -90,12 +91,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
-        viewBinding = true
         buildConfig = true
+        compose = true
+    }
+
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -103,8 +108,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.lifecycle:lifecycle-service:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
@@ -116,9 +119,10 @@ dependencies {
     // Room: persists the download queue to disk so it survives app/process
     // restart (previously QueueRepository was in-memory only -- see
     // core/db/AppDatabase.kt).
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    val roomVersion = "2.8.4"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;
@@ -135,4 +139,35 @@ dependencies {
     // be a runtime download and has to be an opt-in separate APK instead.
     "fullImplementation"("io.github.junkfood02.youtubedl-android:library:0.18.1")
     "fullImplementation"("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+
+    // Jetpack Compose -- BOM pins every androidx.compose.* artifact below to
+    // mutually-compatible versions, so only the BOM line needs bumping later.
+    // The app UI is Compose-first; AndroidView remains only for WebView.
+    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("com.composables:icons-material-symbols-rounded-filled-android:2.2.1")
+
+    // Activity/Fragment <-> Compose interop (setContent {}, ComposeView) and
+    // typed navigation between Compose screens, replacing the Fragment-based
+    // nav graph as each screen migrates.
+    implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.fragment:fragment-ktx:1.8.3")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // Lets ViewModels expose StateFlow/collectAsStateWithLifecycle() straight
+    // into composables -- QueueRepository, BookmarkRepository etc. already
+    // expose Flow, so this is the natural consumption point on the UI side.
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+
+    // Preview/inspection tooling for Android Studio's Compose preview pane
+    // (debug builds only -- adds nothing to release APK size).
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

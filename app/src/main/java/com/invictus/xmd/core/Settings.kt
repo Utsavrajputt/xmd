@@ -10,9 +10,9 @@ import com.invictus.xmd.ui.theme.AppTheme
 object Settings {
     /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
      *  by the Wi-Fi-only setting (DownloadService) rather than a manual
-     *  Pause -- shared so QueueAdapter can show a clearer label than the
+     *  Pause -- shared so QueueItemRow (DownloadsScreen.kt) can show a clearer label than the
      *  generic "Paused" text, without DownloadService's pause logic and
-     *  QueueAdapter's display logic needing to know about each other. */
+     *  QueueItemRow's display logic needing to know about each other. */
     const val WIFI_WAIT_MARKER = "Waiting for Wi-Fi"
 
     private const val PREFS = "ff_settings"
@@ -235,5 +235,77 @@ object Settings {
         }
     fun setPresetAudioFormat(value: AudioFormatPreset) {
         prefs.edit().putString(KEY_PRESET_AUDIO_FORMAT, value.name).apply()
+    }
+
+    // ── Bottom nav: tab order / hidden tabs / default tab ──────────────────
+    // Four slots total: three real page tabs (home/downloads/browser) plus
+    // "add" (the center FAB -- not a page, just an action, so it's never a
+    // valid default tab). Order and hidden-set are stored as CSV of these
+    // ids; unknown/missing ids are healed on read so a future app update
+    // that adds/removes a tab id doesn't leave a stale or incomplete list.
+    object TabId {
+        const val HOME = "home"
+        const val DOWNLOADS = "downloads"
+        const val ADD = "add"
+        const val BROWSER = "browser"
+        val ALL = listOf(HOME, DOWNLOADS, ADD, BROWSER)
+        val PAGES = listOf(HOME, DOWNLOADS, BROWSER)
+    }
+
+    private const val KEY_TAB_ORDER = "nav_tab_order"
+    private const val KEY_HIDDEN_TABS = "nav_hidden_tabs"
+    private const val KEY_DEFAULT_TAB = "nav_default_tab"
+
+    /** Left-to-right order of all four tab slots. Any id missing from a
+     *  stored (older/corrupted) list is appended at the end; any unknown
+     *  stored id is dropped -- keeps this always a valid permutation of
+     *  [TabId.ALL]. */
+    fun tabOrder(): List<String> {
+        val stored = prefs.getString(KEY_TAB_ORDER, null)
+            ?.split(",")
+            ?.filter { it.isNotBlank() }
+            ?.filter { it in TabId.ALL }
+            ?.distinct()
+            .orEmpty()
+        val missing = TabId.ALL.filterNot { it in stored }
+        return if (stored.isEmpty()) TabId.ALL else stored + missing
+    }
+
+    fun setTabOrder(order: List<String>) {
+        prefs.edit().putString(KEY_TAB_ORDER, order.joinToString(",")).apply()
+    }
+
+    /** Tabs the user has hidden from the bottom nav. At least one entry in
+     *  [TabId.PAGES] is always kept visible -- callers should refuse to hide
+     *  the last visible page tab rather than relying on this to fix it up,
+     *  but as a last-resort guard, a stored set that would hide every page
+     *  tab has that constraint dropped on read. */
+    fun hiddenTabs(): Set<String> {
+        val stored = prefs.getString(KEY_HIDDEN_TABS, "")
+            ?.split(",")
+            ?.filter { it.isNotBlank() && it in TabId.ALL }
+            ?.toSet()
+            .orEmpty()
+        val wouldHideAllPages = TabId.PAGES.all { it in stored }
+        return if (wouldHideAllPages) stored - TabId.PAGES.toSet() else stored
+    }
+
+    fun setHiddenTabs(hidden: Set<String>) {
+        prefs.edit().putString(KEY_HIDDEN_TABS, hidden.joinToString(",")).apply()
+    }
+
+    /** Which page tab the app opens on. Falls back to the first visible page
+     *  tab (in [tabOrder] order) if the stored choice is invalid, hidden, or
+     *  unset, and to [TabId.DOWNLOADS] if nothing is visible at all. */
+    fun defaultTab(): String {
+        val stored = prefs.getString(KEY_DEFAULT_TAB, null)
+        val hidden = hiddenTabs()
+        if (stored != null && stored in TabId.PAGES && stored !in hidden) return stored
+        return tabOrder().firstOrNull { it in TabId.PAGES && it !in hidden } ?: TabId.DOWNLOADS
+    }
+
+    fun setDefaultTab(value: String) {
+        if (value !in TabId.PAGES) return
+        prefs.edit().putString(KEY_DEFAULT_TAB, value).apply()
     }
 }
