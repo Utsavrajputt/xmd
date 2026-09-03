@@ -1,5 +1,14 @@
 package com.invictus.xmd.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -7,26 +16,35 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,7 +62,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -225,8 +248,8 @@ fun DownloadsScreen(
     // ── Long-press options menu ──────────────────────────────────────────
     optionsTarget?.let { item ->
         val file = item.filePath?.let { java.io.File(it) }?.takeIf { it.exists() }
-        DownloadOptionsDialog(
-            title = item.fileName ?: item.sourceUrl,
+        DownloadOptionsSheet(
+            item = item,
             showOpenWithAndRename = file != null,
             onOpenWith = { onOpenWith(item); optionsTarget = null },
             onRename = { renameTarget = item; optionsTarget = null },
@@ -252,6 +275,7 @@ fun DownloadsScreen(
     deleteTarget?.let { item ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
+            shape = RoundedCornerShape(20.dp),
             title = { Text(stringResource(R.string.delete_download_title)) },
             text = { Text(item.fileName ?: item.sourceUrl) },
             confirmButton = {
@@ -343,80 +367,87 @@ fun QueueItemRow(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(IntrinsicSize.Min)
                 .combinedClickable(onClick = {}, onLongClick = {
                     if (item.status == ItemStatus.DONE || item.status == ItemStatus.FAILED) onLongPress(item)
                 }),
         ) {
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxSize()
+                    .width(3.5.dp)
+                    .fillMaxHeight()
                     .background(colorForStatus(item.status)),
             )
-            Column(modifier = Modifier.weight(1f).padding(12.dp)) {
-                // Title row: filename + category badge
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                // Title row: filename + file type bubble
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text(
                         text = item.fileName ?: item.sourceUrl,
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    Text(
-                        text = item.category.label,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
+                    Spacer(Modifier.width(6.dp))
+                    FileTypeBubble(item)
                 }
 
-                Text(
-                    text = statusText(item),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
+                // Status row: icon + percentage/state
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    val statusIcon = when (item.status) {
+                        ItemStatus.PAUSED -> Icons.Pause
+                        ItemStatus.DOWNLOADING -> Icons.Download
+                        ItemStatus.DONE -> Icons.Check
+                        ItemStatus.FAILED -> Icons.Close
+                        ItemStatus.RETRYING -> Icons.Refresh
+                        ItemStatus.SAVING -> Icons.Sync
+                        else -> null
+                    }
+                    if (statusIcon != null) {
+                        Icon(
+                            imageVector = statusIcon,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = colorForStatus(item.status),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = statusText(item),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
 
                 SizeAndMetaRow(item)
 
                 if (showsProgressBar(item.status)) {
                     val (progressValue, indeterminate) = progressFor(item)
-                    Box(modifier = Modifier.padding(top = 8.dp)) {
-                        if (indeterminate) {
-                            LinearProgressIndicator(
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            )
-                        } else {
-                            LinearProgressIndicator(
-                                progress = { progressValue },
-                                modifier = Modifier.fillMaxWidth(),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            )
-                        }
-                    }
-                }
-
-                if (item.status == ItemStatus.DOWNLOADING && item.speedBps > 0) {
-                    Text(
-                        text = buildSpeedEtaText(item),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
+                    DownloadProgressBar(
+                        progress = progressValue,
+                        isDownloading = item.status == ItemStatus.DOWNLOADING,
+                        isIndeterminate = indeterminate,
                         modifier = Modifier.padding(top = 5.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
                 }
 
@@ -430,13 +461,17 @@ fun QueueItemRow(
                     item.status == ItemStatus.PENDING || item.status == ItemStatus.RESOLVING ||
                     item.status == ItemStatus.NEEDS_CHALLENGE
                 if (showActions) {
-                    Row(modifier = Modifier.padding(top = 6.dp)) {
+                    Row(modifier = Modifier.padding(top = 4.dp)) {
                         if (!hidePauseResume) {
                             RowActionButton(
                                 text = when (item.status) {
                                     ItemStatus.READY -> stringResource(R.string.action_start)
                                     ItemStatus.PAUSED -> stringResource(R.string.action_resume)
                                     else -> stringResource(R.string.action_pause)
+                                },
+                                icon = when (item.status) {
+                                    ItemStatus.READY, ItemStatus.PAUSED -> Icons.Play
+                                    else -> Icons.Pause
                                 },
                                 color = MaterialTheme.colorScheme.primary,
                                 onClick = { onPauseResume(item) },
@@ -446,6 +481,7 @@ fun QueueItemRow(
                         if (item.status != ItemStatus.READY) {
                             RowActionButton(
                                 text = stringResource(R.string.action_cancel),
+                                icon = Icons.Close,
                                 color = MaterialTheme.colorScheme.error,
                                 onClick = { onCancel(item) },
                             )
@@ -458,10 +494,11 @@ fun QueueItemRow(
                     item.status == ItemStatus.READY || item.status == ItemStatus.PENDING ||
                     item.status == ItemStatus.RESOLVING || item.status == ItemStatus.NEEDS_CHALLENGE
                 if (showSecondary) {
-                    Row(modifier = Modifier.padding(top = 6.dp)) {
+                    Row(modifier = Modifier.padding(top = 4.dp)) {
                         if (item.status == ItemStatus.FAILED) {
                             RowActionButton(
                                 text = stringResource(R.string.action_retry),
+                                icon = Icons.Refresh,
                                 color = MaterialTheme.colorScheme.primary,
                                 onClick = { onRetry(item) },
                                 trailingSpace = true,
@@ -470,6 +507,7 @@ fun QueueItemRow(
                         if (item.status == ItemStatus.DONE && item.filePath != null) {
                             RowActionButton(
                                 text = stringResource(R.string.action_open),
+                                icon = Icons.FileOpen,
                                 color = MaterialTheme.colorScheme.primary,
                                 onClick = { onOpen(item) },
                                 trailingSpace = true,
@@ -477,6 +515,7 @@ fun QueueItemRow(
                         }
                         RowActionButton(
                             text = stringResource(R.string.action_clear),
+                            icon = Icons.DeleteSweep,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             onClick = { onClear(item) },
                         )
@@ -488,15 +527,184 @@ fun QueueItemRow(
 }
 
 @Composable
-private fun RowActionButton(text: String, color: Color, onClick: () -> Unit, trailingSpace: Boolean = false) {
+private fun FileTypeBubble(item: QueueItem) {
+    val type = remember(item.fileName, item.sourceUrl, item.platform, item.mediaFormatLabel, item.category) {
+        fileTypeLabel(item)
+    }
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+    ) {
+        Text(
+            text = type,
+            fontWeight = FontWeight.Bold,
+            fontSize = 9.5.sp,
+            letterSpacing = 0.4.sp,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+private fun fileTypeLabel(item: QueueItem): String {
+    if (item.platform == MediaPlatform.YOUTUBE) {
+        val format = item.mediaFormatLabel?.trim()
+        if (!format.isNullOrEmpty()) {
+            val f = format.lowercase()
+            if (f.contains("audio") || f.contains("mp3") || f.contains("m4a") || f.contains("opus")) return "AUDIO"
+            if (f.contains("1080")) return "1080P"
+            if (f.contains("720")) return "720P"
+            if (f.contains("4k") || f.contains("2160")) return "4K"
+            if (f.contains("480")) return "480P"
+            if (f.contains("360")) return "360P"
+            return "VIDEO"
+        }
+        return "YOUTUBE"
+    }
+    val name = item.fileName ?: item.sourceUrl
+    val cleanName = name.substringBefore('?').substringBefore('#')
+    if (item.sourceUrl.startsWith("magnet:", ignoreCase = true) || cleanName.endsWith(".torrent", ignoreCase = true)) {
+        return "TORRENT"
+    }
+    val ext = cleanName.substringAfterLast('.', "").trim()
+    if (ext.isNotEmpty() && ext.length in 2..5 && ext.all { it.isLetterOrDigit() }) {
+        return ext.uppercase()
+    }
+    return item.category.label.uppercase()
+}
+
+@Composable
+private fun DownloadProgressBar(
+    progress: Float,
+    isDownloading: Boolean,
+    isIndeterminate: Boolean,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "download_wave_transition")
+    val wavePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "wave_phase",
+    )
+    val indeterminateOffset by infiniteTransition.animateFloat(
+        initialValue = -0.35f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "indeterminate_offset",
+    )
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(10.dp),
+    ) {
+        val centerY = size.height / 2f
+        val strokeWidth = 3.5.dp.toPx()
+        val totalWidth = size.width
+
+        // Background track
+        drawLine(
+            color = trackColor,
+            start = Offset(0f, centerY),
+            end = Offset(totalWidth, centerY),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+
+        if (isIndeterminate) {
+            val barLength = totalWidth * 0.35f
+            val startX = (indeterminateOffset * totalWidth).coerceIn(0f, totalWidth)
+            val endX = ((indeterminateOffset * totalWidth) + barLength).coerceIn(0f, totalWidth)
+            if (endX > startX) {
+                drawLine(
+                    color = color,
+                    start = Offset(startX, centerY),
+                    end = Offset(endX, centerY),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
+        } else {
+            val progressWidth = (totalWidth * progress.coerceIn(0f, 1f))
+            if (progressWidth > 0f) {
+                if (isDownloading && progress < 1f) {
+                    // Animated wavy progress bar when downloading
+                    val waveLength = 22.dp.toPx()
+                    val amplitude = 2.2.dp.toPx()
+                    val path = Path()
+                    path.moveTo(0f, centerY)
+
+                    var x = 0f
+                    val step = 2f
+                    while (x <= progressWidth) {
+                        val angle = ((x / waveLength) + wavePhase) * 2f * Math.PI.toFloat()
+                        val taper = ((progressWidth - x) / 12.dp.toPx()).coerceIn(0f, 1f) *
+                            (x / 12.dp.toPx()).coerceIn(0f, 1f)
+                        val y = centerY + (kotlin.math.sin(angle) * amplitude * taper)
+                        path.lineTo(x, y)
+                        x += step
+                    }
+                    path.lineTo(progressWidth, centerY)
+
+                    drawPath(
+                        path = path,
+                        color = color,
+                        style = Stroke(
+                            width = strokeWidth,
+                            cap = StrokeCap.Round,
+                            join = StrokeJoin.Round,
+                        ),
+                    )
+                } else {
+                    // Straight solid bar when completed (DONE) or paused
+                    drawLine(
+                        color = color,
+                        start = Offset(0f, centerY),
+                        end = Offset(progressWidth, centerY),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowActionButton(
+    text: String,
+    icon: AppIcon? = null,
+    color: Color,
+    onClick: () -> Unit,
+    trailingSpace: Boolean = false,
+) {
     TextButton(
         onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
         colors = ButtonDefaults.textButtonColors(contentColor = color),
+        modifier = Modifier.height(28.dp),
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
-    if (trailingSpace) Box(modifier = Modifier.width(24.dp))
+    if (trailingSpace) Box(modifier = Modifier.width(8.dp))
 }
 
 @Composable
@@ -505,8 +713,8 @@ private fun SizeAndMetaRow(item: QueueItem) {
         ItemStatus.DOWNLOADING, ItemStatus.PAUSED, ItemStatus.SAVING, ItemStatus.RETRYING -> {
             val sizeText = inFlightSizeText(item)
             if (sizeText != null) {
-                Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(sizeText, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(sizeText, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
                 }
             }
         }
@@ -529,17 +737,17 @@ private fun SizeAndMetaRow(item: QueueItem) {
             }
             if (bytes > 0 || metaParts.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (bytes > 0) {
-                        Text(formatBytes(bytes), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(formatBytes(bytes), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
                     }
                     if (metaParts.isNotEmpty()) {
                         Text(
                             text = metaParts.joinToString("  •  "),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f).padding(start = 8.dp),
@@ -565,45 +773,65 @@ private fun inFlightSizeText(item: QueueItem): String? = when {
 }
 
 private fun showsProgressBar(status: ItemStatus) =
-    status == ItemStatus.DOWNLOADING || status == ItemStatus.DONE || status == ItemStatus.SAVING
+    status == ItemStatus.DOWNLOADING || status == ItemStatus.PAUSED || status == ItemStatus.DONE || status == ItemStatus.SAVING
 
 /** Returns (progressFraction 0f..1f, isIndeterminate). */
 private fun progressFor(item: QueueItem): Pair<Float, Boolean> = when (item.status) {
-    ItemStatus.DOWNLOADING -> when {
+    ItemStatus.DOWNLOADING, ItemStatus.PAUSED -> when {
         item.platform == MediaPlatform.YOUTUBE ->
-            if (item.progressPercent >= 0) (item.progressPercent / 100f) to false else 0f to true
-        item.bytesTotal > 0 -> ((item.bytesDone * 100 / item.bytesTotal).toFloat() / 100f) to false
-        else -> 0f to true
+            if (item.progressPercent >= 0) (item.progressPercent / 100f) to false else 0f to (item.status == ItemStatus.DOWNLOADING)
+        item.bytesTotal > 0 -> ((item.bytesDone.toFloat() / item.bytesTotal.toFloat())).coerceIn(0f, 1f) to false
+        else -> 0f to (item.status == ItemStatus.DOWNLOADING)
     }
     ItemStatus.DONE, ItemStatus.SAVING -> 1f to false
     else -> 0f to true
 }
 
 private fun statusText(item: QueueItem): String = when (item.status) {
-    ItemStatus.PENDING -> "⏳ Queued"
-    ItemStatus.RESOLVING -> "🔄 Resolving…"
-    ItemStatus.NEEDS_CHALLENGE -> "🛡 Verifying — complete check in browser"
-    ItemStatus.READY -> "✅ Ready to download"
-    ItemStatus.DOWNLOADING -> if (item.platform == MediaPlatform.YOUTUBE) {
-        val label = item.mediaFormatLabel?.let { " • $it" }.orEmpty()
-        "⬇  ${if (item.progressPercent >= 0) "${item.progressPercent}%" else "Downloading…"}$label"
-    } else {
-        val pct = if (item.bytesTotal > 0) (item.bytesDone * 100 / item.bytesTotal) else 0
-        "⬇  ${if (item.bytesTotal > 0) "$pct%" else "Downloading…"}"
+    ItemStatus.PENDING -> "Queued"
+    ItemStatus.RESOLVING -> "Resolving…"
+    ItemStatus.NEEDS_CHALLENGE -> "Verifying — complete check in browser"
+    ItemStatus.READY -> "Ready to download"
+    ItemStatus.DOWNLOADING -> {
+        val pct = when {
+            item.platform == MediaPlatform.YOUTUBE && item.progressPercent >= 0 -> "${item.progressPercent}%"
+            item.bytesTotal > 0 -> "${(item.bytesDone * 100 / item.bytesTotal)}%"
+            else -> "Downloading…"
+        }
+        val speedEta = if (item.speedBps > 0) buildSpeedEtaText(item) else null
+        val label = if (item.platform == MediaPlatform.YOUTUBE) item.mediaFormatLabel?.let { " • $it" } else null
+        buildString {
+            append(pct)
+            if (speedEta != null) {
+                append(" • ")
+                append(speedEta)
+            }
+            if (label != null) {
+                append(label)
+            }
+        }
     }
-    ItemStatus.PAUSED -> if (item.error == Settings.WIFI_WAIT_MARKER) "📶 Waiting for Wi-Fi" else "⏸  Paused"
-    ItemStatus.RETRYING -> "🔁 ${item.error ?: "Retrying…"}"
-    ItemStatus.SAVING -> "💾 Saving to storage…"
-    ItemStatus.DONE -> "✔  Done"
-    ItemStatus.FAILED -> "✖  ${item.error ?: "Failed"}"
+    ItemStatus.PAUSED -> {
+        val pct = when {
+            item.platform == MediaPlatform.YOUTUBE && item.progressPercent >= 0 -> "${item.progressPercent}%"
+            item.bytesTotal > 0 -> "${(item.bytesDone * 100 / item.bytesTotal)}%"
+            else -> null
+        }
+        val label = if (item.error == Settings.WIFI_WAIT_MARKER) "Waiting for Wi-Fi" else "Paused"
+        if (pct != null) "$pct • $label" else label
+    }
+    ItemStatus.RETRYING -> item.error ?: "Retrying…"
+    ItemStatus.SAVING -> "Saving to storage…"
+    ItemStatus.DONE -> "Completed"
+    ItemStatus.FAILED -> item.error ?: "Failed"
 }
 
 @Composable
 private fun colorForStatus(status: ItemStatus): Color = when (status) {
     ItemStatus.PENDING, ItemStatus.RESOLVING, ItemStatus.NEEDS_CHALLENGE -> MaterialTheme.colorScheme.onSurfaceVariant
-    ItemStatus.READY, ItemStatus.DOWNLOADING, ItemStatus.SAVING -> MaterialTheme.colorScheme.primary
-    ItemStatus.PAUSED, ItemStatus.RETRYING -> Color(0xFFFFD08C) // ff_warning
-    ItemStatus.DONE -> Color(0xFF8CDB9C) // ff_success
+    ItemStatus.READY, ItemStatus.DOWNLOADING, ItemStatus.SAVING, ItemStatus.PAUSED -> MaterialTheme.colorScheme.primary
+    ItemStatus.RETRYING -> MaterialTheme.colorScheme.secondary
+    ItemStatus.DONE -> MaterialTheme.colorScheme.primary
     ItemStatus.FAILED -> MaterialTheme.colorScheme.error
 }
 
@@ -647,13 +875,13 @@ private fun formatDuration(totalSeconds: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
 }
 
-// ── Dialogs ───────────────────────────────────────────────────────────────
+// ── Dialogs & Sheets ───────────────────────────────────────────────────────
 
-/** Long-press options for a DONE/FAILED row -- same action list/order as
- *  DownloadsFragment.showDownloadOptionsDialog. */
+/** Long-press bottom sheet options for a completed or failed download. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DownloadOptionsDialog(
-    title: String,
+private fun DownloadOptionsSheet(
+    item: QueueItem,
     showOpenWithAndRename: Boolean,
     onOpenWith: () -> Unit,
     onRename: () -> Unit,
@@ -663,38 +891,147 @@ private fun DownloadOptionsDialog(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val title = item.fileName ?: item.sourceUrl
+    val subtitle = when {
+        item.status == ItemStatus.DONE && item.bytesDone > 0 -> "Downloaded \u00b7 " + formatBytes(item.bytesDone)
+        item.status == ItemStatus.FAILED -> item.error ?: "Download failed"
+        else -> null
+    }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        text = {
-            Column {
-                if (showOpenWithAndRename) {
-                    DialogOptionRow(stringResource(R.string.action_open_with), onOpenWith)
-                    DialogOptionRow(stringResource(R.string.action_rename), onRename)
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp),
+        ) {
+            // Header: Title & Subtitle
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (item.status == ItemStatus.FAILED) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                DialogOptionRow(stringResource(R.string.action_redownload), onRedownload)
-                DialogOptionRow(stringResource(R.string.action_copy_link), onCopyLink)
-                DialogOptionRow(stringResource(R.string.action_share), onShare)
-                DialogOptionRow(stringResource(R.string.action_delete), onDelete)
             }
-        },
-        confirmButton = {},
-        dismissButton = {},
-    )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+
+            // Actions list
+            if (showOpenWithAndRename) {
+                SheetActionRow(
+                    icon = Icons.OpenInNew,
+                    label = stringResource(R.string.action_open_with),
+                    onClick = onOpenWith,
+                )
+                SheetActionRow(
+                    icon = Icons.Edit,
+                    label = stringResource(R.string.action_rename),
+                    onClick = onRename,
+                )
+            }
+            SheetActionRow(
+                icon = Icons.Refresh,
+                label = stringResource(R.string.action_redownload),
+                onClick = onRedownload,
+            )
+            SheetActionRow(
+                icon = Icons.Copy,
+                label = stringResource(R.string.action_copy_link),
+                onClick = onCopyLink,
+            )
+            SheetActionRow(
+                icon = Icons.Share,
+                label = stringResource(R.string.action_share),
+                onClick = onShare,
+            )
+            SheetActionRow(
+                icon = Icons.Delete,
+                label = stringResource(R.string.action_delete),
+                isDestructive = true,
+                onClick = onDelete,
+            )
+        }
+    }
 }
 
 @Composable
-private fun DialogOptionRow(label: String, onClick: () -> Unit) {
+private fun SheetActionRow(
+    icon: AppIcon,
+    label: String,
+    isDestructive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val iconTint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val containerColor = if (isDestructive) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+    else MaterialTheme.colorScheme.surfaceContainerHigh
+
     Surface(
         onClick = onClick,
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
     ) {
-        Text(
-            text = label,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(containerColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = contentColor,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -703,6 +1040,7 @@ private fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDis
     var text by remember(currentName) { mutableStateOf(currentName) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
         title = { Text(stringResource(R.string.action_rename)) },
         text = {
             OutlinedTextField(
@@ -710,6 +1048,7 @@ private fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDis
                 onValueChange = { text = it },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(),
             )
         },

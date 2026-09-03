@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Settings
+import kotlinx.coroutines.flow.first
 
 private val HeadingFont = FontFamily(
     Font(R.font.space_grotesk_semibold, weight = FontWeight.SemiBold),
@@ -77,8 +78,15 @@ fun XmdTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as? Activity)?.window ?: return@SideEffect
+        androidx.compose.runtime.LaunchedEffect(isDark, isAmoled, colorScheme) {
+            if (transitionState.isAnimating) {
+                androidx.compose.runtime.snapshotFlow {
+                    transitionState.animationProgress.value to transitionState.isAnimating
+                }.first { (progress, isAnimating) ->
+                    !isAnimating || progress >= 0.55f
+                }
+            }
+            val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
             window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
             window.navigationBarColor = colorScheme.background.toArgb()
             val insetsController = WindowCompat.getInsetsController(window, view)

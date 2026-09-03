@@ -1,21 +1,27 @@
 package com.invictus.xmd.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
@@ -23,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
 import com.invictus.xmd.core.DownloadEngine
@@ -99,6 +108,10 @@ fun AddDownloadDialog(
 
     val needsYtDlp = LinkParser.needsYtDlp(link)
     val isGeneric = !LinkParser.isYoutubeLink(link)
+    val needsPrepare = remember(link) {
+        val trimmed = link.trim()
+        trimmed.isNotBlank() && (LinkParser.isShareLink(trimmed) || LinkParser.isFitgirlPage(trimmed))
+    }
 
     var selectedQualityLabel by remember { mutableStateOf<String?>(null) }
     var selectedQualityOption by remember { mutableStateOf<YtDlpManager.QualityOption?>(null) }
@@ -184,39 +197,67 @@ fun AddDownloadDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Download,
+                    imageVector = when {
+                        needsPrepare -> Icons.Sync
+                        needsYtDlp -> Icons.Youtube
+                        else -> Icons.Download
+                    },
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.download_dialog_title))
+                Text(
+                    if (needsPrepare) stringResource(R.string.action_prepare) + " " + stringResource(R.string.download_dialog_title)
+                    else stringResource(R.string.download_dialog_title)
+                )
             }
         },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         stringResource(R.string.torrent_dialog_link_label),
                         style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    IconButton(onClick = { onCopyLink(link) }) {
-                        Icon(imageVector = Icons.Copy, contentDescription = stringResource(R.string.torrent_dialog_copy_link))
-                    }
-                    IconButton(onClick = {
-                        val pasted = onPasteRequest()
-                        if (!pasted.isNullOrBlank()) {
-                            if (LinkParser.isTorrentLink(pasted) && pasted.contains("xt=", ignoreCase = true)) {
-                                onDetectedTorrentLink(pasted)
-                            } else {
-                                nameManuallyEdited = false
-                                link = pasted
-                            }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            onClick = { onCopyLink(link) },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Copy,
+                                contentDescription = stringResource(R.string.torrent_dialog_copy_link),
+                                modifier = Modifier.size(18.dp),
+                            )
                         }
-                    }) {
-                        Icon(imageVector = Icons.Paste, contentDescription = stringResource(R.string.dialog_paste_link))
+                        IconButton(
+                            onClick = {
+                                val pasted = onPasteRequest()
+                                if (!pasted.isNullOrBlank()) {
+                                    if (LinkParser.isTorrentLink(pasted) && pasted.contains("xt=", ignoreCase = true)) {
+                                        onDetectedTorrentLink(pasted)
+                                    } else {
+                                        nameManuallyEdited = false
+                                        link = pasted
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Paste,
+                                contentDescription = stringResource(R.string.dialog_paste_link),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = link,
                     onValueChange = { text ->
@@ -226,34 +267,64 @@ fun AddDownloadDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     placeholder = { Text(stringResource(R.string.download_dialog_link_hint)) },
                     minLines = 2,
                     maxLines = 4,
                 )
 
                 if (!needsYtDlp) {
-                    TextButton(onClick = onPickTorrentFile) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onPickTorrentFile,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.torrent_dialog_pick_file))
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.torrent_dialog_name_label), style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    stringResource(R.string.torrent_dialog_name_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it; nameManuallyEdited = true },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
                     placeholder = { Text(stringResource(R.string.download_dialog_name_placeholder)) },
                     maxLines = 2,
                 )
 
                 if (needsYtDlp) {
-                    Spacer(Modifier.height(16.dp))
-                    Text(stringResource(R.string.download_dialog_quality_label), style = MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        stringResource(R.string.download_dialog_quality_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         var qualityMenuExpanded by remember { mutableStateOf(false) }
                         Box(Modifier.weight(1f)) {
-                            OutlinedButton(onClick = { qualityMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+                                onClick = { qualityMenuExpanded = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                            ) {
                                 Text(selectedQualityLabel ?: "\u2014")
                             }
                             DropdownMenu(expanded = qualityMenuExpanded, onDismissRequest = { qualityMenuExpanded = false }) {
@@ -269,7 +340,6 @@ fun AddDownloadDialog(
                             }
                         }
                         if (selectedQualityLabel == "Audio only") {
-                            Spacer(Modifier.width(10.dp))
                             var audioMenuExpanded by remember { mutableStateOf(false) }
                             val audioFormatChoices = listOf(
                                 "MP3" to Settings.AudioFormatPreset.MP3,
@@ -278,7 +348,11 @@ fun AddDownloadDialog(
                                 "Original" to Settings.AudioFormatPreset.ORIGINAL,
                             )
                             Box(Modifier.weight(1f)) {
-                                OutlinedButton(onClick = { audioMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                OutlinedButton(
+                                    onClick = { audioMenuExpanded = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
                                     Text(audioFormatChoices.firstOrNull { it.second == audioFormatPreset }?.first ?: "MP3")
                                 }
                                 DropdownMenu(expanded = audioMenuExpanded, onDismissRequest = { audioMenuExpanded = false }) {
@@ -294,7 +368,7 @@ fun AddDownloadDialog(
                     }
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -305,6 +379,7 @@ fun AddDownloadDialog(
                     Text(
                         stringResource(R.string.torrent_dialog_advanced_label),
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
@@ -314,57 +389,119 @@ fun AddDownloadDialog(
                 }
 
                 if (advancedExpanded) {
-                    Text(stringResource(R.string.torrent_dialog_save_to_label), style = MaterialTheme.typography.labelSmall)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            customSaveDir ?: defaultSavePath,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 2,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        TextButton(onClick = { onChangeSaveDir { path -> customSaveDir = path } }) {
-                            Text(stringResource(R.string.torrent_dialog_change_path))
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        stringResource(R.string.torrent_dialog_save_to_label),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Folder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = customSaveDir ?: defaultSavePath,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            OutlinedButton(
+                                onClick = { onChangeSaveDir { path -> customSaveDir = path } },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.torrent_dialog_change_path),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
                         }
                     }
 
                     if (needsYtDlp) {
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(14.dp))
                         Text(
                             stringResource(R.string.download_dialog_advanced_streams_title),
                             style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Spacer(Modifier.height(6.dp))
                         when {
                             advancedLoading -> Text(
                                 stringResource(R.string.download_dialog_advanced_streams_probing),
                                 style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 4.dp),
                             )
                             advancedFormats.isEmpty() -> Text(
                                 stringResource(R.string.download_dialog_advanced_streams_empty),
                                 style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 4.dp),
                             )
-                            else -> Column(Modifier.heightIn(max = 210.dp).verticalScroll(rememberScrollState())) {
-                                advancedFormats.forEach { format ->
-                                    val label = advancedStreamLabel(format, advancedDurationSeconds)
-                                    Row(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .selectable(
-                                                selected = selectedAdvancedFormat == format,
-                                                onClick = {
-                                                    selectedAdvancedFormat = format
-                                                    selectedQualityOption = YtDlpManager.QualityOption(
-                                                        label = label,
-                                                        formatSelector = YtDlpManager.advancedSelector(format),
-                                                        isAudioOnly = format.isAudioOnly,
-                                                    )
-                                                    if (format.isAudioOnly) selectedQualityLabel = "Audio only"
-                                                },
+                            else -> Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 210.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            ) {
+                                Column(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    advancedFormats.forEachIndexed { index, format ->
+                                        val label = advancedStreamLabel(format, advancedDurationSeconds)
+                                        Row(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .selectable(
+                                                    selected = selectedAdvancedFormat == format,
+                                                    onClick = {
+                                                        selectedAdvancedFormat = format
+                                                        selectedQualityOption = YtDlpManager.QualityOption(
+                                                            label = label,
+                                                            formatSelector = YtDlpManager.advancedSelector(format),
+                                                            isAudioOnly = format.isAudioOnly,
+                                                        )
+                                                        if (format.isAudioOnly) selectedQualityLabel = "Audio only"
+                                                    },
+                                                )
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            RadioButton(selected = selectedAdvancedFormat == format, onClick = null)
+                                            Text(
+                                                label,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.padding(start = 8.dp),
                                             )
-                                            .padding(vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        RadioButton(selected = selectedAdvancedFormat == format, onClick = null)
-                                        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+                                        }
+                                        if (index < advancedFormats.lastIndex) {
+                                            HorizontalDivider(
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -378,7 +515,19 @@ fun AddDownloadDialog(
                 if (link.isNotBlank()) {
                     onStart(link.trim(), name.trim().takeUnless { it.isBlank() }, customSaveDir, selectedQualityOption, audioFormatPreset)
                 }
-            }) { Text(stringResource(R.string.torrent_dialog_start)) }
+            }) {
+                if (needsPrepare) {
+                    Icon(
+                        imageVector = Icons.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.action_prepare))
+                } else {
+                    Text(stringResource(R.string.torrent_dialog_start))
+                }
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.torrent_dialog_cancel)) }

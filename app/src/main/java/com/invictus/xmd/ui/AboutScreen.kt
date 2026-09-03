@@ -3,9 +3,12 @@ package com.invictus.xmd.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -20,9 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -49,16 +52,12 @@ fun AboutScreen(
         // ===== App identity =====
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 16.dp),
         ) {
             val context = LocalContext.current
             val appIconBitmap = remember {
-                // painterResource() can't load an <adaptive-icon> XML (R.mipmap.xmd
-                // on API 26+), only VectorDrawables and rasterized assets -- it throws
-                // IllegalArgumentException at composition time. Pull the launcher icon
-                // via PackageManager instead, which correctly flattens the adaptive
-                // icon (background + foreground) into one drawable, then convert that
-                // to an ImageBitmap for Compose.
                 context.packageManager.getApplicationIcon(context.packageName)
                     .toBitmap()
                     .asImageBitmap()
@@ -66,26 +65,26 @@ fun AboutScreen(
             Image(
                 bitmap = appIconBitmap,
                 contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(88.dp),
+                modifier = Modifier.size(80.dp),
             )
             Text(
                 text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 22.sp,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 14.dp),
+                modifier = Modifier.padding(top = 12.dp),
             )
             Text(
                 text = stringResource(R.string.about_tagline),
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp),
             )
             Text(
                 text = versionText,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 6.dp),
             )
         }
 
@@ -95,19 +94,23 @@ fun AboutScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onGithubClick),
+                    .clickable(onClick = onGithubClick)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
             ) {
                 Icon(
                     imageVector = Icons.Code,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
                 )
                 Text(
                     text = stringResource(R.string.about_github),
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f).padding(start = 14.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 14.dp),
                 )
                 Icon(
                     imageVector = Icons.ArrowForward,
@@ -119,85 +122,71 @@ fun AboutScreen(
         }
 
         // ===== License =====
-        Text(
-            text = stringResource(R.string.about_license_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 20.dp),
-        )
-        Column(modifier = Modifier.padding(top = 8.dp)) {
-            SettingsSectionCard {
-                Text(
-                    text = stringResource(R.string.about_license_body),
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.about_license_title))
+
+        SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
+            Text(
+                text = stringResource(R.string.about_license_body),
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 20.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         // ===== Developers =====
-        Text(
-            text = stringResource(R.string.about_developers_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 20.dp),
-        )
-        Column(modifier = Modifier.padding(top = 8.dp)) {
-            SettingsSectionCard {
-                developers.forEachIndexed { index, (name, role) ->
-                    AboutCreditRow(name, role)
-                    if (index != developers.lastIndex) SettingsDivider()
-                }
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.about_developers_title))
+
+        SettingsSectionCard {
+            developers.forEachIndexed { index, (name, role) ->
+                AboutCreditRow(name, role)
+                if (index != developers.lastIndex) SettingsDivider()
             }
         }
 
         // ===== Credits =====
-        Text(
-            text = stringResource(R.string.about_credits_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 20.dp),
-        )
-        Text(
-            text = stringResource(R.string.about_credits_hint),
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp),
-        )
-        Column(modifier = Modifier.padding(top = 10.dp)) {
-            SettingsSectionCard {
-                credits.forEachIndexed { index, (name, desc) ->
-                    AboutCreditRow(name, desc)
-                    if (index != credits.lastIndex) SettingsDivider()
-                }
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.about_credits_title))
+
+        SettingsSectionCard {
+            credits.forEachIndexed { index, (name, desc) ->
+                AboutCreditRow(name, desc)
+                if (index != credits.lastIndex) SettingsDivider()
             }
         }
 
+        Spacer(Modifier.height(24.dp))
         Text(
             text = stringResource(R.string.about_made_by),
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
         )
     }
 }
 
 @Composable
 private fun AboutCreditRow(name: String, description: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
         Text(
             text = name,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
             text = description,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 1.dp),
+            modifier = Modifier.padding(top = 2.dp),
         )
     }
 }

@@ -1,15 +1,22 @@
 package com.invictus.xmd.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,9 +24,10 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,13 +41,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.invictus.xmd.R
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 
 /**
  * Async state for the yt-dlp engine row (install/delete/update/nightly
- * switch). One flag instead of scattered per-button `isEnabled`/progress
- * booleans, per COMPOSE_MIGRATION.md's plan for this screen -- every button
- * click maps to exactly one state here, and the whole row (status text,
- * spinner, all three buttons) renders off it in one place.
+ * switch).
  */
 sealed class YtDlpOpState {
     object Idle : YtDlpOpState()
@@ -49,17 +56,9 @@ sealed class YtDlpOpState {
 }
 
 /**
- * Default download quality, video preset ladder (container/fps/codec),
- * audio format, and the yt-dlp engine install/update/nightly-channel
- * controls. Rendered directly by SettingsActivity's YoutubeRoute (NavHost
- * route body) -- no Fragment host.
- *
- * All preset dropdowns persist immediately on selection via their own
- * `onXChanged` callback (same as Downloads/Browser), matching the original
- * fragment's "no Save button" behavior for these fields. The yt-dlp
- * install/update/nightly controls were already immediate and remain so,
- * now driven by [ytDlpOpState] instead of scattered enabled/visibility
- * flags.
+ * YouTube / yt-dlp preferences screen styled following modern card-based hierarchy
+ * while retaining all xmd settings (default quality, container/fps/codec presets,
+ * audio format, and engine management).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +96,7 @@ fun SettingsYoutubeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
             text = hintText,
@@ -104,176 +104,161 @@ fun SettingsYoutubeScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // Lite build has no YtDlpManager backing this screen -- hide
-        // everything below the hint, same as the old fragment hiding every
-        // child after index 0 in ytdlpRootColumn.
+        // Lite build has no YtDlpManager backing this screen
         if (liteMode) return@Column
 
-        // ===== Download quality / video preset / audio format =====
-        SettingsSectionCard(modifier = Modifier.padding(top = 12.dp)) {
-            Text(
-                text = stringResource(R.string.settings_default_quality),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = stringResource(R.string.settings_default_quality_hint),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-            PresetDropdownField(
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth(),
-                options = qualityLabels,
-                selected = selectedQualityLabel,
-                onSelected = onQualityChanged,
-            )
-
-            SettingsDivider()
-
-            Text(
-                text = stringResource(R.string.settings_video_preset_title),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = stringResource(R.string.settings_video_preset_hint),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-            Row(
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth(),
-            ) {
-                PresetDropdownField(
-                    modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.settings_preset_container_label),
-                    options = containerOptions,
-                    selected = selectedContainer,
-                    onSelected = onContainerChanged,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                PresetDropdownField(
-                    modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.settings_preset_fps_label),
-                    options = fpsOptions,
-                    selected = selectedFps,
-                    onSelected = onFpsChanged,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                PresetDropdownField(
-                    modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.settings_preset_codec_label),
-                    options = codecOptions,
-                    selected = selectedCodec,
-                    onSelected = onCodecChanged,
-                )
-            }
-
-            SettingsDivider()
-
-            Text(
-                text = stringResource(R.string.settings_audio_format_title),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = stringResource(R.string.settings_audio_format_hint),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-            PresetDropdownField(
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth(),
-                options = audioFormatOptions,
-                selected = selectedAudioFormat,
-                onSelected = onAudioFormatChanged,
-            )
-        }
-
-        // ===== yt-dlp engine =====
-        Text(
-            text = stringResource(R.string.settings_ytdlp_title),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 20.dp),
+        // ===== 1. yt-dlp Installation Status Card =====
+        YtdlpStatusCard(
+            installed = ytDlpInstalled,
+            usingNightly = ytDlpUsingNightly,
+            opState = ytDlpOpState,
         )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp),
-        ) {
-            val idleStatusText = if (ytDlpInstalled) {
-                val channel = stringResource(
-                    if (ytDlpUsingNightly) R.string.settings_ytdlp_channel_nightly
-                    else R.string.settings_ytdlp_channel_stable
-                )
-                "${stringResource(R.string.settings_ytdlp_status_installed)}  •  $channel"
-            } else {
-                stringResource(R.string.settings_ytdlp_status_not_installed)
-            }
-            val statusText = when (ytDlpOpState) {
-                YtDlpOpState.Idle -> idleStatusText
-                YtDlpOpState.Installing -> stringResource(R.string.settings_ytdlp_installing)
-                YtDlpOpState.Updating -> stringResource(R.string.settings_ytdlp_updating)
-                is YtDlpOpState.SwitchingChannel -> stringResource(
-                    if (ytDlpOpState.toNightly) R.string.settings_ytdlp_switching_nightly
-                    else R.string.settings_ytdlp_updating
-                )
-            }
 
-            Text(
-                text = statusText,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-
-            val busy = ytDlpOpState != YtDlpOpState.Idle
-            if (busy) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .size(16.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-
-            if (ytDlpInstalled) {
-                TextButton(onClick = onUpdateClick, enabled = !busy) {
-                    Text(stringResource(R.string.settings_ytdlp_update))
-                }
-            }
-            TextButton(onClick = onInstallOrDeleteClick, enabled = !busy) {
-                Text(
-                    stringResource(
-                        if (ytDlpInstalled) R.string.settings_ytdlp_delete
-                        else R.string.settings_ytdlp_install
-                    )
-                )
-            }
-        }
-
-        if (ytDlpInstalled) {
-            TextButton(
-                onClick = onNightlyToggleClick,
-                enabled = ytDlpOpState == YtDlpOpState.Idle,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            ) {
-                Text(
-                    text = stringResource(
+        // ===== 2. Release Channel & Engine Controls =====
+        Column {
+            SettingsSectionHeader(title = stringResource(R.string.settings_ytdlp_title))
+            SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    val busy = ytDlpOpState != YtDlpOpState.Idle
+                    val stableActionLabel = if (!ytDlpInstalled) {
+                        stringResource(R.string.settings_ytdlp_install)
+                    } else {
+                        stringResource(R.string.settings_ytdlp_update)
+                    }
+                    val nightlyActionLabel = stringResource(
                         if (ytDlpUsingNightly) R.string.settings_ytdlp_switch_stable
                         else R.string.settings_ytdlp_use_nightly
-                    ),
+                    )
+
+                    Button(
+                        onClick = {
+                            if (ytDlpInstalled) onUpdateClick() else onInstallOrDeleteClick()
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (!ytDlpInstalled) Icons.Download else Icons.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stableActionLabel)
+                    }
+
+                    if (ytDlpInstalled) {
+                        OutlinedButton(
+                            onClick = onNightlyToggleClick,
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            Icon(Icons.Sync, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(nightlyActionLabel)
+                        }
+
+                        OutlinedButton(
+                            onClick = onInstallOrDeleteClick,
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+                        ) {
+                            Icon(Icons.Delete, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.settings_ytdlp_delete))
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== 3. Quality Preferences =====
+        Column {
+            SettingsSectionHeader(title = stringResource(R.string.settings_default_quality))
+            SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_default_quality_hint),
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PresetDropdownField(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    options = qualityLabels,
+                    selected = selectedQualityLabel,
+                    onSelected = onQualityChanged,
+                )
+            }
+        }
+
+        // ===== 4. Video Presets =====
+        Column {
+            SettingsSectionHeader(title = stringResource(R.string.settings_video_preset_title))
+            SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_video_preset_hint),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                ) {
+                    PresetDropdownField(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.settings_preset_container_label),
+                        options = containerOptions,
+                        selected = selectedContainer,
+                        onSelected = onContainerChanged,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    PresetDropdownField(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.settings_preset_fps_label),
+                        options = fpsOptions,
+                        selected = selectedFps,
+                        onSelected = onFpsChanged,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    PresetDropdownField(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.settings_preset_codec_label),
+                        options = codecOptions,
+                        selected = selectedCodec,
+                        onSelected = onCodecChanged,
+                    )
+                }
+            }
+        }
+
+        // ===== 5. Audio Format =====
+        Column {
+            SettingsSectionHeader(title = stringResource(R.string.settings_audio_format_title))
+            SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_audio_format_hint),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PresetDropdownField(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
+                    options = audioFormatOptions,
+                    selected = selectedAudioFormat,
+                    onSelected = onAudioFormatChanged,
                 )
             }
         }
@@ -281,11 +266,100 @@ fun SettingsYoutubeScreen(
 }
 
 /**
- * Read-only Material3 exposed dropdown -- replaces the
- * TextInputLayout.OutlinedBox.ExposedDropdownMenu + AutoCompleteTextView
- * pairing used throughout the old XML. First use of this pattern in the
- * Compose migration (every other screen so far only needed switches/segmented
- * buttons), so this is the template for any future dropdown needs too.
+ * Status card styled after mpvRx's YtdlpInstallationStatus.
+ */
+@Composable
+private fun YtdlpStatusCard(
+    installed: Boolean,
+    usingNightly: Boolean,
+    opState: YtDlpOpState,
+    modifier: Modifier = Modifier,
+) {
+    val isBusy = opState != YtDlpOpState.Idle
+    val containerColor = when {
+        !installed -> MaterialTheme.colorScheme.errorContainer
+        usingNightly -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = when {
+        !installed -> MaterialTheme.colorScheme.onErrorContainer
+        usingNightly -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    val title = when (opState) {
+        YtDlpOpState.Installing -> stringResource(R.string.settings_ytdlp_installing)
+        YtDlpOpState.Updating -> stringResource(R.string.settings_ytdlp_updating)
+        is YtDlpOpState.SwitchingChannel -> stringResource(
+            if (opState.toNightly) R.string.settings_ytdlp_switching_nightly
+            else R.string.settings_ytdlp_updating
+        )
+        YtDlpOpState.Idle -> when {
+            !installed -> stringResource(R.string.settings_ytdlp_status_not_installed)
+            usingNightly -> stringResource(R.string.settings_ytdlp_channel_nightly)
+            else -> stringResource(R.string.settings_ytdlp_channel_stable)
+        }
+    }
+
+    val details = when {
+        !installed -> stringResource(R.string.settings_ytdlp_hint)
+        usingNightly -> "Nightly channel active · updates receive latest fixes"
+        else -> "Stable release channel active"
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.2f)),
+        tonalElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.5.dp,
+                        color = contentColor,
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (installed) Icons.Check else Icons.Download,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.85f),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Read-only Material3 exposed dropdown.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -307,6 +381,7 @@ private fun PresetDropdownField(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
+            shape = RoundedCornerShape(12.dp),
             label = label?.let { l -> { Text(l, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             textStyle = MaterialTheme.typography.bodyMedium,

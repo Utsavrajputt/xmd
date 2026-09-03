@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,10 +56,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -75,6 +80,8 @@ import com.invictus.xmd.R
 import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
+import com.invictus.xmd.ui.theme.LocalThemeTransitionState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -308,12 +315,36 @@ private fun DownloadsTopBar(
         return
     }
 
+    val titleBounds = remember { mutableStateOf(Rect.Zero) }
+    val themeTransition = LocalThemeTransitionState.current
+    val coroutineScope = rememberCoroutineScope()
+
     TopAppBar(
         title = {
             Text(
                 text = stringResource(R.string.app_header_title),
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable(onClick = onToggleTheme),
+                modifier = Modifier
+                    .onGloballyPositioned { coordinates ->
+                        titleBounds.value = coordinates.boundsInWindow()
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { localOffset ->
+                                if (themeTransition?.isAnimating == true) return@detectTapGestures
+
+                                val windowOffset = Offset(
+                                    titleBounds.value.left + localOffset.x,
+                                    titleBounds.value.top + localOffset.y,
+                                )
+                                themeTransition?.startTransition(windowOffset)
+                                coroutineScope.launch {
+                                    delay(50)
+                                    onToggleTheme()
+                                }
+                            }
+                        )
+                    },
             )
         },
         actions = {

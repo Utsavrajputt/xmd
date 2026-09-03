@@ -112,7 +112,10 @@ fun SettingsAppearanceScreen(
                 )
             }
 
-            SettingsSectionCard(modifier = Modifier.padding(top = 16.dp)) {
+            SettingsSectionCard(
+                modifier = Modifier.padding(top = 16.dp),
+                contentPadding = PaddingValues(16.dp),
+            ) {
                 TabsSection(
                     tabOrder = tabOrder,
                     hiddenTabs = hiddenTabs,

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -46,26 +47,24 @@ fun SettingsBrowserScreen(
             )
         }
 
-        Text(
-            text = stringResource(R.string.settings_import_websites),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(top = 20.dp),
-        )
-        Text(
-            text = stringResource(R.string.settings_import_websites_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp),
-        )
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.settings_import_websites))
 
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
-            OutlinedButton(onClick = onImportWebsites, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.settings_import_websites_button))
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(onClick = onExportWebsites, modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.settings_export_websites_button))
+        SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+            Text(
+                text = stringResource(R.string.settings_import_websites_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                OutlinedButton(onClick = onImportWebsites, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_import_websites_button))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(onClick = onExportWebsites, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.settings_export_websites_button))
+                }
             }
         }
     }

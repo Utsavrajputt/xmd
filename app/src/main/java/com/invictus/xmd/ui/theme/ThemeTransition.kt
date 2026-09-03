@@ -47,11 +47,14 @@ class ThemeTransitionState {
 
     private var captureView: View? = null
 
+    var onTransitionComplete: (() -> Unit)? = null
+
     fun setView(view: View?) {
         captureView = view
     }
 
     fun startTransition(position: Offset) {
+        if (isAnimating) return
         captureView?.let { view ->
             try {
                 val bitmap = view.drawToBitmap()
@@ -71,6 +74,8 @@ class ThemeTransitionState {
         screenshotBitmap = null
         clickPosition = Offset.Zero
         isAnimating = false
+        onTransitionComplete?.invoke()
+        onTransitionComplete = null
         captureView?.postDelayed(
             { oldBitmap?.takeUnless { it.isRecycled }?.recycle() },
             96L,
@@ -88,6 +93,7 @@ val LocalThemeTransitionState = staticCompositionLocalOf<ThemeTransitionState?> 
 fun rememberThemeTransitionState(): ThemeTransitionState = remember { ThemeTransitionState() }
 
 private const val THEME_REVEAL_DURATION_MS = 350
+private const val THEME_CONTENT_SETTLE_DELAY_MS = 100L
 private val THEME_REVEAL_FEATHER = 30.dp
 
 @Composable
@@ -111,6 +117,8 @@ fun ThemeTransitionOverlay(
 
         state.resetProgress()
         withFrameNanos { }
+        // Keep the frozen frame opaque while the new theme finishes its root recomposition.
+        kotlinx.coroutines.delay(THEME_CONTENT_SETTLE_DELAY_MS)
         state.animationProgress.animateTo(
             targetValue = 1f,
             animationSpec = tween(

@@ -779,8 +779,8 @@ class DownloadService : LifecycleService() {
                 val item = relevant.first()
                 title = item.fileName ?: item.sourceUrl
                 text = when {
-                    item.status == ItemStatus.PAUSED -> "⏸  Paused — " + buildDetailLine(item.bytesDone, item.bytesTotal, 0.0)
-                    item.status == ItemStatus.RETRYING -> "🔁  ${item.error ?: "Retrying…"}"
+                    item.status == ItemStatus.PAUSED -> "Paused — " + buildDetailLine(item.bytesDone, item.bytesTotal, 0.0)
+                    item.status == ItemStatus.RETRYING -> "${item.error ?: "Retrying…"}"
                     item.platform == MediaPlatform.YOUTUBE ->
                         (if (item.progressPercent >= 0) "${item.progressPercent}%" else "Resolving…") +
                             "  •  " + (item.mediaStatusText ?: item.mediaFormatLabel ?: "YouTube")
@@ -815,8 +815,10 @@ class DownloadService : LifecycleService() {
         )
 
         val showBar = indeterminate || relevant.any { it.bytesTotal > 0 }
+        val isPaused = relevant.isNotEmpty() && relevant.all { it.status == ItemStatus.PAUSED }
+        val smallIconRes = if (isPaused) R.drawable.ic_notification_pause else android.R.drawable.stat_sys_download
         val builder = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(smallIconRes)
             .setContentTitle(title)
             .setContentText(text)
             .setSubText(if (!indeterminate && showBar) "$barPercent%" else null)
@@ -850,7 +852,7 @@ class DownloadService : LifecycleService() {
                         .putExtra(EXTRA_ITEM_ID, item.id),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 )
-                builder.addAction(0, getString(R.string.action_pause), pauseIntent)
+                builder.addAction(R.drawable.ic_notification_pause, getString(R.string.action_pause), pauseIntent)
             }
         }
         if (relevant.isNotEmpty()) {

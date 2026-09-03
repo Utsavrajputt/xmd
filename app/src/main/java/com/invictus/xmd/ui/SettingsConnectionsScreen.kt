@@ -1,6 +1,7 @@
 package com.invictus.xmd.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -9,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -53,14 +55,19 @@ fun SettingsConnectionsScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        SettingsSectionCard {
+        SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
             Text(
                 text = stringResource(R.string.settings_connections),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 16.dp),
+            ) {
                 CONNECTION_OPTIONS.forEachIndexed { index, value ->
                     SegmentedButton(
                         selected = connections == value,
@@ -72,7 +79,10 @@ fun SettingsConnectionsScreen(
                 }
             }
 
-            SettingsDivider()
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                modifier = Modifier.padding(bottom = 16.dp),
+            )
 
             OutlinedTextField(
                 value = speedLimitText,
@@ -101,7 +111,7 @@ fun SettingsConnectionsScreen(
                     maxConcurrentText.toIntOrNull() ?: 2,
                 )
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(48.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp).height(48.dp),
         ) {
             Text(stringResource(R.string.settings_save))
         }

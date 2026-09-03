@@ -122,6 +122,12 @@ internal fun HomeScreen(
                             onClick = onPrepare,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
+                            Icon(
+                                imageVector = Icons.Sync,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.action_prepare))
                         }
                     }

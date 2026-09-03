@@ -37,13 +37,23 @@ enum class AppTheme(
 ) {
   Default(
     titleRes = R.string.theme_default,
+    primaryLight = Color(0xFF00658F),
+    primaryDark = Color(0xFF7CD4FF),
+    secondaryLight = Color(0xFF4B6373),
+    secondaryDark = Color(0xFFB7CAD6),
+    tertiaryLight = Color(0xFF984836),
+    tertiaryDark = Color(0xFFFFB4A0),
+    backgroundLight = Color(0xFFF4F6F9),
+    backgroundDark = Color(0xFF0E1521),
+  ),
+  Amethyst(
+    titleRes = R.string.theme_amethyst,
     primaryLight = Color(0xFF794F81),
     primaryDark = Color(0xFFE8B5EF),
     secondaryLight = Color(0xFF6A596C),
     secondaryDark = Color(0xFFD6C0D6),
     tertiaryLight = Color(0xFF82524D),
     tertiaryDark = Color(0xFFF5B7B0),
-    // Low-chroma lavender grey: comfortably bright without a pure-white canvas.
     backgroundLight = Color(0xFFF7F5F8),
     backgroundDark = Color(0xFF161217),
   ),
@@ -400,7 +410,7 @@ enum class AppTheme(
       return entries.firstOrNull { it.name.equals(key, ignoreCase = true) || it.storageKey.equals(key, ignoreCase = true) }
         ?: when (key.lowercase()) {
           "system" -> Dynamic
-          "amethyst" -> Default
+          "amethyst" -> Amethyst
           else -> Default
         }
     }
