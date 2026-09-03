@@ -292,7 +292,7 @@ private fun MainNavigationBar(
                                 }
                             },
                             label = { Text(stringResource(item.labelRes())) },
-                        }
+                        )
                     }
                 }
             }
