@@ -1,35 +1,39 @@
 package com.invictus.xmd.ui
 
-import android.text.Editable
-import android.text.TextWatcher
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
-import android.widget.EditText
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipGroup
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.QueueItem
 import com.invictus.xmd.core.QueueRepository
 import com.invictus.xmd.service.DownloadService
+import com.invictus.xmd.ui.theme.XmdTheme
 import java.io.File
 
+/**
+ * Rendering moved to Compose ([DownloadsScreen]); this Fragment hosts a
+ * [ComposeView] instead of inflating fragment_downloads.xml + QueueAdapter.
+ * Business logic that needs a real Context/Intent (opening files, sharing,
+ * clipboard, renaming on disk) stays here and is wired into DownloadsScreen
+ * via lambdas, same pattern SettingsActivity's AboutRoute/AboutScreen uses.
+ */
 class DownloadsFragment : Fragment() {
 
     /** Implemented by MainActivity -- retry needs the resolve/challenge flow that lives there. */
@@ -38,217 +42,42 @@ class DownloadsFragment : Fragment() {
         fun retryAll()
     }
 
-    private lateinit var adapter: QueueAdapter
-
-    /** Last rendered summary-chip labels -- see the [QueueRepository.items]
-     *  observer below for why this exists. */
-    private var lastSummaryParts: List<String>? = null
-
-    // ── Search ───────────────────────────────────────────────────────────
-    // allItems is the unfiltered source of truth from QueueRepository;
-    // currentQuery is what the search box currently holds. Every list
-    // rebuild (a new QueueRepository emission OR a query edit) re-derives
-    // the visible rows from these two, same pattern as HistoryFragment's
-    // allEntries/currentQuery. Chips and Cancel All/Clear All are computed
-    // off the filtered list too (see renderList) -- when a search is
-    // narrowing what's on screen, "Cancel All" should mean "cancel what
-    // I'm looking at", not silently reach outside it.
-    private var allItems: List<QueueItem> = emptyList()
-    private var currentQuery: String = ""
+    // Search query comes from MainActivity's in-header search box via
+    // setFilterQuery(), same as before -- held as Compose state so the
+    // screen recomposes immediately when it changes.
+    private var queryState by mutableStateOf("")
 
     /** Called by MainActivity when the in-header search query updates. */
     fun setFilterQuery(query: String) {
-        currentQuery = query
-        val v = view ?: return
-        val emptyContainer = v.findViewById<View>(R.id.emptyContainer) ?: return
-        val emptyIconFrame = v.findViewById<View>(R.id.emptyIconFrame) ?: return
-        val emptyLabel     = v.findViewById<android.widget.TextView>(R.id.emptyLabel) ?: return
-        val summaryBar     = v.findViewById<View>(R.id.queueSummaryBar) ?: return
-        val summaryChips   = v.findViewById<ChipGroup>(R.id.queueSummaryChips) ?: return
-        val cancelBtn      = v.findViewById<MaterialButton>(R.id.cancelButton) ?: return
-        val clearAllBtn    = v.findViewById<MaterialButton>(R.id.clearAllButton) ?: return
-        val recycler       = v.findViewById<RecyclerView>(R.id.queueRecycler) ?: return
-        renderList(
-            emptyContainer, emptyIconFrame, emptyLabel,
-            summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
-        )
+        queryState = query
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_downloads, container, false)
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        adapter = QueueAdapter(
-            onPauseResume = { item -> onItemPauseResume(item) },
-            onCancel      = { item -> DownloadService.cancelItem(requireContext(), item.id) },
-            onRetry       = { item -> (activity as? Callbacks)?.retryItem(item.id) },
-            onClear       = { item -> QueueRepository.removeItem(item.id) },
-            onOpen        = { item -> openFile(item) },
-            onLongPress   = { item -> showDownloadOptionsDialog(item) }
-        )
-
-        val recycler       = view.findViewById<RecyclerView>(R.id.queueRecycler)
-        val emptyContainer = view.findViewById<View>(R.id.emptyContainer)
-        val emptyIconFrame = view.findViewById<View>(R.id.emptyIconFrame)
-        val emptyLabel     = view.findViewById<android.widget.TextView>(R.id.emptyLabel)
-        val summaryBar     = view.findViewById<View>(R.id.queueSummaryBar)
-        val summaryChips   = view.findViewById<ChipGroup>(R.id.queueSummaryChips)
-        val cancelBtn       = view.findViewById<MaterialButton>(R.id.cancelButton)
-        val clearAllBtn     = view.findViewById<MaterialButton>(R.id.clearAllButton)
-
-        recycler.layoutManager = LinearLayoutManager(requireContext())
-        recycler.adapter = adapter
-
-        clearAllBtn.setOnClickListener { QueueRepository.clearFinishedAndFailed() }
-
-        QueueRepository.items.observe(viewLifecycleOwner) { list ->
-            allItems = list
-            renderList(
-                emptyContainer, emptyIconFrame, emptyLabel,
-                summaryBar, summaryChips, cancelBtn, clearAllBtn, recycler
-            )
-        }
-    }
-
-    /** Matches on file name OR source URL, case-insensitive substring --
-     *  same casual match style as HistoryFragment's search. Re-derives the
-     *  visible list from [allItems] + [currentQuery] and feeds it through
-     *  to the adapter + summary chips + Cancel All/Clear All, same as
-     *  before this fragment had search, just filtered first. */
-    private fun renderList(
-        emptyContainer: View,
-        emptyIconFrame: View,
-        emptyLabel: android.widget.TextView,
-        summaryBar: View,
-        summaryChips: ChipGroup,
-        cancelBtn: MaterialButton,
-        clearAllBtn: MaterialButton,
-        recycler: RecyclerView,
-    ) {
-        val query = currentQuery.trim()
-        val list = if (query.isEmpty()) {
-            allItems
-        } else {
-            allItems.filter { item ->
-                (item.fileName?.contains(query, ignoreCase = true) == true) ||
-                    item.sourceUrl.contains(query, ignoreCase = true)
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            val items by QueueRepository.items.collectAsStateWithLifecycle()
+            XmdTheme {
+                DownloadsScreen(
+                    items = items,
+                    query = queryState,
+                    onPauseResume = { onItemPauseResume(it) },
+                    onCancel = { DownloadService.cancelItem(requireContext(), it.id) },
+                    onRetry = { (activity as? Callbacks)?.retryItem(it.id) },
+                    onClear = { QueueRepository.removeItem(it.id) },
+                    onOpen = { openFile(it) },
+                    onOpenWith = { openFile(it) },
+                    onRename = { item, newName -> renameFile(item, newName) },
+                    onCopyLink = { copyDownloadLink(it) },
+                    onShare = { item -> shareItem(item, item.filePath?.let(::File)?.takeIf { it.exists() }) },
+                    onDelete = { deleteItem(it) },
+                    onCancelAll = { DownloadService.cancelAll(requireContext()) },
+                    onRetryAll = { (activity as? Callbacks)?.retryAll() },
+                    onClearAllFinished = { QueueRepository.clearFinishedAndFailed() },
+                )
             }
         }
-
-        adapter.submitList(list)
-
-        val isEmpty = list.isEmpty()
-        recycler.visibility       = if (isEmpty) View.GONE else View.VISIBLE
-        emptyContainer.visibility = if (isEmpty) View.VISIBLE else View.GONE
-
-        if (isEmpty) {
-            // Distinguish "nothing downloaded yet" from "search matched
-            // nothing" -- the latter shouldn't show the downloads icon,
-            // since neither applies when there ARE items, just none matching.
-            if (query.isNotEmpty()) {
-                emptyIconFrame.visibility = View.GONE
-                emptyLabel.text = getString(R.string.queue_search_empty)
-            } else {
-                emptyIconFrame.visibility = View.VISIBLE
-                emptyLabel.text = getString(R.string.queue_empty_title)
-            }
-            summaryBar.visibility = View.GONE
-            cancelBtn.visibility = View.GONE
-            clearAllBtn.visibility = View.GONE
-            return
-        }
-
-        // ── Cancel All / Retry All -- same button slot, context-switches ──
-        val hasActive = list.any {
-            it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.PAUSED ||
-                it.status == ItemStatus.RETRYING
-        }
-        val hasFailed = list.any { it.status == ItemStatus.FAILED }
-        val hasClearable = list.any {
-            it.status == ItemStatus.DONE || it.status == ItemStatus.FAILED
-        }
-
-        when {
-            hasActive -> {
-                cancelBtn.visibility = View.VISIBLE
-                cancelBtn.text = getString(R.string.action_cancel_all)
-                val errorColor = resolveThemeColor(com.google.android.material.R.attr.colorError)
-                cancelBtn.setTextColor(errorColor)
-                cancelBtn.strokeColor = ColorStateList.valueOf(errorColor)
-                cancelBtn.setOnClickListener { DownloadService.cancelAll(requireContext()) }
-            }
-            hasFailed -> {
-                cancelBtn.visibility = View.VISIBLE
-                cancelBtn.text = getString(R.string.action_retry_all)
-                val accentColor = resolveThemeColor(com.google.android.material.R.attr.colorPrimary)
-                cancelBtn.setTextColor(accentColor)
-                cancelBtn.strokeColor = ColorStateList.valueOf(accentColor)
-                cancelBtn.setOnClickListener { (activity as? Callbacks)?.retryAll() }
-            }
-            else -> cancelBtn.visibility = View.GONE
-        }
-
-        clearAllBtn.visibility = if (hasClearable) View.VISIBLE else View.GONE
-
-        val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
-        val ready       = list.count { it.status == ItemStatus.READY }
-        val resolving   = list.count {
-            it.status == ItemStatus.PENDING ||
-                it.status == ItemStatus.RESOLVING ||
-                it.status == ItemStatus.NEEDS_CHALLENGE
-        }
-        val paused  = list.count { it.status == ItemStatus.PAUSED }
-        val retrying = list.count { it.status == ItemStatus.RETRYING }
-        val saving  = list.count { it.status == ItemStatus.SAVING }
-        val done    = list.count { it.status == ItemStatus.DONE }
-        val failed  = list.count { it.status == ItemStatus.FAILED }
-
-        val parts = mutableListOf<String>()
-        if (downloading > 0) parts += "$downloading downloading"
-        if (ready > 0)       parts += "$ready ready"
-        if (resolving > 0)   parts += "$resolving resolving"
-        if (paused > 0)      parts += "$paused paused"
-        if (retrying > 0)    parts += "$retrying retrying"
-        if (saving > 0)      parts += "$saving saving"
-        if (done > 0)        parts += "$done done"
-        if (failed > 0)      parts += "$failed failed"
-
-        // This observer fires on every progress tick (up to ~5x/sec per
-        // active download) since it's the same QueueRepository.items
-        // LiveData the byte-progress updates ride on -- but `parts` only
-        // actually changes when an item's *status* crosses a bucket
-        // boundary (e.g. downloading -> done), which is rare compared to
-        // the tick rate. Rebuilding the chip row from scratch every tick
-        // means removeAllViews() + inflating brand-new Chip views (each
-        // one resolving theme attributes) purely to redraw the exact same
-        // labels, competing with the UI thread for no visible change --
-        // skip the rebuild entirely when the labels haven't moved.
-        if (parts != lastSummaryParts) {
-            lastSummaryParts = parts
-            summaryChips.removeAllViews()
-            parts.forEach { label -> summaryChips.addView(buildStatChip(label)) }
-        }
-        summaryBar.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
-    }
-
-    /** Small filled-tonal stat chip, e.g. "2 downloading", for the queue summary row. */
-    private fun buildStatChip(label: String): Chip {
-        val chip = Chip(requireContext())
-        chip.text = label
-        chip.isClickable = false
-        chip.isCheckable = false
-        chip.isFocusable = false
-        chip.chipStrokeWidth = 0f
-        chip.setEnsureMinTouchTargetSize(false)
-        val tonalBg = resolveThemeColor(com.google.android.material.R.attr.colorSecondaryContainer)
-        val tonalFg = resolveThemeColor(com.google.android.material.R.attr.colorOnSecondaryContainer)
-        chip.chipBackgroundColor = ColorStateList.valueOf(tonalBg)
-        chip.setTextColor(tonalFg)
-        chip.textSize = 12f
-        return chip
     }
 
     private fun onItemPauseResume(item: QueueItem) {
@@ -303,65 +132,21 @@ class DownloadsFragment : Fragment() {
         }
     }
 
-    /**
-     * Long-press menu for a DONE/FAILED row -- Open with / Rename /
-     * Re-download / Copy download link / Share / Delete, matching the
-     * system Downloads app's per-file context menu. Options that need an
-     * on-disk file (Open with, Rename) are left out when there isn't one
-     * (e.g. a FAILED item that never produced a file) rather than shown
-     * and failing with a toast.
-     */
-    private fun showDownloadOptionsDialog(item: QueueItem) {
-        val file = item.filePath?.let { File(it) }?.takeIf { it.exists() }
-
-        val actions = mutableListOf<Pair<String, () -> Unit>>()
-        if (file != null) {
-            actions += getString(R.string.action_open_with) to { openFile(item) }
-            actions += getString(R.string.action_rename) to { showRenameDialog(item, file) }
-        }
-        actions += getString(R.string.action_redownload) to {
-            (activity as? Callbacks)?.retryItem(item.id)
-        }
-        actions += getString(R.string.action_copy_link) to { copyDownloadLink(item) }
-        actions += getString(R.string.action_share) to { shareItem(item, file) }
-        actions += getString(R.string.action_delete) to { confirmDeleteItem(item, file) }
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(item.fileName ?: item.sourceUrl)
-            .setItems(actions.map { it.first }.toTypedArray()) { _, which -> actions[which].second() }
-            .show()
-    }
-
     /** Renames the on-disk file and mirrors the new name into the queue
      *  entry (fileName + filePath) so the row, Open, and Share all pick it
      *  up immediately -- QueueRepository.update also persists it to Room. */
-    private fun showRenameDialog(item: QueueItem, file: File) {
-        val input = EditText(requireContext()).apply {
-            setText(file.name)
-            setSelection(0, file.nameWithoutExtension.length)
-            val pad = (20 * resources.displayMetrics.density).toInt()
-            setPadding(pad, pad / 2, pad, 0)
+    private fun renameFile(item: QueueItem, newName: String) {
+        val file = item.filePath?.let { File(it) } ?: return
+        val newFile = File(file.parentFile, newName)
+        if (newFile.exists()) {
+            Toast.makeText(requireContext(), R.string.rename_conflict_toast, Toast.LENGTH_SHORT).show()
+            return
         }
-
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.action_rename)
-            .setView(input)
-            .setPositiveButton(R.string.settings_save) { _, _ ->
-                val newName = input.text?.toString()?.trim().orEmpty()
-                if (newName.isEmpty() || newName == file.name) return@setPositiveButton
-                val newFile = File(file.parentFile, newName)
-                if (newFile.exists()) {
-                    Toast.makeText(requireContext(), R.string.rename_conflict_toast, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                if (file.renameTo(newFile)) {
-                    QueueRepository.update(item.id) { it.copy(fileName = newName, filePath = newFile.absolutePath) }
-                } else {
-                    Toast.makeText(requireContext(), R.string.rename_failed_toast, Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        if (file.renameTo(newFile)) {
+            QueueRepository.update(item.id) { it.copy(fileName = newName, filePath = newFile.absolutePath) }
+        } else {
+            Toast.makeText(requireContext(), R.string.rename_failed_toast, Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** directUrl is the actual CDN/media link once resolved -- falls back
@@ -402,25 +187,8 @@ class DownloadsFragment : Fragment() {
 
     /** Deletes the on-disk file (if any) and drops the row from the queue.
      *  A FAILED item with no file just removes the row. */
-    private fun confirmDeleteItem(item: QueueItem, file: File?) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.delete_download_title)
-            .setMessage(item.fileName ?: item.sourceUrl)
-            .setPositiveButton(R.string.action_delete) { _, _ ->
-                file?.delete()
-                QueueRepository.removeItem(item.id)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    /** Resolves a color from the current *theme* (whichever Theme.Xmd.* is
-     *  active), not a static @color resource -- so button accents like
-     *  "Retry All" follow the selected app theme instead of always being
-     *  Default's blue. */
-    private fun resolveThemeColor(attrResId: Int): Int {
-        val tv = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(attrResId, tv, true)
-        return tv.data
+    private fun deleteItem(item: QueueItem) {
+        item.filePath?.let { File(it) }?.delete()
+        QueueRepository.removeItem(item.id)
     }
 }

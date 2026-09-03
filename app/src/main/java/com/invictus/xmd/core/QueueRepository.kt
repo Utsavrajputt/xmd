@@ -1,12 +1,14 @@
 package com.invictus.xmd.core
 
 import android.content.Context
-import androidx.lifecycle.MutableLiveData
 import com.invictus.xmd.core.db.AppDatabase
 import com.invictus.xmd.core.db.QueueItemDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -14,18 +16,20 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Single in-memory source of truth for the queue, shared between MainActivity
  * (UI + resolve flow) and DownloadService (background download loop). Both
- * run in the same process, so a plain LiveData-backed singleton is enough --
- * no cross-process IPC needed.
+ * run in the same process, so a plain StateFlow-backed singleton is enough --
+ * no cross-process IPC needed. (Was LiveData; switched to StateFlow so the
+ * Compose Downloads screen can collect it directly via
+ * collectAsStateWithLifecycle() -- see Phase 2's identical Bookmark/History
+ * repository conversion in COMPOSE_MIGRATION.md.)
  *
  * IMPORTANT: reads/writes go through [master] under [lock], not through
- * LiveData.value. LiveData.postValue() from a background thread is
- * fire-and-forget -- .value isn't updated until the main thread processes
- * it -- so a naive "read items.value, map, postValue" pattern race-loses
- * updates when called rapidly from a download thread (e.g. a status change
- * to DOWNLOADING gets silently clobbered by the very next progress tick
- * because that tick's map() was computed from a stale .value read before
- * the status change had been applied). Keeping our own synchronized master
- * list sidesteps that entirely.
+ * [items].value directly. Even though MutableStateFlow's value setter is
+ * itself atomic/thread-safe, a naive "read items.value, map, assign" pattern
+ * still race-loses updates when called rapidly from a download thread (e.g.
+ * a status change to DOWNLOADING gets silently clobbered by the very next
+ * progress tick because that tick's map() was computed from a stale .value
+ * read before the status change had been applied). Keeping our own
+ * synchronized master list sidesteps that entirely.
  *
  * PERSISTENCE: [master] is mirrored to a Room DB (see core/db/AppDatabase.kt)
  * so the queue survives the app process being killed and restarted -- it
@@ -44,7 +48,8 @@ object QueueRepository {
     private val lock = Any()
     private var master: List<QueueItem> = emptyList()
 
-    val items = MutableLiveData<List<QueueItem>>(emptyList())
+    private val _items = MutableStateFlow<List<QueueItem>>(emptyList())
+    val items: StateFlow<List<QueueItem>> = _items.asStateFlow()
 
     private lateinit var dao: QueueItemDao
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -84,7 +89,7 @@ object QueueRepository {
                 val recoveredIds = recovered.map { it.id }.toSet()
                 master = recovered.map { current[it.id] ?: it } +
                     master.filter { it.id !in recoveredIds }
-                items.postValue(master)
+                _items.value = master
             }
             // Persist any status rollback we just did.
             val changed = recovered.filter { r ->
@@ -127,7 +132,7 @@ object QueueRepository {
             }
             val untouched = master.filter { it.sourceUrl !in rawLinks.toSet() }
             master = untouched + updatedOrNew
-            items.postValue(master)
+            _items.value = master
             toPersist = updatedOrNew
         }
         persistNow(toPersist)
@@ -145,7 +150,7 @@ object QueueRepository {
                     mutated
                 } else it
             }
-            items.postValue(master)
+            _items.value = master
         }
         updated?.let { persistDebounced(it, previous) }
     }
@@ -165,7 +170,7 @@ object QueueRepository {
                 downloadStartedAtMs = System.currentTimeMillis()
             )
             master = master.toMutableList().also { it[idx] = claimed }
-            items.postValue(master)
+            _items.value = master
             claimedItem = claimed
         }
         claimedItem?.let { persistNow(listOf(it)) }
@@ -176,7 +181,7 @@ object QueueRepository {
     fun removeItem(id: String) {
         synchronized(lock) {
             master = master.filter { it.id != id }
-            items.postValue(master)
+            _items.value = master
         }
         if (::dao.isInitialized) {
             scope.launch { runCatching { dao.deleteByIds(listOf(id)) } }
@@ -188,7 +193,7 @@ object QueueRepository {
         synchronized(lock) {
             val (removed, kept) = master.partition { it.status == ItemStatus.DONE || it.status == ItemStatus.FAILED }
             master = kept
-            items.postValue(master)
+            _items.value = master
             removedIds = removed.map { it.id }
         }
         if (removedIds.isNotEmpty() && ::dao.isInitialized) {

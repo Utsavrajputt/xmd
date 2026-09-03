@@ -96,6 +96,17 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        compose = true
+    }
+
+    // Kotlin 1.9.24 -> pre-K2 compose compiler plugin path, so the compose
+    // compiler extension version is pinned here instead of via the
+    // org.jetbrains.kotlin.plugin.compose Gradle plugin (Kotlin 2.0+ only).
+    // Keep this in lockstep with the Kotlin version above if that's ever
+    // bumped -- see https://developer.android.com/jetpack/androidx/releases/compose-kotlin
+    // for the compatibility table.
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 }
 
@@ -135,4 +146,50 @@ dependencies {
     // be a runtime download and has to be an opt-in separate APK instead.
     "fullImplementation"("io.github.junkfood02.youtubedl-android:library:0.18.1")
     "fullImplementation"("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+
+    // Jetpack Compose -- BOM pins every androidx.compose.* artifact below to
+    // mutually-compatible versions, so only the BOM line needs bumping later.
+    // Compose is being introduced screen-by-screen (see the phased XML ->
+    // Compose migration plan); Fragments/Views and Compose screens coexist
+    // during the transition via ComposeView/AndroidView interop, so none of
+    // the existing viewBinding-based UI is touched by this alone.
+    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    // material-icons-extended added back in Phase 4 (2026-09) -- future
+    // phases (5/6) are expected to need more than the 1-2 hand-picked icons
+    // this app had, so pulling the whole set in once was preferred over
+    // repeatedly copying individual vector drawables into res/drawable.
+    // Cost: ~9-10MB, NOT tree-shaken -- isMinifyEnabled/isShrinkResources
+    // are still off (see buildTypes.release comment above), so this is a
+    // real, permanent APK size hit, not a build-time-only dependency.
+    // Enabling R8 shrinking would reclaim most of that, but is a separate
+    // decision -- this app leans on libtorrent4j/youtubedl-android, which
+    // do reflection/JNI-name lookups R8 can break if not carefully
+    // configured; don't flip isMinifyEnabled on as a side effect of an
+    // icons change.
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // Activity/Fragment <-> Compose interop (setContent {}, ComposeView) and
+    // typed navigation between Compose screens, replacing the Fragment-based
+    // nav graph as each screen migrates.
+    implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.fragment:fragment-ktx:1.8.3")
+    implementation("androidx.navigation:navigation-compose:2.8.0")
+
+    // Lets ViewModels expose StateFlow/collectAsStateWithLifecycle() straight
+    // into composables -- QueueRepository, BookmarkRepository etc. already
+    // expose Flow, so this is the natural consumption point on the UI side.
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+
+    // Preview/inspection tooling for Android Studio's Compose preview pane
+    // (debug builds only -- adds nothing to release APK size).
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

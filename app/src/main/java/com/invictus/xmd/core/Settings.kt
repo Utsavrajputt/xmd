@@ -10,9 +10,9 @@ import com.invictus.xmd.ui.theme.AppTheme
 object Settings {
     /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
      *  by the Wi-Fi-only setting (DownloadService) rather than a manual
-     *  Pause -- shared so QueueAdapter can show a clearer label than the
+     *  Pause -- shared so QueueItemRow (DownloadsScreen.kt) can show a clearer label than the
      *  generic "Paused" text, without DownloadService's pause logic and
-     *  QueueAdapter's display logic needing to know about each other. */
+     *  QueueItemRow's display logic needing to know about each other. */
     const val WIFI_WAIT_MARKER = "Waiting for Wi-Fi"
 
     private const val PREFS = "ff_settings"

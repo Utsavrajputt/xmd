@@ -125,12 +125,44 @@
             </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
 
-        <androidx.coordinatorlayout.widget.CoordinatorLayout
-            android:id="@+id/fragmentContainer"
+        <!-- Phase D: fragmentContainer wrapped in a plain FrameLayout so
+             overlayNavHost (below) can occupy the exact same bounds as a
+             layered sibling: a LinearLayout can't overlap same-weight
+             children, so the wrap is required to keep the History/Bookmarks
+             overlay under the toolbar, matching the old Fragment-in-
+             fragmentContainer visual exactly. -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1">
+
+            <androidx.coordinatorlayout.widget.CoordinatorLayout
+                android:id="@+id/fragmentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- Phase D: host for the History/Bookmarks NavHost. GONE
+                 unless a route is pushed (see MainActivity's
+                 overlayNavController destination listener). Replaces
+                 HistoryFragment/BookmarkFragment's old
+                 supportFragmentManager + addToBackStack push/pop. -->
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/overlayNavHost"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
+
+    <!-- Phase 5 (Browser): host for MainActivity-owned Compose dialogs
+         (DnsSettingsDialog first); see BrowserFragment's browserDialogHost
+         for the precedent this follows. Not a visible content area, just a
+         composition root; sized match_parent because AlertDialog renders in
+         its own Dialog window regardless of this host's own bounds. -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/mainDialogHost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <!-- Google Photos style Modern Material Expressive Floating Pill Navbar + Circle Action -->
     <LinearLayout

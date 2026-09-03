@@ -1,12 +1,14 @@
 package com.invictus.xmd.core
 
 import android.content.Context
-import androidx.lifecycle.LiveData
 import com.invictus.xmd.core.db.AppDatabase
 import com.invictus.xmd.core.db.HistoryDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -16,13 +18,15 @@ object HistoryRepository {
     private lateinit var dao: HistoryDao
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    lateinit var entries: LiveData<List<HistoryEntry>>
+    lateinit var entries: StateFlow<List<HistoryEntry>>
         private set
 
     fun init(context: Context) {
         if (::dao.isInitialized) return
         dao = AppDatabase.get(context).historyDao()
+        // See BookmarkRepository for why WhileSubscribed(5000) here.
         entries = dao.observeAll()
+            .stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
     fun record(url: String, title: String) {

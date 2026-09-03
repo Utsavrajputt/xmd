@@ -237,7 +237,7 @@ class DownloadService : LifecycleService() {
                 topUpWorkers()
             }
             ACTION_PAUSE_ITEM -> intent.getStringExtra(EXTRA_ITEM_ID)?.let { id ->
-                // yt-dlp has no native pause -- QueueAdapter already hides the
+                // yt-dlp has no native pause -- QueueItemRow (DownloadsScreen.kt) already hides the
                 // Pause button for YouTube items, this is just a defensive
                 // no-op in case this action fires for one some other way.
                 val current = QueueRepository.current().firstOrNull { it.id == id }
@@ -840,7 +840,7 @@ class DownloadService : LifecycleService() {
                 )
                 builder.addAction(0, getString(R.string.action_resume), resumeIntent)
             } else if (item.status == ItemStatus.DOWNLOADING && item.platform != MediaPlatform.YOUTUBE) {
-                // yt-dlp has no native pause -- see the QueueAdapter/DownloadService
+                // yt-dlp has no native pause -- see the QueueItemRow (DownloadsScreen.kt)/DownloadService
                 // pause-routing comments elsewhere for the same reasoning.
                 val pauseIntent = PendingIntent.getService(
                     this, 1,
