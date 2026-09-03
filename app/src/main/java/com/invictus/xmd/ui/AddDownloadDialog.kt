@@ -183,7 +183,7 @@ fun AddDownloadDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painterResource(R.drawable.ic_download),
+                    painterResource(XmdIcons.Download),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -200,7 +200,7 @@ fun AddDownloadDialog(
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { onCopyLink(link) }) {
-                        Icon(painterResource(R.drawable.ic_copy), contentDescription = stringResource(R.string.torrent_dialog_copy_link))
+                        Icon(painterResource(XmdIcons.Copy), contentDescription = stringResource(R.string.torrent_dialog_copy_link))
                     }
                     IconButton(onClick = {
                         val pasted = onPasteRequest()
@@ -213,7 +213,7 @@ fun AddDownloadDialog(
                             }
                         }
                     }) {
-                        Icon(painterResource(R.drawable.ic_paste), contentDescription = stringResource(R.string.dialog_paste_link))
+                        Icon(painterResource(XmdIcons.Paste), contentDescription = stringResource(R.string.dialog_paste_link))
                     }
                 }
                 OutlinedTextField(
@@ -307,7 +307,7 @@ fun AddDownloadDialog(
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
-                        painterResource(if (advancedExpanded) R.drawable.ic_arrow_down else R.drawable.ic_chevron_right),
+                        painterResource(if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight),
                         contentDescription = null,
                     )
                 }

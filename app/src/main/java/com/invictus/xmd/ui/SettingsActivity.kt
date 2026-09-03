@@ -10,25 +10,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -38,10 +39,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.ui.theme.XmdTheme
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,6 +70,7 @@ import java.util.Locale
 class SettingsActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
+    private var importCandidates: List<File>? by mutableStateOf(null)
 
     // Must be registered before onStart -- declared as a property so it's
     // set up during Activity construction, same requirement as any other
@@ -87,22 +89,9 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val isDark = com.invictus.xmd.core.Settings.isDarkMode()
-        val isAmoled = isDark && com.invictus.xmd.core.Settings.isAmoledMode()
-
-        // Status bar must match the header (colorSurfaceContainerLow)
-        val headerColor = com.google.android.material.color.MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurfaceContainerLow,
-            android.graphics.Color.BLACK
-        )
-        // Navigation bar matches the body background (pure black in AMOLED mode)
-        val navBarColor = if (isAmoled) android.graphics.Color.BLACK else com.google.android.material.color.MaterialColors.getColor(
-            this,
-            android.R.attr.colorBackground,
-            android.graphics.Color.BLACK
-        )
-        window.statusBarColor = headerColor
-        window.navigationBarColor = navBarColor
+        val colorScheme = resolveCurrentXmdColorScheme(this)
+        window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
@@ -130,10 +119,25 @@ class SettingsActivity : ComponentActivity() {
                     onImportWebsites = ::startWebImportFlow,
                     onExportWebsites = ::startWebExportFlow,
                 )
+                importCandidates?.let { files ->
+                    val storageRoot = Environment.getExternalStorageDirectory().path
+                    AppChoiceDialog(
+                        title = stringResource(R.string.import_websites_title),
+                        choices = files.map { it.path.removePrefix(storageRoot).trimStart('/') },
+                        dismissLabel = stringResource(android.R.string.cancel),
+                        onChoice = { index ->
+                            val selected = files.getOrNull(index)
+                            importCandidates = null
+                            if (selected != null) runWebImport(selected)
+                        },
+                        onDismiss = { importCandidates = null },
+                    )
+                }
             }
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun SettingsScreenRoot(
         navController: NavHostController,
@@ -148,25 +152,20 @@ class SettingsActivity : ComponentActivity() {
 
         Surface(color = MaterialTheme.colorScheme.background) {
             Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                    Text(
-                        text = stringResource(titleRes),
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f).padding(start = 12.dp),
-                    )
-                }
+                TopAppBar(
+                    title = { Text(stringResource(titleRes)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                painter = painterResource(XmdIcons.ArrowBack),
+                                contentDescription = stringResource(R.string.action_back),
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ),
+                )
 
                 NavHost(
                     navController = navController,
@@ -216,13 +215,7 @@ class SettingsActivity : ComponentActivity() {
     }
 
     private fun showImportCandidatesDialog(files: List<File>) {
-        val storageRoot = Environment.getExternalStorageDirectory().path
-        val labels = files.map { it.path.removePrefix(storageRoot).trimStart('/') }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.import_websites_title)
-            .setItems(labels) { _, which -> runWebImport(files[which]) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        importCandidates = files
     }
 
     private fun runWebImport(file: File) {
@@ -263,8 +256,11 @@ class SettingsActivity : ComponentActivity() {
             val json = ShortcutRepository.exportWebsitesJson()
             val written = withContext(Dispatchers.IO) {
                 runCatching {
-                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-                }.isSuccess
+                    contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray())
+                        true
+                    } ?: false
+                }.getOrDefault(false)
             }
             if (!written) {
                 Toast.makeText(this@SettingsActivity, R.string.export_websites_failed, Toast.LENGTH_SHORT).show()
@@ -608,7 +604,7 @@ private fun YoutubeRoute() {
         onInstallOrDeleteClick = {
             if (ytDlpInstalled) {
                 com.invictus.xmd.core.YtDlpManager.delete(context)
-                Toast.makeText(context, "yt-dlp removed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.settings_ytdlp_removed, Toast.LENGTH_SHORT).show()
                 refreshYtDlpStatus()
             } else {
                 ytDlpOpState = YtDlpOpState.Installing

@@ -90,13 +90,13 @@ fun QualityPickerDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Advanced",
+                        stringResource(R.string.quality_picker_advanced),
                         modifier = Modifier.Companion.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Icon(
                         painter = painterResource(
-                            if (advancedExpanded) R.drawable.ic_arrow_down else R.drawable.ic_chevron_right
+                            if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight
                         ),
                         contentDescription = null,
                     )
@@ -111,7 +111,7 @@ fun QualityPickerDialog(
                             CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         }
                         advancedFormats.isEmpty() -> Text(
-                            "Couldn't load extra formats",
+                            stringResource(R.string.quality_picker_extra_formats_unavailable),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),

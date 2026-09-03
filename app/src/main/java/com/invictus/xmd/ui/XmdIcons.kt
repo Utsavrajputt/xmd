@@ -1,0 +1,59 @@
+package com.invictus.xmd.ui
+
+import com.composables.icons.materialsymbols.roundedfilled.R as MaterialSymbols
+
+/** Rounded, filled Material Symbols used by the in-app Compose UI. */
+internal object XmdIcons {
+    val Add = MaterialSymbols.drawable.materialsymbols_ic_add_rounded_filled
+    val ArrowBack = MaterialSymbols.drawable.materialsymbols_ic_arrow_back_rounded_filled
+    val ArrowDown = MaterialSymbols.drawable.materialsymbols_ic_arrow_downward_rounded_filled
+    val ArrowForward = MaterialSymbols.drawable.materialsymbols_ic_arrow_forward_rounded_filled
+    val ArrowUp = MaterialSymbols.drawable.materialsymbols_ic_arrow_upward_rounded_filled
+    val Bookmark = MaterialSymbols.drawable.materialsymbols_ic_bookmark_rounded_filled
+    val BookmarkAdd = MaterialSymbols.drawable.materialsymbols_ic_bookmark_add_rounded_filled
+    val Bookmarks = MaterialSymbols.drawable.materialsymbols_ic_bookmarks_rounded_filled
+    val Cancel = MaterialSymbols.drawable.materialsymbols_ic_cancel_rounded_filled
+    val Check = MaterialSymbols.drawable.materialsymbols_ic_check_rounded_filled
+    val ChevronRight = MaterialSymbols.drawable.materialsymbols_ic_chevron_right_rounded_filled
+    val Close = MaterialSymbols.drawable.materialsymbols_ic_close_rounded_filled
+    val Code = MaterialSymbols.drawable.materialsymbols_ic_code_rounded_filled
+    val Copy = MaterialSymbols.drawable.materialsymbols_ic_content_copy_rounded_filled
+    val Delete = MaterialSymbols.drawable.materialsymbols_ic_delete_rounded_filled
+    val DeleteSweep = MaterialSymbols.drawable.materialsymbols_ic_delete_sweep_rounded_filled
+    val Desktop = MaterialSymbols.drawable.materialsymbols_ic_desktop_windows_rounded_filled
+    val Dns = MaterialSymbols.drawable.materialsymbols_ic_dns_rounded_filled
+    val Download = MaterialSymbols.drawable.materialsymbols_ic_download_rounded_filled
+    val Downloads = MaterialSymbols.drawable.materialsymbols_ic_download_for_offline_rounded_filled
+    val Edit = MaterialSymbols.drawable.materialsymbols_ic_edit_rounded_filled
+    val FileOpen = MaterialSymbols.drawable.materialsymbols_ic_file_open_rounded_filled
+    val Filter = MaterialSymbols.drawable.materialsymbols_ic_filter_list_rounded_filled
+    val FindInPage = MaterialSymbols.drawable.materialsymbols_ic_find_in_page_rounded_filled
+    val Folder = MaterialSymbols.drawable.materialsymbols_ic_folder_rounded_filled
+    val Globe = MaterialSymbols.drawable.materialsymbols_ic_globe_rounded_filled
+    val History = MaterialSymbols.drawable.materialsymbols_ic_history_rounded_filled
+    val Home = MaterialSymbols.drawable.materialsymbols_ic_home_rounded_filled
+    val Info = MaterialSymbols.drawable.materialsymbols_ic_info_rounded_filled
+    val Link = MaterialSymbols.drawable.materialsymbols_ic_link_rounded_filled
+    val Lock = MaterialSymbols.drawable.materialsymbols_ic_lock_rounded_filled
+    val LockOpen = MaterialSymbols.drawable.materialsymbols_ic_lock_open_rounded_filled
+    val More = MaterialSymbols.drawable.materialsymbols_ic_more_vert_rounded_filled
+    val Music = MaterialSymbols.drawable.materialsymbols_ic_music_note_rounded_filled
+    val OpenInNew = MaterialSymbols.drawable.materialsymbols_ic_open_in_new_rounded_filled
+    val Palette = MaterialSymbols.drawable.materialsymbols_ic_palette_rounded_filled
+    val Paste = MaterialSymbols.drawable.materialsymbols_ic_content_paste_rounded_filled
+    val Pause = MaterialSymbols.drawable.materialsymbols_ic_pause_rounded_filled
+    val Play = MaterialSymbols.drawable.materialsymbols_ic_play_arrow_rounded_filled
+    val Public = MaterialSymbols.drawable.materialsymbols_ic_public_rounded_filled
+    val Refresh = MaterialSymbols.drawable.materialsymbols_ic_refresh_rounded_filled
+    val Search = MaterialSymbols.drawable.materialsymbols_ic_search_rounded_filled
+    val Settings = MaterialSymbols.drawable.materialsymbols_ic_settings_rounded_filled
+    val Share = MaterialSymbols.drawable.materialsymbols_ic_share_rounded_filled
+    val Sort = MaterialSymbols.drawable.materialsymbols_ic_sort_rounded_filled
+    val Stop = MaterialSymbols.drawable.materialsymbols_ic_stop_rounded_filled
+    val Sync = MaterialSymbols.drawable.materialsymbols_ic_sync_rounded_filled
+    val Torrent = MaterialSymbols.drawable.materialsymbols_ic_hub_rounded_filled
+    val Video = MaterialSymbols.drawable.materialsymbols_ic_video_library_rounded_filled
+    val VisibilityOff = MaterialSymbols.drawable.materialsymbols_ic_visibility_off_rounded_filled
+    val Wifi = MaterialSymbols.drawable.materialsymbols_ic_wifi_rounded_filled
+    val Youtube = MaterialSymbols.drawable.materialsymbols_ic_smart_display_rounded_filled
+}

@@ -118,10 +118,10 @@ fun SettingsAppearanceScreen(
 private data class TabMeta(val iconRes: Int, val labelRes: Int)
 
 private val TAB_META = mapOf(
-    Settings.TabId.HOME to TabMeta(R.drawable.ic_home, R.string.tab_home),
-    Settings.TabId.DOWNLOADS to TabMeta(R.drawable.ic_downloads, R.string.tab_downloads),
-    Settings.TabId.ADD to TabMeta(R.drawable.ic_add, R.string.tab_add),
-    Settings.TabId.BROWSER to TabMeta(R.drawable.ic_browser, R.string.tab_browser),
+    Settings.TabId.HOME to TabMeta(XmdIcons.Home, R.string.tab_home),
+    Settings.TabId.DOWNLOADS to TabMeta(XmdIcons.Downloads, R.string.tab_downloads),
+    Settings.TabId.ADD to TabMeta(XmdIcons.Add, R.string.tab_add),
+    Settings.TabId.BROWSER to TabMeta(XmdIcons.Public, R.string.tab_browser),
 )
 
 @Composable
@@ -222,7 +222,7 @@ private fun TabConfigRow(
         Column {
             IconButton(onClick = onMoveUp, enabled = canMoveUp, modifier = Modifier.size(28.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_arrow_up),
+                    painter = painterResource(XmdIcons.ArrowUp),
                     contentDescription = stringResource(R.string.action_move_up),
                     tint = if (canMoveUp) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                     modifier = Modifier.size(16.dp),
@@ -230,7 +230,7 @@ private fun TabConfigRow(
             }
             IconButton(onClick = onMoveDown, enabled = canMoveDown, modifier = Modifier.size(28.dp)) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_arrow_down),
+                    painter = painterResource(XmdIcons.ArrowDown),
                     contentDescription = stringResource(R.string.action_move_down),
                     tint = if (canMoveDown) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                     modifier = Modifier.size(16.dp),

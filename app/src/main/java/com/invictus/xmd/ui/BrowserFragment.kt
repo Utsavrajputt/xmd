@@ -10,12 +10,11 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -31,6 +30,7 @@ import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.SuggestApi
 import com.invictus.xmd.ui.BrowserViewModel.BrowserTabState as BrowserTab
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -70,16 +70,7 @@ class BrowserFragment : Fragment() {
     interface Callbacks {
         /** Same handoff HomeFragment uses for pasted links -- expands + queues + resolves. */
         fun triggerPrepare(lines: List<String>)
-        /** Opens the Browser's own overflow menu (Private DNS, History) --
-         *  deliberately separate from the app-wide download Settings dialog,
-         *  which the Browser's overflow no longer opens. [anchor] used to be
-         *  the 3-dot button itself; since Phase E moved that button into
-         *  Compose (BrowserToolbarRow -- no longer a real View to anchor a
-         *  framework PopupMenu to), it's now the browserToolbar ComposeView
-         *  that hosts it instead -- Gravity.END still right-aligns the menu
-         *  under it, close enough to the old per-button anchor for this
-         *  still-native (out of scope for Phase E) PopupMenu. */
-        fun openBrowserMenu(anchor: View)
+        fun onBrowserMenuAction(action: BrowserMenuAction)
         /** A stream MediaSniffer picked up was tapped in the "videos found"
          *  sheet. HLS/DASH ([needsPicker] true) routes through the same
          *  quality-picker flow as a YouTube link (resolveYoutube reused
@@ -127,52 +118,9 @@ class BrowserFragment : Fragment() {
     // of this class -- see webViews/webViewStates below and the "WebView
     // pool" section for why those stayed Fragment-side.
 
-    // Phase E: home/address-pill/new-tab/tabs/overflow buttons + the
-    // progress line all now live in one ComposeView hosting
-    // BrowserToolbarRow (see BrowserToolbar.kt) -- was 9 separate
-    // findViewById'd Views (newTabButton, homeButton, urlInput, tabsButton,
-    // tabsCount, overflowButton, pageProgress, siteSecurityIcon,
-    // bookmarkStarButton). Their state now lives in the `by mutableStateOf`
-    // fields below instead of on the Views themselves.
-    private lateinit var browserToolbar: androidx.compose.ui.platform.ComposeView
+    private lateinit var browserRoot: androidx.compose.ui.platform.ComposeView
     private lateinit var webViewSwipeRefresh: SwipeRefreshLayout
     private lateinit var webViewContainer: FrameLayout
-    // Phase F: was a plain View (FrameLayout + ProgressBar); now a
-    // ComposeView hosting NavLoadingVeil (see BrowserOverlays.kt) --
-    // showNavLoadingVeil()/hideNavLoadingVeil() now flip navLoadingVeilVisible
-    // instead of View.VISIBLE/GONE.
-    private lateinit var navLoadingVeil: androidx.compose.ui.platform.ComposeView
-    // Now a ComposeView hosting ShortcutsScreen (was a LinearLayout wrapping
-    // a RecyclerView + ShortcutAdapter) -- showSpeedDial()/showWebView()
-    // still just flip its visibility, everything else moved to
-    // ShortcutsViewModel/ShortcutsScreen.kt.
-    private lateinit var speedDialContainer: androidx.compose.ui.platform.ComposeView
-    // Phase 5: composition root for Browser's Compose dialogs/sheets --
-    // see browserDialogHost's setContent in onViewCreated and
-    // sniffedSheetStreams below for the first thing it hosts.
-    private lateinit var browserDialogHost: androidx.compose.ui.platform.ComposeView
-    // Phase F: addLinkFab (FloatingActionButton) + sniffedMediaFab
-    // (ExtendedFloatingActionButton) were two separate Views; now one
-    // shared ComposeView hosting BrowserFabs (see BrowserFabs.kt) --
-    // checkPageForLinks()/clearDetectedLink()/updateSniffedMediaFab() now
-    // flip the mutableStateOf fields below instead of View.VISIBLE/GONE.
-    private lateinit var browserFabs: androidx.compose.ui.platform.ComposeView
-    // Now a ComposeView hosting AddressBarSuggestions (was a MaterialCardView
-    // wrapping a RecyclerView + SuggestionAdapter) -- same id, same
-    // top+8dp-margin position in fragment_browser.xml. scheduleSuggest()/
-    // hideSuggestions() drive visibility by setting suggestionItems to
-    // non-empty/empty instead of View.VISIBLE/GONE; the composable itself
-    // renders nothing when the list is empty.
-    private lateinit var suggestionsCard: androidx.compose.ui.platform.ComposeView
-
-    // Phase 5: tabs tray, hosting TabsListOverlay.kt -- see that file's doc
-    // comment and tabsOverlayVisible/tabsOverlaySnapshot below.
-    private lateinit var tabsListOverlay: androidx.compose.ui.platform.ComposeView
-    // Phase F: was a MaterialCardView + EditText/TextView/3x ImageButton;
-    // now a ComposeView hosting FindInPageBar (see BrowserOverlays.kt) --
-    // showFindInPage()/hideFindInPage()/setupFindInPage() now drive the
-    // mutableStateOf fields below instead of touching Views directly.
-    private lateinit var findInPageOverlay: androidx.compose.ui.platform.ComposeView
 
     private val shortcutsViewModel: ShortcutsViewModel by viewModels()
 
@@ -184,6 +132,10 @@ class BrowserFragment : Fragment() {
             if (uri != null) shortcutsViewModel.onIconPicked(uri)
         }
     private var lastDetectedLink: String? = null
+    private var speedDialVisible: Boolean by mutableStateOf(true)
+    private var browserMenuExpanded: Boolean by mutableStateOf(false)
+    private var clearBrowsingDataDialogOpen: Boolean by mutableStateOf(false)
+    private var downloadPrompt: BrowserDownloadPrompt? by mutableStateOf(null)
     // Compose State (not just a plain var) so browserDialogHost's
     // setContent lambda recomposes when this changes -- non-null shows
     // SniffedMediaSheet with this exact snapshot, same one-shot
@@ -327,232 +279,237 @@ class BrowserFragment : Fragment() {
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_browser, container, false)
+    ): View = androidx.compose.ui.platform.ComposeView(requireContext()).apply {
+        browserRoot = this
+        setViewCompositionStrategy(
+            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+        )
+        setContent {
+            com.invictus.xmd.ui.theme.XmdTheme {
+                BrowserScreen(
+                    speedDialVisible = speedDialVisible,
+                    toolbar = {
+                        BrowserToolbarRow(
+                            addressText = addressBarText,
+                            onAddressTextChange = { text ->
+                                addressBarText = text
+                                if (addressBarFocused) scheduleSuggest(text)
+                            },
+                            onAddressFocusChange = { focused ->
+                                addressBarFocused = focused
+                                if (!focused) hideSuggestions()
+                            },
+                            onGo = { loadUrl(addressBarText) },
+                            clearFocusSignal = addressBarClearFocusSignal,
+                            securityIconVisible = securityIconVisible,
+                            isSecure = siteIsSecure,
+                            bookmarkVisible = bookmarkStarVisible,
+                            bookmarkFilled = bookmarkStarFilled,
+                            onBookmarkTap = ::onBookmarkStarTapped,
+                            onHomeTap = ::goHome,
+                            onNewTabTap = ::addNewTab,
+                            onTabsTap = ::showTabsOverlay,
+                            tabsCount = tabsCountValue,
+                            onOverflowTap = { browserMenuExpanded = true },
+                            overflowMenu = {
+                                BrowserOverflowMenu(
+                                    expanded = browserMenuExpanded,
+                                    desktopSiteEnabled = isCurrentTabDesktopMode(),
+                                    currentPageAvailable = currentPageUrl() != null,
+                                    onDismiss = { browserMenuExpanded = false },
+                                    onRefresh = ::reloadActiveTab,
+                                    onFindInPage = ::showFindInPage,
+                                    onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
+                                    onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
+                                    onSharePage = { currentPageUrl()?.let(::shareLink) },
+                                    onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
+                                    onAction = { action ->
+                                        (activity as? Callbacks)?.onBrowserMenuAction(action)
+                                    },
+                                )
+                            },
+                            progress = toolbarProgress,
+                            progressVisible = toolbarProgressVisible,
+                        )
+                    },
+                    onWebViewHostReady = { swipeRefresh, containerView ->
+                        webViewSwipeRefresh = swipeRefresh
+                        webViewContainer = containerView
+                        setupPullToRefresh()
+                    },
+                    speedDial = {
+                        ShortcutsScreen(
+                            viewModel = shortcutsViewModel,
+                            onOpenUrl = { shortcut ->
+                                addressBarText = shortcut.url
+                                loadUrl(shortcut.url)
+                            },
+                            onPickIcon = { pickIconLauncher.launch("image/*") },
+                        )
+                    },
+                    suggestions = {
+                        AddressBarSuggestions(
+                            suggestions = suggestionItems,
+                            onTap = { item ->
+                                when (item) {
+                                    is Suggestion.History -> {
+                                        addressBarText = item.url
+                                        loadUrl(item.url)
+                                    }
+                                    is Suggestion.Search -> {
+                                        addressBarText = item.text
+                                        loadUrl(item.text)
+                                    }
+                                }
+                            },
+                            onAddTap = { phrase ->
+                                val url = normalizeToUrl(phrase)
+                                ShortcutRepository.add(title = phrase, url = url)
+                                Toast.makeText(
+                                    requireContext(),
+                                    R.string.shortcut_added_toast,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            },
+                        )
+                    },
+                    findInPage = {
+                        FindInPageBar(
+                            visible = findInPageVisible,
+                            query = findInPageQuery,
+                            onQueryChange = ::onFindInPageQueryChange,
+                            matchText = findInPageMatchText,
+                            onPrev = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(false) },
+                            onNext = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(true) },
+                            onClose = ::hideFindInPage,
+                            requestFocus = findInPageFocusSignal,
+                        )
+                    },
+                    loadingVeil = { NavLoadingVeil(visible = navLoadingVeilVisible) },
+                    floatingActions = {
+                        BrowserFabs(
+                            detectedLinkVisible = detectedLinkVisible,
+                            onDetectedLinkTap = ::onAddLinkClicked,
+                            sniffedMediaVisible = sniffedMediaFabVisible,
+                            sniffedMediaText = sniffedMediaFabText,
+                            onSniffedMediaTap = ::showSniffedMediaSheet,
+                        )
+                    },
+                    dialogs = {
+                        sniffedSheetStreams?.let { streams ->
+                            SniffedMediaSheet(
+                                streams = streams,
+                                onStreamSelected = { stream ->
+                                    val needsPicker = with(com.invictus.xmd.core.MediaSniffer) {
+                                        stream.kind.needsQualityPicker()
+                                    }
+                                    (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
+                                },
+                                onCopyLink = ::copyLinkToClipboard,
+                                onDismiss = { sniffedSheetStreams = null },
+                            )
+                        }
+                        linkContextMenuState?.let { menuState ->
+                            LinkContextMenu(
+                                state = menuState,
+                                onDismiss = { linkContextMenuState = null },
+                                onOpenNewTab = ::openUrlInNewTab,
+                                onOpenImageNewTab = ::openUrlInNewTab,
+                                onDownloadImage = { url -> onWebViewDownloadRequested(url, null, "image/*") },
+                                onCopyLinkAddress = ::copyLinkToClipboard,
+                                onShareLink = ::shareLink,
+                            )
+                        }
+                        addBookmarkDialogState?.let { state ->
+                            AddBookmarkDialog(
+                                initialUrl = state.prefillUrl,
+                                initialTitle = state.prefillTitle,
+                                onDismiss = { addBookmarkDialogState = null },
+                                onConfirm = { url, title, alsoAddShortcut ->
+                                    if (url.isBlank()) {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            R.string.bookmark_needs_url,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        return@AddBookmarkDialog
+                                    }
+                                    val normalized = normalizeToUrl(url.trim())
+                                    val trimmedTitle = title.trim()
+                                    BookmarkRepository.add(trimmedTitle, normalized)
+                                    if (alsoAddShortcut) ShortcutRepository.add(trimmedTitle, normalized)
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.bookmark_added_toast,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    addBookmarkDialogState = null
+                                },
+                            )
+                        }
+                        if (clearBrowsingDataDialogOpen) {
+                            ClearBrowsingDataDialog(
+                                onDismiss = { clearBrowsingDataDialogOpen = false },
+                                onClear = { history, cookies, cache ->
+                                    clearBrowsingData(history, cookies, cache)
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.clear_data_cleared_toast,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                },
+                            )
+                        }
+                        downloadPrompt?.let { prompt ->
+                            BrowserDownloadConfirmationDialog(
+                                prompt = prompt,
+                                onDismiss = { downloadPrompt = null },
+                                onCopyLink = ::copyLinkToClipboard,
+                                onAddToDownloads = { url ->
+                                    (activity as? Callbacks)?.triggerPrepare(listOf(url))
+                                },
+                            )
+                        }
+                    },
+                    tabsOverlay = {
+                        TabsListOverlay(
+                            visible = tabsOverlayVisible,
+                            tabs = tabsOverlaySnapshot,
+                            currentTabId = tabs.getOrNull(currentTabIndex)?.id,
+                            onSwitch = { id ->
+                                val index = tabs.indexOfFirst { it.id == id }
+                                if (index != -1) switchToTab(index)
+                                hideTabsOverlay()
+                            },
+                            onClose = { id ->
+                                val index = tabs.indexOfFirst { it.id == id }
+                                if (index != -1) closeTab(index)
+                                refreshTabsOverlaySnapshot()
+                            },
+                            onAddNew = {
+                                addNewTab()
+                                hideTabsOverlay()
+                            },
+                            onDismiss = ::hideTabsOverlay,
+                        )
+                    },
+                )
+            }
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        browserToolbar = view.findViewById(R.id.browserToolbar)
-        browserToolbar.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        browserToolbar.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                BrowserToolbarRow(
-                    addressText = addressBarText,
-                    onAddressTextChange = { text ->
-                        addressBarText = text
-                        // Same guard the old TextWatcher's afterTextChanged
-                        // had ("programmatic sets shouldn't trigger
-                        // suggest") -- see addressBarFocused's doc comment.
-                        if (addressBarFocused) scheduleSuggest(text)
-                    },
-                    onAddressFocusChange = { focused ->
-                        addressBarFocused = focused
-                        if (!focused) hideSuggestions()
-                    },
-                    onGo = { loadUrl(addressBarText) },
-                    clearFocusSignal = addressBarClearFocusSignal,
-                    securityIconVisible = securityIconVisible,
-                    isSecure = siteIsSecure,
-                    bookmarkVisible = bookmarkStarVisible,
-                    bookmarkFilled = bookmarkStarFilled,
-                    onBookmarkTap = { onBookmarkStarTapped() },
-                    onHomeTap = { goHome() },
-                    onNewTabTap = { addNewTab() },
-                    onTabsTap = { showTabsOverlay() },
-                    tabsCount = tabsCountValue,
-                    // browserToolbar itself (a real View) stands in for the
-                    // old overflowButton as the PopupMenu anchor -- see
-                    // Callbacks.openBrowserMenu's doc comment above.
-                    onOverflowTap = { (activity as? Callbacks)?.openBrowserMenu(browserToolbar) },
-                    progress = toolbarProgress,
-                    progressVisible = toolbarProgressVisible,
-                )
-            }
-        }
-        webViewSwipeRefresh = view.findViewById(R.id.webViewSwipeRefresh)
-        webViewContainer = view.findViewById(R.id.webViewContainer)
-        navLoadingVeil = view.findViewById(R.id.navLoadingVeil)
-        navLoadingVeil.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        navLoadingVeil.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                NavLoadingVeil(visible = navLoadingVeilVisible)
-            }
-        }
-        speedDialContainer = view.findViewById(R.id.speedDialContainer)
-        speedDialContainer.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        speedDialContainer.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                ShortcutsScreen(
-                    viewModel = shortcutsViewModel,
-                    onOpenUrl = { shortcut -> addressBarText = shortcut.url; loadUrl(shortcut.url) },
-                    onPickIcon = { pickIconLauncher.launch("image/*") },
-                )
-            }
-        }
-        browserDialogHost = view.findViewById(R.id.browserDialogHost)
-        browserDialogHost.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        browserDialogHost.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                sniffedSheetStreams?.let { streams ->
-                    SniffedMediaSheet(
-                        streams = streams,
-                        onStreamSelected = { stream ->
-                            val needsPicker = with(com.invictus.xmd.core.MediaSniffer) {
-                                stream.kind.needsQualityPicker()
-                            }
-                            (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
-                        },
-                        onCopyLink = { url -> copyLinkToClipboard(url) },
-                        onDismiss = { sniffedSheetStreams = null },
-                    )
-                }
-                linkContextMenuState?.let { menuState ->
-                    LinkContextMenu(
-                        state = menuState,
-                        onDismiss = { linkContextMenuState = null },
-                        onOpenNewTab = { url -> openUrlInNewTab(url) },
-                        onOpenImageNewTab = { url -> openUrlInNewTab(url) },
-                        onDownloadImage = { url -> onWebViewDownloadRequested(url, null, "image/*") },
-                        onCopyLinkAddress = { url -> copyLinkToClipboard(url) },
-                        onShareLink = { url -> shareLink(url) },
-                    )
-                }
-                addBookmarkDialogState?.let { state ->
-                    AddBookmarkDialog(
-                        initialUrl = state.prefillUrl,
-                        initialTitle = state.prefillTitle,
-                        onDismiss = { addBookmarkDialogState = null },
-                        onConfirm = { url, title, alsoAddShortcut ->
-                            if (url.isBlank()) {
-                                Toast.makeText(requireContext(), R.string.bookmark_needs_url, Toast.LENGTH_SHORT).show()
-                                return@AddBookmarkDialog
-                            }
-                            val normalized = normalizeToUrl(url.trim())
-                            val trimmedTitle = title.trim()
-                            BookmarkRepository.add(trimmedTitle, normalized)
-                            if (alsoAddShortcut) {
-                                ShortcutRepository.add(trimmedTitle, normalized)
-                            }
-                            Toast.makeText(requireContext(), R.string.bookmark_added_toast, Toast.LENGTH_SHORT).show()
-                            addBookmarkDialogState = null
-                        },
-                    )
-                }
-            }
-        }
-        browserFabs = view.findViewById(R.id.browserFabs)
-        browserFabs.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        browserFabs.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                BrowserFabs(
-                    detectedLinkVisible = detectedLinkVisible,
-                    onDetectedLinkTap = { onAddLinkClicked() },
-                    sniffedMediaVisible = sniffedMediaFabVisible,
-                    sniffedMediaText = sniffedMediaFabText,
-                    onSniffedMediaTap = { showSniffedMediaSheet() },
-                )
-            }
-        }
-        suggestionsCard = view.findViewById(R.id.suggestionsCard)
-        suggestionsCard.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        suggestionsCard.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                AddressBarSuggestions(
-                    suggestions = suggestionItems,
-                    onTap = { item ->
-                        when (item) {
-                            is Suggestion.History -> {
-                                addressBarText = item.url
-                                loadUrl(item.url)
-                            }
-                            is Suggestion.Search -> {
-                                addressBarText = item.text
-                                loadUrl(item.text)
-                            }
-                        }
-                    },
-                    onAddTap = { phrase ->
-                        val url = normalizeToUrl(phrase)
-                        ShortcutRepository.add(title = phrase, url = url)
-                        Toast.makeText(requireContext(), R.string.shortcut_added_toast, Toast.LENGTH_SHORT).show()
-                    },
-                )
-            }
-        }
-        tabsListOverlay = view.findViewById(R.id.tabsListOverlay)
-        tabsListOverlay.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        tabsListOverlay.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                TabsListOverlay(
-                    visible = tabsOverlayVisible,
-                    tabs = tabsOverlaySnapshot,
-                    currentTabId = tabs.getOrNull(currentTabIndex)?.id,
-                    onSwitch = { id ->
-                        val index = tabs.indexOfFirst { it.id == id }
-                        if (index != -1) switchToTab(index)
-                        hideTabsOverlay()
-                    },
-                    onClose = { id ->
-                        val index = tabs.indexOfFirst { it.id == id }
-                        if (index != -1) closeTab(index)
-                        refreshTabsOverlaySnapshot()
-                    },
-                    onAddNew = {
-                        addNewTab()
-                        hideTabsOverlay()
-                    },
-                    onDismiss = { hideTabsOverlay() },
-                )
-            }
-        }
-        findInPageOverlay = view.findViewById(R.id.findInPageOverlay)
-        findInPageOverlay.setViewCompositionStrategy(
-            androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-        )
-        findInPageOverlay.setContent {
-            com.invictus.xmd.ui.theme.XmdTheme {
-                FindInPageBar(
-                    visible = findInPageVisible,
-                    query = findInPageQuery,
-                    onQueryChange = { query -> onFindInPageQueryChange(query) },
-                    matchText = findInPageMatchText,
-                    onPrev = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(false) },
-                    onNext = { webViewFor(tabs.getOrNull(currentTabIndex))?.findNext(true) },
-                    onClose = { hideFindInPage() },
-                    requestFocus = findInPageFocusSignal,
-                )
-            }
-        }
-
         setupSpeedDial()
-        setupPullToRefresh()
-
-        // newTabButton/homeButton/tabsButton/overflowButton/
-        // bookmarkStarButton click wiring, and urlInput's editor-action/
-        // text-watcher/focus-change listeners (the old setupAddressBar()),
-        // all moved into BrowserToolbarRow's onClick/onGo/onAddressTextChange/
-        // onAddressFocusChange lambdas above -- same destination functions,
-        // just no longer separate View listeners. addLinkFab/sniffedMediaFab's
-        // click listeners moved the same way, into browserFabs.setContent's
-        // onDetectedLinkTap/onSniffedMediaTap lambdas above.
-
-        // Start on the speed-dial ("new tab") page.
-        showSpeedDial()
         updateTabsCount()
+        view.post {
+            val currentTab = tabs.getOrNull(currentTabIndex)
+            if (currentTab?.url.isNullOrBlank()) {
+                showSpeedDial()
+            } else {
+                activateTab(currentTabIndex, previousView = null)
+            }
+        }
     }
 
     /**
@@ -569,6 +526,19 @@ class BrowserFragment : Fragment() {
         CookieManager.getInstance().flush()
     }
 
+    override fun onDestroyView() {
+        suggestJob?.cancel()
+        tabs.toList().forEach(::destroyTabWebView)
+        fullscreenView?.let { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+        }
+        fullscreenCallback?.onCustomViewHidden()
+        fullscreenView = null
+        fullscreenCallback = null
+        setImmersiveMode(false)
+        super.onDestroyView()
+    }
+
     /**
      * Chrome-style pull-to-refresh: only fires when the active WebView is
      * already scrolled to the top (setOnChildScrollUpCallback), same as
@@ -578,7 +548,9 @@ class BrowserFragment : Fragment() {
      * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
      */
     private fun setupPullToRefresh() {
-        webViewSwipeRefresh.setColorSchemeColors(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
+        webViewSwipeRefresh.setColorSchemeColors(
+            resolveCurrentXmdColorScheme(requireContext()).primary.toArgb()
+        )
         webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
             webViewFor(tabs.getOrNull(currentTabIndex))?.canScrollVertically(-1) == true
         }
@@ -592,16 +564,11 @@ class BrowserFragment : Fragment() {
         }
     }
 
-    /** Called from MainActivity's overflow menu "Refresh" item. */
-    fun reloadActiveTab() {
+    private fun reloadActiveTab() {
         webViewFor(tabs.getOrNull(currentTabIndex))?.reload()
     }
 
-    /** Called from MainActivity's overflow menu "Desktop site" checkbox. */
-    fun toggleDesktopModeForCurrentTab() = toggleDesktopMode()
-
-    /** Called from MainActivity to set the checkbox's checked state before showing the menu. */
-    fun isDesktopModeOn(): Boolean = isCurrentTabDesktopMode()
+    private fun toggleDesktopModeForCurrentTab() = toggleDesktopMode()
 
     /** Overflow menu's "Clear browsing data" dialog result. Cache/cookies
      *  are cleared through every currently-live WebView (any tab whose
@@ -609,7 +576,7 @@ class BrowserFragment : Fragment() {
      *  clear anyway) since there's no single global handle for either --
      *  each WebView instance owns its own cache, though the cookie jar
      *  itself is shared, so clearing it once via any instance is enough. */
-    fun clearBrowsingData(clearHistory: Boolean, clearCookies: Boolean, clearCache: Boolean) {
+    private fun clearBrowsingData(clearHistory: Boolean, clearCookies: Boolean, clearCache: Boolean) {
         if (clearHistory) HistoryRepository.clearAll()
         if (clearCache) {
             tabs.mapNotNull { webViewFor(it) }.forEach { it.clearCache(true) }
@@ -1326,12 +1293,12 @@ class BrowserFragment : Fragment() {
     }
 
     private fun showSpeedDial() {
-        speedDialContainer.visibility = View.VISIBLE
+        speedDialVisible = true
         addressBarText = ""
         securityIconVisible = false
         bookmarkStarVisible = false
         toolbarProgressVisible = false
-        webViewSwipeRefresh.isRefreshing = false
+        if (::webViewSwipeRefresh.isInitialized) webViewSwipeRefresh.isRefreshing = false
         hideSuggestions()
         clearDetectedLink()
         sniffedMediaFabVisible = false
@@ -1339,7 +1306,7 @@ class BrowserFragment : Fragment() {
     }
 
     private fun showWebView() {
-        speedDialContainer.visibility = View.GONE
+        speedDialVisible = false
     }
 
     /**
@@ -1554,25 +1521,15 @@ class BrowserFragment : Fragment() {
      */
     private fun onWebViewDownloadRequested(url: String, contentDisposition: String?, mimeType: String?) {
         val guessedName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
-        var resolvedName = guessedName
+        downloadPrompt = BrowserDownloadPrompt(url = url, fileName = guessedName)
 
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.download_confirm_title)
-            .setMessage(getString(R.string.download_confirm_message, guessedName))
-            .setPositiveButton(R.string.action_add_to_downloads) { _, _ ->
-                (activity as? Callbacks)?.triggerPrepare(listOf(url))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.action_copy_link) { _, _ -> copyLinkToClipboard(url) }
-            .show()
-
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val probed = withContext(Dispatchers.IO) {
                 DownloadEngine.probeRealFilename(filenameClient, url)
             }
-            if (probed != null && probed != resolvedName && dialog.isShowing) {
-                resolvedName = probed
-                dialog.setMessage(getString(R.string.download_confirm_message, probed))
+            val currentPrompt = downloadPrompt
+            if (probed != null && currentPrompt?.url == url && probed != currentPrompt.fileName) {
+                downloadPrompt = currentPrompt.copy(fileName = probed)
             }
         }
     }
@@ -1697,17 +1654,7 @@ class BrowserFragment : Fragment() {
      * own default long-press behavior (text selection) instead of
      * silently eating the gesture.
      *
-     * Phase 5 conversion: this used to build+show a PopupMenu anchored to
-     * a throwaway 1x1 View dropped into webViewContainer at the touch
-     * point; all of that now lives in ui/LinkContextMenu.kt (rendered from
-     * browserDialogHost, see onViewCreated), this function is just the
-     * hit-parsing-and-set-state trigger. [rawTouchX]/[rawTouchY] are
-     * screen coordinates (not webView-local) precisely because the menu
-     * now renders from browserDialogHost, a sibling view positioned
-     * differently in the layout than webViewContainer -- translated to
-     * browserDialogHost-local coordinates below via getLocationOnScreen(),
-     * which stays correct regardless of how fragment_browser.xml's
-     * surrounding chrome (address bar height, etc.) changes in the future.
+    * The menu is anchored to the touch point inside the single Compose root.
      */
     private fun showLinkContextMenu(
         result: WebView.HitTestResult,
@@ -1738,7 +1685,7 @@ class BrowserFragment : Fragment() {
         if (linkUrl.isNullOrBlank() && imageUrl.isNullOrBlank()) return false
 
         val hostLocation = IntArray(2)
-        browserDialogHost.getLocationOnScreen(hostLocation)
+        browserRoot.getLocationOnScreen(hostLocation)
         linkContextMenuState = LinkContextMenuState(
             touchX = rawTouchX - hostLocation[0],
             touchY = rawTouchY - hostLocation[1],
@@ -1766,9 +1713,14 @@ class BrowserFragment : Fragment() {
     private fun copyLinkToClipboard(url: String) {
         val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                 as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Link", url))
+        clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText(getString(R.string.clipboard_link_label), url)
+        )
         Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
     }
+
+    private fun currentPageUrl(): String? = tabs.getOrNull(currentTabIndex)?.url
+        ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
 
     private fun shareLink(url: String) {
         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -1778,12 +1730,4 @@ class BrowserFragment : Fragment() {
         startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
     }
 
-    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
-     *  of a static @color resource, so tab-switcher rows, the favicon tint,
-     *  and the pull-to-refresh spinner all follow the selected app theme. */
-    private fun resolveThemeColor(attrResId: Int): Int {
-        val tv = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(attrResId, tv, true)
-        return tv.data
-    }
 }
