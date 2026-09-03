@@ -19,10 +19,14 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.viewpager2.adapter.FragmentStateAdapter
+import androidx.viewpager2.widget.ViewPager2
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -163,72 +167,61 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         MainDestination.Browser -> TAG_BROWSER
     }
 
-    private fun selectMainDestination(destination: MainDestination) {
+    private var mainViewPager: ViewPager2? = null
+    private var pagerPosition by mutableFloatStateOf(0f)
+
+    private fun selectMainDestination(destination: MainDestination, smoothScroll: Boolean = true) {
         savedPagesDestination = null
         closeHeaderSearch()
         mainDestination = destination
         currentTabTag = tagFor(destination)
-        showFragment(currentTabTag)
+        val index = bottomNavSwipeOrder.indexOf(destination)
+        if (index >= 0 && mainViewPager?.currentItem != index) {
+            mainViewPager?.setCurrentItem(index, smoothScroll)
+        }
     }
 
     private fun homeFragment(): HomeFragment? =
-        supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment
+        supportFragmentManager.fragments.filterIsInstance<HomeFragment>().firstOrNull()
 
     private fun browserFragment(): BrowserFragment? =
-        supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
+        supportFragmentManager.fragments.filterIsInstance<BrowserFragment>().firstOrNull()
 
     private fun downloadsFragment(): DownloadsFragment? =
-        supportFragmentManager.findFragmentByTag(TAG_DOWNLOADS) as? DownloadsFragment
+        supportFragmentManager.fragments.filterIsInstance<DownloadsFragment>().firstOrNull()
 
-    private fun ensureMainFragments(container: androidx.fragment.app.FragmentContainerView) {
-        container.post {
-            if (isFinishing || supportFragmentManager.isStateSaved) return@post
-            val fm = supportFragmentManager
-            var home = homeFragment()
-            var browser = browserFragment()
-            var downloads = downloadsFragment()
-
-            // If fragments were restored from saved instance state without a valid container,
-            // their views are null or not attached to this container. Remove the orphaned instances
-            // so fresh ones can be properly added to the new FragmentContainerView.
-            if (home != null && (home.view == null || home.view?.parent == null)) {
-                fm.beginTransaction().apply {
-                    remove(home)
-                    browser?.let { remove(it) }
-                    downloads?.let { remove(it) }
-                }.commitNowAllowingStateLoss()
-                home = null
-                browser = null
-                downloads = null
+    private fun setupViewPager(viewPager: ViewPager2) {
+        mainViewPager = viewPager
+        val destinations = bottomNavSwipeOrder
+        viewPager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = destinations.size
+            override fun createFragment(position: Int): Fragment = when (destinations[position]) {
+                MainDestination.Home -> HomeFragment()
+                MainDestination.Downloads -> DownloadsFragment()
+                MainDestination.Browser -> BrowserFragment()
             }
-
-            if (home == null || browser == null || downloads == null) {
-                val targetHome = home ?: HomeFragment()
-                val targetBrowser = browser ?: BrowserFragment()
-                val targetDownloads = downloads ?: DownloadsFragment()
-                fm.beginTransaction().apply {
-                    setReorderingAllowed(true)
-                    if (home == null) add(container.id, targetHome, TAG_HOME)
-                    if (downloads == null) add(container.id, targetDownloads, TAG_DOWNLOADS)
-                    if (browser == null) add(container.id, targetBrowser, TAG_BROWSER)
-                    when (mainDestination) {
-                        MainDestination.Home -> {
-                            hide(targetDownloads)
-                            hide(targetBrowser)
-                        }
-                        MainDestination.Downloads -> {
-                            hide(targetHome)
-                            hide(targetBrowser)
-                        }
-                        MainDestination.Browser -> {
-                            hide(targetHome)
-                            hide(targetDownloads)
-                        }
-                    }
-                }.commitNowAllowingStateLoss()
-            }
-            showFragment(currentTabTag)
+            override fun getItemId(position: Int): Long = destinations[position].ordinal.toLong()
+            override fun containsItem(itemId: Long): Boolean = destinations.any { it.ordinal.toLong() == itemId }
         }
+        viewPager.offscreenPageLimit = 2
+        val initialIdx = destinations.indexOf(mainDestination).coerceAtLeast(0)
+        viewPager.setCurrentItem(initialIdx, false)
+        pagerPosition = initialIdx.toFloat()
+
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
+                pagerPosition = position + positionOffset
+            }
+
+            override fun onPageSelected(position: Int) {
+                val dest = destinations.getOrNull(position) ?: return
+                if (mainDestination != dest) {
+                    mainDestination = dest
+                    currentTabTag = tagFor(dest)
+                    closeHeaderSearch()
+                }
+            }
+        })
     }
 
     private val clipboardManager by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
@@ -270,31 +263,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private val bottomNavSwipeOrder: List<MainDestination>
         get() = navigationItems.mapNotNull { item -> item.destination }
 
-    private val bottomNavSwipeDetector by lazy {
-        val minDistancePx = 80 * resources.displayMetrics.density
-        GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(
-                e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float
-            ): Boolean {
-                if (e1 == null) return false
-                val dx = e2.x - e1.x
-                val dy = e2.y - e1.y
-                if (kotlin.math.abs(dx) < minDistancePx) return false
-                if (kotlin.math.abs(dx) < kotlin.math.abs(dy) * 2) return false
-                val currentIndex = bottomNavSwipeOrder.indexOf(mainDestination)
-                if (currentIndex == -1) return false
-                val step = if (dx < 0) 1 else -1
-                val newIndex = (currentIndex + step).coerceIn(0, bottomNavSwipeOrder.size - 1)
-                if (newIndex != currentIndex) selectMainDestination(bottomNavSwipeOrder[newIndex])
-                return true
-            }
-        })
-    }
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        bottomNavSwipeDetector.onTouchEvent(ev)
-        return super.dispatchTouchEvent(ev)
-    }
 
     // ── HTTP client (resolve step) ────────────────────────────────────────
     private val client = OkHttpClient.Builder()
@@ -366,33 +334,27 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedThemeKey = Settings.appTheme().storageKey
         appliedIsDark = Settings.isDarkMode()
         appliedIsAmoled = Settings.isAmoledMode()
-        navigationItems = configuredNavigationItems()
+        val newNavItems = configuredNavigationItems()
+        if (navigationItems != newNavItems) {
+            navigationItems = newNavItems
+            mainViewPager?.let { setupViewPager(it) }
+        }
         syncToolbarWithVisibleFragment()
         if (mainDestination !in bottomNavSwipeOrder) {
             val fallback = configuredDefaultDestination()
                 .takeIf { destination -> destination in bottomNavSwipeOrder }
                 ?: bottomNavSwipeOrder.firstOrNull()
-            fallback?.let(::selectMainDestination)
+            fallback?.let { selectMainDestination(it, smoothScroll = false) }
         }
     }
 
     private fun syncToolbarWithVisibleFragment() {
-        val fm = supportFragmentManager
-        val home = fm.findFragmentByTag(TAG_HOME)
-        val downloads = fm.findFragmentByTag(TAG_DOWNLOADS)
-        val browser = fm.findFragmentByTag(TAG_BROWSER)
-        if (home == null && downloads == null && browser == null) return
-
-        val browserVisible = browser?.isHidden == false
-        if (browserVisible) {
-            closeHeaderSearch()
-            mainDestination = MainDestination.Browser
-            currentTabTag = TAG_BROWSER
-            return
+        val currentDest = bottomNavSwipeOrder.getOrNull(mainViewPager?.currentItem ?: -1)
+        if (currentDest != null) {
+            mainDestination = currentDest
+            currentTabTag = tagFor(currentDest)
+            if (currentDest == MainDestination.Browser) closeHeaderSearch()
         }
-        val homeVisible = home?.isHidden == false
-        mainDestination = if (homeVisible) MainDestination.Home else MainDestination.Downloads
-        currentTabTag = tagFor(mainDestination)
     }
 
     private fun applySystemBarColors() {
@@ -438,6 +400,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     searchActive = headerSearchActive,
                     searchQuery = headerSearchQuery,
                     snackbarHostState = snackbarHostState,
+                    pagerPosition = pagerPosition,
                     onSearchActiveChange = { active ->
                         if (active) openHeaderSearch() else closeHeaderSearch()
                     },
@@ -446,7 +409,22 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     onAddDownload = { showAddDownloadDialog() },
                     onOpenSettings = { openSettingsScreen() },
                     onToggleTheme = ::toggleDarkMode,
-                    onContainerReady = ::ensureMainFragments,
+                    onViewPagerReady = ::setupViewPager,
+                    onBottomBarDragStart = {
+                        if (mainViewPager?.isFakeDragging == false) {
+                            mainViewPager?.beginFakeDrag()
+                        }
+                    },
+                    onBottomBarDrag = { dragAmount ->
+                        if (mainViewPager?.isFakeDragging == true) {
+                            mainViewPager?.fakeDragBy(-dragAmount)
+                        }
+                    },
+                    onBottomBarDragEnd = {
+                        if (mainViewPager?.isFakeDragging == true) {
+                            mainViewPager?.endFakeDrag()
+                        }
+                    },
                     overlay = {
                         savedPagesDestination?.let { destination ->
                             SavedPagesOverlay(
@@ -782,20 +760,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    // ── Fragment switching ─────────────────────────────────────────────────
-
-    private fun showFragment(tag: String) {
-        val fm        = supportFragmentManager
-        val home      = fm.findFragmentByTag(TAG_HOME)      ?: return
-        val browser   = fm.findFragmentByTag(TAG_BROWSER)   ?: return
-        val downloads = fm.findFragmentByTag(TAG_DOWNLOADS) ?: return
-        fm.beginTransaction().apply {
-            listOf(TAG_HOME to home, TAG_DOWNLOADS to downloads, TAG_BROWSER to browser)
-                .forEach { (fragmentTag, fragment) ->
-                    if (fragmentTag == tag) show(fragment) else hide(fragment)
-                }
-        }.commit()
-    }
 
     // ── Add Download / Torrent Dialogs ─────────────────────────────────────
 

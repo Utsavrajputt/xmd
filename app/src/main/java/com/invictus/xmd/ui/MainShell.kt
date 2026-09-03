@@ -106,84 +106,30 @@ internal fun MainShell(
     searchActive: Boolean,
     searchQuery: String,
     snackbarHostState: SnackbarHostState,
+    pagerPosition: Float,
     onSearchActiveChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onDestinationSelected: (MainDestination) -> Unit,
     onAddDownload: () -> Unit,
     onOpenSettings: () -> Unit,
     onToggleTheme: () -> Unit,
-    onContainerReady: (FragmentContainerView) -> Unit,
+    onViewPagerReady: (androidx.viewpager2.widget.ViewPager2) -> Unit,
+    onBottomBarDragStart: () -> Unit = {},
+    onBottomBarDrag: (Float) -> Unit = {},
+    onBottomBarDragEnd: () -> Unit = {},
     overlay: @Composable BoxScope.() -> Unit,
 ) {
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
 
-    val pageItems = remember(navigationItems) {
-        navigationItems.filter { it.destination != null }
-    }
-    val selectedIndex = remember(pageItems, destination) {
-        pageItems.indexOfFirst { it.destination == destination }.coerceAtLeast(0)
-    }
-    val coroutineScope = rememberCoroutineScope()
-    val animatedPosition = remember { Animatable(selectedIndex.toFloat()) }
-    var isDragging by remember { mutableStateOf(false) }
-
-    LaunchedEffect(selectedIndex) {
-        if (!isDragging && animatedPosition.targetValue != selectedIndex.toFloat()) {
-            animatedPosition.animateTo(
-                targetValue = selectedIndex.toFloat(),
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            )
-        }
-    }
-
-    val swipeModifier = Modifier.pointerInput(pageItems, selectedIndex) {
+    val bottomBarSwipeModifier = Modifier.pointerInput(Unit) {
         detectHorizontalDragGestures(
-            onDragStart = {
-                isDragging = true
-            },
-            onDragEnd = {
-                isDragging = false
-                val currentPos = animatedPosition.value
-                val targetPage = currentPos.roundToInt().coerceIn(0, pageItems.lastIndex)
-                coroutineScope.launch {
-                    animatedPosition.animateTo(
-                        targetValue = targetPage.toFloat(),
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
-                    )
-                    pageItems.getOrNull(targetPage)?.destination?.let { targetDest ->
-                        if (targetDest != destination) {
-                            onDestinationSelected(targetDest)
-                        }
-                    }
-                }
-            },
-            onDragCancel = {
-                isDragging = false
-                coroutineScope.launch {
-                    animatedPosition.animateTo(
-                        targetValue = selectedIndex.toFloat(),
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow,
-                        ),
-                    )
-                }
-            },
+            onDragStart = { onBottomBarDragStart() },
+            onDragEnd = { onBottomBarDragEnd() },
+            onDragCancel = { onBottomBarDragEnd() },
             onHorizontalDrag = { change, dragAmount ->
                 change.consume()
-                val screenWidthPx = size.width.toFloat().coerceAtLeast(1f)
-                val delta = -dragAmount / (screenWidthPx * 0.65f)
-                val newPos = (animatedPosition.value + delta).coerceIn(0f, pageItems.lastIndex.toFloat())
-                coroutineScope.launch {
-                    animatedPosition.snapTo(newPos)
-                }
+                onBottomBarDrag(dragAmount)
             }
         )
     }
@@ -207,24 +153,10 @@ internal fun MainShell(
                 MainNavigationBar(
                     destination = destination,
                     navigationItems = navigationItems,
-                    position = animatedPosition.value,
+                    position = pagerPosition,
                     activeDownloadCount = activeDownloadCount,
-                    swipeModifier = swipeModifier,
-                    onDestinationSelected = { dest ->
-                        coroutineScope.launch {
-                            val targetIdx = pageItems.indexOfFirst { it.destination == dest }
-                            if (targetIdx >= 0) {
-                                animatedPosition.animateTo(
-                                    targetValue = targetIdx.toFloat(),
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMediumLow,
-                                    ),
-                                )
-                            }
-                            onDestinationSelected(dest)
-                        }
-                    },
+                    swipeModifier = bottomBarSwipeModifier,
+                    onDestinationSelected = onDestinationSelected,
                     onAddDownload = onAddDownload,
                 )
             }
@@ -234,14 +166,17 @@ internal fun MainShell(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
-                .then(if (destination != MainDestination.Browser) swipeModifier else Modifier),
+                .padding(contentPadding),
         ) {
             AndroidView(
                 factory = { context ->
-                    FragmentContainerView(context).apply {
-                        id = R.id.fragmentContainer
-                        onContainerReady(this)
+                    androidx.viewpager2.widget.ViewPager2(context).apply {
+                        id = R.id.viewPager
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
+                        onViewPagerReady(this)
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
