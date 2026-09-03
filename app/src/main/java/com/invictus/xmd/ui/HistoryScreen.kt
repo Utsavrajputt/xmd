@@ -1,10 +1,10 @@
 package com.invictus.xmd.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.invictus.xmd.R
 import com.invictus.xmd.core.HistoryEntry
+import com.invictus.xmd.ui.icons.Icons
 
 /** History screen -- thin wrapper around [SavedPagesScreen] with the
  *  history-specific icon/strings. Filtering (title/URL substring) happens
@@ -26,7 +26,7 @@ fun HistoryScreen(
         searchHint = stringResource(R.string.history_search_hint),
         emptyLabel = stringResource(R.string.history_empty),
         searchEmptyLabel = stringResource(R.string.history_search_empty),
-        rowIcon = painterResource(XmdIcons.History),
+        rowIcon = Icons.History,
         entries = entries,
         entryKey = { it.id },
         entryTitle = { it.title },

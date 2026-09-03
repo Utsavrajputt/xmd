@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.AppIcon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -44,9 +47,11 @@ fun SettingsSectionCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val isAmoled = MaterialTheme.colorScheme.background == Color.Black
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = if (isAmoled) BorderStroke(1.dp, Color(0xFF1F1F1F)) else null,
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -101,7 +106,7 @@ fun SwitchSettingRow(
  *  subtitle, trailing chevron. Mirrors item_settings_category.xml. */
 @Composable
 fun CategoryRow(
-    icon: Painter,
+    icon: AppIcon,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
@@ -121,7 +126,7 @@ fun CategoryRow(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = icon,
+                imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(20.dp),
@@ -138,7 +143,7 @@ fun CategoryRow(
             )
         }
         Icon(
-            painter = painterResource(XmdIcons.ChevronRight),
+            imageVector = Icons.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
@@ -197,7 +202,7 @@ fun ThemeSwatchItem(
             }
             if (isSelected) {
                 Icon(
-                    painter = painterResource(XmdIcons.Check),
+                    imageVector = Icons.Check,
                     contentDescription = null,
                     tint = primaryColor,
                     modifier = Modifier

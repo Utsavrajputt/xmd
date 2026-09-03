@@ -183,14 +183,30 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun ensureMainFragments(container: androidx.fragment.app.FragmentContainerView) {
         container.post {
             if (isFinishing || supportFragmentManager.isStateSaved) return@post
-            val home = homeFragment()
-            val browser = browserFragment()
-            val downloads = downloadsFragment()
+            val fm = supportFragmentManager
+            var home = homeFragment()
+            var browser = browserFragment()
+            var downloads = downloadsFragment()
+
+            // If fragments were restored from saved instance state without a valid container,
+            // their views are null or not attached to this container. Remove the orphaned instances
+            // so fresh ones can be properly added to the new FragmentContainerView.
+            if (home != null && (home.view == null || home.view?.parent == null)) {
+                fm.beginTransaction().apply {
+                    remove(home)
+                    browser?.let { remove(it) }
+                    downloads?.let { remove(it) }
+                }.commitNowAllowingStateLoss()
+                home = null
+                browser = null
+                downloads = null
+            }
+
             if (home == null || browser == null || downloads == null) {
                 val targetHome = home ?: HomeFragment()
                 val targetBrowser = browser ?: BrowserFragment()
                 val targetDownloads = downloads ?: DownloadsFragment()
-                supportFragmentManager.beginTransaction().apply {
+                fm.beginTransaction().apply {
                     setReorderingAllowed(true)
                     if (home == null) add(container.id, targetHome, TAG_HOME)
                     if (downloads == null) add(container.id, targetDownloads, TAG_DOWNLOADS)
@@ -209,7 +225,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             hide(targetDownloads)
                         }
                     }
-                }.commitNow()
+                }.commitNowAllowingStateLoss()
             }
             showFragment(currentTabTag)
         }
@@ -347,20 +363,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      */
     override fun onResume() {
         super.onResume()
-        // Settings (a separate Activity) may have changed the color theme
-        // or dark/light mode while this Activity was stopped underneath
-        // it -- setTheme() only applies pre-onCreate, so the only way to
-        // repaint with the new theme is to recreate() once we notice it
-        // no longer matches what onCreate() applied. The recreate() itself
-        // re-runs onCreate() (which updates appliedThemeStyleRes) then
-        // onResume() again, so the check below just passes through to
-        // syncToolbarWithVisibleFragment() on that second pass.
-        if (Settings.appTheme().storageKey != appliedThemeKey ||
-            Settings.isDarkMode() != appliedIsDark ||
-            Settings.isAmoledMode() != appliedIsAmoled) {
-            recreate()
-            return
-        }
+        appliedThemeKey = Settings.appTheme().storageKey
+        appliedIsDark = Settings.isDarkMode()
+        appliedIsAmoled = Settings.isAmoledMode()
         navigationItems = configuredNavigationItems()
         syncToolbarWithVisibleFragment()
         if (mainDestination !in bottomNavSwipeOrder) {
@@ -1597,7 +1602,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun toggleDarkMode() {
         val nowDark = !Settings.isDarkMode()
         Settings.setDarkMode(nowDark)
-        recreate()
     }
 
 

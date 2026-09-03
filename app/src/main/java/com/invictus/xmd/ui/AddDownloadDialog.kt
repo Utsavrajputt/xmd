@@ -16,7 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -183,7 +184,7 @@ fun AddDownloadDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painterResource(XmdIcons.Download),
+                    imageVector = Icons.Download,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -200,7 +201,7 @@ fun AddDownloadDialog(
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { onCopyLink(link) }) {
-                        Icon(painterResource(XmdIcons.Copy), contentDescription = stringResource(R.string.torrent_dialog_copy_link))
+                        Icon(imageVector = Icons.Copy, contentDescription = stringResource(R.string.torrent_dialog_copy_link))
                     }
                     IconButton(onClick = {
                         val pasted = onPasteRequest()
@@ -213,7 +214,7 @@ fun AddDownloadDialog(
                             }
                         }
                     }) {
-                        Icon(painterResource(XmdIcons.Paste), contentDescription = stringResource(R.string.dialog_paste_link))
+                        Icon(imageVector = Icons.Paste, contentDescription = stringResource(R.string.dialog_paste_link))
                     }
                 }
                 OutlinedTextField(
@@ -307,7 +308,7 @@ fun AddDownloadDialog(
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
-                        painterResource(if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight),
+                        imageVector = if (advancedExpanded) Icons.ArrowDown else Icons.ChevronRight,
                         contentDescription = null,
                     )
                 }

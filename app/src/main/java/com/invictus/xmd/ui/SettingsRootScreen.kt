@@ -7,10 +7,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
+import com.invictus.xmd.ui.icons.Icons
 
 /**
  * Root of the Settings screen: category rows that push the matching
@@ -37,28 +37,28 @@ fun SettingsRootScreen(
     ) {
         SettingsSectionCard {
             CategoryRow(
-                icon = painterResource(XmdIcons.Palette),
+                icon = Icons.Palette,
                 title = stringResource(R.string.settings_category_appearance),
                 subtitle = stringResource(R.string.settings_category_appearance_desc),
                 onClick = onOpenAppearance,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Sync),
+                icon = Icons.Sync,
                 title = stringResource(R.string.settings_category_connections),
                 subtitle = stringResource(R.string.settings_category_connections_desc),
                 onClick = onOpenConnections,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Public),
+                icon = Icons.Public,
                 title = stringResource(R.string.settings_category_browser),
                 subtitle = stringResource(R.string.settings_category_browser_desc),
                 onClick = onOpenBrowser,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Downloads),
+                icon = Icons.Downloads,
                 title = stringResource(R.string.settings_category_downloads),
                 subtitle = stringResource(R.string.settings_category_downloads_desc),
                 onClick = onOpenDownloads,
@@ -69,7 +69,7 @@ fun SettingsRootScreen(
             if (showYoutubeRow) {
                 CategoryRowGap()
                 CategoryRow(
-                    icon = painterResource(XmdIcons.Youtube),
+                    icon = Icons.Youtube,
                     title = stringResource(R.string.settings_category_youtube),
                     subtitle = stringResource(R.string.settings_category_youtube_desc),
                     onClick = onOpenYoutube,
@@ -80,7 +80,7 @@ fun SettingsRootScreen(
         Column(modifier = Modifier.padding(top = 16.dp)) {
             SettingsSectionCard {
                 CategoryRow(
-                    icon = painterResource(XmdIcons.Info),
+                    icon = Icons.Info,
                     title = stringResource(R.string.settings_category_about),
                     subtitle = stringResource(R.string.settings_category_about_desc),
                     onClick = onOpenAbout,

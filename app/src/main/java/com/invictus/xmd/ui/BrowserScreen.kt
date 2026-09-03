@@ -17,7 +17,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.AppIcon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -136,18 +138,18 @@ internal fun BrowserOverflowMenu(
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_refresh),
-            icon = XmdIcons.Refresh,
+            icon = Icons.Refresh,
             onClick = { onDismiss(); onRefresh() },
         )
         BrowserMenuItem(
             label = stringResource(R.string.find_in_page_menu),
-            icon = XmdIcons.FindInPage,
+            icon = Icons.FindInPage,
             onClick = { onDismiss(); onFindInPage() },
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.browser_menu_desktop_site)) },
             leadingIcon = {
-                Icon(painterResource(XmdIcons.Desktop), contentDescription = null)
+                Icon(imageVector = Icons.Desktop, contentDescription = null)
             },
             trailingIcon = {
                 Checkbox(checked = desktopSiteEnabled, onCheckedChange = null)
@@ -156,42 +158,42 @@ internal fun BrowserOverflowMenu(
         )
         BrowserMenuItem(
             label = stringResource(R.string.link_menu_copy_link_address),
-            icon = XmdIcons.Copy,
+            icon = Icons.Copy,
             enabled = currentPageAvailable,
             onClick = { onDismiss(); onCopyPage() },
         )
         BrowserMenuItem(
             label = stringResource(R.string.link_menu_share_link),
-            icon = XmdIcons.Share,
+            icon = Icons.Share,
             enabled = currentPageAvailable,
             onClick = { onDismiss(); onSharePage() },
         )
         HorizontalDivider()
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_private_dns),
-            icon = XmdIcons.Dns,
+            icon = Icons.Dns,
             onClick = { onDismiss(); onAction(BrowserMenuAction.PrivateDns) },
         )
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_clear_data),
-            icon = XmdIcons.DeleteSweep,
+            icon = Icons.DeleteSweep,
             onClick = { onDismiss(); onClearBrowsingData() },
         )
         HorizontalDivider()
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_bookmarks),
-            icon = XmdIcons.Bookmarks,
+            icon = Icons.Bookmarks,
             onClick = { onDismiss(); onAction(BrowserMenuAction.Bookmarks) },
         )
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_history),
-            icon = XmdIcons.History,
+            icon = Icons.History,
             onClick = { onDismiss(); onAction(BrowserMenuAction.History) },
         )
         HorizontalDivider()
         BrowserMenuItem(
             label = stringResource(R.string.menu_settings),
-            icon = XmdIcons.Settings,
+            icon = Icons.Settings,
             onClick = { onDismiss(); onAction(BrowserMenuAction.Settings) },
         )
     }
@@ -200,13 +202,13 @@ internal fun BrowserOverflowMenu(
 @Composable
 private fun BrowserMenuItem(
     label: String,
-    icon: Int,
+    icon: AppIcon,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     DropdownMenuItem(
         text = { Text(label) },
-        leadingIcon = { Icon(painterResource(icon), contentDescription = null) },
+        leadingIcon = { Icon(imageVector = icon, contentDescription = null) },
         enabled = enabled,
         onClick = onClick,
     )

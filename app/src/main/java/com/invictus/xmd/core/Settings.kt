@@ -29,32 +29,41 @@ object Settings {
 
     private lateinit var prefs: SharedPreferences
 
+    private val _themeFlow = kotlinx.coroutines.flow.MutableStateFlow(AppTheme.Default)
+    val themeFlow: kotlinx.coroutines.flow.StateFlow<AppTheme> = _themeFlow
+
+    private val _darkModeFlow = kotlinx.coroutines.flow.MutableStateFlow(true)
+    val darkModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _darkModeFlow
+
+    private val _amoledModeFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val amoledModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _amoledModeFlow
+
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        _themeFlow.value = appTheme()
+        _darkModeFlow.value = isDarkMode()
+        _amoledModeFlow.value = isAmoledMode()
     }
 
-    /** The active app color theme. Read `setTheme()`d onto every Activity before
-     *  `super.onCreate()`, so a change here needs `recreate()` to take effect. */
+    /** The active app color theme. */
     fun appTheme(): AppTheme = AppTheme.fromKey(prefs.getString(KEY_APP_THEME, null))
     fun setAppTheme(theme: AppTheme) {
         prefs.edit().putString(KEY_APP_THEME, theme.storageKey).apply()
+        _themeFlow.value = theme
     }
 
-    /** Dark/light mode, orthogonal to [appTheme]. Defaults to dark (the app's
-     *  original look). Toggled by double-tapping the app header; read
-     *  `setTheme()`d onto every Activity before `super.onCreate()` alongside
-     *  the color theme, so a change here also needs `recreate()`. */
+    /** Dark/light mode, orthogonal to [appTheme]. */
     fun isDarkMode(): Boolean = prefs.getBoolean(KEY_DARK_MODE, true)
     fun setDarkMode(isDark: Boolean) {
         prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
+        _darkModeFlow.value = isDark
     }
 
-    /** AMOLED pure black dark mode. When enabled alongside [isDarkMode], the
-     *  body background is overridden to pitch black (#000000) while keeping
-     *  theme accent colors and header colors intact. */
+    /** AMOLED pure black dark mode. */
     fun isAmoledMode(): Boolean = prefs.getBoolean(KEY_AMOLED_MODE, false)
     fun setAmoledMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AMOLED_MODE, enabled).apply()
+        _amoledModeFlow.value = enabled
     }
 
     fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 16)

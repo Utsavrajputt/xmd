@@ -12,7 +12,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -141,7 +142,7 @@ fun FindInPageBar(
             )
             IconButton(onClick = onPrev, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(XmdIcons.ArrowUp),
+                    imageVector = Icons.ArrowUp,
                     contentDescription = stringResource(R.string.find_in_page_prev),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
@@ -149,7 +150,7 @@ fun FindInPageBar(
             }
             IconButton(onClick = onNext, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(XmdIcons.ArrowDown),
+                    imageVector = Icons.ArrowDown,
                     contentDescription = stringResource(R.string.find_in_page_next),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),
@@ -157,7 +158,7 @@ fun FindInPageBar(
             }
             IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
                 Icon(
-                    painter = painterResource(XmdIcons.Close),
+                    imageVector = Icons.Close,
                     contentDescription = stringResource(R.string.action_dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp),

@@ -1,17 +1,25 @@
 package com.invictus.xmd.ui.theme
 
+import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Settings
 
@@ -51,33 +59,44 @@ private val ExpressiveTypography = Typography(
 )
 
 /**
- * Applies the active Kotlin-owned color palette, typography, and shapes.
- * XML retains only the minimal activity-window bootstrap required before
- * Compose creates the first frame.
- *
- * Wrap Compose screen content in [XmdTheme] instead of the raw
- * `MaterialTheme { ... }` so it inherits the correct palette:
- * ```
- * setContent {
- *     XmdTheme {
- *         SettingsScreen(...)
- *     }
- * }
- * ```
+ * Applies the active Kotlin-owned color palette, typography, shapes, and transition overlay.
  */
 @Composable
-fun XmdTheme(content: @Composable () -> Unit) {
+fun XmdTheme(
+    transitionState: ThemeTransitionState = rememberThemeTransitionState(),
+    content: @Composable () -> Unit,
+) {
     val context = LocalContext.current
-    val theme = Settings.appTheme()
-    val isDark = Settings.isDarkMode()
-    val isAmoled = Settings.isAmoledMode()
+    val theme by Settings.themeFlow.collectAsState()
+    val isDark by Settings.darkModeFlow.collectAsState()
+    val isAmoled by Settings.amoledModeFlow.collectAsState()
+
     val colorScheme = remember(context, theme, isDark, isAmoled) {
         resolveXmdColorScheme(context, theme, isDark, isAmoled)
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = ExpressiveTypography,
-        shapes = ExpressiveShapes,
-        content = content,
-    )
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !isDark
+            insetsController.isAppearanceLightNavigationBars = !isDark
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalThemeTransitionState provides transitionState,
+    ) {
+        ThemeTransitionOverlay(state = transitionState) {
+            MaterialTheme(
+                colorScheme = colorScheme,
+                typography = ExpressiveTypography,
+                shapes = ExpressiveShapes,
+                content = content,
+            )
+        }
+    }
 }

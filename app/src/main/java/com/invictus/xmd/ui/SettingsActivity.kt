@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -21,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +41,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ShortcutRepository
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
+import com.invictus.xmd.ui.theme.LocalThemeTransitionState
 import com.invictus.xmd.ui.theme.XmdTheme
 import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
@@ -157,7 +160,7 @@ class SettingsActivity : ComponentActivity() {
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
-                                painter = painterResource(XmdIcons.ArrowBack),
+                                imageVector = Icons.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back),
                             )
                         }
@@ -183,7 +186,7 @@ class SettingsActivity : ComponentActivity() {
                             onOpenAbout = { navController.navigate(Route.ABOUT) },
                         )
                     }
-                    composable(Route.APPEARANCE) { AppearanceRoute(this@SettingsActivity) }
+                    composable(Route.APPEARANCE) { AppearanceRoute() }
                     composable(Route.CONNECTIONS) { ConnectionsRoute() }
                     composable(Route.DOWNLOADS) { DownloadsRoute() }
                     composable(Route.BROWSER) {
@@ -327,26 +330,14 @@ private val routeTitles: Map<String, Int> = mapOf(
 // The *Screen.kt composables themselves are untouched -- same signatures.
 
 @Composable
-private fun AppearanceRoute(activity: ComponentActivity) {
-    // Local state exists only so the screen doesn't visibly lag between tap
-    // and activity.recreate() actually repainting -- recreate() is still
-    // the source of truth for every persisted value. Same behavior as the
-    // retired SettingsAppearanceFragment; ComponentActivity.recreate() is
-    // the same API AppCompatActivity inherited it from.
-    var currentTheme by remember {
-        mutableStateOf(com.invictus.xmd.core.Settings.appTheme())
-    }
-    var isDark by remember {
-        mutableStateOf(com.invictus.xmd.core.Settings.isDarkMode())
-    }
-    var isAmoled by remember {
-        mutableStateOf(com.invictus.xmd.core.Settings.isAmoledMode())
-    }
-    // Tab config doesn't need activity.recreate() from here -- this screen
-    // doesn't show the nav bar itself; MainActivity notices the change and
-    // recreates on its own next onResume (same mechanism as the theme
-    // fields above), so this just needs to persist + keep local state fresh
-    // for immediate visual feedback while still on this screen.
+private fun AppearanceRoute() {
+    val themeTransition = LocalThemeTransitionState.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val currentTheme by com.invictus.xmd.core.Settings.themeFlow.collectAsState()
+    val isDark by com.invictus.xmd.core.Settings.darkModeFlow.collectAsState()
+    val isAmoled by com.invictus.xmd.core.Settings.amoledModeFlow.collectAsState()
+
     var tabOrder by remember {
         mutableStateOf(com.invictus.xmd.core.Settings.tabOrder())
     }
@@ -361,26 +352,19 @@ private fun AppearanceRoute(activity: ComponentActivity) {
         currentTheme = currentTheme,
         isDark = isDark,
         isAmoled = isAmoled,
-        onThemeSelected = { theme ->
-            if (theme != com.invictus.xmd.core.Settings.appTheme()) {
-                currentTheme = theme
+        onThemeSelected = { theme, position ->
+            if (theme != currentTheme) {
+                themeTransition?.startTransition(position)
                 com.invictus.xmd.core.Settings.setAppTheme(theme)
-                activity.recreate()
             }
         },
         onDarkModeChanged = { checked ->
-            if (checked != com.invictus.xmd.core.Settings.isDarkMode()) {
-                isDark = checked
-                com.invictus.xmd.core.Settings.setDarkMode(checked)
-                activity.recreate()
-            }
+            themeTransition?.startTransition(androidx.compose.ui.geometry.Offset.Zero)
+            com.invictus.xmd.core.Settings.setDarkMode(checked)
         },
         onAmoledModeChanged = { checked ->
-            if (checked != com.invictus.xmd.core.Settings.isAmoledMode()) {
-                isAmoled = checked
-                com.invictus.xmd.core.Settings.setAmoledMode(checked)
-                activity.recreate()
-            }
+            themeTransition?.startTransition(androidx.compose.ui.geometry.Offset.Zero)
+            com.invictus.xmd.core.Settings.setAmoledMode(checked)
         },
         tabOrder = tabOrder,
         hiddenTabs = hiddenTabs,

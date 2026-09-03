@@ -12,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.AppIcon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -126,7 +128,7 @@ fun BrowserToolbarRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ToolbarIconButton(
-                    iconRes = XmdIcons.Home,
+                    icon = Icons.Home,
                     contentDescription = stringResource(R.string.action_home),
                     onClick = onHomeTap,
                 )
@@ -146,7 +148,7 @@ fun BrowserToolbarRow(
                     onBookmarkTap = onBookmarkTap,
                 )
                 ToolbarIconButton(
-                    iconRes = XmdIcons.Add,
+                    icon = Icons.Add,
                     contentDescription = stringResource(R.string.action_new_tab),
                     onClick = onNewTabTap,
                     modifier = Modifier.padding(start = 2.dp),
@@ -158,7 +160,7 @@ fun BrowserToolbarRow(
                 )
                 Box {
                     ToolbarIconButton(
-                        iconRes = XmdIcons.More,
+                        icon = Icons.More,
                         contentDescription = stringResource(R.string.action_more),
                         onClick = onOverflowTap,
                     )
@@ -242,7 +244,7 @@ private fun AddressPill(
         ) {
             if (securityIconVisible) {
                 Icon(
-                    painter = painterResource(if (isSecure) XmdIcons.Lock else XmdIcons.LockOpen),
+                    imageVector = if (isSecure) Icons.Lock else Icons.LockOpen,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -304,9 +306,7 @@ private fun AddressPill(
                         .size(36.dp),
                 ) {
                     Icon(
-                        painter = painterResource(
-                            if (bookmarkFilled) XmdIcons.Bookmark else XmdIcons.BookmarkAdd
-                        ),
+                        imageVector = if (bookmarkFilled) Icons.Bookmark else Icons.BookmarkAdd,
                         contentDescription = stringResource(R.string.action_add_shortcut),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
@@ -319,14 +319,14 @@ private fun AddressPill(
 
 @Composable
 private fun ToolbarIconButton(
-    iconRes: Int,
+    icon: AppIcon,
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     IconButton(onClick = onClick, modifier = modifier.size(40.dp)) {
         Icon(
-            painter = painterResource(iconRes),
+            imageVector = icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp),

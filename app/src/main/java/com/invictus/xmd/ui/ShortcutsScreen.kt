@@ -23,7 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -333,7 +334,7 @@ private fun ShortcutTile(shortcut: Shortcut, modifier: Modifier = Modifier) {
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
-                        painter = painterResource(XmdIcons.Link),
+                        imageVector = Icons.Link,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp),
@@ -371,7 +372,7 @@ private fun AddShortcutTile(onClick: (() -> Unit)?) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(XmdIcons.Add),
+                imageVector = Icons.Add,
                 contentDescription = stringResource(R.string.action_add_shortcut),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -445,7 +446,7 @@ private fun AddEditShortcutDialog(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(XmdIcons.Link),
+                            imageVector = Icons.Link,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )

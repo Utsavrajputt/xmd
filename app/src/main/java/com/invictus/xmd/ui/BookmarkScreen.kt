@@ -1,10 +1,10 @@
 package com.invictus.xmd.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.invictus.xmd.R
 import com.invictus.xmd.core.Bookmark
+import com.invictus.xmd.ui.icons.Icons
 
 /** Bookmarks screen -- thin wrapper around [SavedPagesScreen] with the
  *  bookmark-specific icon/strings. Filtering (title/URL substring) happens
@@ -26,7 +26,7 @@ fun BookmarkScreen(
         searchHint = stringResource(R.string.bookmarks_search_hint),
         emptyLabel = stringResource(R.string.bookmarks_empty),
         searchEmptyLabel = stringResource(R.string.bookmarks_search_empty),
-        rowIcon = painterResource(XmdIcons.Bookmark),
+        rowIcon = Icons.Bookmark,
         entries = entries,
         entryKey = { it.id },
         entryTitle = { it.title },

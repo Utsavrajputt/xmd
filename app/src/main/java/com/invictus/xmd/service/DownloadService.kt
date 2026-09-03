@@ -816,7 +816,7 @@ class DownloadService : LifecycleService() {
 
         val showBar = indeterminate || relevant.any { it.bytesTotal > 0 }
         val builder = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
-            .setSmallIcon(MaterialSymbols.drawable.materialsymbols_ic_download_rounded_filled)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title)
             .setContentText(text)
             .setSubText(if (!indeterminate && showBar) "$barPercent%" else null)

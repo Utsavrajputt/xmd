@@ -10,7 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,7 +98,7 @@ fun AboutScreen(
                     .clickable(onClick = onGithubClick),
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Code),
+                    imageVector = Icons.Code,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(22.dp),
@@ -109,7 +110,7 @@ fun AboutScreen(
                     modifier = Modifier.weight(1f).padding(start = 14.dp),
                 )
                 Icon(
-                    painter = painterResource(XmdIcons.ArrowForward),
+                    imageVector = Icons.ArrowForward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),

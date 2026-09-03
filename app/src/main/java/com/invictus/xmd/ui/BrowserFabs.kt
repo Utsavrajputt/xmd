@@ -6,7 +6,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,7 +69,7 @@ fun BrowserFabs(
                 contentColor = contentColor,
                 icon = {
                     Icon(
-                        painter = painterResource(XmdIcons.Video),
+                        imageVector = Icons.Video,
                         contentDescription = null,
                     )
                 },
@@ -86,7 +87,7 @@ fun BrowserFabs(
                 contentColor = contentColor,
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Download),
+                    imageVector = Icons.Download,
                     contentDescription = stringResource(R.string.action_add_to_downloads),
                 )
             }

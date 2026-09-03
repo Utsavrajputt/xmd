@@ -17,7 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -95,7 +96,7 @@ internal fun HomeScreen(
                         placeholder = { Text(stringResource(R.string.hint_links)) },
                         leadingIcon = {
                             Icon(
-                                painter = painterResource(XmdIcons.Link),
+                                imageVector = Icons.Link,
                                 contentDescription = null,
                             )
                         },
@@ -108,7 +109,7 @@ internal fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
-                            painter = painterResource(XmdIcons.Torrent),
+                            imageVector = Icons.Torrent,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -130,7 +131,7 @@ internal fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(
-                            painter = painterResource(XmdIcons.Download),
+                            imageVector = Icons.Download,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
@@ -158,7 +159,7 @@ internal fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Link),
+                    imageVector = Icons.Link,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(28.dp),
@@ -192,7 +193,7 @@ private fun ClipboardLinkBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(XmdIcons.Link),
+                imageVector = Icons.Link,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp),
@@ -212,7 +213,7 @@ private fun ClipboardLinkBanner(
             }
             IconButton(onClick = onDismiss) {
                 Icon(
-                    painter = painterResource(XmdIcons.Close),
+                    imageVector = Icons.Close,
                     contentDescription = stringResource(R.string.action_dismiss),
                 )
             }
@@ -267,7 +268,7 @@ private fun QuickStatsCard(stats: HomeQuickStats, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(XmdIcons.Downloads),
+                imageVector = Icons.Downloads,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
             )
@@ -287,7 +288,7 @@ private fun QuickStatsCard(stats: HomeQuickStats, onClick: () -> Unit) {
                 )
             }
             Icon(
-                painter = painterResource(XmdIcons.ChevronRight),
+                imageVector = Icons.ChevronRight,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
             )

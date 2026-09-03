@@ -17,7 +17,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -323,7 +324,7 @@ private fun QualityOptionRow(
             .padding(vertical = 10.dp),
     ) {
         Icon(
-            painter = painterResource(if (option.isAudioOnly) XmdIcons.Music else XmdIcons.Video),
+            imageVector = if (option.isAudioOnly) Icons.Music else Icons.Video,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),

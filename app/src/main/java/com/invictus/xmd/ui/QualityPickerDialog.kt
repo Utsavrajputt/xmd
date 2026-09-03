@@ -12,7 +12,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -95,9 +96,7 @@ fun QualityPickerDialog(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Icon(
-                        painter = painterResource(
-                            if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight
-                        ),
+                        imageVector = if (advancedExpanded) Icons.ArrowDown else Icons.ChevronRight,
                         contentDescription = null,
                     )
                 }

@@ -17,7 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -174,7 +175,7 @@ class ChallengeActivity : ComponentActivity() {
                     navigationIcon = {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
-                                painterResource(XmdIcons.ArrowBack),
+                                imageVector = Icons.ArrowBack,
                                 contentDescription = stringResource(android.R.string.cancel),
                             )
                         }

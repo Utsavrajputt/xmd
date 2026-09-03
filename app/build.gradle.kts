@@ -151,7 +151,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("com.composables:icons-material-symbols-rounded-filled-android:2.2.1")
+    implementation("com.composables:icons-material-symbols-cmp:2.2.1")
+    implementation("com.composables:icons-material-symbols-rounded-filled-cmp:2.2.1")
 
     // Activity/Fragment <-> Compose interop (setContent {}, ComposeView) and
     // typed navigation between Compose screens, replacing the Fragment-based

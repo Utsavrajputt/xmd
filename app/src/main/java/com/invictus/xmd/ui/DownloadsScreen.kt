@@ -24,7 +24,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -139,7 +140,7 @@ fun DownloadsScreen(
                         leadingIcon = if (selectedFilter == filter) {
                             {
                                 Icon(
-                                    painter = painterResource(XmdIcons.Check),
+                                    imageVector = Icons.Check,
                                     contentDescription = null,
                                     modifier = Modifier.size(FilterChipDefaults.IconSize),
                                 )
@@ -308,7 +309,7 @@ private fun EmptyState(showIcon: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Downloads),
+                    imageVector = Icons.Downloads,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(36.dp),

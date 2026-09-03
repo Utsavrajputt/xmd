@@ -11,7 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -99,11 +100,11 @@ private fun SniffedMediaRow(
             .padding(vertical = 2.dp),
     ) {
         val icon = when (stream.kind) {
-            MediaSniffer.Kind.DIRECT_AUDIO -> XmdIcons.Music
-            else -> XmdIcons.Video
+            MediaSniffer.Kind.DIRECT_AUDIO -> Icons.Music
+            else -> Icons.Video
         }
         Icon(
-            painter = painterResource(icon),
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
@@ -125,7 +126,7 @@ private fun SniffedMediaRow(
         )
         IconButton(onClick = onCopyClick) {
             Icon(
-                painter = painterResource(XmdIcons.Link),
+                imageVector = Icons.Link,
                 contentDescription = stringResource(R.string.torrent_dialog_copy_link),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(18.dp),

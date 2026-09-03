@@ -18,7 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -105,7 +106,7 @@ fun AddTorrentDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painterResource(XmdIcons.Torrent),
+                    imageVector = Icons.Torrent,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -122,7 +123,7 @@ fun AddTorrentDialog(
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = { onCopyLink(link) }) {
-                        Icon(painterResource(XmdIcons.Copy), contentDescription = stringResource(R.string.torrent_dialog_copy_link))
+                        Icon(imageVector = Icons.Copy, contentDescription = stringResource(R.string.torrent_dialog_copy_link))
                     }
                     if (!linkLocked) {
                         IconButton(onClick = {
@@ -132,7 +133,7 @@ fun AddTorrentDialog(
                                 onLinkChanged(pasted)
                             }
                         }) {
-                            Icon(painterResource(XmdIcons.Paste), contentDescription = stringResource(R.string.dialog_paste_link))
+                            Icon(imageVector = Icons.Paste, contentDescription = stringResource(R.string.dialog_paste_link))
                         }
                     }
                 }
@@ -237,7 +238,7 @@ fun AddTorrentDialog(
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
-                        painterResource(if (advancedExpanded) XmdIcons.ArrowDown else XmdIcons.ChevronRight),
+                        imageVector = if (advancedExpanded) Icons.ArrowDown else Icons.ChevronRight,
                         contentDescription = null,
                     )
                 }

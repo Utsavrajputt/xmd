@@ -12,7 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -92,9 +93,7 @@ private fun SuggestionRow(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(
-                    if (item is Suggestion.History) XmdIcons.History else XmdIcons.Search
-                ),
+                imageVector = if (item is Suggestion.History) Icons.History else Icons.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(15.dp),
@@ -113,7 +112,7 @@ private fun SuggestionRow(
         if (item is Suggestion.Search) {
             IconButton(onClick = { onAddTap(item.text) }) {
                 Icon(
-                    painter = painterResource(XmdIcons.Add),
+                    imageVector = Icons.Add,
                     contentDescription = stringResource(R.string.action_add_shortcut),
                     tint = MaterialTheme.colorScheme.primary,
                 )

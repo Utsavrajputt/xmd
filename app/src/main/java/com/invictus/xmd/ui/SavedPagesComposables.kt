@@ -16,7 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.invictus.xmd.ui.icons.AppIcon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -50,7 +52,7 @@ fun <T> SavedPageRow(
     entry: T,
     title: String,
     url: String,
-    icon: Painter,
+    icon: AppIcon,
     onTap: (T) -> Unit,
     onDelete: (T) -> Unit,
 ) {
@@ -75,7 +77,7 @@ fun <T> SavedPageRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Delete),
+                    imageVector = Icons.Delete,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onErrorContainer,
                 )
@@ -97,7 +99,7 @@ fun <T> SavedPageRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = icon,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(17.dp),
@@ -126,7 +128,7 @@ fun <T> SavedPageRow(
             }
             IconButton(onClick = { onDelete(entry) }) {
                 Icon(
-                    painter = painterResource(XmdIcons.Delete),
+                    imageVector = Icons.Delete,
                     contentDescription = stringResource(R.string.action_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -150,7 +152,7 @@ fun <T> SavedPagesScreen(
     searchHint: String,
     emptyLabel: String,
     searchEmptyLabel: String,
-    rowIcon: Painter,
+    rowIcon: AppIcon,
     entries: List<T>,
     entryKey: (T) -> Any,
     entryTitle: (T) -> String,
@@ -172,7 +174,7 @@ fun <T> SavedPagesScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        painter = painterResource(XmdIcons.ArrowBack),
+                        imageVector = Icons.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
                 }
@@ -204,12 +206,12 @@ fun <T> SavedPagesScreen(
                 placeholder = { Text(searchHint) },
                 singleLine = true,
                 leadingIcon = {
-                    Icon(painterResource(XmdIcons.Search), contentDescription = null)
+                    Icon(imageVector = Icons.Search, contentDescription = null)
                 },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
                         IconButton(onClick = { onQueryChange("") }) {
-                            Icon(painterResource(XmdIcons.Close), contentDescription = null)
+                            Icon(imageVector = Icons.Close, contentDescription = null)
                         }
                     }
                 },
