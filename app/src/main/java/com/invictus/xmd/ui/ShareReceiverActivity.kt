@@ -2,7 +2,6 @@ package com.invictus.xmd.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.ContextThemeWrapper
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -31,11 +30,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,17 +66,10 @@ import kotlinx.coroutines.launch
  * YouTube, nothing at all for a plain direct-download link) and finishes
  * itself the moment a choice is made, exactly like YTDLnis/Seal do.
  *
- * The quality-picker UI itself is Compose (see [YtDlpQualitySheet] below,
- * a self-contained Phase-3 conversion of the old BottomSheetDialog +
- * sheet_share_quality.xml). Note the Activity's own window theme
- * (Theme.Xmd.Transparent, applied via the manifest) deliberately never
- * becomes the Compose composition's theme -- ModalBottomSheet renders in
- * its own Dialog window, so setContent here only hosts an otherwise-empty
- * composition; [themedContext] is fed into [XmdTheme] via
- * CompositionLocalProvider so the sheet itself still resolves the user's
- * actual chosen theme/dark-mode, the same problem the old
- * `layoutInflater.cloneInContext(themedContext)` call solved for the View
- * version.
+ * The quality-picker UI itself is Compose (see [YtDlpQualitySheet] below).
+ * The Activity window remains transparent through the manifest bootstrap
+ * theme while [XmdTheme] resolves the selected Kotlin-owned palette for the
+ * sheet content.
  *
  * Deliberately narrow in scope: only YouTube/HLS/DASH links (quality
  * picker) and
@@ -89,26 +79,6 @@ import kotlinx.coroutines.launch
  * a visible screen, so there's no point pretending otherwise.
  */
 class ShareReceiverActivity : AppCompatActivity() {
-
-    // Colors/typography for the sheet are resolved against a wrapped
-    // context using the user's actual theme + light/dark choice, same
-    // values MainActivity applies via setTheme() -- but applied here to
-    // the sheet's context only, not the activity's own (deliberately
-    // invisible) window theme.
-    private val themedContext by lazy {
-        val theme = Settings.appTheme()
-        val isDark = Settings.isDarkMode()
-        val baseWrapper = ContextThemeWrapper(this, theme.resolvedStyleRes(isDark))
-        val context = if (theme == com.invictus.xmd.ui.theme.AppTheme.SYSTEM) {
-            com.google.android.material.color.DynamicColors.wrapContextIfAvailable(baseWrapper)
-        } else {
-            baseWrapper
-        }
-        if (isDark && Settings.isAmoledMode()) {
-            context.theme.applyStyle(R.style.ThemeOverlay_Xmd_Amoled, true)
-        }
-        context
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -201,9 +171,8 @@ class ShareReceiverActivity : AppCompatActivity() {
         )
 
         setContent {
-            CompositionLocalProvider(LocalContext provides themedContext) {
-                XmdTheme {
-                    YtDlpQualitySheet(
+            XmdTheme {
+                YtDlpQualitySheet(
                         title = item.fileName ?: item.sourceUrl,
                         subtitle = item.sourceUrl,
                         options = options,
@@ -237,8 +206,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                             }
                         },
                         onClosed = { finish() },
-                    )
-                }
+                )
             }
         }
     }

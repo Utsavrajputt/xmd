@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -41,6 +42,7 @@ import androidx.navigation.compose.rememberNavController
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ShortcutRepository
 import com.invictus.xmd.ui.theme.XmdTheme
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,22 +89,9 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val isDark = com.invictus.xmd.core.Settings.isDarkMode()
-        val isAmoled = isDark && com.invictus.xmd.core.Settings.isAmoledMode()
-
-        // Status bar must match the header (colorSurfaceContainerLow)
-        val headerColor = com.google.android.material.color.MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurfaceContainerLow,
-            android.graphics.Color.BLACK
-        )
-        // Navigation bar matches the body background (pure black in AMOLED mode)
-        val navBarColor = if (isAmoled) android.graphics.Color.BLACK else com.google.android.material.color.MaterialColors.getColor(
-            this,
-            android.R.attr.colorBackground,
-            android.graphics.Color.BLACK
-        )
-        window.statusBarColor = headerColor
-        window.navigationBarColor = navBarColor
+        val colorScheme = resolveCurrentXmdColorScheme(this)
+        window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
@@ -353,6 +342,20 @@ private fun AppearanceRoute(activity: ComponentActivity) {
     var isAmoled by remember {
         mutableStateOf(com.invictus.xmd.core.Settings.isAmoledMode())
     }
+    // Tab config doesn't need activity.recreate() from here -- this screen
+    // doesn't show the nav bar itself; MainActivity notices the change and
+    // recreates on its own next onResume (same mechanism as the theme
+    // fields above), so this just needs to persist + keep local state fresh
+    // for immediate visual feedback while still on this screen.
+    var tabOrder by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.tabOrder())
+    }
+    var hiddenTabs by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.hiddenTabs())
+    }
+    var defaultTab by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.defaultTab())
+    }
 
     SettingsAppearanceScreen(
         currentTheme = currentTheme,
@@ -378,6 +381,30 @@ private fun AppearanceRoute(activity: ComponentActivity) {
                 com.invictus.xmd.core.Settings.setAmoledMode(checked)
                 activity.recreate()
             }
+        },
+        tabOrder = tabOrder,
+        hiddenTabs = hiddenTabs,
+        defaultTab = defaultTab,
+        onMoveTab = { fromIndex, toIndex ->
+            val updated = tabOrder.toMutableList()
+            val moved = updated.removeAt(fromIndex)
+            updated.add(toIndex, moved)
+            tabOrder = updated
+            com.invictus.xmd.core.Settings.setTabOrder(updated)
+        },
+        onToggleTabVisible = { tabId, visible ->
+            val updated = hiddenTabs.toMutableSet()
+            if (visible) updated -= tabId else updated += tabId
+            hiddenTabs = updated
+            com.invictus.xmd.core.Settings.setHiddenTabs(updated)
+            // The now-hidden (or newly-visible) tab might have been --
+            // or might become -- the default; re-read it the same way
+            // Settings.defaultTab() would self-heal on its own next read.
+            defaultTab = com.invictus.xmd.core.Settings.defaultTab()
+        },
+        onDefaultTabSelected = { tabId ->
+            defaultTab = tabId
+            com.invictus.xmd.core.Settings.setDefaultTab(tabId)
         },
     )
 }

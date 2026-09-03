@@ -32,18 +32,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.google.android.material.color.DynamicColors
-import com.google.android.material.color.MaterialColors
 import com.invictus.xmd.R
 import com.invictus.xmd.ui.theme.AppTheme
+import com.invictus.xmd.ui.theme.resolveXmdColorScheme
 
 /**
- * Card shell matching the `colorSurfaceContainerLow` + `ShapeAppearance.Xmd.Large`
- * card language used across every settings_*.xml layout being replaced here.
- * The 20dp corner radius is a hand-matched approximation of that shape
- * appearance (themes.xml defines it as a set of per-corner dimens rather
- * than one flat value) -- close enough visually; revisit if ShapeAppearance
- * ever changes.
+ * Card shell using the shared Kotlin-owned Material color and shape system.
  */
 @Composable
 fun SettingsSectionCard(
@@ -155,11 +149,8 @@ fun CategoryRow(
 /**
  * Single swatch in the horizontally-scrolling theme picker -- ring (selection
  * border), rounded box (theme background), 3 dots (primary/secondary/tertiary),
- * checkmark when selected, name below. Colors are computed exactly like the
- * old SettingsAppearanceFragment's setupThemePicker (now SettingsActivity's
- * AppearanceRoute) did: SYSTEM resolves its
- * dots against the dynamic-color-wrapped context (Material You), every other
- * theme uses its own fixed swatch* hex strings from [AppTheme].
+ * checkmark when selected, name below. Colors come from the same resolver as
+ * the app itself, including Material You and AMOLED behavior.
  */
 @Composable
 fun ThemeSwatchItem(
@@ -170,25 +161,13 @@ fun ThemeSwatchItem(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    val dynamicContext = remember(context) { DynamicColors.wrapContextIfAvailable(context) }
-
-    fun resolvedColor(attr: Int, fallbackHex: String): Color =
-        if (theme == AppTheme.SYSTEM) {
-            Color(MaterialColors.getColor(dynamicContext, attr, android.graphics.Color.parseColor(fallbackHex)))
-        } else {
-            Color(android.graphics.Color.parseColor(fallbackHex))
-        }
-
-    val primaryColor = resolvedColor(com.google.android.material.R.attr.colorPrimary, theme.swatchPrimary)
-    val secondaryColor = resolvedColor(com.google.android.material.R.attr.colorSecondary, theme.swatchSecondary)
-    val tertiaryColor = resolvedColor(com.google.android.material.R.attr.colorTertiary, theme.swatchTertiary)
-    val bgColor = when {
-        isAmoled -> Color.Black
-        !isDark -> Color(0xFFF5F7FA)
-        theme == AppTheme.SYSTEM ->
-            Color(MaterialColors.getColor(dynamicContext, android.R.attr.colorBackground, android.graphics.Color.parseColor(theme.swatchBackground)))
-        else -> Color(android.graphics.Color.parseColor(theme.swatchBackground))
+    val colorScheme = remember(context, theme, isDark, isAmoled) {
+        resolveXmdColorScheme(context, theme, isDark, isAmoled)
     }
+    val primaryColor = colorScheme.primary
+    val secondaryColor = colorScheme.secondary
+    val tertiaryColor = colorScheme.tertiary
+    val bgColor = colorScheme.background
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -5,6 +5,15 @@
     <string name="app_name">Xmd</string>
     <string name="app_header_title">Xtreme Media Downloader</string>
     <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string>
+    <string name="home_paste_links_hint">Paste links above to start downloading</string>
+    <string name="home_links_required">Paste at least one link</string>
+    <string name="no_ready_files_yet">No ready files yet. Tap Prepare first.</string>
+    <string name="home_supported_sources">Direct links · FuckingFast · yt-dlp</string>
+    <string name="home_download_activity">Download activity</string>
+    <string name="home_stat_downloading">%1$d downloading</string>
+    <string name="home_stat_paused">%1$d paused</string>
+    <string name="home_stat_done">%1$d done</string>
+    <string name="home_stat_failed">%1$d failed</string>
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
@@ -313,9 +322,19 @@
     <string name="notification_permission_denied">Download notifications are disabled, so progress will not be shown.</string>
 
     <!-- Bottom Nav Tabs -->
+    <string name="tab_home">Home</string>
     <string name="tab_downloads">Downloads</string>
     <string name="tab_add">Add</string>
     <string name="tab_browser">Browser</string>
+
+    <!-- Appearance settings: bottom nav tab config -->
+    <string name="settings_tabs_title">Bottom Tabs</string>
+    <string name="settings_tabs_hint">Use the arrows to reorder, toggle to hide. At least one page tab must stay visible.</string>
+    <string name="settings_default_tab_title">Default Tab</string>
+    <string name="settings_default_tab_hint">Which tab opens when you launch the app.</string>
+    <string name="settings_tabs_last_visible_toast">At least one tab (besides Add) must stay visible</string>
+    <string name="action_move_up">Move up</string>
+    <string name="action_move_down">Move down</string>
 
     <!-- External download & torrent files selection -->
     <string name="download_dialog_title">Add Download</string>

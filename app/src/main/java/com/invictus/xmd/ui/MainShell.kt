@@ -55,14 +55,23 @@ import androidx.fragment.app.FragmentContainerView
 import com.invictus.xmd.R
 
 internal enum class MainDestination {
+    Home,
     Downloads,
     Browser,
+}
+
+internal enum class MainNavigationItem(val destination: MainDestination?) {
+    Home(MainDestination.Home),
+    Downloads(MainDestination.Downloads),
+    Add(null),
+    Browser(MainDestination.Browser),
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun MainShell(
     destination: MainDestination,
+    navigationItems: List<MainNavigationItem>,
     activeDownloadCount: Int,
     searchActive: Boolean,
     searchQuery: String,
@@ -82,7 +91,7 @@ internal fun MainShell(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (destination == MainDestination.Downloads) {
+            if (destination != MainDestination.Browser) {
                 DownloadsTopBar(
                     searchActive = searchActive,
                     searchQuery = searchQuery,
@@ -97,6 +106,7 @@ internal fun MainShell(
             if (!imeVisible) {
                 MainNavigationBar(
                     destination = destination,
+                    navigationItems = navigationItems,
                     activeDownloadCount = activeDownloadCount,
                     onDestinationSelected = onDestinationSelected,
                     onAddDownload = onAddDownload,
@@ -219,10 +229,17 @@ private fun DownloadsTopBar(
 @Composable
 private fun MainNavigationBar(
     destination: MainDestination,
+    navigationItems: List<MainNavigationItem>,
     activeDownloadCount: Int,
     onDestinationSelected: (MainDestination) -> Unit,
     onAddDownload: () -> Unit,
 ) {
+    val pageItems = navigationItems.filter { item -> item.destination != null }
+    val addIndex = navigationItems.indexOf(MainNavigationItem.Add)
+    val firstPageIndex = navigationItems.indexOfFirst { item -> item.destination != null }
+    val showAdd = addIndex >= 0
+    val addFirst = showAdd && (firstPageIndex == -1 || addIndex < firstPageIndex)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -237,58 +254,92 @@ private fun MainNavigationBar(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ShortNavigationBar(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(28.dp)),
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                arrangement = ShortNavigationBarArrangement.EqualWeight,
-            ) {
-                ShortNavigationBarItem(
-                    selected = destination == MainDestination.Downloads,
-                    onClick = { onDestinationSelected(MainDestination.Downloads) },
-                    icon = {
-                        BadgedBox(
-                            badge = {
-                                if (activeDownloadCount > 0) {
-                                    Badge {
-                                        Text(if (activeDownloadCount > 99) "99+" else activeDownloadCount.toString())
-                                    }
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(XmdIcons.Downloads),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    label = { Text(stringResource(R.string.tab_downloads)) },
-                )
-                ShortNavigationBarItem(
-                    selected = destination == MainDestination.Browser,
-                    onClick = { onDestinationSelected(MainDestination.Browser) },
-                    icon = {
-                        Icon(
-                            painter = painterResource(XmdIcons.Public),
-                            contentDescription = null,
-                        )
-                    },
-                    label = { Text(stringResource(R.string.tab_browser)) },
-                )
+            if (addFirst) {
+                AddDownloadButton(onClick = onAddDownload)
             }
 
-            FloatingActionButton(
-                onClick = onAddDownload,
-                modifier = Modifier.size(56.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            ) {
-                Icon(
-                    painter = painterResource(XmdIcons.Add),
-                    contentDescription = stringResource(R.string.tab_add),
-                )
+            if (pageItems.isNotEmpty()) {
+                ShortNavigationBar(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(28.dp)),
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    arrangement = ShortNavigationBarArrangement.EqualWeight,
+                ) {
+                    pageItems.forEach { item ->
+                        val itemDestination = requireNotNull(item.destination)
+                        ShortNavigationBarItem(
+                            selected = destination == itemDestination,
+                            onClick = { onDestinationSelected(itemDestination) },
+                            icon = {
+                                if (item == MainNavigationItem.Downloads) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (activeDownloadCount > 0) {
+                                                Badge {
+                                                    Text(
+                                                        if (activeDownloadCount > 99) {
+                                                            "99+"
+                                                        } else {
+                                                            activeDownloadCount.toString()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        NavigationItemIcon(item)
+                                    }
+                                } else {
+                                    NavigationItemIcon(item)
+                                }
+                            },
+                            label = { Text(stringResource(item.labelRes())) },
+                        }
+                    }
+                }
+            }
+
+            if (showAdd && !addFirst) {
+                AddDownloadButton(onClick = onAddDownload)
             }
         }
     }
+}
+
+@Composable
+private fun NavigationItemIcon(item: MainNavigationItem) {
+    Icon(
+        painter = painterResource(item.iconRes()),
+        contentDescription = null,
+    )
+}
+
+@Composable
+private fun AddDownloadButton(onClick: () -> Unit) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = Modifier.size(56.dp),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Icon(
+            painter = painterResource(XmdIcons.Add),
+            contentDescription = stringResource(R.string.tab_add),
+        )
+    }
+}
+
+private fun MainNavigationItem.iconRes(): Int = when (this) {
+    MainNavigationItem.Home -> XmdIcons.Home
+    MainNavigationItem.Downloads -> XmdIcons.Downloads
+    MainNavigationItem.Browser -> XmdIcons.Public
+    MainNavigationItem.Add -> XmdIcons.Add
+}
+
+private fun MainNavigationItem.labelRes(): Int = when (this) {
+    MainNavigationItem.Home -> R.string.tab_home
+    MainNavigationItem.Downloads -> R.string.tab_downloads
+    MainNavigationItem.Browser -> R.string.tab_browser
+    MainNavigationItem.Add -> R.string.tab_add
 }

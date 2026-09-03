@@ -49,13 +49,13 @@ import okhttp3.OkHttpClient
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.Color
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.activity.result.ActivityResultLauncher
-import com.google.android.material.color.MaterialColors
+import androidx.compose.ui.graphics.toArgb
 import com.invictus.xmd.core.DownloadEngine
 import com.invictus.xmd.core.TorrentSession
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Job
 import org.libtorrent4j.TorrentInfo
 import okhttp3.Request
@@ -65,8 +65,10 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks {
+class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks,
+    HomeFragment.Callbacks {
     private var mainDestination: MainDestination by mutableStateOf(MainDestination.Downloads)
+    private var navigationItems: List<MainNavigationItem> by mutableStateOf(MainNavigationItem.entries.toList())
     private var activeDownloadCount: Int by mutableIntStateOf(0)
     private var headerSearchActive: Boolean by mutableStateOf(false)
     private var headerSearchQuery: String by mutableStateOf("")
@@ -130,13 +132,47 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         action()
     }
 
+    private fun navigationItemFor(tabId: String): MainNavigationItem? = when (tabId) {
+        Settings.TabId.HOME -> MainNavigationItem.Home
+        Settings.TabId.DOWNLOADS -> MainNavigationItem.Downloads
+        Settings.TabId.ADD -> MainNavigationItem.Add
+        Settings.TabId.BROWSER -> MainNavigationItem.Browser
+        else -> null
+    }
+
+    private fun destinationFor(tabId: String): MainDestination? = when (tabId) {
+        Settings.TabId.HOME -> MainDestination.Home
+        Settings.TabId.DOWNLOADS -> MainDestination.Downloads
+        Settings.TabId.BROWSER -> MainDestination.Browser
+        else -> null
+    }
+
+    private fun configuredNavigationItems(): List<MainNavigationItem> {
+        val hiddenTabs = Settings.hiddenTabs()
+        return Settings.tabOrder()
+            .filterNot { tabId -> tabId in hiddenTabs }
+            .mapNotNull(::navigationItemFor)
+    }
+
+    private fun configuredDefaultDestination(): MainDestination =
+        destinationFor(Settings.defaultTab()) ?: MainDestination.Downloads
+
+    private fun tagFor(destination: MainDestination): String = when (destination) {
+        MainDestination.Home -> TAG_HOME
+        MainDestination.Downloads -> TAG_DOWNLOADS
+        MainDestination.Browser -> TAG_BROWSER
+    }
+
     private fun selectMainDestination(destination: MainDestination) {
         savedPagesDestination = null
         closeHeaderSearch()
         mainDestination = destination
-        currentTabTag = if (destination == MainDestination.Browser) TAG_BROWSER else TAG_DOWNLOADS
+        currentTabTag = tagFor(destination)
         showFragment(currentTabTag)
     }
+
+    private fun homeFragment(): HomeFragment? =
+        supportFragmentManager.findFragmentByTag(TAG_HOME) as? HomeFragment
 
     private fun browserFragment(): BrowserFragment? =
         supportFragmentManager.findFragmentByTag(TAG_BROWSER) as? BrowserFragment
@@ -147,19 +183,31 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun ensureMainFragments(container: androidx.fragment.app.FragmentContainerView) {
         container.post {
             if (isFinishing || supportFragmentManager.isStateSaved) return@post
+            val home = homeFragment()
             val browser = browserFragment()
             val downloads = downloadsFragment()
-            if (browser == null || downloads == null) {
+            if (home == null || browser == null || downloads == null) {
+                val targetHome = home ?: HomeFragment()
                 val targetBrowser = browser ?: BrowserFragment()
                 val targetDownloads = downloads ?: DownloadsFragment()
                 supportFragmentManager.beginTransaction().apply {
                     setReorderingAllowed(true)
+                    if (home == null) add(container.id, targetHome, TAG_HOME)
                     if (downloads == null) add(container.id, targetDownloads, TAG_DOWNLOADS)
                     if (browser == null) add(container.id, targetBrowser, TAG_BROWSER)
-                    if (mainDestination == MainDestination.Browser) {
-                        hide(targetDownloads)
-                    } else {
-                        hide(targetBrowser)
+                    when (mainDestination) {
+                        MainDestination.Home -> {
+                            hide(targetDownloads)
+                            hide(targetBrowser)
+                        }
+                        MainDestination.Downloads -> {
+                            hide(targetHome)
+                            hide(targetBrowser)
+                        }
+                        MainDestination.Browser -> {
+                            hide(targetHome)
+                            hide(targetDownloads)
+                        }
                     }
                 }.commitNow()
             }
@@ -203,7 +251,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private var currentTabTag: String = TAG_DOWNLOADS
 
-    private val bottomNavSwipeOrder = MainDestination.entries
+    private val bottomNavSwipeOrder: List<MainDestination>
+        get() = navigationItems.mapNotNull { item -> item.destination }
 
     private val bottomNavSwipeDetector by lazy {
         val minDistancePx = 80 * resources.displayMetrics.density
@@ -312,40 +361,40 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             recreate()
             return
         }
+        navigationItems = configuredNavigationItems()
         syncToolbarWithVisibleFragment()
+        if (mainDestination !in bottomNavSwipeOrder) {
+            val fallback = configuredDefaultDestination()
+                .takeIf { destination -> destination in bottomNavSwipeOrder }
+                ?: bottomNavSwipeOrder.firstOrNull()
+            fallback?.let(::selectMainDestination)
+        }
     }
 
     private fun syncToolbarWithVisibleFragment() {
         val fm = supportFragmentManager
-        val browserVisible = fm.findFragmentByTag(TAG_BROWSER)?.isHidden == false
+        val home = fm.findFragmentByTag(TAG_HOME)
+        val downloads = fm.findFragmentByTag(TAG_DOWNLOADS)
+        val browser = fm.findFragmentByTag(TAG_BROWSER)
+        if (home == null && downloads == null && browser == null) return
+
+        val browserVisible = browser?.isHidden == false
         if (browserVisible) {
             closeHeaderSearch()
             mainDestination = MainDestination.Browser
             currentTabTag = TAG_BROWSER
             return
         }
-        mainDestination = MainDestination.Downloads
-        currentTabTag = TAG_DOWNLOADS
+        val homeVisible = home?.isHidden == false
+        mainDestination = if (homeVisible) MainDestination.Home else MainDestination.Downloads
+        currentTabTag = tagFor(mainDestination)
     }
 
     private fun applySystemBarColors() {
         val isDark = Settings.isDarkMode()
-        val isAmoled = isDark && Settings.isAmoledMode()
-
-        // Status bar must match the header (colorSurfaceContainerLow)
-        val headerColor = MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorSurfaceContainerLow,
-            Color.BLACK
-        )
-        // Navigation bar matches the body background (pure black in AMOLED mode)
-        val navBarColor = if (isAmoled) Color.BLACK else MaterialColors.getColor(
-            this,
-            android.R.attr.colorBackground,
-            Color.BLACK
-        )
-        window.statusBarColor = headerColor
-        window.navigationBarColor = navBarColor
+        val colorScheme = resolveCurrentXmdColorScheme(this)
+        window.statusBarColor = colorScheme.surfaceContainerLow.toArgb()
+        window.navigationBarColor = colorScheme.background.toArgb()
 
         val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
         insetsController.isAppearanceLightStatusBars = !isDark
@@ -362,6 +411,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedIsAmoled = Settings.isAmoledMode()
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
+        navigationItems = configuredNavigationItems()
+        if (savedInstanceState == null) {
+            mainDestination = configuredDefaultDestination()
+            currentTabTag = tagFor(mainDestination)
+        }
         savedPagesDestination = savedInstanceState
             ?.getString(STATE_SAVED_PAGES_DESTINATION)
             ?.let { savedName ->
@@ -374,6 +428,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             com.invictus.xmd.ui.theme.XmdTheme {
                 MainShell(
                     destination = mainDestination,
+                    navigationItems = navigationItems,
                     activeDownloadCount = activeDownloadCount,
                     searchActive = headerSearchActive,
                     searchQuery = headerSearchQuery,
@@ -572,8 +627,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // Back handling, gesture or button:
         //  1. History/Bookmarks overlay open (Phase D) -> pop its own stack.
         //  2. Browser tab with page history / a loaded page -> step back through it.
-        //  3. Browser tab -> jump to Downloads tab first before exiting.
-        //  4. Already on Downloads tab -> exit the app.
+        //  3. Any non-default tab -> jump to the configured default tab.
+        //  4. Already on the default tab -> exit the app.
         onBackPressedDispatcher.addCallback(this) {
             if (headerSearchActive) {
                 closeHeaderSearch()
@@ -591,8 +646,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             if (browser?.isVisible == true && browser.onBackPressed()) {
                 return@addCallback
             }
-            if (mainDestination != MainDestination.Downloads) {
-                selectMainDestination(MainDestination.Downloads)
+            val defaultDestination = configuredDefaultDestination()
+            if (mainDestination != defaultDestination) {
+                selectMainDestination(defaultDestination)
                 return@addCallback
             }
             isEnabled = false
@@ -725,13 +781,14 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private fun showFragment(tag: String) {
         val fm        = supportFragmentManager
+        val home      = fm.findFragmentByTag(TAG_HOME)      ?: return
         val browser   = fm.findFragmentByTag(TAG_BROWSER)   ?: return
         val downloads = fm.findFragmentByTag(TAG_DOWNLOADS) ?: return
         fm.beginTransaction().apply {
-            when (tag) {
-                TAG_BROWSER -> { show(browser); hide(downloads) }
-                else        -> { hide(browser); show(downloads) }
-            }
+            listOf(TAG_HOME to home, TAG_DOWNLOADS to downloads, TAG_BROWSER to browser)
+                .forEach { (fragmentTag, fragment) ->
+                    if (fragmentTag == tag) show(fragment) else hide(fragment)
+                }
         }.commit()
     }
 
@@ -901,16 +958,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    fun triggerDownloadReady() {
+    override fun triggerDownloadReady() {
         DownloadService.start(this)
         showDownloadStartedSnackbar()
     }
 
-    fun openDownloadsTab() {
+    override fun openDownloadsTab() {
         selectMainDestination(MainDestination.Downloads)
     }
 
-    fun triggerDownloadDirect(lines: List<String>) {
+    override fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
         val (youtubeLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
 
@@ -1547,6 +1604,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
+        private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
         private const val STATE_SAVED_PAGES_DESTINATION = "saved_pages_destination"

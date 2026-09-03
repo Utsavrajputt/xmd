@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -29,6 +30,7 @@ import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.SuggestApi
 import com.invictus.xmd.ui.BrowserViewModel.BrowserTabState as BrowserTab
+import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -546,7 +548,9 @@ class BrowserFragment : Fragment() {
      * "Refresh" item (see MainActivity.openBrowserMenu -> reloadActiveTab()).
      */
     private fun setupPullToRefresh() {
-        webViewSwipeRefresh.setColorSchemeColors(resolveThemeColor(com.google.android.material.R.attr.colorPrimary))
+        webViewSwipeRefresh.setColorSchemeColors(
+            resolveCurrentXmdColorScheme(requireContext()).primary.toArgb()
+        )
         webViewSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
             webViewFor(tabs.getOrNull(currentTabIndex))?.canScrollVertically(-1) == true
         }
@@ -1726,12 +1730,4 @@ class BrowserFragment : Fragment() {
         startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
     }
 
-    /** Resolves a color from the current active theme (Theme.Xmd.*) instead
-     *  of a static @color resource, so tab-switcher rows, the favicon tint,
-     *  and the pull-to-refresh spinner all follow the selected app theme. */
-    private fun resolveThemeColor(attrResId: Int): Int {
-        val tv = android.util.TypedValue()
-        requireContext().theme.resolveAttribute(attrResId, tv, true)
-        return tv.data
-    }
 }
