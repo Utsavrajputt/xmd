@@ -68,7 +68,7 @@ fun BrowserFabs(
                 contentColor = contentColor,
                 icon = {
                     Icon(
-                        painter = painterResource(XmdIcons.Video),
+                        painter = painterResource(R.drawable.ic_video),
                         contentDescription = null,
                     )
                 },
@@ -86,7 +86,7 @@ fun BrowserFabs(
                 contentColor = contentColor,
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Download),
+                    painter = painterResource(R.drawable.ic_download_link),
                     contentDescription = stringResource(R.string.action_add_to_downloads),
                 )
             }

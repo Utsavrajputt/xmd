@@ -26,7 +26,7 @@ fun HistoryScreen(
         searchHint = stringResource(R.string.history_search_hint),
         emptyLabel = stringResource(R.string.history_empty),
         searchEmptyLabel = stringResource(R.string.history_search_empty),
-        rowIcon = painterResource(XmdIcons.History),
+        rowIcon = painterResource(R.drawable.ic_link),
         entries = entries,
         entryKey = { it.id },
         entryTitle = { it.title },

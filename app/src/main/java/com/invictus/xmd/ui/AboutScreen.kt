@@ -97,7 +97,7 @@ fun AboutScreen(
                     .clickable(onClick = onGithubClick),
             ) {
                 Icon(
-                    painter = painterResource(XmdIcons.Code),
+                    painter = painterResource(R.drawable.ic_github),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(22.dp),
@@ -109,7 +109,7 @@ fun AboutScreen(
                     modifier = Modifier.weight(1f).padding(start = 14.dp),
                 )
                 Icon(
-                    painter = painterResource(XmdIcons.ArrowForward),
+                    painter = painterResource(R.drawable.ic_arrow_forward),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),

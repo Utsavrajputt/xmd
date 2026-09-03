@@ -20,6 +20,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,7 +50,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -333,7 +335,7 @@ private fun ShortcutTile(shortcut: Shortcut, modifier: Modifier = Modifier) {
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
-                        painter = painterResource(XmdIcons.Link),
+                        imageVector = Icons.Filled.Link,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp),
@@ -371,7 +373,7 @@ private fun AddShortcutTile(onClick: (() -> Unit)?) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(XmdIcons.Add),
+                imageVector = Icons.Filled.Add,
                 contentDescription = stringResource(R.string.action_add_shortcut),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -445,7 +447,7 @@ private fun AddEditShortcutDialog(
                         )
                     } else {
                         Icon(
-                            painter = painterResource(XmdIcons.Link),
+                            imageVector = Icons.Filled.Link,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         )

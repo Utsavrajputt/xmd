@@ -25,7 +25,6 @@ import com.invictus.xmd.core.Settings
 import com.invictus.xmd.core.TorrentEngine
 import com.invictus.xmd.core.YtDlpManager
 import com.invictus.xmd.ui.MainActivity
-import com.composables.icons.materialsymbols.roundedfilled.R as MaterialSymbols
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -816,7 +815,7 @@ class DownloadService : LifecycleService() {
 
         val showBar = indeterminate || relevant.any { it.bytesTotal > 0 }
         val builder = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
-            .setSmallIcon(MaterialSymbols.drawable.materialsymbols_ic_download_rounded_filled)
+            .setSmallIcon(R.drawable.ic_download)
             .setContentTitle(title)
             .setContentText(text)
             .setSubText(if (!indeterminate && showBar) "$barPercent%" else null)

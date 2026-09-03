@@ -93,7 +93,7 @@ private fun SuggestionRow(
         ) {
             Icon(
                 painter = painterResource(
-                    if (item is Suggestion.History) XmdIcons.History else XmdIcons.Search
+                    if (item is Suggestion.History) R.drawable.ic_clock else R.drawable.ic_search
                 ),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -113,7 +113,7 @@ private fun SuggestionRow(
         if (item is Suggestion.Search) {
             IconButton(onClick = { onAddTap(item.text) }) {
                 Icon(
-                    painter = painterResource(XmdIcons.Add),
+                    painter = painterResource(R.drawable.ic_add),
                     contentDescription = stringResource(R.string.action_add_shortcut),
                     tint = MaterialTheme.colorScheme.primary,
                 )

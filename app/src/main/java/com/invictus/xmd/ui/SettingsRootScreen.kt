@@ -37,28 +37,28 @@ fun SettingsRootScreen(
     ) {
         SettingsSectionCard {
             CategoryRow(
-                icon = painterResource(XmdIcons.Palette),
+                icon = painterResource(R.drawable.ic_settings_appearance),
                 title = stringResource(R.string.settings_category_appearance),
                 subtitle = stringResource(R.string.settings_category_appearance_desc),
                 onClick = onOpenAppearance,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Sync),
+                icon = painterResource(R.drawable.ic_settings_connections),
                 title = stringResource(R.string.settings_category_connections),
                 subtitle = stringResource(R.string.settings_category_connections_desc),
                 onClick = onOpenConnections,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Public),
+                icon = painterResource(R.drawable.ic_settings_browser),
                 title = stringResource(R.string.settings_category_browser),
                 subtitle = stringResource(R.string.settings_category_browser_desc),
                 onClick = onOpenBrowser,
             )
             CategoryRowGap()
             CategoryRow(
-                icon = painterResource(XmdIcons.Downloads),
+                icon = painterResource(R.drawable.ic_settings_downloads),
                 title = stringResource(R.string.settings_category_downloads),
                 subtitle = stringResource(R.string.settings_category_downloads_desc),
                 onClick = onOpenDownloads,
@@ -69,7 +69,7 @@ fun SettingsRootScreen(
             if (showYoutubeRow) {
                 CategoryRowGap()
                 CategoryRow(
-                    icon = painterResource(XmdIcons.Youtube),
+                    icon = painterResource(R.drawable.ic_settings_youtube),
                     title = stringResource(R.string.settings_category_youtube),
                     subtitle = stringResource(R.string.settings_category_youtube_desc),
                     onClick = onOpenYoutube,
@@ -80,7 +80,7 @@ fun SettingsRootScreen(
         Column(modifier = Modifier.padding(top = 16.dp)) {
             SettingsSectionCard {
                 CategoryRow(
-                    icon = painterResource(XmdIcons.Info),
+                    icon = painterResource(R.drawable.ic_settings_about),
                     title = stringResource(R.string.settings_category_about),
                     subtitle = stringResource(R.string.settings_category_about_desc),
                     onClick = onOpenAbout,

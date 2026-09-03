@@ -1,13 +1,12 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
     id("kotlin-kapt")
 }
 
 android {
     namespace = "com.invictus.xmd"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.invictus.xmd"
@@ -91,16 +90,23 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
     buildFeatures {
+        viewBinding = true
         buildConfig = true
         compose = true
     }
 
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    // Kotlin 1.9.24 -> pre-K2 compose compiler plugin path, so the compose
+    // compiler extension version is pinned here instead of via the
+    // org.jetbrains.kotlin.plugin.compose Gradle plugin (Kotlin 2.0+ only).
+    // Keep this in lockstep with the Kotlin version above if that's ever
+    // bumped -- see https://developer.android.com/jetpack/androidx/releases/compose-kotlin
+    // for the compatibility table.
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
 }
 
@@ -108,6 +114,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.lifecycle:lifecycle-service:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
@@ -119,10 +127,9 @@ dependencies {
     // Room: persists the download queue to disk so it survives app/process
     // restart (previously QueueRepository was in-memory only -- see
     // core/db/AppDatabase.kt).
-    val roomVersion = "2.8.4"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;
@@ -142,8 +149,11 @@ dependencies {
 
     // Jetpack Compose -- BOM pins every androidx.compose.* artifact below to
     // mutually-compatible versions, so only the BOM line needs bumping later.
-    // The app UI is Compose-first; AndroidView remains only for WebView.
-    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
+    // Compose is being introduced screen-by-screen (see the phased XML ->
+    // Compose migration plan); Fragments/Views and Compose screens coexist
+    // during the transition via ComposeView/AndroidView interop, so none of
+    // the existing viewBinding-based UI is touched by this alone.
+    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -151,7 +161,19 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("com.composables:icons-material-symbols-rounded-filled-android:2.2.1")
+    // material-icons-extended added back in Phase 4 (2026-09) -- future
+    // phases (5/6) are expected to need more than the 1-2 hand-picked icons
+    // this app had, so pulling the whole set in once was preferred over
+    // repeatedly copying individual vector drawables into res/drawable.
+    // Cost: ~9-10MB, NOT tree-shaken -- isMinifyEnabled/isShrinkResources
+    // are still off (see buildTypes.release comment above), so this is a
+    // real, permanent APK size hit, not a build-time-only dependency.
+    // Enabling R8 shrinking would reclaim most of that, but is a separate
+    // decision -- this app leans on libtorrent4j/youtubedl-android, which
+    // do reflection/JNI-name lookups R8 can break if not carefully
+    // configured; don't flip isMinifyEnabled on as a side effect of an
+    // icons change.
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Activity/Fragment <-> Compose interop (setContent {}, ComposeView) and
     // typed navigation between Compose screens, replacing the Fragment-based

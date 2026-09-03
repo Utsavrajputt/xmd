@@ -26,7 +26,7 @@ fun BookmarkScreen(
         searchHint = stringResource(R.string.bookmarks_search_hint),
         emptyLabel = stringResource(R.string.bookmarks_empty),
         searchEmptyLabel = stringResource(R.string.bookmarks_search_empty),
-        rowIcon = painterResource(XmdIcons.Bookmark),
+        rowIcon = painterResource(R.drawable.ic_star_filled),
         entries = entries,
         entryKey = { it.id },
         entryTitle = { it.title },

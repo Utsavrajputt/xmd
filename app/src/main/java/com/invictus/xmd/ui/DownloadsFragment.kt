@@ -155,9 +155,7 @@ class DownloadsFragment : Fragment() {
     private fun copyDownloadLink(item: QueueItem) {
         val link = item.directUrl ?: item.sourceUrl
         val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(getString(R.string.clipboard_download_link_label), link)
-        )
+        clipboard.setPrimaryClip(ClipData.newPlainText("Download link", link))
         Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
     }
 

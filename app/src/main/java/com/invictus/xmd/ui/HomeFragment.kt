@@ -2,22 +2,25 @@ package com.invictus.xmd.ui
 
 import android.content.ClipboardManager
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.appcompat.widget.TooltipCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.button.MaterialButton
 import com.invictus.xmd.R
 import com.invictus.xmd.core.ItemStatus
 import com.invictus.xmd.core.LinkParser
 import com.invictus.xmd.core.QueueRepository
-import com.invictus.xmd.ui.theme.XmdTheme
+import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
 
@@ -35,9 +38,9 @@ class HomeFragment : Fragment() {
     }
 
     // ── State ─────────────────────────────────────────────────────────────
-    private var linksText: String by mutableStateOf("")
+    private lateinit var linksInput: EditText
     private var lastHandledClipboardText: String? = null
-    private var pendingClipboardLink: String? by mutableStateOf(null)
+    private var pendingClipboardLink: String? = null
 
     private val clipboardManager by lazy {
         requireContext().getSystemService(ClipboardManager::class.java)
@@ -48,45 +51,62 @@ class HomeFragment : Fragment() {
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        linksText = savedInstanceState?.getString(STATE_LINKS_TEXT).orEmpty()
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View = ComposeView(requireContext()).apply {
-        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-        setContent {
-            val items by QueueRepository.items.collectAsStateWithLifecycle()
-            val quickStats = HomeQuickStats(
-                downloading = items.count { item -> item.status == ItemStatus.DOWNLOADING },
-                paused = items.count { item -> item.status == ItemStatus.PAUSED },
-                done = items.count { item -> item.status == ItemStatus.DONE },
-                failed = items.count { item -> item.status == ItemStatus.FAILED },
-            )
+    ): View = inflater.inflate(R.layout.fragment_home, container, false)
 
-            XmdTheme {
-                HomeScreen(
-                    linksText = linksText,
-                    onLinksTextChange = { value -> linksText = value },
-                    clipboardLink = pendingClipboardLink,
-                    quickStats = quickStats,
-                    needsPrepare = requiresPrepare(currentInputLines()),
-                    onClipboardAdd = ::onClipboardAddClicked,
-                    onClipboardDismiss = ::dismissClipboardBanner,
-                    onAddTorrent = { (activity as? MainActivity)?.showAddTorrentDialog() },
-                    onPrepare = ::onPrepareClicked,
-                    onDownload = ::onDownloadClicked,
-                    onOpenDownloads = { (activity as? Callbacks)?.openDownloadsTab() },
-                )
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        linksInput = view.findViewById(R.id.linksInput)
+
+        view.findViewById<View>(R.id.prepareButton).setOnClickListener { onPrepareClicked() }
+        view.findViewById<View>(R.id.downloadButton).setOnClickListener { onDownloadClicked() }
+        view.findViewById<View>(R.id.clipboardAddButton).setOnClickListener { onClipboardAddClicked() }
+        view.findViewById<View>(R.id.clipboardDismissButton).setOnClickListener { dismissClipboardBanner() }
+        view.findViewById<View>(R.id.addTorrentButton).apply {
+            setOnClickListener { (activity as? MainActivity)?.showAddTorrentDialog() }
+            TooltipCompat.setTooltipText(this, getString(R.string.action_add_torrent))
+        }
+
+        linksInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) { updateButtonState() }
+        })
+
+        updateButtonState()
+
+        // Quick stats: show when downloads are active so the user knows to
+        // switch to the Downloads tab. Tappable -- jumps straight to the
+        // Downloads tab instead of making the user tap the bottom nav item
+        // themselves after already seeing the counts here.
+        val statsView = view.findViewById<TextView>(R.id.quickStats)
+        statsView.setOnClickListener { (activity as? Callbacks)?.openDownloadsTab() }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                QueueRepository.items.collect { list ->
+                    val downloading = list.count { it.status == ItemStatus.DOWNLOADING }
+                    val paused = list.count { it.status == ItemStatus.PAUSED }
+                    val done = list.count { it.status == ItemStatus.DONE }
+                    val failed = list.count { it.status == ItemStatus.FAILED }
+
+                    val parts = mutableListOf<String>()
+                    if (downloading > 0) parts += "⬇ $downloading downloading"
+                    if (paused > 0) parts += "⏸ $paused paused"
+                    if (done > 0) parts += "✔ $done done"
+                    if (failed > 0) parts += "✖ $failed failed"
+
+                    if (parts.isEmpty()) {
+                        statsView.visibility = View.GONE
+                    } else {
+                        statsView.text = parts.joinToString("  •  ")
+                        statsView.visibility = View.VISIBLE
+                    }
+                }
             }
         }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString(STATE_LINKS_TEXT, linksText)
-        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
@@ -115,15 +135,20 @@ class HomeFragment : Fragment() {
             ?.toString()?.trim().orEmpty()
         if (text.isEmpty() || text == lastHandledClipboardText) return
         if (!LinkParser.isShareLink(text) && !LinkParser.isFitgirlPage(text)) return
-        if (linksText.contains(text)) return
+        if (linksInput.text?.toString()?.contains(text) == true) return
         if (QueueRepository.current().any { it.sourceUrl == text }) return
 
         pendingClipboardLink = text
+        view?.findViewById<TextView>(R.id.clipboardBannerText)
+            ?.text = getString(R.string.clipboard_link_detected, text)
+        view?.findViewById<View>(R.id.clipboardBanner)?.visibility = View.VISIBLE
     }
 
     private fun onClipboardAddClicked() {
         val link = pendingClipboardLink ?: return
-        linksText = if (linksText.isBlank()) link else "$linksText\n$link"
+        val current = linksInput.text?.toString().orEmpty()
+        linksInput.setText(if (current.isBlank()) link else "$current\n$link")
+        linksInput.setSelection(linksInput.text?.length ?: 0)
         lastHandledClipboardText = link
         dismissClipboardBanner()
     }
@@ -131,18 +156,24 @@ class HomeFragment : Fragment() {
     private fun dismissClipboardBanner() {
         lastHandledClipboardText = pendingClipboardLink ?: lastHandledClipboardText
         pendingClipboardLink = null
+        view?.findViewById<View>(R.id.clipboardBanner)?.visibility = View.GONE
     }
 
     // ── Button state ──────────────────────────────────────────────────────
 
-    private fun requiresPrepare(lines: List<String>): Boolean {
+    private fun updateButtonState() {
+        val lines = currentInputLines()
         // YouTube links deliberately excluded here: they don't need the
         // FuckingFast/Fitgirl-style Prepare step (challenge/expand-sources) --
         // the quality picker itself is their confirmation step, so they go
         // through the Download button's direct-path below like a plain URL.
-        return lines.isEmpty() || lines.any {
+        val needsPrepare = lines.isEmpty() || lines.any {
             LinkParser.isShareLink(it) || LinkParser.isFitgirlPage(it)
         }
+        view?.findViewById<View>(R.id.prepareButton)?.visibility =
+            if (needsPrepare) View.VISIBLE else View.GONE
+        view?.findViewById<MaterialButton>(R.id.downloadButton)
+            ?.setText(if (needsPrepare) R.string.action_download else R.string.action_download_direct)
     }
 
     // ── Actions — delegated to MainActivity via Callbacks ─────────────────
@@ -150,49 +181,47 @@ class HomeFragment : Fragment() {
     private fun onPrepareClicked() {
         val lines = currentInputLines()
         if (lines.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.home_links_required, Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Paste at least one link", Toast.LENGTH_SHORT).show()
             return
         }
         (activity as? Callbacks)?.triggerPrepare(lines)
     }
 
     private fun onDownloadClicked() {
-        val lines = currentInputLines()
+        val needsPrepare = view?.findViewById<View>(R.id.prepareButton)
+            ?.visibility == View.VISIBLE
 
-        if (requiresPrepare(lines)) {
+        if (needsPrepare) {
             val readyCount = QueueRepository.current()
                 .count { it.status == ItemStatus.READY }
             if (readyCount == 0) {
                 Toast.makeText(
                     requireContext(),
-                    R.string.no_ready_files_yet,
+                    "No ready files yet — tap Prepare first",
                     Toast.LENGTH_SHORT
                 ).show()
                 return
             }
             (activity as? Callbacks)?.triggerDownloadReady()
-            linksText = ""
+            linksInput.setText("")
             return
         }
 
         // Direct-URL fast-path: skip Prepare entirely
+        val lines = currentInputLines()
         if (lines.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.home_links_required, Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Paste at least one link", Toast.LENGTH_SHORT).show()
             return
         }
         (activity as? Callbacks)?.triggerDownloadDirect(lines)
-        linksText = ""
+        linksInput.setText("")
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private fun currentInputLines(): List<String> =
-        linksText
+        linksInput.text?.toString().orEmpty()
             .lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-
-    companion object {
-        private const val STATE_LINKS_TEXT = "links_text"
-    }
 }
