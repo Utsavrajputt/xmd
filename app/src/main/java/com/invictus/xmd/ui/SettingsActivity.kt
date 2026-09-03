@@ -346,6 +346,20 @@ private fun AppearanceRoute(activity: ComponentActivity) {
     var isAmoled by remember {
         mutableStateOf(com.invictus.xmd.core.Settings.isAmoledMode())
     }
+    // Tab config doesn't need activity.recreate() from here -- this screen
+    // doesn't show the nav bar itself; MainActivity notices the change and
+    // recreates on its own next onResume (same mechanism as the theme
+    // fields above), so this just needs to persist + keep local state fresh
+    // for immediate visual feedback while still on this screen.
+    var tabOrder by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.tabOrder())
+    }
+    var hiddenTabs by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.hiddenTabs())
+    }
+    var defaultTab by remember {
+        mutableStateOf(com.invictus.xmd.core.Settings.defaultTab())
+    }
 
     SettingsAppearanceScreen(
         currentTheme = currentTheme,
@@ -371,6 +385,30 @@ private fun AppearanceRoute(activity: ComponentActivity) {
                 com.invictus.xmd.core.Settings.setAmoledMode(checked)
                 activity.recreate()
             }
+        },
+        tabOrder = tabOrder,
+        hiddenTabs = hiddenTabs,
+        defaultTab = defaultTab,
+        onMoveTab = { fromIndex, toIndex ->
+            val updated = tabOrder.toMutableList()
+            val moved = updated.removeAt(fromIndex)
+            updated.add(toIndex, moved)
+            tabOrder = updated
+            com.invictus.xmd.core.Settings.setTabOrder(updated)
+        },
+        onToggleTabVisible = { tabId, visible ->
+            val updated = hiddenTabs.toMutableSet()
+            if (visible) updated -= tabId else updated += tabId
+            hiddenTabs = updated
+            com.invictus.xmd.core.Settings.setHiddenTabs(updated)
+            // The now-hidden (or newly-visible) tab might have been --
+            // or might become -- the default; re-read it the same way
+            // Settings.defaultTab() would self-heal on its own next read.
+            defaultTab = com.invictus.xmd.core.Settings.defaultTab()
+        },
+        onDefaultTabSelected = { tabId ->
+            defaultTab = tabId
+            com.invictus.xmd.core.Settings.setDefaultTab(tabId)
         },
     )
 }

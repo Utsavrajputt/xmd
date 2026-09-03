@@ -283,9 +283,19 @@
     <string name="queue_empty_title">No downloads yet</string>
 
     <!-- Bottom Nav Tabs -->
+    <string name="tab_home">Home</string>
     <string name="tab_downloads">Downloads</string>
     <string name="tab_add">Add</string>
     <string name="tab_browser">Browser</string>
+
+    <!-- Appearance settings: bottom nav tab config -->
+    <string name="settings_tabs_title">Bottom Tabs</string>
+    <string name="settings_tabs_hint">Use the arrows to reorder, toggle to hide. At least one page tab must stay visible.</string>
+    <string name="settings_default_tab_title">Default Tab</string>
+    <string name="settings_default_tab_hint">Which tab opens when you launch the app.</string>
+    <string name="settings_tabs_last_visible_toast">At least one tab (besides Add) must stay visible</string>
+    <string name="action_move_up">Move up</string>
+    <string name="action_move_down">Move down</string>
 
     <!-- External download & torrent files selection -->
     <string name="download_dialog_title">Add Download</string>

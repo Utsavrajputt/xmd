@@ -76,6 +76,7 @@ import android.view.inputmethod.InputMethodManager
 import android.text.TextWatcher
 import android.text.Editable
 import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.activity.result.ActivityResultLauncher
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.button.MaterialButton
@@ -98,24 +99,35 @@ import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
-class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks {
+class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks, HomeFragment.Callbacks {
 
     data class NavMenuItem(val itemId: Int)
 
+    /** One visible page tab in the pill (Home/Downloads/Browser -- never
+     *  "Add", which is the separate circular FAB, not a page). [badge] is
+     *  only non-null for the Downloads item today. */
+    data class NavPageItem(
+        val tabId: String,
+        val menuItemId: Int,
+        val itemView: View,
+        val icon: ImageView,
+        val label: TextView,
+        val badge: TextView? = null
+    )
+
+    /** Google Photos style pill + circular action button nav bar. Generalized
+     *  over however many page tabs Settings currently has visible (1-3, in
+     *  whatever order the user picked) instead of a hardcoded Downloads/
+     *  Browser pair, so Home can be added/removed/reordered/hidden via
+     *  Settings without touching this class. */
     inner class ExpressiveNavBar(
         val layout: View,
-        val downloadsItem: View,
-        val browserItem: View,
-        val downloadsIcon: ImageView,
-        val downloadsLabel: TextView,
-        val downloadsBadge: TextView,
-        val browserIcon: ImageView,
-        val browserLabel: TextView,
+        val pages: List<NavPageItem>,
         val addFab: View
     ) {
         private var itemSelectedListener: ((NavMenuItem) -> Boolean)? = null
 
-        var selectedItemId: Int = R.id.nav_downloads
+        var selectedItemId: Int = pages.firstOrNull()?.menuItemId ?: R.id.nav_downloads
             set(value) {
                 val changed = field != value
                 field = value
@@ -133,11 +145,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             get() = layout.height
 
         init {
-            downloadsItem.setOnClickListener {
-                selectedItemId = R.id.nav_downloads
-            }
-            browserItem.setOnClickListener {
-                selectedItemId = R.id.nav_browser
+            pages.forEach { page ->
+                page.itemView.setOnClickListener { selectedItemId = page.menuItemId }
             }
             addFab.setOnClickListener {
                 showAddDownloadDialog()
@@ -150,6 +159,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         fun updateBadge(count: Int) {
+            val downloadsBadge = pages.firstOrNull { it.tabId == Settings.TabId.DOWNLOADS }?.badge
+                ?: return
             if (count > 0) {
                 downloadsBadge.visibility = View.VISIBLE
                 downloadsBadge.text = if (count > 99) "99+" else count.toString()
@@ -159,11 +170,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         fun updateVisuals(selectedId: Int) {
-            val isDownloads = selectedId == R.id.nav_downloads
-
-            val activeBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_active)
-            val inactiveBg = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_nav_item_inactive)
-
             val colorActive = MaterialColors.getColor(
                 this@MainActivity,
                 com.google.android.material.R.attr.colorOnSecondaryContainer,
@@ -179,28 +185,138 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             val density = resources.displayMetrics.density
             val iconMargin = (8 * density).toInt()
 
-            downloadsIcon.visibility = if (isDownloads) View.VISIBLE else View.GONE
-            (downloadsLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.marginStart = if (isDownloads) iconMargin else 0
-                downloadsLabel.layoutParams = lp
+            pages.forEach { page ->
+                val isActive = page.menuItemId == selectedId
+                // Each item gets its own Drawable instance -- sharing one
+                // Drawable's background across multiple Views is unsafe
+                // once there can be more than two of them (bounds are
+                // shared state on the Drawable itself).
+                val bg = ContextCompat.getDrawable(
+                    this@MainActivity,
+                    if (isActive) R.drawable.bg_nav_item_active else R.drawable.bg_nav_item_inactive
+                )
+
+                page.icon.visibility = if (isActive) View.VISIBLE else View.GONE
+                (page.label.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                    lp.marginStart = if (isActive) iconMargin else 0
+                    page.label.layoutParams = lp
+                }
+
+                page.itemView.background = bg
+                page.icon.imageTintList = ColorStateList.valueOf(if (isActive) colorActive else colorInactive)
+                page.label.setTextColor(if (isActive) colorActive else colorInactive)
+                page.label.setTypeface(null, if (isActive) Typeface.BOLD else Typeface.NORMAL)
             }
-
-            browserIcon.visibility = if (!isDownloads) View.VISIBLE else View.GONE
-            (browserLabel.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                lp.marginStart = if (!isDownloads) iconMargin else 0
-                browserLabel.layoutParams = lp
-            }
-
-            downloadsItem.background = if (isDownloads) activeBg else inactiveBg
-            downloadsIcon.imageTintList = ColorStateList.valueOf(if (isDownloads) colorActive else colorInactive)
-            downloadsLabel.setTextColor(if (isDownloads) colorActive else colorInactive)
-            downloadsLabel.setTypeface(null, if (isDownloads) Typeface.BOLD else Typeface.NORMAL)
-
-            browserItem.background = if (!isDownloads) activeBg else inactiveBg
-            browserIcon.imageTintList = ColorStateList.valueOf(if (!isDownloads) colorActive else colorInactive)
-            browserLabel.setTextColor(if (!isDownloads) colorActive else colorInactive)
-            browserLabel.setTypeface(null, if (!isDownloads) Typeface.BOLD else Typeface.NORMAL)
         }
+    }
+
+    /** Maps a Settings.TabId string to this activity's fixed menu-item id /
+     *  fragment tag / whether the shared toolbar should show for it (the
+     *  Browser fragment draws its own address-bar toolbar, so the shared one
+     *  stays hidden there). Home and Downloads both use the shared toolbar. */
+    private data class TabSpec(val menuItemId: Int, val tag: String, val showToolbar: Boolean)
+
+    private fun tabSpec(tabId: String): TabSpec? = when (tabId) {
+        Settings.TabId.HOME -> TabSpec(R.id.nav_home, TAG_HOME, showToolbar = true)
+        Settings.TabId.DOWNLOADS -> TabSpec(R.id.nav_downloads, TAG_DOWNLOADS, showToolbar = true)
+        Settings.TabId.BROWSER -> TabSpec(R.id.nav_browser, TAG_BROWSER, showToolbar = false)
+        else -> null
+    }
+
+    /**
+     * Builds the bottom nav from Settings' tab order + hidden-tabs, instead
+     * of the old hardcoded Downloads/Browser pair:
+     *  - reorders the pill's child views (navPillContent) to match the
+     *    order of page tabs (home/downloads/browser) in Settings.tabOrder()
+     *  - hides (View.GONE) any page tab in Settings.hiddenTabs() and leaves
+     *    it out of the ExpressiveNavBar's `pages` list entirely
+     *  - moves the circular Add FAB to the start or end of navBarLayout
+     *    depending on whether "add" sits before or after the page tabs in
+     *    the stored order, or hides it if "add" itself is hidden. A FAB
+     *    interleaved *between* pill tabs isn't attempted -- the pill is one
+     *    continuous rounded shape, so "add" only ever renders as fully
+     *    before or fully after it.
+     */
+    private fun buildNavBar(navBarLayout: View): ExpressiveNavBar {
+        val pillContent = findViewById<LinearLayout>(R.id.navPillContent)
+        val navPillCard = findViewById<View>(R.id.navPillCard)
+        val addFab = findViewById<View>(R.id.navAddFab)
+        val navBarRoot = navBarLayout as LinearLayout
+
+        val order = Settings.tabOrder()
+        val hidden = Settings.hiddenTabs()
+
+        val itemViewByTab = mapOf(
+            Settings.TabId.HOME to findViewById<View>(R.id.navItemHome),
+            Settings.TabId.DOWNLOADS to findViewById<View>(R.id.navItemDownloads),
+            Settings.TabId.BROWSER to findViewById<View>(R.id.navItemBrowser)
+        )
+
+        // Reorder the pill's children to match the stored order (only page
+        // tabs live in the pill -- "add" isn't one of pillContent's children).
+        order.filter { it in Settings.TabId.PAGES }.forEachIndexed { index, tabId ->
+            val view = itemViewByTab[tabId] ?: return@forEachIndexed
+            if (pillContent.indexOfChild(view) != index) {
+                pillContent.removeView(view)
+                pillContent.addView(view, index)
+            }
+        }
+
+        val pages = order.filter { it in Settings.TabId.PAGES && it !in hidden }.mapNotNull { tabId ->
+            val itemView = itemViewByTab[tabId] ?: return@mapNotNull null
+            val spec = tabSpec(tabId) ?: return@mapNotNull null
+            when (tabId) {
+                Settings.TabId.HOME -> NavPageItem(
+                    tabId, spec.menuItemId, itemView,
+                    findViewById(R.id.navHomeIcon), findViewById(R.id.navHomeLabel)
+                )
+                Settings.TabId.DOWNLOADS -> NavPageItem(
+                    tabId, spec.menuItemId, itemView,
+                    findViewById(R.id.navDownloadsIcon), findViewById(R.id.navDownloadsLabel),
+                    findViewById(R.id.navDownloadsBadge)
+                )
+                Settings.TabId.BROWSER -> NavPageItem(
+                    tabId, spec.menuItemId, itemView,
+                    findViewById(R.id.navBrowserIcon), findViewById(R.id.navBrowserLabel)
+                )
+                else -> null
+            }
+        }
+        Settings.TabId.PAGES.forEach { tabId ->
+            itemViewByTab[tabId]?.visibility = if (tabId in hidden) View.GONE else View.VISIBLE
+        }
+
+        // Position the Add FAB relative to the pill, and space them apart --
+        // whichever of the two comes first in navBarLayout carries the gap
+        // margin, the other has none, so the 10dp gap is correct either way.
+        val density = resources.displayMetrics.density
+        val gap = (10 * density).toInt()
+        val addHidden = Settings.TabId.ADD in hidden
+        addFab.visibility = if (addHidden) View.GONE else View.VISIBLE
+        if (!addHidden) {
+            val addIndex = order.indexOf(Settings.TabId.ADD)
+            val firstPageIndex = order.indexOfFirst { it in Settings.TabId.PAGES }
+            val addFirst = addIndex in 0 until firstPageIndex || firstPageIndex == -1
+            val desiredFabIndex = if (addFirst) 0 else 1
+            if (navBarRoot.indexOfChild(addFab) != desiredFabIndex) {
+                navBarRoot.removeView(addFab)
+                navBarRoot.addView(addFab, desiredFabIndex)
+            }
+            (navPillCard.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginEnd = if (addFirst) 0 else gap
+                lp.marginStart = 0
+                navPillCard.layoutParams = lp
+            }
+            (addFab.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                lp.marginEnd = if (addFirst) gap else 0
+                lp.marginStart = 0
+                addFab.layoutParams = lp
+            }
+        }
+
+        val bar = ExpressiveNavBar(layout = navBarLayout, pages = pages, addFab = addFab)
+        tabSpec(Settings.defaultTab())?.menuItemId?.let { bar.selectedItemId = it }
+        return bar
     }
 
     private lateinit var bottomNav: ExpressiveNavBar
@@ -312,10 +428,17 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private var appliedThemeKey: String = ""
     private var appliedIsDark: Boolean = true
     private var appliedIsAmoled: Boolean = false
+    private var appliedTabConfig: String = ""
+
+    private fun currentTabConfigSnapshot(): String =
+        "${Settings.tabOrder().joinToString(",")}|${Settings.hiddenTabs().sorted().joinToString(",")}|${Settings.defaultTab()}"
 
     private var currentTabTag: String = TAG_DOWNLOADS
 
-    private val bottomNavSwipeOrder = listOf(R.id.nav_downloads, R.id.nav_browser)
+    /** Swipe-between-tabs order: only visible page tabs (never "add"), in
+     *  Settings.tabOrder()'s order -- rebuilt in onCreate alongside the nav
+     *  bar itself, since it depends on the same Settings. */
+    private var bottomNavSwipeOrder: List<Int> = emptyList()
 
     private val bottomNavSwipeDetector by lazy {
         val minDistancePx = 80 * resources.displayMetrics.density
@@ -428,7 +551,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // syncToolbarWithVisibleFragment() on that second pass.
         if (Settings.appTheme().storageKey != appliedThemeKey ||
             Settings.isDarkMode() != appliedIsDark ||
-            Settings.isAmoledMode() != appliedIsAmoled) {
+            Settings.isAmoledMode() != appliedIsAmoled ||
+            currentTabConfigSnapshot() != appliedTabConfig) {
             recreate()
             return
         }
@@ -446,9 +570,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             currentTabTag = TAG_BROWSER
             return
         }
+        val homeVisible = fm.findFragmentByTag(TAG_HOME)?.isHidden == false
         toolbar.visibility = android.view.View.VISIBLE
         toolbarTitle.text = getString(R.string.app_header_title)
-        currentTabTag = TAG_DOWNLOADS
+        currentTabTag = if (homeVisible) TAG_HOME else TAG_DOWNLOADS
     }
 
     private fun applySystemBarColors() {
@@ -483,6 +608,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedThemeKey = Settings.appTheme().storageKey
         appliedIsDark = Settings.isDarkMode()
         appliedIsAmoled = Settings.isAmoledMode()
+        appliedTabConfig = currentTabConfigSnapshot()
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -676,29 +802,33 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
         })
 
-        // Add fragments only on a fresh start (not after config-change)
+        // Add fragments only on a fresh start (not after config-change).
+        // All three page fragments always exist regardless of which tabs are
+        // hidden in Settings -- hiding a tab only affects the nav bar/access,
+        // not fragment lifecycle, which keeps this simple and avoids
+        // re-adding/removing fragments every time Settings changes.
         if (savedInstanceState == null) {
+            val home      = HomeFragment()
             val downloads = DownloadsFragment()
             val browser   = BrowserFragment()
+            val initialTag = tabSpec(Settings.defaultTab())?.tag ?: TAG_DOWNLOADS
             supportFragmentManager.beginTransaction()
+                .add(R.id.fragmentContainer, home,      TAG_HOME)
                 .add(R.id.fragmentContainer, downloads, TAG_DOWNLOADS)
                 .add(R.id.fragmentContainer, browser,   TAG_BROWSER)
-                .hide(browser)   // Downloads is the initial tab
+                .apply {
+                    if (initialTag != TAG_HOME) hide(home)
+                    if (initialTag != TAG_DOWNLOADS) hide(downloads)
+                    if (initialTag != TAG_BROWSER) hide(browser)
+                }
                 .commit()
         }
 
         val navBarLayout = findViewById<View>(R.id.navBarLayout)
-        bottomNav = ExpressiveNavBar(
-            layout = navBarLayout,
-            downloadsItem = findViewById(R.id.navItemDownloads),
-            browserItem = findViewById(R.id.navItemBrowser),
-            downloadsIcon = findViewById(R.id.navDownloadsIcon),
-            downloadsLabel = findViewById(R.id.navDownloadsLabel),
-            downloadsBadge = findViewById(R.id.navDownloadsBadge),
-            browserIcon = findViewById(R.id.navBrowserIcon),
-            browserLabel = findViewById(R.id.navBrowserLabel),
-            addFab = findViewById(R.id.navAddFab)
-        )
+        bottomNav = buildNavBar(navBarLayout)
+        bottomNavSwipeOrder = Settings.tabOrder()
+            .filter { it in Settings.TabId.PAGES && it !in Settings.hiddenTabs() }
+            .mapNotNull { tabSpec(it)?.menuItemId }
 
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(navBarLayout) { view, insets ->
             val navBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
@@ -750,31 +880,24 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         bottomNav.setOnItemSelectedListener { item ->
+            if (item.itemId == R.id.nav_add) {
+                showAddDownloadDialog()
+                return@setOnItemSelectedListener false
+            }
+            val spec = listOf(Settings.TabId.HOME, Settings.TabId.DOWNLOADS, Settings.TabId.BROWSER)
+                .mapNotNull { tabSpec(it) }
+                .firstOrNull { it.menuItemId == item.itemId }
+                ?: return@setOnItemSelectedListener false
+
             if (supportFragmentManager.backStackEntryCount > 0) {
                 supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
             }
-            when (item.itemId) {
-                R.id.nav_downloads -> {
-                    currentTabTag = TAG_DOWNLOADS
-                    showFragment(TAG_DOWNLOADS)
-                    toolbar.visibility = android.view.View.VISIBLE
-                    toolbarTitle.text = getString(R.string.app_header_title)
-                    invalidateOptionsMenu()
-                    true
-                }
-                R.id.nav_add -> {
-                    showAddDownloadDialog()
-                    false
-                }
-                R.id.nav_browser -> {
-                    currentTabTag = TAG_BROWSER
-                    showFragment(TAG_BROWSER)
-                    toolbar.visibility = android.view.View.GONE
-                    invalidateOptionsMenu()
-                    true
-                }
-                else -> false
-            }
+            currentTabTag = spec.tag
+            showFragment(spec.tag)
+            toolbar.visibility = if (spec.showToolbar) android.view.View.VISIBLE else android.view.View.GONE
+            if (spec.showToolbar) toolbarTitle.text = getString(R.string.app_header_title)
+            invalidateOptionsMenu()
+            true
         }
 
         // Back handling, gesture or button:
@@ -802,8 +925,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             if (browser?.isVisible == true && browser.onBackPressed()) {
                 return@addCallback
             }
-            if (bottomNav.selectedItemId != R.id.nav_downloads) {
-                bottomNav.selectedItemId = R.id.nav_downloads
+            if (bottomNav.selectedItemId != tabSpec(Settings.defaultTab())?.menuItemId) {
+                bottomNav.selectedItemId = tabSpec(Settings.defaultTab())?.menuItemId ?: R.id.nav_downloads
                 return@addCallback
             }
             isEnabled = false
@@ -929,12 +1052,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private fun showFragment(tag: String) {
         val fm        = supportFragmentManager
+        val home      = fm.findFragmentByTag(TAG_HOME)      ?: return
         val browser   = fm.findFragmentByTag(TAG_BROWSER)   ?: return
         val downloads = fm.findFragmentByTag(TAG_DOWNLOADS) ?: return
         fm.beginTransaction().apply {
-            when (tag) {
-                TAG_BROWSER -> { show(browser); hide(downloads) }
-                else        -> { hide(browser); show(downloads) }
+            listOf(TAG_HOME to home, TAG_BROWSER to browser, TAG_DOWNLOADS to downloads).forEach { (t, fragment) ->
+                if (t == tag) show(fragment) else hide(fragment)
             }
         }.commit()
     }
@@ -1148,16 +1271,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    fun triggerDownloadReady() {
+    override fun triggerDownloadReady() {
         DownloadService.start(this)
         showDownloadStartedSnackbar()
     }
 
-    fun openDownloadsTab() {
+    override fun openDownloadsTab() {
         bottomNav.selectedItemId = R.id.nav_downloads
     }
 
-    fun triggerDownloadDirect(lines: List<String>) {
+    override fun triggerDownloadDirect(lines: List<String>) {
         QueueRepository.setLinks(lines)
         val (youtubeLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
 
@@ -2021,6 +2144,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
+        private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
     }
