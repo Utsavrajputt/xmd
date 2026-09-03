@@ -34,7 +34,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.invictus.xmd.R
 
-internal enum class BrowserMenuAction {
+enum class BrowserMenuAction {
     PrivateDns,
     Bookmarks,
     History,

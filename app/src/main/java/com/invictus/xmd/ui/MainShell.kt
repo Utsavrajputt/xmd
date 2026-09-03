@@ -1,6 +1,7 @@
 package com.invictus.xmd.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -12,20 +13,18 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ShortNavigationBar
-import androidx.compose.material3.ShortNavigationBarArrangement
-import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -48,7 +47,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentContainerView
@@ -67,7 +65,6 @@ internal enum class MainNavigationItem(val destination: MainDestination?) {
     Browser(MainDestination.Browser),
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun MainShell(
     destination: MainDestination,
@@ -134,6 +131,7 @@ internal fun MainShell(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DownloadsTopBar(
     searchActive: Boolean,
@@ -225,7 +223,6 @@ private fun DownloadsTopBar(
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun MainNavigationBar(
     destination: MainDestination,
@@ -259,16 +256,16 @@ private fun MainNavigationBar(
             }
 
             if (pageItems.isNotEmpty()) {
-                ShortNavigationBar(
+                NavigationBar(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(28.dp)),
                     windowInsets = WindowInsets(0, 0, 0, 0),
-                    arrangement = ShortNavigationBarArrangement.EqualWeight,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     pageItems.forEach { item ->
                         val itemDestination = requireNotNull(item.destination)
-                        ShortNavigationBarItem(
+                        NavigationBarItem(
                             selected = destination == itemDestination,
                             onClick = { onDestinationSelected(itemDestination) },
                             icon = {
