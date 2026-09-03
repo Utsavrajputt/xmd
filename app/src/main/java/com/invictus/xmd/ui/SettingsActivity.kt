@@ -267,8 +267,11 @@ class SettingsActivity : ComponentActivity() {
             val json = ShortcutRepository.exportWebsitesJson()
             val written = withContext(Dispatchers.IO) {
                 runCatching {
-                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-                }.isSuccess
+                    contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray())
+                        true
+                    } ?: false
+                }.getOrDefault(false)
             }
             if (!written) {
                 Toast.makeText(this@SettingsActivity, R.string.export_websites_failed, Toast.LENGTH_SHORT).show()
@@ -574,7 +577,7 @@ private fun YoutubeRoute() {
         onInstallOrDeleteClick = {
             if (ytDlpInstalled) {
                 com.invictus.xmd.core.YtDlpManager.delete(context)
-                Toast.makeText(context, "yt-dlp removed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, R.string.settings_ytdlp_removed, Toast.LENGTH_SHORT).show()
                 refreshYtDlpStatus()
             } else {
                 ytDlpOpState = YtDlpOpState.Installing

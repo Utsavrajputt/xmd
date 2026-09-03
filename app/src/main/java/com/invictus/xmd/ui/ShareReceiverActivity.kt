@@ -120,7 +120,7 @@ class ShareReceiverActivity : AppCompatActivity() {
         val isHttp = url != null && (url.startsWith("http://") || url.startsWith("https://"))
         val isMagnet = url != null && url.startsWith("magnet:", ignoreCase = true)
         if (url.isNullOrEmpty() || !(isHttp || isMagnet)) {
-            Toast.makeText(this, "No link found to download", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.share_no_link_found, Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -136,7 +136,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             LinkParser.isGenericDownloadUrl(url) -> {
                 QueueRepository.update(item.id) { it.copy(directUrl = url, status = ItemStatus.READY) }
                 DownloadService.start(this)
-                Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
                 finish()
             }
             LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url) -> {
@@ -152,8 +152,13 @@ class ShareReceiverActivity : AppCompatActivity() {
                 finish()
             }
             else -> {
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Not a valid URL: $url") }
-                Toast.makeText(this, "Not a supported link", Toast.LENGTH_SHORT).show()
+                QueueRepository.update(item.id) {
+                    it.copy(
+                        status = ItemStatus.FAILED,
+                        error = getString(R.string.download_invalid_url_error, url),
+                    )
+                }
+                Toast.makeText(this, R.string.share_unsupported_link, Toast.LENGTH_SHORT).show()
                 finish()
             }
         }
@@ -172,14 +177,21 @@ class ShareReceiverActivity : AppCompatActivity() {
 
     private fun showYtDlpQualitySheet(item: QueueItem) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            Toast.makeText(this, "This link needs the Full build of xmd", Toast.LENGTH_LONG).show()
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Needs the Full build") }
+            Toast.makeText(this, R.string.share_full_build_required, Toast.LENGTH_LONG).show()
+            QueueRepository.update(item.id) {
+                it.copy(
+                    status = ItemStatus.FAILED,
+                    error = getString(R.string.download_full_build_required_error),
+                )
+            }
             finish()
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
-            Toast.makeText(this, "Install yt-dlp from xmd's Settings first", Toast.LENGTH_LONG).show()
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed") }
+            Toast.makeText(this, R.string.share_ytdlp_install_required, Toast.LENGTH_LONG).show()
+            QueueRepository.update(item.id) {
+                it.copy(status = ItemStatus.FAILED, error = getString(R.string.ytdlp_not_installed_title))
+            }
             finish()
             return
         }
@@ -210,10 +222,19 @@ class ShareReceiverActivity : AppCompatActivity() {
                                 )
                             }
                             DownloadService.start(this@ShareReceiverActivity)
-                            Toast.makeText(this@ShareReceiverActivity, "Download started", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@ShareReceiverActivity,
+                                R.string.download_started_confirmation,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                         },
                         onCancelled = {
-                            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+                            QueueRepository.update(item.id) {
+                                it.copy(
+                                    status = ItemStatus.FAILED,
+                                    error = getString(R.string.download_cancelled_error),
+                                )
+                            }
                         },
                         onClosed = { finish() },
                     )

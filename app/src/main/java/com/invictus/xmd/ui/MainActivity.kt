@@ -256,7 +256,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if (!granted) {
             Toast.makeText(
                 this,
-                "Storage permission denied — downloads will fail.",
+                getString(R.string.storage_permission_denied),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -274,7 +274,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if (!granted) {
             Toast.makeText(
                 this,
-                "Notifications denied — you won't see download progress.",
+                getString(R.string.notification_permission_denied),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -362,6 +362,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedIsAmoled = Settings.isAmoledMode()
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
+        savedPagesDestination = savedInstanceState
+            ?.getString(STATE_SAVED_PAGES_DESTINATION)
+            ?.let { savedName ->
+                SavedPagesDestination.entries.firstOrNull { destination ->
+                    destination.name == savedName
+                }
+            }
         applySystemBarColors()
         setContent {
             com.invictus.xmd.ui.theme.XmdTheme {
@@ -435,7 +442,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         },
                         onCopyLink = { text ->
                             if (text.isNotBlank()) {
-                                clipboardManager.setPrimaryClip(ClipData.newPlainText("Download link", text))
+                                clipboardManager.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        getString(R.string.clipboard_download_link_label),
+                                        text,
+                                    )
+                                )
                                 Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
                             }
                         },
@@ -478,7 +490,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         onLinkChanged = { newLink -> onAddTorrentLinkChanged(newLink) },
                         onCopyLink = { text ->
                             if (text.isNotBlank()) {
-                                clipboardManager.setPrimaryClip(ClipData.newPlainText("Magnet link", text))
+                                clipboardManager.setPrimaryClip(
+                                    ClipData.newPlainText(
+                                        getString(R.string.clipboard_magnet_link_label),
+                                        text,
+                                    )
+                                )
                                 Toast.makeText(this, R.string.torrent_dialog_link_copied_toast, Toast.LENGTH_SHORT).show()
                             }
                         },
@@ -627,6 +644,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         handleIncomingIntent(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        savedPagesDestination?.let { destination ->
+            outState.putString(STATE_SAVED_PAGES_DESTINATION, destination.name)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
     // ── Incoming links (external download-manager / share target) ──────────
     // Fires when: (a) a browser's download picker launches xmd for a VIEW
     // intent on a http(s) link (see the manifest intent-filter), or (b) a
@@ -740,7 +764,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private fun onTorrentFilePicked(uri: Uri) {
         val displayName = queryDisplayName(uri)
         if (displayName != null && !displayName.endsWith(".torrent", ignoreCase = true)) {
-            Toast.makeText(this, "Please select a .torrent file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.torrent_file_invalid_type, Toast.LENGTH_SHORT).show()
             return
         }
         runCatching {
@@ -970,7 +994,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         if (quality == null) {
-            Toast.makeText(this, "Could not resolve quality", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.download_quality_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -1525,5 +1549,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     companion object {
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
+        private const val STATE_SAVED_PAGES_DESTINATION = "saved_pages_destination"
     }
 }

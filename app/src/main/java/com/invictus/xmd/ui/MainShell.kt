@@ -226,7 +226,7 @@ private fun MainNavigationBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
+            .navigationBarsPadding(),
         contentAlignment = Alignment.Center,
     ) {
         Row(

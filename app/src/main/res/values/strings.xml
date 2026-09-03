@@ -63,7 +63,18 @@
     <string name="download_channel_description">Shows progress for active downloads.</string>
     <string name="only_authorized">Only download content you are authorized to access.</string>
     <string name="clipboard_link_detected">Link detected in clipboard: %1$s</string>
+    <string name="clipboard_link_label">Link</string>
+    <string name="clipboard_download_link_label">Download link</string>
+    <string name="clipboard_magnet_link_label">Magnet link</string>
     <string name="download_started_toast">Starting download…</string>
+    <string name="download_started_confirmation">Download started</string>
+    <string name="download_cancelled_error">Cancelled</string>
+    <string name="download_full_build_required_error">Needs the Full build</string>
+    <string name="download_invalid_url_error">Not a valid URL: %1$s</string>
+    <string name="share_no_link_found">No link found to download</string>
+    <string name="share_unsupported_link">This link is not supported</string>
+    <string name="share_full_build_required">This link needs the Full build of Xmd.</string>
+    <string name="share_ytdlp_install_required">Install yt-dlp from Xmd\'s Settings first.</string>
 
     <!-- Settings -->
     <string name="menu_settings">Settings</string>
@@ -150,6 +161,7 @@
     <string name="settings_ytdlp_switching_nightly">Switching to nightly…</string>
     <string name="settings_ytdlp_channel_stable">Channel: Stable</string>
     <string name="settings_ytdlp_channel_nightly">Channel: Nightly</string>
+    <string name="settings_ytdlp_removed">yt-dlp removed</string>
     <string name="settings_video_preset_title">Video preset</string>
     <string name="settings_video_preset_hint">Preferred container, codec, and frame rate for the quick quality picks (144p–4K). Falls back automatically if a video doesn\'t offer that exact combination.</string>
     <string name="settings_preset_container_label">Container</string>
@@ -298,6 +310,7 @@
     <string name="storage_permission_message">Xmd needs all-files access to save downloads in its internal-storage folder. Tap Allow on the next screen.</string>
     <string name="action_allow">Allow</string>
     <string name="storage_permission_denied">Downloads will fail without storage permission.</string>
+    <string name="notification_permission_denied">Download notifications are disabled, so progress will not be shown.</string>
 
     <!-- Bottom Nav Tabs -->
     <string name="tab_downloads">Downloads</string>
@@ -309,13 +322,18 @@
     <string name="download_dialog_link_hint">https://...</string>
     <string name="download_dialog_name_placeholder">Filename</string>
     <string name="download_dialog_quality_label">Resolution &amp; Format</string>
+    <string name="download_quality_unavailable">Could not determine a download quality.</string>
+    <string name="quality_picker_advanced">Advanced</string>
+    <string name="quality_picker_extra_formats_unavailable">Couldn\'t load extra formats</string>
     <string name="torrent_dialog_files_label">Files</string>
+    <string name="torrent_dialog_selection_summary">%1$d of %2$d (%3$s)</string>
     <string name="torrent_dialog_fetching_metadata">Fetching torrent metadata &amp; files…</string>
     <string name="torrent_dialog_metadata_failed">Couldn\'t fetch metadata in time. All files will be downloaded.</string>
     <string name="torrent_dialog_select_all">Select All</string>
     <string name="torrent_dialog_deselect_all">Deselect All</string>
     <string name="torrent_dialog_no_files_selected">Please select at least one file to download</string>
     <string name="torrent_dialog_save_path_failed">Only folders on internal storage can be selected</string>
+    <string name="torrent_file_invalid_type">Please select a .torrent file.</string>
     <string name="dialog_paste_link">Paste link</string>
     <string name="clipboard_empty_toast">Clipboard is empty</string>
     <string name="dialog_link_pasted_toast">Link pasted</string>

@@ -119,9 +119,10 @@ dependencies {
     // Room: persists the download queue to disk so it survives app/process
     // restart (previously QueueRepository was in-memory only -- see
     // core/db/AppDatabase.kt).
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    val roomVersion = "2.8.4"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;

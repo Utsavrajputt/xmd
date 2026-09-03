@@ -169,7 +169,12 @@ fun AddTorrentDialog(
                     Text(stringResource(R.string.torrent_dialog_files_label), style = MaterialTheme.typography.labelMedium)
                     if (filesState.files.isNotEmpty()) {
                         Text(
-                            "\u2022 $selectedCount of ${filesState.files.size} (${formatFileBytes(selectedBytes)})",
+                            stringResource(
+                                R.string.torrent_dialog_selection_summary,
+                                selectedCount,
+                                filesState.files.size,
+                                formatFileBytes(selectedBytes),
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.weight(1f).padding(start = 8.dp),
                         )

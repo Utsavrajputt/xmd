@@ -1709,7 +1709,9 @@ class BrowserFragment : Fragment() {
     private fun copyLinkToClipboard(url: String) {
         val clipboard = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE)
                 as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Link", url))
+        clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText(getString(R.string.clipboard_link_label), url)
+        )
         Toast.makeText(requireContext(), R.string.link_copied_toast, Toast.LENGTH_SHORT).show()
     }
 
