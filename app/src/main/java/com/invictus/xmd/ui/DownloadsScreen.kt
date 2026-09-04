@@ -10,9 +10,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +64,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -690,7 +693,7 @@ fun QueueItemRow(
                 }
             }
 
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 7.dp)) {
                 // Title row: filename + file type bubble
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -709,10 +712,12 @@ fun QueueItemRow(
                     FileTypeBubble(item)
                 }
 
-                // Status row: icon + percentage/state
+                // Status row: icon + unified status text + inline action buttons
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 2.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
                 ) {
                     val statusIcon = when (item.status) {
                         ItemStatus.PAUSED -> Icons.Pause
@@ -739,15 +744,94 @@ fun QueueItemRow(
                     }
                     Text(
                         text = statusText(item, throttledSpeedEta),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (item.status == ItemStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
-                }
 
-                SizeAndMetaRow(item)
+                    if (!isSelectionMode) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(start = 6.dp),
+                        ) {
+                            when (item.status) {
+                                ItemStatus.DOWNLOADING, ItemStatus.PAUSED -> {
+                                    CompactIconButton(
+                                        icon = if (item.status == ItemStatus.PAUSED) Icons.Play else Icons.Pause,
+                                        contentDescription = stringResource(
+                                            if (item.status == ItemStatus.PAUSED) R.string.action_resume else R.string.action_pause
+                                        ),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onPauseResume(item) },
+                                    )
+                                    CompactIconButton(
+                                        icon = Icons.Close,
+                                        contentDescription = stringResource(R.string.action_cancel),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        onClick = { onCancel(item) },
+                                    )
+                                }
+                                ItemStatus.READY -> {
+                                    CompactIconButton(
+                                        icon = Icons.Play,
+                                        contentDescription = stringResource(R.string.action_start),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onPauseResume(item) },
+                                    )
+                                    CompactIconButton(
+                                        icon = Icons.Close,
+                                        contentDescription = stringResource(R.string.action_cancel),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        onClick = { onCancel(item) },
+                                    )
+                                }
+                                ItemStatus.RETRYING, ItemStatus.PENDING, ItemStatus.RESOLVING, ItemStatus.NEEDS_CHALLENGE -> {
+                                    CompactIconButton(
+                                        icon = Icons.Close,
+                                        contentDescription = stringResource(R.string.action_cancel),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        onClick = { onCancel(item) },
+                                    )
+                                }
+                                ItemStatus.FAILED -> {
+                                    CompactIconButton(
+                                        icon = Icons.Refresh,
+                                        contentDescription = stringResource(R.string.action_retry),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onRetry(item) },
+                                    )
+                                    CompactIconButton(
+                                        icon = Icons.DeleteSweep,
+                                        contentDescription = stringResource(R.string.action_clear),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = { onClear(item) },
+                                    )
+                                }
+                                ItemStatus.DONE -> {
+                                    if (item.filePath != null) {
+                                        CompactIconButton(
+                                            icon = Icons.FileOpen,
+                                            contentDescription = stringResource(R.string.action_open),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            onClick = { onOpen(item) },
+                                        )
+                                    }
+                                    CompactIconButton(
+                                        icon = Icons.DeleteSweep,
+                                        contentDescription = stringResource(R.string.action_clear),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = { onClear(item) },
+                                    )
+                                }
+                                else -> Unit
+                            }
+                        }
+                    }
+                }
 
                 if (showsProgressBar(item.status)) {
                     val (progressValue, indeterminate) = progressFor(item)
@@ -755,80 +839,10 @@ fun QueueItemRow(
                         progress = progressValue,
                         isDownloading = item.status == ItemStatus.DOWNLOADING,
                         isIndeterminate = indeterminate,
-                        modifier = Modifier.padding(top = 5.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
-                }
-
-                // Pause/Resume + Cancel
-                val hidePauseResume = item.status == ItemStatus.RETRYING ||
-                    item.status == ItemStatus.PENDING || item.status == ItemStatus.RESOLVING ||
-                    item.status == ItemStatus.NEEDS_CHALLENGE
-                val showActions = item.status == ItemStatus.DOWNLOADING || item.status == ItemStatus.PAUSED ||
-                    item.status == ItemStatus.RETRYING || item.status == ItemStatus.READY ||
-                    item.status == ItemStatus.PENDING || item.status == ItemStatus.RESOLVING ||
-                    item.status == ItemStatus.NEEDS_CHALLENGE
-                if (showActions && !isSelectionMode) {
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        if (!hidePauseResume) {
-                            RowActionButton(
-                                text = when (item.status) {
-                                    ItemStatus.READY -> stringResource(R.string.action_start)
-                                    ItemStatus.PAUSED -> stringResource(R.string.action_resume)
-                                    else -> stringResource(R.string.action_pause)
-                                },
-                                icon = when (item.status) {
-                                    ItemStatus.READY, ItemStatus.PAUSED -> Icons.Play
-                                    else -> Icons.Pause
-                                },
-                                color = MaterialTheme.colorScheme.primary,
-                                onClick = { onPauseResume(item) },
-                                trailingSpace = true,
-                            )
-                        }
-                        if (item.status != ItemStatus.READY) {
-                            RowActionButton(
-                                text = stringResource(R.string.action_cancel),
-                                icon = Icons.Close,
-                                color = MaterialTheme.colorScheme.error,
-                                onClick = { onCancel(item) },
-                            )
-                        }
-                    }
-                }
-
-                // Retry / Open / Clear
-                val showSecondary = item.status == ItemStatus.FAILED || item.status == ItemStatus.DONE ||
-                    item.status == ItemStatus.READY || item.status == ItemStatus.PENDING ||
-                    item.status == ItemStatus.RESOLVING || item.status == ItemStatus.NEEDS_CHALLENGE
-                if (showSecondary && !isSelectionMode) {
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        if (item.status == ItemStatus.FAILED) {
-                            RowActionButton(
-                                text = stringResource(R.string.action_retry),
-                                icon = Icons.Refresh,
-                                color = MaterialTheme.colorScheme.primary,
-                                onClick = { onRetry(item) },
-                                trailingSpace = true,
-                            )
-                        }
-                        if (item.status == ItemStatus.DONE && item.filePath != null) {
-                            RowActionButton(
-                                text = stringResource(R.string.action_open),
-                                icon = Icons.FileOpen,
-                                color = MaterialTheme.colorScheme.primary,
-                                onClick = { onOpen(item) },
-                                trailingSpace = true,
-                            )
-                        }
-                        RowActionButton(
-                            text = stringResource(R.string.action_clear),
-                            icon = Icons.DeleteSweep,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            onClick = { onClear(item) },
-                        )
-                    }
                 }
             }
         }
@@ -990,99 +1004,37 @@ private fun DownloadProgressBar(
 }
 
 @Composable
-private fun RowActionButton(
-    text: String,
-    icon: AppIcon? = null,
-    color: Color,
+private fun CompactIconButton(
+    icon: AppIcon,
+    contentDescription: String?,
+    tint: Color,
     onClick: () -> Unit,
-    trailingSpace: Boolean = false,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 26.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 15.dp,
 ) {
-    TextButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = color),
-        modifier = Modifier.height(28.dp),
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, radius = size / 2),
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-        }
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize),
+        )
     }
-    if (trailingSpace) Box(modifier = Modifier.width(8.dp))
-}
-
-@Composable
-private fun SizeAndMetaRow(item: QueueItem) {
-    when (item.status) {
-        ItemStatus.DOWNLOADING, ItemStatus.PAUSED, ItemStatus.SAVING, ItemStatus.RETRYING -> {
-            val sizeText = inFlightSizeText(item)
-            if (sizeText != null) {
-                Row(modifier = Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(sizeText, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
-                }
-            }
-        }
-        ItemStatus.DONE -> {
-            val bytes = when {
-                item.bytesTotal > 0 -> item.bytesTotal
-                item.bytesDone > 0 -> item.bytesDone
-                else -> item.filePath?.let { java.io.File(it).takeIf { f -> f.exists() }?.length() } ?: 0L
-            }
-            val finishedAt = when {
-                item.downloadFinishedAtMs > 0 -> item.downloadFinishedAtMs
-                else -> item.filePath?.let { java.io.File(it).takeIf { f -> f.exists() }?.lastModified() } ?: 0L
-            }
-            val durationMs = if (item.downloadStartedAtMs > 0 && finishedAt > item.downloadStartedAtMs) {
-                finishedAt - item.downloadStartedAtMs
-            } else 0L
-            val metaParts = buildList {
-                if (durationMs > 500) add("Took ${formatElapsedDuration(durationMs)}")
-                if (finishedAt > 0) add(dateFormat.format(Date(finishedAt)))
-            }
-            if (bytes > 0 || metaParts.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (bytes > 0) {
-                        Text(formatBytes(bytes), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
-                    }
-                    if (metaParts.isNotEmpty()) {
-                        Text(
-                            text = metaParts.joinToString("  •  "),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f).padding(start = 8.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                        )
-                    }
-                }
-            }
-        }
-        else -> {}
-    }
-}
-
-private fun inFlightSizeText(item: QueueItem): String? = when {
-    item.platform == MediaPlatform.YOUTUBE -> when {
-        !item.mediaStatusText.isNullOrBlank() -> item.mediaStatusText
-        item.status == ItemStatus.DOWNLOADING -> if (item.progressPercent >= 0) "${item.progressPercent}%" else "Connecting…"
-        else -> null
-    }
-    item.bytesTotal > 0 -> "${formatBytes(item.bytesDone)} / ${formatBytes(item.bytesTotal)}"
-    item.bytesDone > 0 -> formatBytes(item.bytesDone)
-    else -> null
 }
 
 private fun showsProgressBar(status: ItemStatus) =
-    status == ItemStatus.DOWNLOADING || status == ItemStatus.PAUSED || status == ItemStatus.DONE || status == ItemStatus.SAVING
+    status == ItemStatus.DOWNLOADING || status == ItemStatus.PAUSED || status == ItemStatus.SAVING
 
 /** Returns (progressFraction 0f..1f, isIndeterminate). */
 private fun progressFor(item: QueueItem): Pair<Float, Boolean> = when (item.status) {
@@ -1102,14 +1054,19 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
     ItemStatus.NEEDS_CHALLENGE -> "Verifying — complete check in browser"
     ItemStatus.READY -> "Ready to download"
     ItemStatus.DOWNLOADING -> {
-        val pct = when {
+        val sizePart = when {
+            item.platform == MediaPlatform.YOUTUBE && !item.mediaStatusText.isNullOrBlank() -> item.mediaStatusText
+            item.bytesTotal > 0 -> {
+                val pct = (item.bytesDone * 100 / item.bytesTotal).coerceIn(0, 100)
+                "${formatBytes(item.bytesDone)} / ${formatBytes(item.bytesTotal)} ($pct%)"
+            }
+            item.bytesDone > 0 -> formatBytes(item.bytesDone)
             item.platform == MediaPlatform.YOUTUBE && item.progressPercent >= 0 -> "${item.progressPercent}%"
-            item.bytesTotal > 0 -> "${(item.bytesDone * 100 / item.bytesTotal)}%"
             else -> "Downloading…"
         }
         val label = if (item.platform == MediaPlatform.YOUTUBE) item.mediaFormatLabel?.let { " • $it" } else null
         buildString {
-            append(pct)
+            append(sizePart)
             if (speedEta != null) {
                 append(" • ")
                 append(speedEta)
@@ -1120,9 +1077,13 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
         }
     }
     ItemStatus.PAUSED -> {
-        val pct = when {
+        val sizePart = when {
+            item.bytesTotal > 0 -> {
+                val pct = (item.bytesDone * 100 / item.bytesTotal).coerceIn(0, 100)
+                "${formatBytes(item.bytesDone)} / ${formatBytes(item.bytesTotal)} ($pct%)"
+            }
+            item.bytesDone > 0 -> formatBytes(item.bytesDone)
             item.platform == MediaPlatform.YOUTUBE && item.progressPercent >= 0 -> "${item.progressPercent}%"
-            item.bytesTotal > 0 -> "${(item.bytesDone * 100 / item.bytesTotal)}%"
             else -> null
         }
         val label = when (item.error) {
@@ -1130,11 +1091,30 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
             Settings.NETWORK_WAIT_MARKER -> "Waiting for network"
             else -> "Paused"
         }
-        if (pct != null) "$pct • $label" else label
+        if (sizePart != null) "$sizePart • $label" else label
     }
     ItemStatus.RETRYING -> item.error ?: "Retrying…"
     ItemStatus.SAVING -> "Saving to storage…"
-    ItemStatus.DONE -> "Completed"
+    ItemStatus.DONE -> {
+        val bytes = when {
+            item.bytesTotal > 0 -> item.bytesTotal
+            item.bytesDone > 0 -> item.bytesDone
+            else -> item.filePath?.let { java.io.File(it).takeIf { f -> f.exists() }?.length() } ?: 0L
+        }
+        val finishedAt = when {
+            item.downloadFinishedAtMs > 0 -> item.downloadFinishedAtMs
+            else -> item.filePath?.let { java.io.File(it).takeIf { f -> f.exists() }?.lastModified() } ?: 0L
+        }
+        val durationMs = if (item.downloadStartedAtMs > 0 && finishedAt > item.downloadStartedAtMs) {
+            finishedAt - item.downloadStartedAtMs
+        } else 0L
+        val parts = buildList {
+            if (bytes > 0) add(formatBytes(bytes))
+            if (durationMs > 500) add("Took ${formatElapsedDuration(durationMs)}")
+            if (finishedAt > 0) add(dateFormat.format(Date(finishedAt)))
+        }
+        if (parts.isNotEmpty()) parts.joinToString("  •  ") else "Completed"
+    }
     ItemStatus.FAILED -> item.error ?: "Failed"
 }
 
