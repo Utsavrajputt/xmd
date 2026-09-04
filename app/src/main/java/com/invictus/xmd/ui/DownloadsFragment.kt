@@ -73,7 +73,7 @@ class DownloadsFragment : Fragment() {
                     onCopyLink = { copyDownloadLink(it) },
                     onShare = { item -> shareItem(item, item.filePath?.let(::File)?.takeIf { it.exists() }) },
                     onOpenFileLocation = { openFileLocation(it) },
-                    onDelete = { deleteItem(it) },
+                    onDelete = { item, deleteFile -> deleteItem(item, deleteFile) },
                     onCancelAll = { DownloadService.cancelAll(requireContext()) },
                     onRetryAll = { (activity as? Callbacks)?.retryAll() },
                     onClearAllFinished = { QueueRepository.clearFinishedAndFailed() },
@@ -110,7 +110,7 @@ class DownloadsFragment : Fragment() {
                     },
                     onCopyLinks = { items -> copyDownloadLinks(items) },
                     onShareItems = { items -> shareItems(items) },
-                    onDeleteItems = { items -> deleteItems(items) },
+                    onDeleteItems = { items, deleteFiles -> deleteItems(items, deleteFiles) },
                 )
             }
         }
@@ -262,16 +262,18 @@ class DownloadsFragment : Fragment() {
         startActivity(Intent.createChooser(intent, getString(R.string.action_share)))
     }
 
-    /** Deletes the on-disk file (if any) and drops the row from the queue.
+    /** Deletes the on-disk file (if requested and exists) and drops the row from the queue.
      *  A FAILED item with no file just removes the row. */
-    private fun deleteItem(item: QueueItem) {
-        item.filePath?.let { File(it) }?.delete()
+    private fun deleteItem(item: QueueItem, deleteFile: Boolean = true) {
+        if (deleteFile) {
+            item.filePath?.let { File(it) }?.takeIf { it.exists() }?.delete()
+        }
         QueueRepository.removeItem(item.id)
     }
 
-    private fun deleteItems(items: List<QueueItem>) {
+    private fun deleteItems(items: List<QueueItem>, deleteFiles: Boolean = true) {
         for (item in items) {
-            deleteItem(item)
+            deleteItem(item, deleteFiles)
         }
     }
 

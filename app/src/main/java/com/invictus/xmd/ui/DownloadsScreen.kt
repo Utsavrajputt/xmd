@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -121,7 +122,7 @@ fun DownloadsScreen(
     onCopyLink: (QueueItem) -> Unit,
     onShare: (QueueItem) -> Unit,
     onOpenFileLocation: (QueueItem) -> Unit,
-    onDelete: (QueueItem) -> Unit,
+    onDelete: (QueueItem, Boolean) -> Unit = { _, _ -> },
     onCancelAll: () -> Unit,
     onRetryAll: () -> Unit,
     onClearAllFinished: () -> Unit,
@@ -131,7 +132,7 @@ fun DownloadsScreen(
     onSelectionStateChanged: (DownloadsSelectionUiState?) -> Unit = {},
     onCopyLinks: (List<QueueItem>) -> Unit = { list -> list.firstOrNull()?.let(onCopyLink) },
     onShareItems: (List<QueueItem>) -> Unit = { list -> list.firstOrNull()?.let(onShare) },
-    onDeleteItems: (List<QueueItem>) -> Unit = { list -> list.forEach(onDelete) },
+    onDeleteItems: (List<QueueItem>, Boolean) -> Unit = { list, deleteFiles -> list.forEach { onDelete(it, deleteFiles) } },
 ) {
     // Same filter as DownloadsFragment.renderList: filename OR sourceUrl,
     // case-insensitive substring.
@@ -457,7 +458,7 @@ fun DownloadsScreen(
                             onPauseResume = onPauseResume,
                             onCancel = onCancel,
                             onRetry = onRetry,
-                            onClear = onClear,
+                            onClear = { deleteTargets = listOf(it) },
                             onOpen = onOpen,
                             onToggleSelect = { toggled ->
                                 selectedIds = if (toggled.id in selectedIds) {
@@ -487,6 +488,11 @@ fun DownloadsScreen(
     deleteTargets?.let { targets ->
         val isSingle = targets.size == 1
         val firstItem = targets.first()
+        var deleteFilesFromDevice by remember(targets) { mutableStateOf(false) }
+        val hasAnyFiles = remember(targets) {
+            targets.any { !it.filePath.isNullOrBlank() }
+        }
+
         AlertDialog(
             onDismissRequest = { deleteTargets = null },
             modifier = Modifier.wideDialogWidth(),
@@ -499,15 +505,46 @@ fun DownloadsScreen(
                 )
             },
             text = {
-                Text(
-                    if (isSingle) (firstItem.fileName ?: firstItem.sourceUrl)
-                    else "Delete the selected files from device and remove them from the queue?"
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = if (isSingle) (firstItem.fileName ?: firstItem.sourceUrl)
+                        else "Remove ${targets.size} selected downloads from the queue?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    if (hasAnyFiles) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { deleteFilesFromDevice = !deleteFilesFromDevice }
+                                .padding(vertical = 4.dp),
+                        ) {
+                            Checkbox(
+                                checked = deleteFilesFromDevice,
+                                onCheckedChange = null,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (isSingle) "Also delete file from device" else "Also delete files from device",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onDeleteItems(targets)
+                        onDeleteItems(targets, deleteFilesFromDevice)
                         deleteTargets = null
                         selectedIds = emptySet()
                     },
