@@ -241,7 +241,8 @@
     <string name="audio_format_original">Original (no re-encode)</string>
     <string name="settings_save">Save</string>
     <string name="settings_import_websites">Website Sources</string>
-    <string name="settings_import_websites_hint">Scans Preset folders (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
+    <string name="settings_import_websites_row_title">Source Pack</string>
+    <string name="settings_import_websites_hint">Scans all folders on your device (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
     <string name="settings_import_websites_button">Import Now</string>
 
     <!-- Website Import -->

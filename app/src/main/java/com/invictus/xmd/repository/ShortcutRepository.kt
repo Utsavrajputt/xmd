@@ -28,8 +28,8 @@ import com.invictus.xmd.preferences.Settings
  * The app no longer ships with any preloaded shortcuts -- a fresh install
  * starts at zero, and every entry comes from the user either adding one by
  * hand (add()) or importing an xmdweb source pack (importWebsites()) via
- * Settings -> Import Websites, which scans Downloads for matching files
- * and lets the user pick one.
+ * Settings -> Import Websites, which scans the whole device (except DCIM)
+ * for matching files and lets the user pick one.
  */
 object ShortcutRepository {
 
@@ -57,16 +57,21 @@ object ShortcutRepository {
     )
 
     /**
-     * Recursively scans a fixed set of likely folders (and their
-     * subfolders) for any xmdweb source-pack file -- matched by filename
-     * only (case/separator-insensitive: "xmd_web.json", "XmdWeb (1).json",
-     * "xmdweb-movies.json" all match). Scanned folders: Downloads, this
-     * app's own "Xmd" download folder, and the WhatsApp/WhatsApp Business
-     * "Documents" subfolder specifically (not Images/Video/Audio/Statuses
-     * -- a JSON pack only ever lands there), covering both the legacy and
-     * scoped-storage paths since which one exists depends on Android
-     * version. Newest first. The caller (Settings -> Import Websites) lists results and lets the user pick
-     * one -- no auto-popup, no system file picker.
+     * Recursively scans the entire external storage root (and subfolders,
+     * capped at [MAX_SCAN_DEPTH]) for any xmdweb source-pack file --
+     * matched by filename only (case/separator-insensitive: "xmd_web.json",
+     * "XmdWeb (1).json", "xmdweb-movies.json" all match). Two folder-name
+     * based exclusions apply at every depth (so they also catch the
+     * Android/media/com.whatsapp scoped-storage mirror, not just the
+     * legacy top-level path):
+     *  - "DCIM" is skipped outright -- camera roll, never contains a
+     *    source pack, and is usually the single largest folder on-device.
+     *  - Inside "WhatsApp"/"WhatsApp Business", only the "...Documents"
+     *    subfolder is descended into (skips Images/Video/Audio/Voice
+     *    Notes/Stickers/Wallpapers/Statuses/etc.) -- a JSON pack only
+     *    ever lands in Documents.
+     * Newest first. The caller (Settings -> Import Websites) lists results
+     * and lets the user pick one -- no auto-popup, no system file picker.
      */
     fun findImportCandidates(): List<File> {
         val results = mutableListOf<File>()
@@ -74,27 +79,22 @@ object ShortcutRepository {
         return results.distinctBy { it.canonicalPath }.sortedByDescending { it.lastModified() }
     }
 
-    private fun importScanRoots(): List<File> {
-        val storageRoot = Environment.getExternalStorageDirectory()
-        return listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            File(storageRoot, "Xmd"),
-            File(storageRoot, "WhatsApp/Media/WhatsApp Documents"),
-            File(storageRoot, "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents"),
-            File(storageRoot, "WhatsApp Business/Media/WhatsApp Business Documents"),
-            File(storageRoot, "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/WhatsApp Business Documents")
-        ).filter { it.isDirectory }
-    }
+    private fun importScanRoots(): List<File> =
+        listOf(Environment.getExternalStorageDirectory()).filter { it.isDirectory }
 
     private const val MAX_SCAN_DEPTH = 15
+    private val WHATSAPP_FOLDER_NAMES = setOf("whatsapp", "whatsapp business")
 
     private fun scanForCandidates(dir: File, out: MutableList<File>, depth: Int) {
         if (depth > MAX_SCAN_DEPTH) return
         val entries = runCatching { dir.listFiles() }.getOrNull() ?: return
+        val isWhatsAppRoot = dir.name.lowercase() in WHATSAPP_FOLDER_NAMES
         for (entry in entries) {
             when {
                 entry.isDirectory -> {
                     if (entry.name.startsWith(".")) continue
+                    if (entry.name.equals("DCIM", ignoreCase = true)) continue
+                    if (isWhatsAppRoot && !entry.name.contains("Documents", ignoreCase = true)) continue
                     scanForCandidates(entry, out, depth + 1)
                 }
                 entry.isFile && matchesImportFileName(entry.name) -> out += entry
