@@ -182,8 +182,11 @@ class ShareReceiverActivity : AppCompatActivity() {
                                 LinkParser.needsYtDlp(link) -> {
                                     startYoutubeDownload(link, name, saveDir, quality, audioFormat, duplicateStrategy)
                                 }
-                                else -> {
+                                LinkParser.isGenericDownloadUrl(link) -> {
                                     startDirectDownload(link, name, saveDir, duplicateStrategy)
+                                }
+                                else -> {
+                                    Toast.makeText(this, getString(R.string.download_invalid_url_error, link), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
