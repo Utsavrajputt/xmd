@@ -153,13 +153,96 @@ object Settings {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
     }
 
-    // ── Browser: Adblock (domain-blocklist ad/tracker blocking) ───────────
-    // Global switch only, no per-site whitelist. Default ON -- this is an
-    // opt-out feature, not opt-in, matching how ad-blocking browsers
-    // (Brave, 1DM+) ship it.
-    fun adblockEnabled(): Boolean = prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)
-    fun setAdblockEnabled(value: Boolean) {
-        prefs.edit().putBoolean(KEY_ADBLOCK_ENABLED, value).apply()
+    // ── Browser: Adblock (Brave-style Shields: level + per-site allowlist) ─
+    // Three levels, like Brave's Standard/Aggressive/Allow-all:
+    //  - STANDARD: ad/tracker domain + URL-pattern blocking (AdblockFilter's
+    //    main host list). Safe for basically any site.
+    //  - AGGRESSIVE: STANDARD plus a second tier of borderline trackers
+    //    (comment widgets, live-chat bubbles, social embed SDKs) that can
+    //    visibly break a widget on some pages -- an intentional trade-off,
+    //    same one Brave's Aggressive mode makes.
+    //  - OFF: no blocking at all.
+    // Default STANDARD -- opt-out, not opt-in, matching how ad-blocking
+    // browsers (Brave, 1DM+) ship it.
+    enum class AdblockLevel { STANDARD, AGGRESSIVE, OFF }
+
+    private const val KEY_ADBLOCK_LEVEL = "browser_adblock_level"
+
+    fun adblockLevel(): AdblockLevel {
+        val stored = prefs.getString(KEY_ADBLOCK_LEVEL, null)
+        if (stored != null) {
+            return runCatching { AdblockLevel.valueOf(stored) }.getOrDefault(AdblockLevel.STANDARD)
+        }
+        // No level saved yet -- either a fresh install, or an upgrade from
+        // the old on/off-only KEY_ADBLOCK_ENABLED toggle. Read that instead
+        // of defaulting to STANDARD outright, so upgrading users keep
+        // "adblock off" if that's what they'd chosen, rather than having it
+        // silently turn back on.
+        return if (prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)) AdblockLevel.STANDARD else AdblockLevel.OFF
+    }
+
+    fun setAdblockLevel(level: AdblockLevel) {
+        prefs.edit().putString(KEY_ADBLOCK_LEVEL, level.name).apply()
+    }
+
+    // Lifetime count of individually blocked requests, shown on the
+    // Settings screen (Brave shows the same kind of running total).
+    // Incremented from WebView's own background thread(s), potentially
+    // concurrently across tabs, so reads-then-writes are serialized under
+    // [adblockCountLock] rather than risking lost increments from two
+    // threads reading the same stale value. Cached in memory after first
+    // load so every increment isn't a disk read plus a write -- just the
+    // (async) write.
+    private const val KEY_ADBLOCK_LIFETIME_BLOCKED = "browser_adblock_lifetime_blocked_count"
+    @Volatile private var adblockLifetimeCountCache: Long = -1L
+    private val adblockCountLock = Any()
+
+    fun adblockLifetimeBlockedCount(): Long {
+        adblockLifetimeCountCache.let { if (it >= 0L) return it }
+        synchronized(adblockCountLock) {
+            if (adblockLifetimeCountCache < 0L) {
+                adblockLifetimeCountCache = prefs.getLong(KEY_ADBLOCK_LIFETIME_BLOCKED, 0L)
+            }
+        }
+        return adblockLifetimeCountCache
+    }
+
+    fun incrementAdblockLifetimeBlockedCount() {
+        synchronized(adblockCountLock) {
+            val next = adblockLifetimeBlockedCount() + 1
+            adblockLifetimeCountCache = next
+            prefs.edit().putLong(KEY_ADBLOCK_LIFETIME_BLOCKED, next).apply()
+        }
+    }
+
+    // Per-site "shields down" allowlist -- sites where blocking is off
+    // regardless of the global level, toggled from the Browser's overflow
+    // menu and manageable (view/remove) from the Settings screen. Keyed by
+    // registrable-ish host with any "www." prefix stripped, so
+    // "example.com" and "www.example.com" share one entry the way a user
+    // would expect "this site" to mean.
+    private const val KEY_ADBLOCK_SITE_ALLOWLIST = "browser_adblock_site_allowlist"
+
+    private fun normalizeSiteHost(host: String): String =
+        host.lowercase().removePrefix("www.")
+
+    /** Sites currently allowlisted (shields down), for display in Settings. */
+    fun adblockAllowlistedSites(): Set<String> =
+        HashSet(prefs.getStringSet(KEY_ADBLOCK_SITE_ALLOWLIST, emptySet()).orEmpty())
+
+    fun isAdblockAllowlisted(host: String?): Boolean {
+        if (host.isNullOrBlank()) return false
+        return adblockAllowlistedSites().contains(normalizeSiteHost(host))
+    }
+
+    fun setAdblockAllowlisted(host: String, allowed: Boolean) {
+        val normalized = normalizeSiteHost(host)
+        // getStringSet's returned Set must be treated as immutable (Android
+        // docs warn against mutating it in place and expecting persistence
+        // to notice) -- copy into a fresh HashSet before changing it.
+        val updated = HashSet(adblockAllowlistedSites())
+        if (allowed) updated.add(normalized) else updated.remove(normalized)
+        prefs.edit().putStringSet(KEY_ADBLOCK_SITE_ALLOWLIST, updated).apply()
     }
 
     // ── Browser: Background playback ───────────────────────────────────
