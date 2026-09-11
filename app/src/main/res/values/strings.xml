@@ -121,6 +121,7 @@
     <string name="about_version_format">Version %1$s</string>
     <string name="about_github">View on GitHub</string>
     <string name="about_github_url" translatable="false">https://github.com/Utsavrajputt/xmd</string>
+    <string name="about_share">Share App</string>
     <string name="about_license_title">License</string>
     <string name="about_license_body">Released under the GNU Affero General Public License v3.0 (AGPL-3.0). Xmd is free and open-source software — you are free to use, study, share, and modify it.</string>
     <string name="about_credits_title">Credits &amp; Open Source</string>

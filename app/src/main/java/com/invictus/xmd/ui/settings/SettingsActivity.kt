@@ -932,6 +932,14 @@ private fun AboutRoute() {
             val url = context.getString(R.string.about_github_url)
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
+        onShareClick = {
+            val url = context.getString(R.string.about_github_url)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, url)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.about_share)))
+        },
         developers = developers,
         credits = credits,
         onDeveloperClick = { developer ->
