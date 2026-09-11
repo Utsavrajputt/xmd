@@ -9,19 +9,31 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import android.widget.Toast
 import com.invictus.xmd.domain.browser.AdblockFilter
+import com.invictus.xmd.domain.update.UpdateChecker
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.HistoryRepository
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.repository.ShortcutRepository
 import com.invictus.xmd.utils.FaviconLoader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FfApp : Application(), Application.ActivityLifecycleCallbacks {
 
     companion object {
         const val DOWNLOAD_CHANNEL_ID = "ff_downloads"
     }
+
+    /** Lives for the whole process, used for fire-and-forget work at
+     *  startup (currently just the update check) that shouldn't be tied
+     *  to any one Activity/Composable's lifecycle. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
@@ -46,6 +58,35 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+        }
+        checkForUpdateOnLaunch()
+    }
+
+    /** Runs once per process start, only if the user opted into
+     *  "Auto-check for updates" in About. Silent when there's nothing new
+     *  (no "up to date" noise on every cold start) -- only toasts when an
+     *  update is actually found, from whichever screen happens to be in
+     *  front at the time. Never auto-opens the browser; the user still
+     *  taps through from About (or the toast itself, on Android versions
+     *  where toasts support that) to go grab it. */
+    private fun checkForUpdateOnLaunch() {
+        if (!Settings.autoCheckForUpdatesEnabled()) return
+        appScope.launch {
+            val release = try {
+                withContext(Dispatchers.IO) {
+                    UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
+                }
+            } catch (_: UpdateChecker.CheckFailedException) {
+                null
+            } ?: return@launch
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@FfApp,
+                    getString(R.string.about_update_available, release.tagName),
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
         }
     }
 

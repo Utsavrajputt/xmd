@@ -63,6 +63,7 @@ import com.invictus.xmd.ui.theme.LocalThemeTransitionState
 import com.invictus.xmd.ui.theme.XmdTheme
 import com.invictus.xmd.ui.theme.resolveCurrentXmdColorScheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -910,6 +911,121 @@ private fun YoutubeRoute() {
 @Composable
 private fun AboutRoute() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var autoCheckForUpdates by remember { mutableStateOf(Settings.autoCheckForUpdatesEnabled()) }
+    var isCheckingForUpdate by remember { mutableStateOf(false) }
+    var updateAvailability by remember {
+        mutableStateOf<UpdateAvailability>(
+            UpdateAvailability.Idle,
+        )
+    }
+    // The full release + the asset picked for this build's flavor/ABI,
+    // kept around so Download and Install (separate button taps) don't
+    // each need their own network round-trip to re-fetch it.
+    var pendingRelease by remember {
+        mutableStateOf<com.invictus.xmd.domain.update.UpdateChecker.Release?>(null)
+    }
+    var pendingAsset by remember {
+        mutableStateOf<com.invictus.xmd.domain.update.UpdateChecker.Asset?>(null)
+    }
+
+    // Manual check only -- the on-launch/opt-in check runs once per
+    // process in FfApp (see checkForUpdateOnLaunch there) and only
+    // toasts; this is the explicit-tap path that also drives the in-app
+    // Download -> Install card below the button.
+    fun checkForUpdate() {
+        if (isCheckingForUpdate) return
+        isCheckingForUpdate = true
+        coroutineScope.launch {
+            val outcome: Result<com.invictus.xmd.domain.update.UpdateChecker.Release?> =
+                withContext(Dispatchers.IO) {
+                    try {
+                        Result.success(
+                            com.invictus.xmd.domain.update.UpdateChecker.checkForUpdate(
+                                com.invictus.xmd.BuildConfig.VERSION_NAME,
+                            ),
+                        )
+                    } catch (e: com.invictus.xmd.domain.update.UpdateChecker.CheckFailedException) {
+                        Result.failure(e)
+                    }
+                }
+            isCheckingForUpdate = false
+
+            outcome.fold(
+                onSuccess = { release ->
+                    if (release != null) {
+                        val asset = com.invictus.xmd.domain.update.UpdateChecker.selectApkAsset(release)
+                        pendingRelease = release
+                        pendingAsset = asset
+                        if (asset != null) {
+                            // In-app download/install is possible -- drive
+                            // the card instead of jumping to the browser.
+                            updateAvailability =
+                                UpdateAvailability.Available(release.tagName)
+                        } else {
+                            // No matching asset (e.g. release predates the
+                            // flavor/ABI split) -- fall back to the old
+                            // "open the release page" behavior.
+                            updateAvailability = UpdateAvailability.Idle
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.about_update_available, release.tagName),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                        }
+                    } else {
+                        pendingRelease = null
+                        pendingAsset = null
+                        updateAvailability = UpdateAvailability.Idle
+                        Toast.makeText(context, R.string.about_up_to_date, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onFailure = {
+                    updateAvailability = UpdateAvailability.Idle
+                    Toast.makeText(context, R.string.about_update_check_failed, Toast.LENGTH_SHORT).show()
+                },
+            )
+        }
+    }
+
+    fun downloadUpdate() {
+        val release = pendingRelease ?: return
+        val asset = pendingAsset ?: return
+        coroutineScope.launch {
+            val destination = File(context.cacheDir, asset.name)
+            try {
+                com.invictus.xmd.domain.update.UpdateChecker.downloadApk(asset, destination).collect { progress ->
+                    updateAvailability =
+                        UpdateAvailability.Downloading(release.tagName, progress)
+                }
+                updateAvailability =
+                    UpdateAvailability.ReadyToInstall(release.tagName)
+            } catch (e: Exception) {
+                destination.delete()
+                updateAvailability = UpdateAvailability.Available(release.tagName)
+                Toast.makeText(context, R.string.about_update_download_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun installUpdate() {
+        val asset = pendingAsset ?: return
+        val file = File(context.cacheDir, asset.name)
+        if (!file.exists()) return
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
     val developers = listOf(
         AboutDeveloper("Utsav Rajput", "Utsavrajputt"),
         AboutDeveloper("Arnab Sadhukhan", "Arnab11"),
@@ -938,5 +1054,15 @@ private fun AboutRoute() {
             val url = "https://github.com/${developer.githubId}"
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
+        autoCheckForUpdates = autoCheckForUpdates,
+        onAutoCheckForUpdatesChanged = { enabled ->
+            autoCheckForUpdates = enabled
+            Settings.setAutoCheckForUpdatesEnabled(enabled)
+        },
+        isCheckingForUpdate = isCheckingForUpdate,
+        onCheckForUpdateClick = { checkForUpdate() },
+        updateAvailability = updateAvailability,
+        onDownloadUpdateClick = { downloadUpdate() },
+        onInstallUpdateClick = { installUpdate() },
     )
 }

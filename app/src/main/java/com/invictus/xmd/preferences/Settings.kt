@@ -47,6 +47,7 @@ object Settings {
     private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
+    private const val KEY_AUTO_CHECK_UPDATES = "about_auto_check_for_updates"
 
     private lateinit var prefs: SharedPreferences
 
@@ -176,6 +177,16 @@ object Settings {
     fun isTabsGridMode(): Boolean = prefs.getBoolean(KEY_TABS_GRID_MODE, true)
     fun setTabsGridMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_TABS_GRID_MODE, enabled).apply()
+    }
+
+    // ── About: Update checks ───────────────────────────────────────────
+    // Whether the About screen should silently check GitHub Releases for a
+    // newer version each time it's opened. Default OFF -- unlike mpvRx this
+    // is a purely network-initiated, opt-in check (no background WorkManager
+    // job), so the switch starts false until the user turns it on.
+    fun autoCheckForUpdatesEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_CHECK_UPDATES, false)
+    fun setAutoCheckForUpdatesEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_CHECK_UPDATES, value).apply()
     }
 
     // ── Browser: Search Engine ─────────────────────────────────────────

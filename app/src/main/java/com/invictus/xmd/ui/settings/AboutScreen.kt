@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,15 +70,37 @@ import kotlinx.coroutines.withContext
 data class AboutDeveloper(val name: String, val githubId: String)
 
 /**
+ * Where an update the user has explicitly asked about (via the "Check for
+ * updates now" button or a found auto-check) currently stands. UI-only --
+ * doesn't reference [com.invictus.xmd.domain.update.UpdateChecker.Release]
+ * directly so this file stays decoupled from the domain layer, same as
+ * [AboutDeveloper] above.
+ */
+sealed class UpdateAvailability {
+    data object Idle : UpdateAvailability()
+    data object UpToDate : UpdateAvailability()
+    data object Error : UpdateAvailability()
+    data class Available(val version: String) : UpdateAvailability()
+    /** [progress] is -1f for an indeterminate/unknown-size download. */
+    data class Downloading(val version: String, val progress: Float) : UpdateAvailability()
+    data class ReadyToInstall(val version: String) : UpdateAvailability()
+}
+
+/**
  * App identity, version, GitHub link, license notice, developer credits,
  * and the open-source libraries Xmd is built on. Rendered directly by
  * SettingsActivity's AboutRoute (NavHost route body) -- no Fragment host.
  *
  * Redesigned with mpvRx's About screen as the visual reference: an animated
  * gradient hero card for identity, pill-badge version tag, a pair of
- * action buttons, and avatar-style rows for developer credits -- adapted
- * to Xmd's own content rather than copied wholesale (no update/donation
- * sections, since Xmd doesn't have those flows).
+ * action buttons, avatar-style rows for developer credits, and an Updates
+ * section -- auto-check toggle, "Check for updates now" button, and (once
+ * an update is found) an in-app Download -> Install flow like mpvRx's
+ * UpdateSheet, just rendered inline in the card instead of a separate
+ * bottom sheet. Trimmed down from mpvRx's version: no donation section, no
+ * update channel selector (Xmd ships a single GitHub-Releases channel, not
+ * mpvRx's stable/preview split), and release notes show as plain text
+ * rather than rendered Markdown (no Markdown-rendering dependency in Xmd).
  */
 @Composable
 fun AboutScreen(
@@ -86,6 +109,13 @@ fun AboutScreen(
     developers: List<AboutDeveloper>,
     credits: List<Pair<String, String>>,
     onDeveloperClick: (AboutDeveloper) -> Unit,
+    autoCheckForUpdates: Boolean,
+    onAutoCheckForUpdatesChanged: (Boolean) -> Unit,
+    isCheckingForUpdate: Boolean,
+    onCheckForUpdateClick: () -> Unit,
+    updateAvailability: UpdateAvailability,
+    onDownloadUpdateClick: () -> Unit,
+    onInstallUpdateClick: () -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val creditsSectionRequester = remember { BringIntoViewRequester() }
@@ -270,6 +300,52 @@ fun AboutScreen(
             }
         }
 
+        // ===== Updates =====
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.about_updates_title))
+
+        SettingsSectionCard {
+            SwitchSettingRow(
+                title = stringResource(R.string.about_auto_check_for_updates),
+                subtitle = stringResource(R.string.about_check_on_startup),
+                checked = autoCheckForUpdates,
+                onCheckedChange = onAutoCheckForUpdatesChanged,
+            )
+            SettingsDivider()
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = onCheckForUpdateClick,
+                    enabled = !isCheckingForUpdate,
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            if (isCheckingForUpdate) R.string.about_checking_for_updates
+                            else R.string.about_check_for_updates_now,
+                        ),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                UpdateAvailabilityCard(
+                    availability = updateAvailability,
+                    onDownloadClick = onDownloadUpdateClick,
+                    onInstallClick = onInstallUpdateClick,
+                )
+            }
+        }
+
         // ===== Developers =====
         Spacer(Modifier.height(8.dp))
         SettingsSectionHeader(title = stringResource(R.string.about_developers_title))
@@ -335,6 +411,111 @@ fun AboutScreen(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
         )
+    }
+}
+
+/**
+ * Inline card shown below the "Check for updates now" button once
+ * something's actually happened -- mirrors mpvRx's UpdateSheet states
+ * (Available -> Downloading -> ReadyToInstall) but as a plain card in the
+ * existing Updates section rather than a separate ModalBottomSheet, since
+ * this is About's only update-related surface. Renders nothing for
+ * [UpdateAvailability.Idle] and [UpdateAvailability.UpToDate]/[UpdateAvailability.Error]
+ * (those are communicated via Toast from AboutRoute instead, so they don't
+ * leave a stale card sitting in the settings screen).
+ */
+@Composable
+private fun UpdateAvailabilityCard(
+    availability: UpdateAvailability,
+    onDownloadClick: () -> Unit,
+    onInstallClick: () -> Unit,
+) {
+    val version: String
+    val progress: Float?
+    val isReadyToInstall: Boolean
+    when (availability) {
+        is UpdateAvailability.Available -> {
+            version = availability.version
+            progress = null
+            isReadyToInstall = false
+        }
+        is UpdateAvailability.Downloading -> {
+            version = availability.version
+            progress = availability.progress
+            isReadyToInstall = false
+        }
+        is UpdateAvailability.ReadyToInstall -> {
+            version = availability.version
+            progress = null
+            isReadyToInstall = true
+        }
+        else -> return
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (isReadyToInstall) Icons.Check else Icons.Download,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(
+                        if (isReadyToInstall) R.string.about_ready_to_install else R.string.about_update_available,
+                        version,
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+
+            if (progress != null) {
+                if (progress >= 0f) {
+                    LinearProgressIndicator(
+                        progress = { progress / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.about_update_progress_percent, progress.toInt()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                }
+            } else {
+                Button(
+                    onClick = if (isReadyToInstall) onInstallClick else onDownloadClick,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isReadyToInstall) R.string.about_install_update else R.string.about_download_update,
+                        ),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
     }
 }
 
