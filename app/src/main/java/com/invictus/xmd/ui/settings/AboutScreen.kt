@@ -35,9 +35,12 @@ import androidx.compose.material3.Text
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +49,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -55,7 +59,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.invictus.xmd.R
+import com.invictus.xmd.utils.GithubAvatarLoader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** A developer credit -- [name] shown as the row title, [githubId] shown as
  * subtext and used to open `github.com/<githubId>` when the row is tapped. */
@@ -333,6 +340,15 @@ fun AboutScreen(
 
 @Composable
 private fun DeveloperRow(developer: AboutDeveloper, onClick: () -> Unit) {
+    var avatarBitmap by remember(developer.githubId) {
+        mutableStateOf<android.graphics.Bitmap?>(null)
+    }
+    LaunchedEffect(developer.githubId) {
+        avatarBitmap = withContext(Dispatchers.IO) {
+            GithubAvatarLoader.load(developer.githubId)
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -347,12 +363,22 @@ private fun DeveloperRow(developer: AboutDeveloper, onClick: () -> Unit) {
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(22.dp),
-            )
+            val bitmap = avatarBitmap
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
