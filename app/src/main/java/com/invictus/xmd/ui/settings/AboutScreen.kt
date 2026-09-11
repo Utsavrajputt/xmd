@@ -20,12 +20,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +37,7 @@ import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +47,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.invictus.xmd.R
+import kotlinx.coroutines.launch
 
 /** A developer credit -- [name] shown as the row title, [githubId] shown as
  * subtext and used to open `github.com/<githubId>` when the row is tapped. */
@@ -70,11 +76,13 @@ data class AboutDeveloper(val name: String, val githubId: String)
 fun AboutScreen(
     versionText: String,
     onGithubClick: () -> Unit,
-    onShareClick: () -> Unit,
     developers: List<AboutDeveloper>,
     credits: List<Pair<String, String>>,
     onDeveloperClick: (AboutDeveloper) -> Unit,
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val creditsSectionRequester = remember { BringIntoViewRequester() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -167,6 +175,37 @@ fun AboutScreen(
                 ) {
                     val btnContainer = cs.primary
                     val btnContent = cs.onPrimary
+
+                    // Library (left) -- scrolls down to the Credits & Open
+                    // Source section further down this same screen, since
+                    // Xmd (unlike mpvRx) doesn't have a separate Libraries
+                    // screen to navigate to.
+                    Button(
+                        onClick = {
+                            coroutineScope.launch { creditsSectionRequester.bringIntoView() }
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = btnContainer,
+                            contentColor = btnContent,
+                        ),
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_library_cube),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(id = R.string.about_credits_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
+                    }
+
+                    // GitHub (right)
                     Button(
                         onClick = onGithubClick,
                         modifier = Modifier.weight(1f).height(56.dp),
@@ -177,7 +216,7 @@ fun AboutScreen(
                         ),
                     ) {
                         Icon(
-                            imageVector = Icons.Code,
+                            painter = painterResource(id = R.drawable.ic_github),
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
@@ -187,28 +226,6 @@ fun AboutScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
-                        )
-                    }
-
-                    Button(
-                        onClick = onShareClick,
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = btnContainer,
-                            contentColor = btnContent,
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Share,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(id = R.string.about_share),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -262,7 +279,10 @@ fun AboutScreen(
 
         // ===== Credits =====
         Spacer(Modifier.height(8.dp))
-        SettingsSectionHeader(title = stringResource(R.string.about_credits_title))
+        SettingsSectionHeader(
+            title = stringResource(R.string.about_credits_title),
+            modifier = Modifier.bringIntoViewRequester(creditsSectionRequester),
+        )
         Text(
             text = stringResource(R.string.about_credits_hint),
             style = MaterialTheme.typography.bodyMedium,
