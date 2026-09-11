@@ -397,6 +397,11 @@
     <string name="ytdlp_not_installed_title">yt-dlp not installed</string>
     <string name="ytdlp_not_installed_message">This link needs the yt-dlp downloader. Install it from Settings first.</string>
     <string name="action_install_now">Install now</string>
+    <string name="ytdlp_install_prompt_subtitle">This link needs the yt-dlp + ffmpeg engine to download. Install it now?</string>
+    <string name="ytdlp_install_progress_title">Installing yt-dlp\u2026</string>
+    <string name="ytdlp_install_progress_message">Setting up the yt-dlp + ffmpeg engine. This only happens once.</string>
+    <string name="ytdlp_install_failed_message">Couldn\u2019t install yt-dlp. Please try again.</string>
+    <string name="generic_configure">Configure</string>
     <string name="link_expired_title">Link expired</string>
     <string name="link_expired_message">%1$s\n\nThis download link has expired or is no longer available.</string>
     <string name="action_fetch_link">Fetch link</string>
