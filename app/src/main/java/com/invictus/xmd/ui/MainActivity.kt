@@ -596,7 +596,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                                     triggerPrepare(listOf(link))
                                 LinkParser.needsYtDlp(link) ->
                                     triggerDownloadYoutubeCustom(link, name, saveDir, quality, audioFormat, duplicateStrategy)
-                                else -> triggerDownloadDirectCustom(link, name, saveDir, duplicateStrategy)
+                                LinkParser.isGenericDownloadUrl(link) ->
+                                    triggerDownloadDirectCustom(link, name, saveDir, duplicateStrategy)
+                                else ->
+                                    Toast.makeText(this, getString(R.string.download_invalid_url_error, link), Toast.LENGTH_SHORT).show()
                             }
                         },
                     )

@@ -1,0 +1,36 @@
+# Aggressive-tier ad/tracker blocklist -- ONLY consulted when
+# Settings.AdblockLevel is AGGRESSIVE (see AdblockFilter). Everything in
+# adblock_hosts.txt (the Standard tier) is a domain that's safe to block
+# on essentially any site with no visible impact. Everything here is a
+# domain that's *also* a genuine tracker, but blocking it can visibly
+# break something on the page -- an embedded comment section, a live-chat
+# bubble, a "Sign in with X" widget -- which is why it's opt-in via the
+# Aggressive level rather than blocked by default. Same file format as
+# adblock_hosts.txt (domain-per-line, # comments/blank lines ignored).
+
+# --- Comment widgets (blocking removes the visible comment section) ---
+disqus.com
+disquscdn.com
+
+# --- Social embed/widget SDKs (blocking can remove embedded posts,
+#     follow buttons, or "Sign in with X" widgets) ---
+platform.twitter.com
+syndication.twitter.com
+platform.linkedin.com
+
+# --- Live-chat / support-widget bubbles (blocking removes the chat
+#     bubble UI entirely, not just its tracking) ---
+tawk.to
+crisp.chat
+drift.com
+zdassets.com
+widget.intercom.io
+intercomcdn.com
+livechatinc.com
+olark.com
+freshchat.com
+
+# --- Push-notification prompt / email-capture widgets ---
+onesignal.com
+klaviyo.com
+hellobar.com

@@ -376,10 +376,19 @@ class BrowserFragment : Fragment() {
                                     expanded = browserMenuExpanded,
                                     desktopSiteEnabled = isCurrentTabDesktopMode(),
                                     currentPageAvailable = currentPageUrl() != null,
+                                    // Shields row only makes sense for a real http(s) page
+                                    // (matches currentPageAvailable's own definition) and
+                                    // only when the global level isn't already OFF -- with
+                                    // adblock off entirely, "shields for this site" has
+                                    // nothing to toggle.
+                                    siteShieldRowVisible = currentPageUrl() != null &&
+                                        Settings.adblockLevel() != Settings.AdblockLevel.OFF,
+                                    siteShieldEnabled = isCurrentTabShieldEnabled(),
                                     onDismiss = { browserMenuExpanded = false },
                                     onRefresh = ::reloadActiveTab,
                                     onFindInPage = ::showFindInPage,
                                     onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
+                                    onToggleSiteShield = ::toggleSiteShieldForCurrentTab,
                                     onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
@@ -847,8 +856,12 @@ class BrowserFragment : Fragment() {
                 // ad slots) rather than fetched via a separately-blockable
                 // request. Cheap (a single style tag) and idempotent, so
                 // running it again on redirects/re-finishes is harmless.
-                if (Settings.adblockEnabled()) {
-                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(), null)
+                // Skipped entirely at AdblockLevel.OFF or when this site is
+                // in the per-site allowlist (shields down for it).
+                val level = Settings.adblockLevel()
+                val pageHost = url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+                if (level != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(pageHost)) {
+                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level), null)
                 }
                 if (isCurrentTab(tab)) {
                     toolbarProgressVisible = false
@@ -973,16 +986,23 @@ class BrowserFragment : Fragment() {
                 // Cheapest possible check first, ahead of even the media
                 // sniff -- a Set lookup on the request's host (plus a
                 // short substring scan of the full URL for path-based ad
-                // requests -- see AdblockFilter.isBlocked), no network, no
+                // requests, and at the AGGRESSIVE level a second host-set
+                // lookup -- see AdblockFilter.isBlocked), no network, no
                 // DNS. Applies regardless of method or DNS mode: an ad
                 // request is an ad request whether it's a GET for an
-                // image or a POST beacon. An empty 200 (rather than
-                // returning null and letting it 404/timeout naturally) is
-                // what keeps pages from stalling on a blocked request or
-                // logging it as a load failure.
-                if (Settings.adblockEnabled() &&
-                    com.invictus.xmd.domain.browser.AdblockFilter.isBlocked(request.url)
+                // image or a POST beacon. isBlocked itself honors the
+                // per-site allowlist (shields down for this page), so
+                // that's not checked separately here. An empty 200
+                // (rather than returning null and letting it 404/timeout
+                // naturally) is what keeps pages from stalling on a
+                // blocked request or logging it as a load failure.
+                val adblockLevel = Settings.adblockLevel()
+                if (adblockLevel != Settings.AdblockLevel.OFF &&
+                    com.invictus.xmd.domain.browser.AdblockFilter.isBlocked(request.url, tab.url?.let {
+                        runCatching { android.net.Uri.parse(it).host }.getOrNull()
+                    }, adblockLevel)
                 ) {
+                    Settings.incrementAdblockLifetimeBlockedCount()
                     return android.webkit.WebResourceResponse(
                         "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
                     )
@@ -1872,6 +1892,41 @@ class BrowserFragment : Fragment() {
     }
 
     private fun isCurrentTabDesktopMode(): Boolean = tabs.getOrNull(currentTabIndex)?.isDesktopMode == true
+
+    private fun currentTabHost(): String? =
+        tabs.getOrNull(currentTabIndex)?.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+
+    /** True (shield up, blocking active) unless the current tab's site is
+     *  in the per-site allowlist. Mirrors isCurrentTabDesktopMode's shape
+     *  for the overflow menu's checkbox row. */
+    private fun isCurrentTabShieldEnabled(): Boolean =
+        !Settings.isAdblockAllowlisted(currentTabHost())
+
+    /** Overflow menu's "Block ads & trackers on this site" checkbox.
+     *  Flips the current tab's host in/out of the allowlist and reloads
+     *  so the new state (blocking on or off) actually takes effect on the
+     *  page's own requests -- same reload-to-apply pattern as
+     *  toggleDesktopMode. */
+    private fun toggleSiteShieldForCurrentTab() {
+        val tab = tabs.getOrNull(currentTabIndex) ?: return
+        val host = currentTabHost() ?: return
+        val shieldWasEnabled = isCurrentTabShieldEnabled()
+        Settings.setAdblockAllowlisted(host, allowed = shieldWasEnabled)
+        val webView = webViewFor(tab) ?: return
+        val currentUrl = webView.url ?: tab.url
+        if (currentUrl != null) {
+            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+            webView.loadUrl(currentUrl)
+            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        } else {
+            webView.reload()
+        }
+        Toast.makeText(
+            requireContext(),
+            if (shieldWasEnabled) R.string.browser_shield_disabled_toast else R.string.browser_shield_enabled_toast,
+            Toast.LENGTH_SHORT,
+        ).show()
+    }
 
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return

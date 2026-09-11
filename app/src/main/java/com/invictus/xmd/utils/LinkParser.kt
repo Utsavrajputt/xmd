@@ -42,6 +42,17 @@ object LinkParser {
     // checks at the resolveYoutube/triggerDownloadYoutubeCustom call sites).
     private val INSTAGRAM_HOSTS = setOf("instagram.com", "www.instagram.com")
 
+    // Facebook (videos/reels/posts/photos) -- same reasoning as Instagram
+    // above: needs yt-dlp to resolve+download, so routed through the same
+    // quality-picker flow (see needsYtDlp). fb.watch is FB's own short-link
+    // domain for videos (distinct host, not a facebook.com subdomain), and
+    // fb.com is a short alias domain -- both included alongside the main
+    // facebook.com/m.facebook.com/web.facebook.com hosts.
+    private val FACEBOOK_HOSTS = setOf(
+        "facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com",
+        "fb.watch", "fb.com", "www.fb.com"
+    )
+
     private val FILE_ID_PATTERN = Pattern.compile("[A-Za-z0-9_-]+")
     private val SHARE_LINK_PATTERN = Pattern.compile(
         "https?://(?:www\\.)?fuckingfast\\.co/(?:f/)?[A-Za-z0-9_-]+[^\\s\"'<>]*",
@@ -93,6 +104,7 @@ object LinkParser {
         if (uri.host in FITGIRL_HOSTS) return false
         if (uri.host in YOUTUBE_HOSTS) return false
         if (uri.host in INSTAGRAM_HOSTS) return false
+        if (uri.host in FACEBOOK_HOSTS) return false
         // HLS (.m3u8) / DASH (.mpd) manifests aren't downloadable as-is --
         // the "file" at that URL is just a text playlist pointing at the
         // real media segments, so these need yt-dlp (needsYtDlp) instead of
@@ -123,6 +135,12 @@ object LinkParser {
         return uri.host in INSTAGRAM_HOSTS
     }
 
+    /** True for a facebook.com/fb.watch/fb.com link (video/reel/post/photo) -- routed to the yt-dlp quality-picker flow instead of a normal resolve. */
+    fun isFacebookLink(link: String): Boolean {
+        val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
+        return uri.host in FACEBOOK_HOSTS
+    }
+
     /**
      * True for a direct HLS (.m3u8) or DASH (.mpd) manifest link -- these
      * are streams, not a single file, so (like YouTube) they need yt-dlp to
@@ -144,14 +162,16 @@ object LinkParser {
 
     /**
      * True for anything that needs the yt-dlp quality-picker flow instead
-     * of a normal resolve -- YouTube, plus any plain HLS/DASH link pasted
-     * or shared directly (not just ones caught by the in-browser sniffer).
-     * Every routing decision (MainActivity, ShareReceiverActivity) should
-     * check this rather than isYoutubeLink alone, or a pasted .m3u8 link
-     * falls through to isGenericDownloadUrl and gets "downloaded" as the
-     * raw manifest text instead of the actual video.
+     * of a normal resolve -- YouTube, Instagram, Facebook, plus any plain
+     * HLS/DASH link pasted or shared directly (not just ones caught by the
+     * in-browser sniffer). Every routing decision (MainActivity,
+     * ShareReceiverActivity) should check this rather than isYoutubeLink
+     * alone, or a pasted .m3u8 link falls through to isGenericDownloadUrl
+     * and gets "downloaded" as the raw manifest text instead of the actual
+     * video.
      */
-    fun needsYtDlp(link: String): Boolean = isYoutubeLink(link) || isInstagramLink(link) || isHlsOrDashLink(link)
+    fun needsYtDlp(link: String): Boolean =
+        isYoutubeLink(link) || isInstagramLink(link) || isFacebookLink(link) || isHlsOrDashLink(link)
 
     /**
      * True for anything the "direct download" fast-path (HomeFragment's

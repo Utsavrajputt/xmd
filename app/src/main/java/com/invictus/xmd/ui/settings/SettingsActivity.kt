@@ -669,8 +669,8 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     }
     var showSearchEngineDialog by remember { mutableStateOf(false) }
 
-    var adblockEnabled by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockEnabled())
+    var adblockLevel by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
     }
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
@@ -678,16 +678,26 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     var blockedDomainCount by remember {
         mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount())
     }
+    var lifetimeBlockedCount by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount())
+    }
+    var allowlistedSites by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted())
+    }
     // The host list loads off the main thread (AdblockFilter.init, called
     // from FfApp.onCreate) and a background remote refresh may still be
     // in flight -- poll briefly rather than wiring up a dedicated
-    // callback/broadcast just for this settings subtitle. Stops once the
-    // count is non-zero and stable, or after a few seconds either way.
+    // callback/broadcast just for this settings subtitle. Also picks up
+    // the lifetime blocked count ticking up if the user still has a
+    // Browser tab open behind this screen. Stops after a few seconds
+    // either way.
     LaunchedEffect(Unit) {
         repeat(10) {
             kotlinx.coroutines.delay(500)
             val count = com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount()
             if (count != blockedDomainCount) blockedDomainCount = count
+            val lifetime = com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount()
+            if (lifetime != lifetimeBlockedCount) lifetimeBlockedCount = lifetime
         }
     }
 
@@ -716,11 +726,17 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
         searchEngine = searchEngine,
         customSearchName = customSearchName,
         onSearchEngineClick = { showSearchEngineDialog = true },
-        adblockEnabled = adblockEnabled,
+        adblockLevel = adblockLevel,
         blockedDomainCount = blockedDomainCount,
-        onAdblockChanged = { checked ->
-            adblockEnabled = checked
-            com.invictus.xmd.preferences.Settings.setAdblockEnabled(checked)
+        lifetimeBlockedCount = lifetimeBlockedCount,
+        allowlistedSites = allowlistedSites,
+        onAdblockLevelChanged = { level ->
+            adblockLevel = level
+            com.invictus.xmd.preferences.Settings.setAdblockLevel(level)
+        },
+        onRemoveAllowlistedSite = { site ->
+            com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = false)
+            allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
         },
         backgroundPlaybackEnabled = backgroundPlaybackEnabled,
         onBackgroundPlaybackChanged = { checked ->
