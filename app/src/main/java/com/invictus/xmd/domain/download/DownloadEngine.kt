@@ -339,7 +339,7 @@ class DownloadEngine(
         val resumable = readPersistedMultiState(destination)
         if (resumable != null) {
             log("Resuming ${destination.name}: ${resumable.segments.sumOf { it.done }}/${resumable.total} bytes across ${resumable.segments.size} connections")
-            downloadMulti(url, destination, resumable.total, resumable.segments)
+            downloadMultiWithFallback(url, destination, resumable.total, resumable.segments)
             return
         }
         if (metaFile(destination).isFile) {
@@ -372,7 +372,7 @@ class DownloadEngine(
                 }
                 try {
                     log("Downloading with $connections parallel connections")
-                    downloadMulti(url, destination, probe.totalSize, freshSegments)
+                    downloadMultiWithFallback(url, destination, probe.totalSize, freshSegments)
                     return
                 } catch (e: DownloadCancelledException) {
                     throw e
@@ -439,7 +439,41 @@ class DownloadEngine(
      * download -- that was a second, separate way a corrupted file could
      * previously get marked DONE.
      */
-    private fun downloadMulti(url: String, destination: File, totalSize: Long, segments: List<SegmentState>) {
+    /**
+     * Runs [downloadMulti] at full parallelism, but doesn't automatically
+     * trust a 401/403/404/410 as a genuinely dead link. Hosts like pixeldrain
+     * cap how many simultaneous connections a free/anonymous download may
+     * use -- going over that cap 403s the extra segments even though the URL
+     * itself is perfectly valid, which used to surface as the same "Link
+     * Expired" dialog a real expired token gets, and Retry kept re-running
+     * the same N parallel segments into the same wall every time. On that
+     * error, drop to ONE connection and retry the exact same URL for
+     * whatever's left before believing the link is actually dead -- if a
+     * single connection also gets rejected, it really is expired/unavailable
+     * and the caller's Link Expired handling is correct to kick in.
+     */
+    private fun downloadMultiWithFallback(url: String, destination: File, totalSize: Long, segments: List<SegmentState>) {
+        try {
+            downloadMulti(url, destination, totalSize, segments)
+        } catch (e: ExpiredLinkException) {
+            log("Segment failed with HTTP ${e.httpCode} -- retrying remaining bytes on a single connection in case it's a per-connection limit rather than a dead link")
+            cancelled.set(false)
+            downloadMulti(url, destination, totalSize, segments, maxConcurrent = 1)
+        }
+    }
+
+    private fun downloadMulti(
+        url: String,
+        destination: File,
+        totalSize: Long,
+        segments: List<SegmentState>,
+        // Caps how many segments run at once. Defaults to "all of them" (the
+        // normal parallel case); [downloadMultiWithFallback] passes 1 to
+        // retry sequentially after a per-connection-limit host rejects true
+        // parallelism. A fixed-size pool smaller than `pending.size` just
+        // queues the rest, so this needs no other change to the run loop.
+        maxConcurrent: Int = segments.size
+    ) {
         destination.parentFile?.mkdirs()
         RandomAccessFile(destination, "rw").use { it.setLength(totalSize) }
 
@@ -466,7 +500,7 @@ class DownloadEngine(
         // same sliding window — gives the true aggregate download speed.
         val speedMeter = SpeedMeter()
         val failure    = AtomicReference<Exception?>(null)
-        val executor   = Executors.newFixedThreadPool(pending.size)
+        val executor   = Executors.newFixedThreadPool(maxConcurrent.coerceIn(1, pending.size))
 
         try {
             val futures = pending.map { seg ->
