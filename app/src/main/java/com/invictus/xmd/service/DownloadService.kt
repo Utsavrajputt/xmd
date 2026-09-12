@@ -64,6 +64,7 @@ class DownloadService : LifecycleService() {
         const val EXTRA_ITEM_ID = "extra_item_id"
         const val EXTRA_ITEM_IDS = "extra_item_ids"
         private const val NOTIFICATION_ID = 42
+        private const val DATA_LIMIT_NOTIFICATION_ID = 43
         private const val BETWEEN_CLAIM_DELAY_MS = 500L
         private const val MAX_AUTO_RETRIES = 3
         private const val NOTIFY_THROTTLE_MS = 500L
@@ -283,6 +284,95 @@ class DownloadService : LifecycleService() {
         if (live.isNotEmpty()) updateNotification()
     }
 
+    /** True if the daily data limit is enabled and today's usage for its
+     *  configured scope (mobile-only, Wi-Fi-only, or total) has already
+     *  reached it. Cheap SharedPreferences reads only -- no TrafficStats
+     *  syscall unless [DataUsageTracker.onTick] has been called at least
+     *  once this session, which [checkDataLimit] does on every throttled
+     *  progress tick. */
+    private fun isDataLimitReached(): Boolean {
+        if (!Settings.dataLimitEnabled()) return false
+        val usage = when (Settings.dataLimitScope()) {
+            Settings.DataLimitScope.MOBILE -> com.invictus.xmd.network.DataUsageTracker.todayMobileBytes()
+            Settings.DataLimitScope.WIFI -> com.invictus.xmd.network.DataUsageTracker.todayWifiBytes()
+            Settings.DataLimitScope.TOTAL -> com.invictus.xmd.network.DataUsageTracker.todayTotalBytes()
+        }
+        return usage >= Settings.dataLimitBytes()
+    }
+
+    /** Marker so [checkDataLimit] only fires the pause-everything routine
+     *  once per limit breach, not on every throttled tick while paused. */
+    private val dataLimitTriggered = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /**
+     * Advances [DataUsageTracker]'s mobile-usage accumulator and, the
+     * moment the limit is newly reached, pauses every live download in
+     * place (marked [Settings.DATA_LIMIT_WAIT_MARKER], same shape as
+     * [onWifiLost]/[onInternetLost] but with no auto-resume -- the user is
+     * only notified) and stops any further worker from claiming new items
+     * via [isDataLimitReached] in [worker]. Called from the same throttled
+     * spot as [updateNotificationThrottled] so it shares that ~2x/sec cap
+     * instead of running on every raw progress callback.
+     */
+    private fun checkDataLimit() {
+        com.invictus.xmd.network.DataUsageTracker.onTick(NetworkMonitor.isMetered(this))
+        if (!isDataLimitReached()) {
+            dataLimitTriggered.set(false)
+            return
+        }
+        if (!dataLimitTriggered.compareAndSet(false, true)) return
+
+        val live = QueueRepository.current()
+            .filter { it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.RETRYING }
+        live.forEach { item ->
+            if (item.platform == MediaPlatform.YOUTUBE) {
+                wifiWaitingYoutubeIds.remove(item.id)
+                networkWaitingYoutubeIds.remove(item.id)
+                dataLimitYoutubeIds.add(item.id)
+                cancelledYoutubeIds.add(item.id)
+                YtDlpManager.cancel(item.id)
+            } else {
+                engines[item.id]?.pause()
+                torrentEngines[item.id]?.pause()
+                QueueRepository.update(item.id) {
+                    it.copy(status = ItemStatus.PAUSED, error = Settings.DATA_LIMIT_WAIT_MARKER)
+                }
+            }
+        }
+        if (live.isNotEmpty()) {
+            updateNotification()
+            showDataLimitReachedNotification()
+        }
+    }
+
+    /** Same idea as [wifiWaitingYoutubeIds] but for the data-limit pause --
+     *  kept separate so a YouTube item's catch block (in [downloadYoutube])
+     *  can tell which of the three "we cancelled you, not a real failure"
+     *  reasons applies and land on the right status/marker. */
+    private val dataLimitYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** One-shot heads-up notification (separate from the persistent
+     *  download-progress notification) telling the user why everything
+     *  just stopped -- there's no auto-resume for this one, so a silent
+     *  pause would look like a stall/hang with no explanation. */
+    private fun showDataLimitReachedNotification() {
+        val manager = getSystemService(android.app.NotificationManager::class.java) ?: return
+        val notification = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_pause)
+            .setContentTitle(getString(R.string.settings_data_limit_reached_title))
+            .setContentText(getString(R.string.settings_data_limit_reached_body))
+            .setAutoCancel(true)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this, 0,
+                    Intent(this, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+            .build()
+        manager.notify(DATA_LIMIT_NOTIFICATION_ID, notification)
+    }
+
     /** Wi-Fi is back (or Wi-Fi-only was never on) -- resume anything this
      *  service auto-paused for it, and top workers back up so anything still
      *  READY (or just re-queued from a cancelled YouTube item above) gets picked up. */
@@ -478,6 +568,12 @@ class DownloadService : LifecycleService() {
             // onInternetRegained()'s topUpWorkers() spin a worker back up
             // the moment connectivity returns.
             if (!NetworkMonitor.hasInternet(this)) break
+            // Daily data limit already reached -- don't start a fresh item;
+            // it stays READY, same as the two checks above. No auto-resume
+            // path for this one (unlike Wi-Fi/internet): the item sits READY
+            // until the user manually retries, which is fine once tomorrow's
+            // reset makes isDataLimitReached() false again.
+            if (isDataLimitReached()) break
             val item = QueueRepository.claimNextReady() ?: break
             when {
                 item.platform == MediaPlatform.YOUTUBE -> downloadYoutube(item)
@@ -566,6 +662,7 @@ class DownloadService : LifecycleService() {
             val cancelled = cancelledYoutubeIds.remove(itemId)
             val wifiWait = wifiWaitingYoutubeIds.remove(itemId)
             val networkWait = networkWaitingYoutubeIds.remove(itemId)
+            val dataLimitWait = dataLimitYoutubeIds.remove(itemId)
             val userPaused = pausedYoutubeIds.remove(itemId)
             QueueRepository.update(itemId) {
                 when {
@@ -582,6 +679,16 @@ class DownloadService : LifecycleService() {
                     wifiWait || networkWait -> it.copy(
                         status = ItemStatus.READY,
                         error = null,
+                        progressPercent = -1,
+                        mediaStatusText = null
+                    )
+                    // Cancelled for the daily data limit -- unlike Wi-Fi/
+                    // network waits, this does NOT go back to READY: there's
+                    // no auto-resume for the data limit, so it stays PAUSED
+                    // with the marker until the user retries by hand.
+                    dataLimitWait -> it.copy(
+                        status = ItemStatus.PAUSED,
+                        error = Settings.DATA_LIMIT_WAIT_MARKER,
                         progressPercent = -1,
                         mediaStatusText = null
                     )
@@ -610,6 +717,7 @@ class DownloadService : LifecycleService() {
             cancelledYoutubeIds.remove(itemId)
             wifiWaitingYoutubeIds.remove(itemId)
             networkWaitingYoutubeIds.remove(itemId)
+            dataLimitYoutubeIds.remove(itemId)
             pausedYoutubeIds.remove(itemId)
             updateNotification()
         }
@@ -929,7 +1037,14 @@ class DownloadService : LifecycleService() {
         val now = System.currentTimeMillis()
         val last = lastThrottledNotifyMs.get()
         if (now - last < NOTIFY_THROTTLE_MS) return
-        if (lastThrottledNotifyMs.compareAndSet(last, now)) updateNotification()
+        if (lastThrottledNotifyMs.compareAndSet(last, now)) {
+            // Piggybacks on the same throttle as the notification rebuild --
+            // both are driven by the same per-download progress callbacks,
+            // so this keeps the TrafficStats read + limit check down to the
+            // same ~2x/sec cadence instead of running on every raw callback.
+            checkDataLimit()
+            updateNotification()
+        }
     }
 
     private fun buildNotification(): Notification {

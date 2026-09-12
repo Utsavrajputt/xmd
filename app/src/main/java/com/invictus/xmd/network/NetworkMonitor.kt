@@ -62,6 +62,18 @@ object NetworkMonitor {
         return callback
     }
 
+    /** True if the currently active network is metered (cellular, or a
+     *  Wi-Fi hotspot the user/carrier marked as metered) -- used by the
+     *  daily mobile-data limit to tell "mobile" usage apart from Wi-Fi,
+     *  independent of [isOnWifi]'s Wi-Fi-vs-cellular transport check. */
+    fun isMetered(context: Context): Boolean {
+        val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
+                as? ConnectivityManager ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
     fun unregister(context: Context, callback: ConnectivityManager.NetworkCallback) {
         val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
                 as? ConnectivityManager ?: return

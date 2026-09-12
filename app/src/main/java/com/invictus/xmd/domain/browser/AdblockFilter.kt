@@ -5,54 +5,65 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import java.io.File
-import com.invictus.xmd.FfApp
 import com.invictus.xmd.preferences.Settings
 
 /**
- * Ad/tracker blocking for the in-app Browser. Two layers:
+ * Ad/tracker blocking for the in-app Browser -- Brave-style Shields:
+ * [Settings.AdblockLevel] (Standard/Aggressive/Off) plus a per-site
+ * allowlist ([Settings.isAdblockAllowlisted]), rather than a single
+ * on/off switch.
  *
- * 1. Host-list blocking (as before): a Set of known ad/tracker domains,
- *    matched against a request's host or any of its parent domains (e.g.
+ * Three layers of blocking:
+ *
+ * 1. Host-list blocking: a Set of known ad/tracker domains, matched
+ *    against a request's host or any of its parent domains (e.g.
  *    "ads.doubleclick.net" matches a "doubleclick.net" entry). This is
- *    the bulk of what gets blocked.
- * 2. URL-pattern blocking ([blockedUrlPatterns]): a short list of
+ *    the bulk of what gets blocked, active at both STANDARD and
+ *    AGGRESSIVE. Two sources merged together:
+ *     - The bundled `assets/adblock_hosts.txt` (a few hundred hand-picked
+ *       domains) -- ships with the app, always available offline, but
+ *       never updates itself.
+ *     - A much larger, actively-maintained hosts-format list fetched over
+ *       the network by [AdblockListUpdater] and cached to internal
+ *       storage, refreshed at most once a week. This is what actually
+ *       gets this blocker from "a few hundred domains" to real-world
+ *       EasyList-class coverage.
+ * 2. Aggressive-tier host-list blocking ([aggressiveHosts], from
+ *    `assets/adblock_aggressive_hosts.txt`): a second, smaller, bundled
+ *    -only list of borderline trackers (comment widgets, live-chat
+ *    bubbles, social embed SDKs) that can visibly break something on the
+ *    page if blocked -- only consulted when the level is AGGRESSIVE.
+ * 3. URL-pattern blocking ([blockedUrlPatterns]): a short list of
  *    ad-serving substrings (script names, paths, query markers) checked
  *    against the *full* request URL, for ads served off an otherwise
  *    legitimate/first-party host that a pure domain list can't catch.
+ *    Active at both STANDARD and AGGRESSIVE.
  *
- * The host list itself now has two sources, merged together:
- *  - The bundled `assets/adblock_hosts.txt` (a few hundred hand-picked
- *    domains) -- ships with the app, always available offline, but never
- *    updates itself.
- *  - A much larger, actively-maintained hosts-format list fetched over
- *    the network by [AdblockListUpdater] and cached to internal storage,
- *    refreshed at most once a week. This is what actually gets this
- *    blocker from "a few hundred domains" to real-world EasyList-class
- *    coverage -- a bundled list alone can never keep up with how fast ad
- *    infrastructure domains churn.
- *
- * On top of both, [cosmeticHideScript] returns a small CSS injection
- * (via evaluateJavascript, after page load) that hides leftover ad
+ * On top of all three, [cosmeticHideScript] returns a small CSS injection
+ * (via evaluateJavascript, after page load) that hides leftover ad/tracker
  * containers even when the underlying request wasn't blockable at the
  * network level at all -- e.g. an ad slot rendered from markup the page
- * itself served, with no separate blockable request.
+ * itself served, with no separate blockable request. Its selector set
+ * grows at the AGGRESSIVE level to match the wider host blocking.
  *
- * Backed by [Settings.adblockEnabled] as a single global toggle, same as
- * before -- callers should check that themselves before calling into
- * this object, so the whole path is skippable cheaply when adblock is off.
+ * Callers should check [Settings.adblockLevel] themselves before calling
+ * into this object (skip the whole path cheaply when OFF) -- [isBlocked]
+ * still separately honors the per-site allowlist so a single check covers
+ * both "shields down globally" and "shields down for this site".
  *
  * [init] loads the merged list once, off the main thread, the first time
  * the Browser is opened (see FfApp.onCreate) rather than at every launch,
  * since most sessions never touch the browser. [isBlocked] is called from
  * shouldInterceptRequest -- WebView's own background thread(s),
- * potentially concurrently across tabs/sub-resources -- so it reads a
- * plain @Volatile Set reference with no locking; while still loading (or
+ * potentially concurrently across tabs/sub-resources -- so it reads plain
+ * @Volatile Set references with no locking; while still loading (or
  * mid-refresh) it just uses whatever's currently loaded, never blocks a
  * WebView thread on I/O.
  */
 object AdblockFilter {
 
     private const val ASSET_PATH = "adblock_hosts.txt"
+    private const val AGGRESSIVE_ASSET_PATH = "adblock_aggressive_hosts.txt"
     internal const val CACHE_FILE_NAME = "adblock_hosts_cache.txt"
 
     // How long a cached remote list is considered fresh before a
@@ -63,6 +74,10 @@ object AdblockFilter {
     private val REFRESH_INTERVAL_MS = java.util.concurrent.TimeUnit.DAYS.toMillis(7)
 
     @Volatile private var blockedHosts: Set<String>? = null
+    // Aggressive-tier host set -- bundled-only (no remote updater; it's a
+    // small, deliberately curated list, not something that needs weekly
+    // refreshing the way the Standard tier's long-tail coverage does).
+    @Volatile private var aggressiveHosts: Set<String>? = null
 
     // Ad-serving/tracking URL substrings that don't reduce to a single
     // blockable hostname -- first-party-served ad paths, script names,
@@ -74,7 +89,8 @@ object AdblockFilter {
     // blocking the whole site). Kept short and specific on purpose --
     // a broad substring here risks false-positive blocking of real
     // content, so every entry is a pattern seen in practice exclusively
-    // on ad/tracking requests, not general page content.
+    // on ad/tracking requests, not general page content. Active at both
+    // STANDARD and AGGRESSIVE.
     private val blockedUrlPatterns = listOf(
         "facebook.com/tr", "yandex.ru/ads", "pinimg.com/ct", "tiktok.com/ads",
         "snapchat.com/ads", "/pagead/", "/adserver/", "/adservice/", "/ad-manager/",
@@ -86,13 +102,11 @@ object AdblockFilter {
     // Generic cosmetic hiding -- element selectors seen wrapping ad slots
     // across a wide range of sites (not site-specific ABP cosmetic rules,
     // just the handful of id/class conventions ad tech consistently uses
-    // for its own containers). Injected as CSS after page load so
-    // leftover ad boxes collapse even when the underlying request wasn't
-    // blockable at the network level (same-origin ad iframes,
-    // server-rendered ad markup). Deliberately conservative: every
-    // selector here is ad-specific enough that it won't catch real page
-    // content, and hiding (not removing) means nothing about page layout
-    // outside the ad slot itself is touched.
+    // for its own containers). Active at both STANDARD and AGGRESSIVE.
+    // Deliberately conservative: every selector here is ad-specific enough
+    // that it won't catch real page content, and hiding (not removing)
+    // means nothing about page layout outside the ad slot itself is
+    // touched.
     private val cosmeticSelectors = listOf(
         "ins.adsbygoogle",
         "div[id^=\"google_ads_iframe\"]",
@@ -108,16 +122,37 @@ object AdblockFilter {
         "iframe[src*=\"googlesyndication.com\"]",
     )
 
-    private val cosmeticCss: String by lazy {
-        cosmeticSelectors.joinToString(",") +
+    // Extra selectors matching the aggressive-tier host list -- comment
+    // sections and chat bubbles left behind by JS that never ran because
+    // its host got blocked, plus a couple of markup conventions those
+    // widgets use even when partially loaded.
+    private val cosmeticSelectorsAggressive = listOf(
+        "#disqus_thread",
+        "iframe[src*=\"disqus.com\"]",
+        "#tawkchat-container",
+        "div.intercom-lightweight-app",
+        "div[id^=\"crisp-client\"]",
+        "iframe[title*=\"Purpose\"]",
+    )
+
+    private fun cosmeticCss(level: Settings.AdblockLevel): String {
+        val selectors = if (level == Settings.AdblockLevel.AGGRESSIVE) {
+            cosmeticSelectors + cosmeticSelectorsAggressive
+        } else {
+            cosmeticSelectors
+        }
+        return selectors.joinToString(",") +
             "{display:none!important;height:0!important;min-height:0!important}"
     }
 
-    /** JS to run via evaluateJavascript after onPageFinished. Idempotent
-     *  (checks for its own marker id) and cheap -- inserts a single
-     *  style tag; safe to call again on the same page. */
-    fun cosmeticHideScript(): String {
-        val cssLiteral = "\"" + cosmeticCss.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    /** JS to run via evaluateJavascript after onPageFinished, for the
+     *  given blocking [level] (selector set widens at AGGRESSIVE).
+     *  Idempotent (checks for its own marker id) and cheap -- inserts a
+     *  single style tag; safe to call again on the same page. Callers
+     *  should skip calling this entirely at [Settings.AdblockLevel.OFF]
+     *  or when the current site is allowlisted. */
+    fun cosmeticHideScript(level: Settings.AdblockLevel): String {
+        val cssLiteral = "\"" + cosmeticCss(level).replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         return """
             (function(){
               if (document.getElementById('__xmd_adblock_css__')) return;
@@ -140,7 +175,10 @@ object AdblockFilter {
             }.getOrNull()
 
             blockedHosts = loaded?.takeIf { it.isNotEmpty() }
-                ?: runCatching { parseHostsAsset(appContext) }.getOrDefault(emptySet())
+                ?: runCatching { parseAsset(appContext, ASSET_PATH) }.getOrDefault(emptySet())
+
+            aggressiveHosts = runCatching { parseAsset(appContext, AGGRESSIVE_ASSET_PATH) }
+                .getOrDefault(emptySet())
 
             maybeRefreshInBackground(appContext)
         }.start()
@@ -148,8 +186,8 @@ object AdblockFilter {
 
     internal fun cacheFile(context: Context): File = File(context.filesDir, CACHE_FILE_NAME)
 
-    private fun parseHostsAsset(context: Context): Set<String> =
-        context.assets.open(ASSET_PATH).bufferedReader().use { parseHostLines(it) }
+    private fun parseAsset(context: Context, assetPath: String): Set<String> =
+        context.assets.open(assetPath).bufferedReader().use { parseHostLines(it) }
 
     private fun parseHostLines(reader: java.io.BufferedReader): Set<String> =
         reader.useLines { lines ->
@@ -179,28 +217,31 @@ object AdblockFilter {
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    /** Number of domains currently loaded -- 0 before [init]'s background
-     *  parse finishes on a cold start. Exposed for the Settings screen so
-     *  the adblock toggle can show real coverage instead of a static
-     *  label ("Blocking 187,000+ domains" vs. a number that never moves). */
+    /** Number of Standard-tier domains currently loaded -- 0 before
+     *  [init]'s background parse finishes on a cold start. Exposed for the
+     *  Settings screen so the Shields level picker can show real coverage
+     *  instead of a static label. */
     fun blockedDomainCount(): Int = blockedHosts?.size ?: 0
 
-    /** True if [uri] (the full request URL) matches a known ad/tracker
-     *  host, or an ad-serving URL pattern. Returns false while the host
-     *  list is still loading, or if adblock is off (callers should check
-     *  [Settings.adblockEnabled] themselves before calling this -- kept
-     *  as a separate check rather than folded in here so callers can
-     *  skip the whole path cheaply). */
-    fun isBlocked(uri: Uri?): Boolean {
-        if (uri == null) return false
-        if (isHostBlocked(uri.host)) return true
+    /** True if [uri] (the full request URL) should be blocked for a page
+     *  whose own host is [pageHost], at the given [level]. Always false at
+     *  [Settings.AdblockLevel.OFF] or when [pageHost] is allowlisted
+     *  ([Settings.isAdblockAllowlisted]) -- checked here rather than
+     *  requiring every caller to duplicate both checks. Returns false
+     *  while the host list is still loading. */
+    fun isBlocked(uri: Uri?, pageHost: String?, level: Settings.AdblockLevel): Boolean {
+        if (uri == null || level == Settings.AdblockLevel.OFF) return false
+        if (Settings.isAdblockAllowlisted(pageHost)) return false
+        if (isHostBlocked(uri.host, blockedHosts)) return true
+        if (level == Settings.AdblockLevel.AGGRESSIVE && isHostBlocked(uri.host, aggressiveHosts)) {
+            return true
+        }
         val full = uri.toString().lowercase()
         return blockedUrlPatterns.any { full.contains(it) }
     }
 
-    private fun isHostBlocked(host: String?): Boolean {
-        if (host.isNullOrBlank()) return false
-        val hosts = blockedHosts ?: return false
+    private fun isHostBlocked(host: String?, hosts: Set<String>?): Boolean {
+        if (host.isNullOrBlank() || hosts.isNullOrEmpty()) return false
         val lower = host.lowercase()
         if (hosts.contains(lower)) return true
         var i = lower.indexOf('.')

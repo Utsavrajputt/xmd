@@ -566,6 +566,13 @@ object YtDlpManager {
             // regular videos usually only have uploader).
             request.addOption("--embed-metadata")
             request.addOption("--embed-thumbnail")
+            // Embed only -- don't also leave the thumbnail behind as its own
+            // file next to the audio. --embed-thumbnail alone can still
+            // leave a stray converted-thumbnail file around after the
+            // --convert-thumbnails step below on some yt-dlp builds;
+            // --no-write-thumbnail is the documented way to say "fetch it
+            // only to embed, never persist it separately."
+            request.addOption("--no-write-thumbnail")
             // Embedded art must be a JPEG (ID3v2 APIC for mp3; harmless and
             // still widely compatible for m4a/opus/original too), not
             // yt-dlp's default webp thumbnail -- ffmpeg (bundled) converts.
@@ -583,6 +590,10 @@ object YtDlpManager {
             // Merge container for the video+audio case above.
             request.addOption("--merge-output-format", "mp4")
             request.addOption("--embed-thumbnail")
+            // Same reasoning as the audio branch above -- embed it into the
+            // video, don't also leave a separate thumbnail image file
+            // sitting next to it in the same folder.
+            request.addOption("--no-write-thumbnail")
             request.addOption("--embed-metadata")
         }
 

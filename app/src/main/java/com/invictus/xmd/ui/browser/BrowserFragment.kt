@@ -214,6 +214,13 @@ class BrowserFragment : Fragment() {
     private var detectedLinkVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabText: String by mutableStateOf("")
+    // True when the sniffed-media FAB is currently showing for "this
+    // YouTube page has a video" rather than MediaSniffer's normal
+    // sniffedMedia list -- see updateSniffedMediaFab()'s YouTube branch.
+    // Drives onSniffedMediaTap to go straight to the quality picker
+    // instead of opening SniffedMediaSheet (which would have nothing to
+    // list, since no MediaSniffer entries exist for a YouTube page).
+    private var sniffedMediaIsYoutubePage: Boolean by mutableStateOf(false)
 
     // ── Phase E: browserToolbar's state ──────────────────────────────────
     // Drives BrowserToolbarRow's setContent lambda below -- same "field on
@@ -376,12 +383,14 @@ class BrowserFragment : Fragment() {
                                     expanded = browserMenuExpanded,
                                     desktopSiteEnabled = isCurrentTabDesktopMode(),
                                     currentPageAvailable = currentPageUrl() != null,
+                                    currentPagePinned = if (browserMenuExpanded) isCurrentPagePinned() else false,
                                     onDismiss = { browserMenuExpanded = false },
                                     onRefresh = ::reloadActiveTab,
                                     onFindInPage = ::showFindInPage,
                                     onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
                                     onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
+                                    onAddAsApp = ::toggleCurrentPageAsApp,
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
                                     onAction = { action ->
                                         (activity as? Callbacks)?.onBrowserMenuAction(action)
@@ -466,7 +475,7 @@ class BrowserFragment : Fragment() {
                             onDetectedLinkTap = ::onAddLinkClicked,
                             sniffedMediaVisible = sniffedMediaFabVisible,
                             sniffedMediaText = sniffedMediaFabText,
-                            onSniffedMediaTap = ::showSniffedMediaSheet,
+                            onSniffedMediaTap = ::onSniffedMediaFabTapped,
                         )
                     },
                     dialogs = {
@@ -847,8 +856,12 @@ class BrowserFragment : Fragment() {
                 // ad slots) rather than fetched via a separately-blockable
                 // request. Cheap (a single style tag) and idempotent, so
                 // running it again on redirects/re-finishes is harmless.
-                if (Settings.adblockEnabled()) {
-                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(), null)
+                // Skipped entirely at AdblockLevel.OFF or when this site is
+                // in the per-site allowlist (shields down for it).
+                val level = Settings.adblockLevel()
+                val pageHost = url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+                if (level != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(pageHost)) {
+                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level), null)
                 }
                 if (isCurrentTab(tab)) {
                     toolbarProgressVisible = false
@@ -973,16 +986,23 @@ class BrowserFragment : Fragment() {
                 // Cheapest possible check first, ahead of even the media
                 // sniff -- a Set lookup on the request's host (plus a
                 // short substring scan of the full URL for path-based ad
-                // requests -- see AdblockFilter.isBlocked), no network, no
+                // requests, and at the AGGRESSIVE level a second host-set
+                // lookup -- see AdblockFilter.isBlocked), no network, no
                 // DNS. Applies regardless of method or DNS mode: an ad
                 // request is an ad request whether it's a GET for an
-                // image or a POST beacon. An empty 200 (rather than
-                // returning null and letting it 404/timeout naturally) is
-                // what keeps pages from stalling on a blocked request or
-                // logging it as a load failure.
-                if (Settings.adblockEnabled() &&
-                    com.invictus.xmd.domain.browser.AdblockFilter.isBlocked(request.url)
+                // image or a POST beacon. isBlocked itself honors the
+                // per-site allowlist (shields down for this page), so
+                // that's not checked separately here. An empty 200
+                // (rather than returning null and letting it 404/timeout
+                // naturally) is what keeps pages from stalling on a
+                // blocked request or logging it as a load failure.
+                val adblockLevel = Settings.adblockLevel()
+                if (adblockLevel != Settings.AdblockLevel.OFF &&
+                    com.invictus.xmd.domain.browser.AdblockFilter.isBlocked(request.url, tab.url?.let {
+                        runCatching { android.net.Uri.parse(it).host }.getOrNull()
+                    }, adblockLevel)
                 ) {
+                    Settings.incrementAdblockLifetimeBlockedCount()
                     return android.webkit.WebResourceResponse(
                         "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
                     )
@@ -1798,11 +1818,27 @@ class BrowserFragment : Fragment() {
     /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
      *  from onPageStarted (clears it), and from shouldInterceptRequest's
      *  sniff hook every time a genuinely new stream URL is found. No-op
-     *  visually unless [tab] is the tab currently on screen. */
+     *  visually unless [tab] is the tab currently on screen.
+     *
+     *  Also covers YouTube: MediaSniffer's URL/extension matching never
+     *  catches YouTube's own signed googlevideo.com segment URLs (see
+     *  LinkParser.isYoutubeVideoPage's doc comment), so a YouTube watch/
+     *  shorts page shows the FAB purely off the page URL, independent of
+     *  tab.sniffedMedia. Gated on BuildConfig.HAS_YOUTUBE_SUPPORT since
+     *  the Lite build has no yt-dlp/quality-picker to hand the tap off to. */
     private fun updateSniffedMediaFab(tab: BrowserTab) {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
         if (count == 0) {
+            val url = tab.url
+            if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT &&
+                url != null && com.invictus.xmd.utils.LinkParser.isYoutubeVideoPage(url)
+            ) {
+                sniffedMediaFabText = getString(R.string.sniffed_media_chip_one)
+                sniffedMediaIsYoutubePage = true
+                sniffedMediaFabVisible = true
+                return
+            }
             sniffedMediaFabVisible = false
             return
         }
@@ -1811,7 +1847,22 @@ class BrowserFragment : Fragment() {
         } else {
             getString(R.string.sniffed_media_chip_many, count)
         }
+        sniffedMediaIsYoutubePage = false
         sniffedMediaFabVisible = true
+    }
+
+    /** Tap handler for the sniffed-media FAB -- branches on
+     *  [sniffedMediaIsYoutubePage] since that variant has no
+     *  tab.sniffedMedia entries for SniffedMediaSheet to list; it hands
+     *  the current page URL straight to the same quality-picker flow a
+     *  sheet row would (triggerSniffedMedia(needsPicker = true)) instead. */
+    private fun onSniffedMediaFabTapped() {
+        if (sniffedMediaIsYoutubePage) {
+            val url = currentPageUrl() ?: return
+            (activity as? Callbacks)?.triggerSniffedMedia(url, needsPicker = true)
+            return
+        }
+        showSniffedMediaSheet()
     }
 
     /** Opens the Compose SniffedMediaSheet (see browserDialogHost's
@@ -1966,6 +2017,95 @@ class BrowserFragment : Fragment() {
             putExtra(android.content.Intent.EXTRA_TEXT, url)
         }
         startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
+    }
+
+    /**
+     * Pins a home-screen shortcut that reopens the current page in
+     * [com.invictus.xmd.ui.WebAppActivity] -- a bare WebView with no browser
+     * chrome, so it reads as its own standalone "app" rather than another
+     * XMD browser tab. The icon is the site's own favicon (same
+     * [com.invictus.xmd.utils.FaviconLoader] source used for Shortcuts tiles),
+     * fetched off the main thread since it's a network call.
+     *
+     * requestPinShortcut()'s own return value only means the request
+     * reached the launcher -- not that the user confirmed the "Add to Home
+     * screen" dialog or that the icon actually landed. The "Added to Home
+     * screen" toast is fired from [PinnedShortcutReceiver] instead, via the
+     * callback IntentSender below, which the system only invokes once the
+     * shortcut is genuinely placed.
+     *
+     * Same menu entry doubles as "Remove from Home screen" once the
+     * current page is already pinned (see [isCurrentPagePinned]) -- this
+     * function checks pinned state up front and branches to
+     * [PinnedShortcutUtils.unpin] instead of requesting a new pin.
+     */
+    private fun toggleCurrentPageAsApp() {
+        val url = currentPageUrl() ?: return
+        val context = requireContext().applicationContext
+
+        if (PinnedShortcutUtils.isPinned(context, url)) {
+            PinnedShortcutUtils.unpin(context, url)
+            if (isAdded) {
+                Toast.makeText(requireContext(), R.string.removed_from_home_screen, Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+        if (!androidx.core.content.pm.ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val title = tabs.getOrNull(currentTabIndex)?.title?.takeIf { it.isNotBlank() && it != "New tab" } ?: url
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val favicon = withContext(Dispatchers.IO) {
+                com.invictus.xmd.utils.FaviconLoader.load(url)
+            }
+            if (!isAdded) return@launch
+
+            val icon = PinnedShortcutUtils.buildIcon(context, favicon, R.mipmap.xmd)
+
+            val launchIntent = android.content.Intent(context, com.invictus.xmd.ui.WebAppActivity::class.java).apply {
+                action = android.content.Intent.ACTION_VIEW
+                putExtra(com.invictus.xmd.ui.WebAppActivity.EXTRA_URL, url)
+                putExtra(com.invictus.xmd.ui.WebAppActivity.EXTRA_TITLE, title)
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            val shortcutId = PinnedShortcutUtils.shortcutIdFor(url)
+            val shortcut = androidx.core.content.pm.ShortcutInfoCompat.Builder(context, shortcutId)
+                .setShortLabel(title)
+                .setLongLabel(title)
+                .setIcon(icon)
+                .setIntent(launchIntent)
+                .build()
+
+            val callback = android.app.PendingIntent.getBroadcast(
+                context,
+                shortcutId.hashCode(),
+                android.content.Intent(context, PinnedShortcutReceiver::class.java)
+                    .setAction(PinnedShortcutReceiver.ACTION_SHORTCUT_PINNED),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val requestSent = PinnedShortcutUtils.pin(context, shortcut, callback.intentSender)
+            // A false return here means the launcher refused the request
+            // outright (e.g. it doesn't support pinning at all) -- a real,
+            // immediate failure, unlike a silent decline inside the dialog
+            // (which the launcher never reports back for either).
+            if (!requestSent && isAdded) {
+                Toast.makeText(requireContext(), R.string.add_to_home_screen_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** Drives the "Add to Home screen" / "Remove from Home screen" label
+     *  and icon swap in [BrowserOverflowMenu] -- re-checked each time the
+     *  overflow menu opens, since pin state can only change via this
+     *  fragment's own toggle action (no external observer needed). */
+    private fun isCurrentPagePinned(): Boolean {
+        val url = currentPageUrl() ?: return false
+        return PinnedShortcutUtils.isPinned(requireContext().applicationContext, url)
     }
 
 }

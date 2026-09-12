@@ -44,9 +44,24 @@ object Settings {
     private const val KEY_DEFAULT_SAVE_LOCATION = "default_save_location_path"
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
+    // Legacy pre-merge keys (total + mobile were separate toggles) --
+    // read-only now, only consulted by [migrateDataLimitIfNeeded] to carry
+    // an existing user's setting forward into the merged key set below.
+    private const val KEY_TOTAL_DATA_LIMIT_ENABLED = "total_data_limit_enabled"
+    private const val KEY_TOTAL_DATA_LIMIT_BYTES = "total_data_limit_bytes"
+    private const val KEY_MOBILE_DATA_LIMIT_ENABLED = "mobile_data_limit_enabled"
+    private const val KEY_MOBILE_DATA_LIMIT_BYTES = "mobile_data_limit_bytes"
+    private const val KEY_DATA_LIMIT_ENABLED = "data_limit_enabled"
+    private const val KEY_DATA_LIMIT_BYTES = "data_limit_bytes"
+    private const val KEY_DATA_LIMIT_SCOPE = "data_limit_scope"
+    private const val KEY_DATA_USAGE_BASELINE_DAY = "data_usage_baseline_day"
+    private const val KEY_DATA_USAGE_TOTAL_BASELINE = "data_usage_total_baseline"
+    private const val KEY_DATA_USAGE_MOBILE_ACCUM = "data_usage_mobile_accum"
+    private const val KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK = "data_usage_mobile_baseline_last_tick"
     private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
+    private const val KEY_AUTO_CHECK_UPDATES = "about_auto_check_for_updates"
 
     private lateinit var prefs: SharedPreferences
 
@@ -152,13 +167,200 @@ object Settings {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
     }
 
-    // ── Browser: Adblock (domain-blocklist ad/tracker blocking) ───────────
-    // Global switch only, no per-site whitelist. Default ON -- this is an
-    // opt-out feature, not opt-in, matching how ad-blocking browsers
-    // (Brave, 1DM+) ship it.
-    fun adblockEnabled(): Boolean = prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)
-    fun setAdblockEnabled(value: Boolean) {
-        prefs.edit().putBoolean(KEY_ADBLOCK_ENABLED, value).apply()
+    /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
+     *  by the daily data limit -- same idea as [WIFI_WAIT_MARKER], but this
+     *  one does NOT auto-resume; the user is only notified, matching the
+     *  spec (limit resets at midnight, no automatic resume). */
+    const val DATA_LIMIT_WAIT_MARKER = "Daily data limit reached"
+
+    /** Which network(s) count toward [dataLimitBytes]. Replaces the old
+     *  "Daily Data Limit (Total)" / "Daily Data Limit (Mobile Only)" pair
+     *  of independent toggles with a single toggle whose scope is picked
+     *  from a dropdown -- MOBILE and WIFI match the old mobile-only and
+     *  (new) wifi-only cases, TOTAL matches the old "Total" toggle. */
+    enum class DataLimitScope { MOBILE, WIFI, TOTAL }
+
+    // ── Daily data limit ────────────────────────────────────────────────
+    // One on/off switch, one byte cap, and a [DataLimitScope] picking which
+    // network(s) count toward it. Hitting the cap pauses every live
+    // download (marked with DATA_LIMIT_WAIT_MARKER) and blocks new ones
+    // from starting; it resets at local midnight via DataUsageTracker's day
+    // rollover, and resuming after that is manual (a notification is
+    // shown, nothing auto-resumes).
+    fun dataLimitEnabled(): Boolean {
+        migrateDataLimitIfNeeded()
+        return prefs.getBoolean(KEY_DATA_LIMIT_ENABLED, false)
+    }
+    fun setDataLimitEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_DATA_LIMIT_ENABLED, value).apply()
+    }
+
+    /** Cap in bytes for [dataLimitEnabled]. Default 2 GiB. */
+    fun dataLimitBytes(): Long {
+        migrateDataLimitIfNeeded()
+        return prefs.getLong(KEY_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024)
+    }
+    fun setDataLimitBytes(bytes: Long) {
+        prefs.edit().putLong(KEY_DATA_LIMIT_BYTES, bytes).apply()
+    }
+
+    fun dataLimitScope(): DataLimitScope {
+        migrateDataLimitIfNeeded()
+        val name = prefs.getString(KEY_DATA_LIMIT_SCOPE, DataLimitScope.TOTAL.name)
+        return runCatching { DataLimitScope.valueOf(name ?: DataLimitScope.TOTAL.name) }
+            .getOrDefault(DataLimitScope.TOTAL)
+    }
+    fun setDataLimitScope(scope: DataLimitScope) {
+        prefs.edit().putString(KEY_DATA_LIMIT_SCOPE, scope.name).apply()
+    }
+
+    /** One-time carry-forward from the old total+mobile toggle pair into
+     *  the merged key set above, run lazily on first read so it doesn't
+     *  need its own spot in FfApp.onCreate. A user who had the "Total"
+     *  toggle on keeps an equivalent TOTAL-scoped limit; one who only had
+     *  "Mobile Only" on keeps an equivalent MOBILE-scoped limit; a user who
+     *  had neither (or, previously, both -- no longer representable as one
+     *  toggle) lands on the same off-by-default TOTAL/2 GiB state a fresh
+     *  install would see. Guarded by KEY_DATA_LIMIT_ENABLED's presence, so
+     *  this only ever runs once per install. */
+    private fun migrateDataLimitIfNeeded() {
+        if (prefs.contains(KEY_DATA_LIMIT_ENABLED)) return
+        val legacyTotalEnabled = prefs.getBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, false)
+        val legacyMobileEnabled = prefs.getBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, false)
+        val (enabled, scope, bytes) = when {
+            legacyTotalEnabled -> Triple(
+                true,
+                DataLimitScope.TOTAL,
+                prefs.getLong(KEY_TOTAL_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024),
+            )
+            legacyMobileEnabled -> Triple(
+                true,
+                DataLimitScope.MOBILE,
+                prefs.getLong(KEY_MOBILE_DATA_LIMIT_BYTES, 500L * 1024 * 1024),
+            )
+            else -> Triple(false, DataLimitScope.TOTAL, 2L * 1024 * 1024 * 1024)
+        }
+        prefs.edit()
+            .putBoolean(KEY_DATA_LIMIT_ENABLED, enabled)
+            .putString(KEY_DATA_LIMIT_SCOPE, scope.name)
+            .putLong(KEY_DATA_LIMIT_BYTES, bytes)
+            .apply()
+    }
+
+    // ── Daily data usage bookkeeping (DataUsageTracker's persisted state) ─
+    fun dataUsageBaselineDay(): Long = prefs.getLong(KEY_DATA_USAGE_BASELINE_DAY, -1L)
+    fun dataUsageTotalBaseline(): Long = prefs.getLong(KEY_DATA_USAGE_TOTAL_BASELINE, 0L)
+    fun dataUsageMobileAccum(): Long = prefs.getLong(KEY_DATA_USAGE_MOBILE_ACCUM, 0L)
+    fun dataUsageMobileBaselineAtLastTick(): Long =
+        prefs.getLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, 0L)
+
+    fun setDataUsageBaseline(day: Long, totalBaseline: Long, mobileAccum: Long, mobileBaselineAtLastTick: Long) {
+        prefs.edit()
+            .putLong(KEY_DATA_USAGE_BASELINE_DAY, day)
+            .putLong(KEY_DATA_USAGE_TOTAL_BASELINE, totalBaseline)
+            .putLong(KEY_DATA_USAGE_MOBILE_ACCUM, mobileAccum)
+            .putLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, mobileBaselineAtLastTick)
+            .apply()
+    }
+
+    fun setDataUsageMobileAccum(value: Long) {
+        prefs.edit().putLong(KEY_DATA_USAGE_MOBILE_ACCUM, value).apply()
+    }
+
+    fun setDataUsageMobileBaselineAtLastTick(value: Long) {
+        prefs.edit().putLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, value).apply()
+    }
+
+    // ── Browser: Adblock (Brave-style Shields: level + per-site allowlist) ─
+    // Three levels, like Brave's Standard/Aggressive/Allow-all:
+    //  - STANDARD: ad/tracker domain + URL-pattern blocking (AdblockFilter's
+    //    main host list). Safe for basically any site.
+    //  - AGGRESSIVE: STANDARD plus a second tier of borderline trackers
+    //    (comment widgets, live-chat bubbles, social embed SDKs) that can
+    //    visibly break a widget on some pages -- an intentional trade-off,
+    //    same one Brave's Aggressive mode makes.
+    //  - OFF: no blocking at all.
+    // Default STANDARD -- opt-out, not opt-in, matching how ad-blocking
+    // browsers (Brave, 1DM+) ship it.
+    enum class AdblockLevel { STANDARD, AGGRESSIVE, OFF }
+
+    private const val KEY_ADBLOCK_LEVEL = "browser_adblock_level"
+
+    fun adblockLevel(): AdblockLevel {
+        val stored = prefs.getString(KEY_ADBLOCK_LEVEL, null)
+        if (stored != null) {
+            return runCatching { AdblockLevel.valueOf(stored) }.getOrDefault(AdblockLevel.STANDARD)
+        }
+        // No level saved yet -- either a fresh install, or an upgrade from
+        // the old on/off-only KEY_ADBLOCK_ENABLED toggle. Read that instead
+        // of defaulting to STANDARD outright, so upgrading users keep
+        // "adblock off" if that's what they'd chosen, rather than having it
+        // silently turn back on.
+        return if (prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)) AdblockLevel.STANDARD else AdblockLevel.OFF
+    }
+
+    fun setAdblockLevel(level: AdblockLevel) {
+        prefs.edit().putString(KEY_ADBLOCK_LEVEL, level.name).apply()
+    }
+
+    // Lifetime count of individually blocked requests, shown on the
+    // Settings screen (Brave shows the same kind of running total).
+    // Incremented from WebView's own background thread(s), potentially
+    // concurrently across tabs, so reads-then-writes are serialized under
+    // [adblockCountLock] rather than risking lost increments from two
+    // threads reading the same stale value. Cached in memory after first
+    // load so every increment isn't a disk read plus a write -- just the
+    // (async) write.
+    private const val KEY_ADBLOCK_LIFETIME_BLOCKED = "browser_adblock_lifetime_blocked_count"
+    @Volatile private var adblockLifetimeCountCache: Long = -1L
+    private val adblockCountLock = Any()
+
+    fun adblockLifetimeBlockedCount(): Long {
+        adblockLifetimeCountCache.let { if (it >= 0L) return it }
+        synchronized(adblockCountLock) {
+            if (adblockLifetimeCountCache < 0L) {
+                adblockLifetimeCountCache = prefs.getLong(KEY_ADBLOCK_LIFETIME_BLOCKED, 0L)
+            }
+        }
+        return adblockLifetimeCountCache
+    }
+
+    fun incrementAdblockLifetimeBlockedCount() {
+        synchronized(adblockCountLock) {
+            val next = adblockLifetimeBlockedCount() + 1
+            adblockLifetimeCountCache = next
+            prefs.edit().putLong(KEY_ADBLOCK_LIFETIME_BLOCKED, next).apply()
+        }
+    }
+
+    // Per-site "shields down" allowlist -- sites where blocking is off
+    // regardless of the global level, toggled from the Browser's overflow
+    // menu and manageable (view/remove) from the Settings screen. Keyed by
+    // registrable-ish host with any "www." prefix stripped, so
+    // "example.com" and "www.example.com" share one entry the way a user
+    // would expect "this site" to mean.
+    private const val KEY_ADBLOCK_SITE_ALLOWLIST = "browser_adblock_site_allowlist"
+
+    private fun normalizeSiteHost(host: String): String =
+        host.lowercase().removePrefix("www.")
+
+    /** Sites currently allowlisted (shields down), for display in Settings. */
+    fun adblockAllowlistedSites(): Set<String> =
+        HashSet(prefs.getStringSet(KEY_ADBLOCK_SITE_ALLOWLIST, emptySet()).orEmpty())
+
+    fun isAdblockAllowlisted(host: String?): Boolean {
+        if (host.isNullOrBlank()) return false
+        return adblockAllowlistedSites().contains(normalizeSiteHost(host))
+    }
+
+    fun setAdblockAllowlisted(host: String, allowed: Boolean) {
+        val normalized = normalizeSiteHost(host)
+        // getStringSet's returned Set must be treated as immutable (Android
+        // docs warn against mutating it in place and expecting persistence
+        // to notice) -- copy into a fresh HashSet before changing it.
+        val updated = HashSet(adblockAllowlistedSites())
+        if (allowed) updated.add(normalized) else updated.remove(normalized)
+        prefs.edit().putStringSet(KEY_ADBLOCK_SITE_ALLOWLIST, updated).apply()
     }
 
     // ── Browser: Background playback ───────────────────────────────────
@@ -176,6 +378,16 @@ object Settings {
     fun isTabsGridMode(): Boolean = prefs.getBoolean(KEY_TABS_GRID_MODE, true)
     fun setTabsGridMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_TABS_GRID_MODE, enabled).apply()
+    }
+
+    // ── About: Update checks ───────────────────────────────────────────
+    // Whether the About screen should silently check GitHub Releases for a
+    // newer version each time it's opened. Default OFF -- unlike mpvRx this
+    // is a purely network-initiated, opt-in check (no background WorkManager
+    // job), so the switch starts false until the user turns it on.
+    fun autoCheckForUpdatesEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_CHECK_UPDATES, false)
+    fun setAutoCheckForUpdatesEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_CHECK_UPDATES, value).apply()
     }
 
     // ── Browser: Search Engine ─────────────────────────────────────────

@@ -109,7 +109,7 @@ class HomeFragment : Fragment() {
      * Clipboard reads only work while the app is in the foreground (Android 10+
      * privacy restriction). We show a banner so the user can tap to add the link
      * rather than auto-adding it silently. Generic: any share/fitgirl link, or
-     * a YouTube/Instagram link, triggers the banner.
+     * a YouTube/Instagram/Facebook link, triggers the banner.
      */
     private fun checkClipboard() {
         val clip = clipboardManager.primaryClip ?: return
@@ -120,7 +120,8 @@ class HomeFragment : Fragment() {
         val isRecognized = LinkParser.isShareLink(text) ||
             LinkParser.isFitgirlPage(text) ||
             LinkParser.isYoutubeLink(text) ||
-            LinkParser.isInstagramLink(text)
+            LinkParser.isInstagramLink(text) ||
+            LinkParser.isFacebookLink(text)
         if (!isRecognized) return
         if (linksText.contains(text)) return
         if (QueueRepository.current().any { it.sourceUrl == text }) return

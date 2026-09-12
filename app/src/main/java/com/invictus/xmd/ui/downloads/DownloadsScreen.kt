@@ -499,6 +499,7 @@ fun DownloadsScreen(
                             onRetry = onRetry,
                             onClear = { deleteTargets = listOf(it) },
                             onOpen = onOpen,
+                            onOpenFileLocation = onOpenFileLocation,
                             onErrorDetails = { errorDetailsTarget = it },
                             onSwipeClear = onSwipeClearItem,
                             onToggleSelect = { toggled ->
@@ -687,6 +688,7 @@ fun QueueItemRow(
     onRetry: (QueueItem) -> Unit,
     onClear: (QueueItem) -> Unit,
     onOpen: (QueueItem) -> Unit,
+    onOpenFileLocation: (QueueItem) -> Unit = {},
     onErrorDetails: (QueueItem) -> Unit = {},
     onSwipeClear: (QueueItem) -> Unit = onClear,
     onToggleSelect: (QueueItem) -> Unit = {},
@@ -1026,6 +1028,20 @@ fun QueueItemRow(
                                         onClick = { onRetry(item) },
                                     )
                                 }
+                                ItemStatus.DONE -> {
+                                    CompactIconButton(
+                                        icon = Icons.Folder,
+                                        contentDescription = stringResource(R.string.action_open_file_location),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = { onOpenFileLocation(item) },
+                                    )
+                                    CompactIconButton(
+                                        icon = Icons.FileOpen,
+                                        contentDescription = stringResource(R.string.action_open),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onOpen(item) },
+                                    )
+                                }
                                 else -> Unit
                             }
                         }
@@ -1277,6 +1293,7 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
         val label = when (item.error) {
             Settings.WIFI_WAIT_MARKER -> "Waiting for Wi-Fi"
             Settings.NETWORK_WAIT_MARKER -> "Waiting for network"
+            Settings.DATA_LIMIT_WAIT_MARKER -> "Daily data limit reached"
             else -> "Paused"
         }
         if (sizePart != null) "$sizePart • $label" else label

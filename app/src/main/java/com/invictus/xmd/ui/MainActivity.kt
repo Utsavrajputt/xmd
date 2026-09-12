@@ -91,6 +91,8 @@ import com.invictus.xmd.ui.downloads.DownloadsFragment
 import com.invictus.xmd.ui.downloads.DownloadsSelectionUiState
 import com.invictus.xmd.ui.downloads.TorrentFileRow
 import com.invictus.xmd.ui.downloads.TorrentFilesUiState
+import com.invictus.xmd.ui.downloads.YtDlpInstallPromptDialog
+import com.invictus.xmd.ui.downloads.YtDlpInstallProgressDialog
 import com.invictus.xmd.ui.home.HomeFragment
 import com.invictus.xmd.ui.settings.DnsSettingsDialog
 import com.invictus.xmd.ui.settings.SettingsActivity
@@ -127,6 +129,25 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private var addTorrentDialogState: AddTorrentDialogState? by mutableStateOf(null)
     private var torrentMetadataJob: Job? = null
 
+    // yt-dlp install gate for triggerDownloadYoutubeCustom (Add Download flow
+    // only) -- instead of bouncing straight to Settings when yt-dlp isn't
+    // installed yet, offer to install it right here, same UX as mpvRx's
+    // paste-link install prompt + progress dialog pair.
+    private data class PendingYoutubeDownloadRequest(
+        val link: String,
+        val name: String?,
+        val customSaveDirPath: String?,
+        val chosenQuality: YtDlpManager.QualityOption?,
+        val chosenAudioPreset: Settings.AudioFormatPreset,
+        val duplicateStrategy: OnDuplicateStrategy?,
+    )
+
+    private var pendingYoutubeDownloadRequest: PendingYoutubeDownloadRequest? by mutableStateOf(null)
+    private var showYtDlpInstallPrompt: Boolean by mutableStateOf(false)
+    private var showYtDlpInstallProgress: Boolean by mutableStateOf(false)
+    private var ytDlpInstallError: String? by mutableStateOf(null)
+    private var ytDlpInstallJob: Job? = null
+
     private fun openHeaderSearch() {
         headerSearchActive = true
     }
@@ -148,10 +169,78 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         messageDialogState = state
     }
 
+    /**
+     * Removes the transient RESOLVING placeholder QueueItem that
+     * triggerDownloadDirect() leaves behind for a yt-dlp link while its
+     * AddDownloadDialog is open (setLinks() creates the item up front, and
+     * without a saved default quality the dialog is shown instead of
+     * auto-resolving it). Called from both Cancel and Start on that dialog
+     * so the placeholder never lingers as a stuck duplicate "Queued" entry
+     * either way -- previously only Cancel cleaned it up, and only when the
+     * item happened to already be RESOLVING, which the "no saved default"
+     * path never set.
+     */
+    private fun removeYtDlpDialogPlaceholder(link: String) {
+        val pending = QueueRepository.current().firstOrNull {
+            it.sourceUrl == link && it.status == ItemStatus.RESOLVING
+        }
+        if (pending != null) {
+            QueueRepository.removeItem(pending.id)
+        }
+    }
+
     private fun finishMessageDialog(state: AppMessageDialogState, action: () -> Unit) {
         if (messageDialogState !== state) return
         messageDialogState = null
         action()
+    }
+
+    /** Install action from [YtDlpInstallPromptDialog] -- runs [YtDlpManager.install] and, on success, resumes the download that was gated on it. */
+    private fun startYtDlpInstall() {
+        showYtDlpInstallPrompt = false
+        ytDlpInstallError = null
+        showYtDlpInstallProgress = true
+        ytDlpInstallJob = lifecycleScope.launch {
+            val installError = withContext(Dispatchers.IO) { YtDlpManager.install(this@MainActivity) }
+            if (installError == null) {
+                showYtDlpInstallProgress = false
+                pendingYoutubeDownloadRequest?.let { request ->
+                    pendingYoutubeDownloadRequest = null
+                    triggerDownloadYoutubeCustom(
+                        link = request.link,
+                        name = request.name,
+                        customSaveDirPath = request.customSaveDirPath,
+                        chosenQuality = request.chosenQuality,
+                        chosenAudioPreset = request.chosenAudioPreset,
+                        duplicateStrategy = request.duplicateStrategy,
+                    )
+                }
+            } else {
+                // Leave the progress dialog open so the error is visible; Cancel dismisses it.
+                ytDlpInstallError = installError
+            }
+        }
+    }
+
+    /** Cancel action from [YtDlpInstallProgressDialog]. */
+    private fun cancelYtDlpInstall() {
+        ytDlpInstallJob?.cancel()
+        ytDlpInstallJob = null
+        showYtDlpInstallProgress = false
+        pendingYoutubeDownloadRequest = null
+    }
+
+    /** Cancel/dismiss action from [YtDlpInstallPromptDialog]. */
+    private fun dismissYtDlpInstallPrompt() {
+        showYtDlpInstallPrompt = false
+        pendingYoutubeDownloadRequest = null
+    }
+
+    /** Configure action from [YtDlpInstallPromptDialog] -- same destination the old "Install now" message dialog used to send the user to. */
+    private fun configureYtDlpFromPrompt() {
+        showYtDlpInstallPrompt = false
+        pendingYoutubeDownloadRequest = null
+        openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE)
     }
 
     private fun navigationItemFor(tabId: String): MainNavigationItem? = when (tabId) {
@@ -578,17 +667,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             pickSaveDirLauncher.launch(null)
                         },
                         onDismiss = {
-                            addDownloadDialogState?.let { state ->
-                                val pending = QueueRepository.current().firstOrNull {
-                                    it.sourceUrl == state.initialLink && it.status == ItemStatus.RESOLVING
-                                }
-                                if (pending != null) {
-                                    QueueRepository.removeItem(pending.id)
-                                }
-                            }
+                            addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                         },
                         onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy ->
+                            addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                             when {
                                 LinkParser.isTorrentLink(link) -> showAddTorrentDialog(prefillLink = link)
@@ -596,11 +679,27 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                                     triggerPrepare(listOf(link))
                                 LinkParser.needsYtDlp(link) ->
                                     triggerDownloadYoutubeCustom(link, name, saveDir, quality, audioFormat, duplicateStrategy)
-                                else -> triggerDownloadDirectCustom(link, name, saveDir, duplicateStrategy)
+                                LinkParser.isGenericDownloadUrl(link) ->
+                                    triggerDownloadDirectCustom(link, name, saveDir, duplicateStrategy)
+                                else ->
+                                    Toast.makeText(this, getString(R.string.download_invalid_url_error, link), Toast.LENGTH_SHORT).show()
                             }
                         },
                     )
                 }
+
+                YtDlpInstallPromptDialog(
+                    isOpen = showYtDlpInstallPrompt,
+                    onInstall = { startYtDlpInstall() },
+                    onConfigure = { configureYtDlpFromPrompt() },
+                    onDismiss = { dismissYtDlpInstallPrompt() },
+                )
+
+                YtDlpInstallProgressDialog(
+                    isOpen = showYtDlpInstallProgress,
+                    error = ytDlpInstallError,
+                    onCancel = { cancelYtDlpInstall() },
+                )
 
                 addTorrentDialogState?.let { state ->
                     AddTorrentDialog(
@@ -1022,7 +1121,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     }
                 }
             } else {
-                showAddDownloadDialog(ytDlpLines.first())
+                // No saved default quality -- the AddDownloadDialog decides
+                // quality/format instead of auto-resolving. Mark the
+                // setLinks() placeholder RESOLVING (matching the sibling
+                // branch above) so removeYtDlpDialogPlaceholder() actually
+                // finds and clears it once that dialog is dismissed or
+                // started, instead of leaving it stuck at PENDING forever.
+                val firstLink = ytDlpLines.first()
+                val item = QueueRepository.current().firstOrNull { it.sourceUrl == firstLink }
+                if (item != null) {
+                    QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+                }
+                showAddDownloadDialog(firstLink)
             }
         }
     }
@@ -1091,15 +1201,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
-            showMessageDialog(
-                AppMessageDialogState(
-                    title = getString(R.string.ytdlp_not_installed_title),
-                    message = getString(R.string.ytdlp_not_installed_message),
-                    confirmLabel = getString(R.string.action_install_now),
-                    dismissLabel = getString(android.R.string.cancel),
-                    onConfirm = { openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE) },
-                )
+            pendingYoutubeDownloadRequest = PendingYoutubeDownloadRequest(
+                link = link,
+                name = name,
+                customSaveDirPath = customSaveDirPath,
+                chosenQuality = chosenQuality,
+                chosenAudioPreset = chosenAudioPreset,
+                duplicateStrategy = duplicateStrategy,
             )
+            showYtDlpInstallPrompt = true
             return
         }
 
