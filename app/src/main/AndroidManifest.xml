@@ -122,7 +122,7 @@
             android:documentLaunchMode="intoExisting" />
 
         <!-- Fires only once a pinned shortcut is actually placed by the
-             launcher (see PinnedShortcutReceiver's doc comment) -- not
+             launcher (see PinnedShortcutReceiver's doc comment); not
              exported since only our own PendingIntent, passed straight to
              ShortcutManagerCompat, ever targets it. -->
         <receiver
