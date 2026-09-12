@@ -42,9 +42,13 @@ object UpdateChecker {
     private const val RELEASES_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases/latest"
     private const val RELEASES_FALLBACK_URL = "https://github.com/Utsavrajputt/xmd/releases/latest"
 
+    // 10s, not 6s -- GitHub's API can be slow to respond on weak mobile
+    // signal, and a too-tight timeout here surfaces as the same generic
+    // "check your connection" failure as an actual outage, which is
+    // confusing when the connection is fine but just slow.
     private val client = OkHttpClient.Builder()
-        .connectTimeout(6, TimeUnit.SECONDS)
-        .readTimeout(6, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
     /**

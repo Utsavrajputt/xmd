@@ -1001,9 +1001,22 @@ private fun AboutRoute() {
                         Toast.makeText(context, R.string.about_up_to_date, Toast.LENGTH_SHORT).show()
                     }
                 },
-                onFailure = {
+                onFailure = { error ->
                     updateAvailability = UpdateAvailability.Idle
-                    Toast.makeText(context, R.string.about_update_check_failed, Toast.LENGTH_SHORT).show()
+                    // Surface the real reason (HTTP code, rate-limited,
+                    // actual timeout, etc.) instead of always blaming "your
+                    // connection" -- that generic wording used to show even
+                    // when the network was fine but the check failed for
+                    // some other reason (e.g. GitHub API rate limiting),
+                    // which just misled people into checking Wi-Fi/data for
+                    // no reason.
+                    val reason = error.message?.takeIf { it.isNotBlank() }
+                    val message = if (reason != null) {
+                        context.getString(R.string.about_update_check_failed_detail, reason)
+                    } else {
+                        context.getString(R.string.about_update_check_failed)
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                 },
             )
         }
