@@ -70,6 +70,10 @@
 | **Link validation** | Links are checked in the Add Download dialog before a download starts, catching bad/unsupported links earlier |
 | **Home screen shortcuts** | Pin a download link to the device home screen for one-tap re-download, with an "Add to home screen" flow and a toggle to remove it later |
 | **Expired-link recovery** | A redesigned Link Expired dialog offers Retry, Fetch from Browser, or Cancel — retry tries a normal re-fetch first, falling back to the browser and finally a single-connection download only if needed |
+| **Duplicate detection** | Path-based detection catches a file already in the queue, with a resolution strategy instead of silently re-downloading it |
+| **Multi-selection** | Select multiple queue items at once for contextual bulk actions |
+| **Background downloads for shares** | Links shared from other apps or opened externally show a floating dialog and download in the background |
+| **Completion stats** | Duration (e.g. "Took 42s"), size, and localized date/time shown on completed downloads |
 
 </details>
 
@@ -85,11 +89,11 @@
 </details>
 
 <details open>
-<summary><b>▶️ YouTube (yt-dlp)</b></summary>
+<summary><b>▶️ YouTube & Instagram (yt-dlp)</b></summary>
 
 | Feature | Description |
 |---|---|
-| **yt-dlp-powered downloads** | YouTube links get a quality-picker flow backed by bundled yt-dlp + ffmpeg (`full` flavor only) |
+| **yt-dlp-powered downloads** | YouTube and Instagram (reels/posts/stories) links get a quality-picker flow backed by bundled yt-dlp + ffmpeg (`full` flavor only) |
 | **Percent-based progress** | Separate progress/notification handling from byte-based downloads, since yt-dlp owns resolve + download + merge |
 | **Update controls** | Manual Update button plus a Stable/Nightly release-channel switch in Settings, with 24h background auto-update following the saved channel |
 | **Proper thumbnails** | Downloaded audio gets correct embedded thumbnail art |
@@ -104,17 +108,20 @@
 |---|---|
 | **Speed-dial bookmarks** | Real site favicons (24h on-disk cache), star-to-bookmark toggle, and website import — no default bookmarks cluttering a fresh install |
 | **Per-tab WebView pool** | Instant tab switching with no old-page flash, cross-tab back history, and stale history cleared on a fresh tab's first load |
+| **Grid tabs** | Live tab previews in a grid layout, a list-view switcher, and Clear All |
 | **Chrome-style toolbar** | Reworked toolbar (new tab / search / reload / tabs / overflow) that no longer reappears over content after a background-kill recreation |
 | **Address bar suggestions** | Google-powered search suggestions merged with matching visited pages from history, each with a distinct icon |
+| **Search engine selection** | Pick a default search engine or set a custom search URL |
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
 | **Swipe gestures** | Swipe to switch between browser tabs |
+| **Background playback** | Audio/video started in the browser keeps playing after leaving the browser |
 | **Media sniffing** | A `MediaSniffer` classifier detects HLS/DASH/direct media requests as pages load, surfacing a "videos found" chip and picker sheet for streamed media |
 | **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |
 | **Desktop site & Find in page** | Per-tab desktop UA + wide-viewport toggle, and a Chrome-style find-in-page overlay with prev/next navigation and a live match count |
 | **Long-press menu** | Long-press a link or image for open-in-new-tab, download image, copy link address, or share link |
 | **History** | Full browsing history tab/overlay with search by title/URL |
 | **Custom home page** | Speed Dial, Google, DuckDuckGo, Brave, Bing, Yahoo, or a fully custom URL |
-| **Shields** | Brave-style ad/tracker blocking — Standard, Aggressive, or Off, with a per-site allowlist and a lifetime blocked-count counter |
+| **Shields** | Brave-style ad/tracker blocking — Standard, Aggressive, or Off, with a per-site allowlist and a lifetime blocked-count counter, backed by a remote-updated hosts list, path/pattern blocking, and cosmetic hiding |
 | **Translate** | Translate the current page via Google's web-proxy translator, with a language picker, from the overflow menu |
 | **Media picker on YouTube** | A floating "videos found" action on YouTube watch/Shorts pages routes sniffed streams straight into the quality picker |
 
@@ -125,8 +132,9 @@
 
 | Feature | Description |
 |---|---|
-| **Material 3 Expressive UI** | Full redesign across dialogs, switches, buttons, and layouts using Material 3 Expressive components |
+| **Material 3 Expressive UI** | Full Jetpack Compose UI, redesigned across dialogs, switches, buttons, and layouts using Material 3 Expressive components — filled icons and an expressive pill-shaped bottom nav |
 | **5 Built-in Themes** | Default, Aurora, Nord, Dracula, and Catppuccin — colors migrated to theme attributes for consistent dynamic theming |
+| **AMOLED dark mode** | True-black toggle for OLED screens |
 | **Polished assets** | Refreshed icons, tint work, a dedicated torrent magnet icon, and smoother celestial/placeholder styling throughout |
 
 </details>
@@ -252,12 +260,23 @@ You can also trigger either workflow manually from the **Actions** tab → **Mak
 
 Pull requests are welcome. For bigger changes, open an issue first to discuss what you'd like to change, so effort isn't wasted on something that doesn't fit the project direction.
 
-1. Fork the repo and create your branch from `main`
-2. Keep commits focused and descriptively named
-3. Test on a real device before opening the PR
-4. Open a PR describing what changed and why
+**Getting set up:** JDK 17 and the Android SDK (compileSdk 34, minSdk 26) — see [Building](#building) above.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+1. Fork the repo and create your branch from `main`
+2. Run `./gradlew lintRelease` locally before opening the PR, so CI doesn't catch it first
+3. Keep changes focused — one logical change per PR is easier to review than several unrelated ones bundled together
+4. If you're touching `QueueRepository.kt`, remember `setLinks()` must **merge** into the existing queue rather than replace it, or in-progress downloads get dropped from the UI (this bit us once already)
+5. Test on a real device before opening the PR
+6. Update `CHANGELOG.md` under an `## [Unreleased]` section if your change is user-facing (new feature, fix, behavior change) — maintainers will fold it into the next version section at release time
+7. Open a PR describing what changed and why — the PR template has a checklist covering the above
+
+Commit messages: short, descriptive, imperative mood is fine (e.g. `Fix category folder not created on first download`) — no strict format enforced.
+
+Code style: Kotlin, following the project's existing conventions — prefer small, well-named functions over large ones; the `core/` classes (`LinkParser`, `CategoryDetector`, `DownloadEngine`) are good examples of the granularity to aim for.
+
+For bugs and feature requests, use the issue templates — they ask for the info usually needed to act on a report.
+
+By contributing, you agree your contributions are licensed under the project's [AGPL-3.0 license](LICENSE).
 
 ---
 
