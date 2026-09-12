@@ -73,6 +73,8 @@ fun SettingsBrowserScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
+        SettingsSectionHeader(title = stringResource(R.string.settings_general_header))
+
         SettingsSectionCard {
             val engineSubtitle = if (searchEngine == Settings.SearchEngine.CUSTOM && customSearchName.isNotBlank()) {
                 "${stringResource(R.string.search_engine_custom)} ($customSearchName)"
@@ -200,6 +202,8 @@ fun SettingsBrowserScreen(
         }
 
         Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.settings_playback_header))
+
         SettingsSectionCard {
             SwitchSettingRow(
                 title = stringResource(R.string.settings_background_playback),

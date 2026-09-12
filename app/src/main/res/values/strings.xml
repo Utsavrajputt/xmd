@@ -231,6 +231,8 @@
     <string name="settings_shields_add_site_invalid">Enter a valid domain, like example.com</string>
     <string name="settings_background_playback">Background playback</string>
     <string name="settings_background_playback_hint">Keeps audio/video playing when a site would otherwise pause it because the app isn\'t in the foreground.</string>
+    <string name="settings_general_header">General</string>
+    <string name="settings_playback_header">Playback</string>
     <string name="settings_search_engine">Search Engine</string>
     <string name="settings_search_engine_hint">Choose the default search engine used for address bar searches.</string>
     <string name="search_engine_custom">Custom</string>

@@ -271,37 +271,6 @@ fun AboutScreen(
             }
         }
 
-        // ===== License =====
-        Spacer(Modifier.height(8.dp))
-        SettingsSectionHeader(title = stringResource(R.string.about_license_title))
-
-        SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
-            Row {
-                Icon(
-                    imageVector = Icons.Article,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp).padding(top = 2.dp),
-                )
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "AGPL-3.0",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.about_license_body),
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 20.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
         // ===== Updates =====
         Spacer(Modifier.height(8.dp))
         SettingsSectionHeader(title = stringResource(R.string.about_updates_title))
@@ -393,6 +362,37 @@ fun AboutScreen(
                     onClick = { onDeveloperClick(developer) },
                 )
                 if (index != developers.lastIndex) SettingsDivider()
+            }
+        }
+
+        // ===== License =====
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.about_license_title))
+
+        SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
+            Row {
+                Icon(
+                    imageVector = Icons.Article,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp).padding(top = 2.dp),
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "AGPL-3.0",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.about_license_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
