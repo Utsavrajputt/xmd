@@ -290,7 +290,10 @@ class SettingsActivity : ComponentActivity() {
                                     onExportWebsites = onExportWebsites,
                                 )
                                 Route.YOUTUBE -> YoutubeRoute()
-                                Route.ABOUT -> AboutRoute()
+                                Route.ABOUT -> AboutRoute(
+                                    onLibrariesClick = { selectedRoute = Route.LIBRARIES },
+                                )
+                                Route.LIBRARIES -> LibrariesRoute()
                                 else -> AppearanceRoute()
                             }
                         }
@@ -343,7 +346,12 @@ class SettingsActivity : ComponentActivity() {
                             BrowserRoute(onImportWebsites = onImportWebsites, onExportWebsites = onExportWebsites)
                         }
                         composable(Route.YOUTUBE) { YoutubeRoute() }
-                        composable(Route.ABOUT) { AboutRoute() }
+                        composable(Route.ABOUT) {
+                            AboutRoute(
+                                onLibrariesClick = { navController.navigate(Route.LIBRARIES) },
+                            )
+                        }
+                        composable(Route.LIBRARIES) { LibrariesRoute() }
                     }
                 }
             }
@@ -463,6 +471,7 @@ internal object Route {
     const val BROWSER = "browser"
     const val YOUTUBE = "youtube"
     const val ABOUT = "about"
+    const val LIBRARIES = "libraries"
 }
 
 /** Route -> header title, replaces the old syncHeaderTitle()'s Fragment-type switch. */
@@ -473,6 +482,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
     Route.DOWNLOADS to R.string.settings_category_downloads,
     Route.YOUTUBE to R.string.settings_category_youtube,
     Route.ABOUT to R.string.settings_category_about,
+    Route.LIBRARIES to R.string.about_libraries_title,
 )
 
 // ── Route bodies ──────────────────────────────────────────────────────────
@@ -608,17 +618,14 @@ private fun DownloadsRoute() {
     var wifiOnly by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.wifiOnlyDownloads())
     }
-    var totalDataLimitEnabled by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.totalDataLimitEnabled())
+    var dataLimitEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.dataLimitEnabled())
     }
-    var totalDataLimitBytes by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.totalDataLimitBytes())
+    var dataLimitBytes by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.dataLimitBytes())
     }
-    var mobileDataLimitEnabled by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.mobileDataLimitEnabled())
-    }
-    var mobileDataLimitBytes by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.mobileDataLimitBytes())
+    var dataLimitScope by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.dataLimitScope())
     }
 
     // Same SAF folder-picker flow as the per-download "Change" button in
@@ -642,10 +649,9 @@ private fun DownloadsRoute() {
         defaultLocationPath = defaultLocationPath,
         categorizeIntoFolders = categorizeIntoFolders,
         wifiOnly = wifiOnly,
-        totalDataLimitEnabled = totalDataLimitEnabled,
-        totalDataLimitBytes = totalDataLimitBytes,
-        mobileDataLimitEnabled = mobileDataLimitEnabled,
-        mobileDataLimitBytes = mobileDataLimitBytes,
+        dataLimitEnabled = dataLimitEnabled,
+        dataLimitBytes = dataLimitBytes,
+        dataLimitScope = dataLimitScope,
         onAutoRetryChanged = { checked ->
             autoRetry = checked
             com.invictus.xmd.preferences.Settings.setAutoRetryEnabled(checked)
@@ -669,21 +675,17 @@ private fun DownloadsRoute() {
                 com.invictus.xmd.service.DownloadService.pauseForWifiOnly(context)
             }
         },
-        onTotalDataLimitEnabledChanged = { checked ->
-            totalDataLimitEnabled = checked
-            com.invictus.xmd.preferences.Settings.setTotalDataLimitEnabled(checked)
+        onDataLimitEnabledChanged = { checked ->
+            dataLimitEnabled = checked
+            com.invictus.xmd.preferences.Settings.setDataLimitEnabled(checked)
         },
-        onTotalDataLimitBytesChanged = { bytes ->
-            totalDataLimitBytes = bytes
-            com.invictus.xmd.preferences.Settings.setTotalDataLimitBytes(bytes)
+        onDataLimitBytesChanged = { bytes ->
+            dataLimitBytes = bytes
+            com.invictus.xmd.preferences.Settings.setDataLimitBytes(bytes)
         },
-        onMobileDataLimitEnabledChanged = { checked ->
-            mobileDataLimitEnabled = checked
-            com.invictus.xmd.preferences.Settings.setMobileDataLimitEnabled(checked)
-        },
-        onMobileDataLimitBytesChanged = { bytes ->
-            mobileDataLimitBytes = bytes
-            com.invictus.xmd.preferences.Settings.setMobileDataLimitBytes(bytes)
+        onDataLimitScopeChanged = { scope ->
+            dataLimitScope = scope
+            com.invictus.xmd.preferences.Settings.setDataLimitScope(scope)
         },
     )
 }
@@ -996,7 +998,7 @@ private fun YoutubeRoute() {
 }
 
 @Composable
-private fun AboutRoute() {
+private fun AboutRoute(onLibrariesClick: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var autoCheckForUpdates by remember { mutableStateOf(Settings.autoCheckForUpdatesEnabled()) }
@@ -1133,16 +1135,6 @@ private fun AboutRoute() {
         AboutDeveloper("Arnab Sadhukhan", "Arnab11"),
         AboutDeveloper("Ritesh Pandit", "Riteshp2001"),
     )
-    val credits = buildList {
-        add("libtorrent4j" to stringResource(R.string.about_credit_libtorrent_desc))
-        if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT) {
-            add("yt-dlp (youtubedl-android)" to stringResource(R.string.about_credit_ytdlp_desc))
-        }
-        add("OkHttp" to stringResource(R.string.about_credit_okhttp_desc))
-        add("jsoup" to stringResource(R.string.about_credit_jsoup_desc))
-        add("Room" to stringResource(R.string.about_credit_room_desc))
-        add("Kotlin Coroutines" to stringResource(R.string.about_credit_coroutines_desc))
-    }
 
     AboutScreen(
         versionText = stringResource(R.string.about_version_format, com.invictus.xmd.BuildConfig.VERSION_NAME),
@@ -1150,8 +1142,8 @@ private fun AboutRoute() {
             val url = context.getString(R.string.about_github_url)
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
+        onLibrariesClick = onLibrariesClick,
         developers = developers,
-        credits = credits,
         onDeveloperClick = { developer ->
             val url = "https://github.com/${developer.githubId}"
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -1179,4 +1171,26 @@ private fun AboutRoute() {
         onDownloadUpdateClick = { downloadUpdate() },
         onInstallUpdateClick = { installUpdate() },
     )
+}
+
+/**
+ * The open-source libraries Xmd is built on -- split out of AboutRoute so
+ * it can be its own NavHost destination (see [LibrariesScreen]), reached
+ * via About's "Libraries" action button instead of scrolling to an inline
+ * section.
+ */
+@Composable
+private fun LibrariesRoute() {
+    val libraries = buildList {
+        add("libtorrent4j" to stringResource(R.string.about_credit_libtorrent_desc))
+        if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT) {
+            add("yt-dlp (youtubedl-android)" to stringResource(R.string.about_credit_ytdlp_desc))
+        }
+        add("OkHttp" to stringResource(R.string.about_credit_okhttp_desc))
+        add("jsoup" to stringResource(R.string.about_credit_jsoup_desc))
+        add("Room" to stringResource(R.string.about_credit_room_desc))
+        add("Kotlin Coroutines" to stringResource(R.string.about_credit_coroutines_desc))
+    }
+
+    LibrariesScreen(libraries = libraries)
 }

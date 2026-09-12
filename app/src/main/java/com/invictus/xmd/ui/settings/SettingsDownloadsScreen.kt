@@ -1,6 +1,7 @@
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,11 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
-import com.invictus.xmd.ui.icons.Icon
-import com.invictus.xmd.ui.icons.Icons
+import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.ui.downloads.AddDownloadDialog
 import com.invictus.xmd.ui.downloads.AddTorrentDialog
 
@@ -66,18 +69,16 @@ fun SettingsDownloadsScreen(
     defaultLocationPath: String,
     categorizeIntoFolders: Boolean,
     wifiOnly: Boolean,
-    totalDataLimitEnabled: Boolean,
-    totalDataLimitBytes: Long,
-    mobileDataLimitEnabled: Boolean,
-    mobileDataLimitBytes: Long,
+    dataLimitEnabled: Boolean,
+    dataLimitBytes: Long,
+    dataLimitScope: Settings.DataLimitScope,
     onAutoRetryChanged: (Boolean) -> Unit,
     onChangeDefaultLocation: () -> Unit,
     onCategorizeIntoFoldersChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
-    onTotalDataLimitEnabledChanged: (Boolean) -> Unit,
-    onTotalDataLimitBytesChanged: (Long) -> Unit,
-    onMobileDataLimitEnabledChanged: (Boolean) -> Unit,
-    onMobileDataLimitBytesChanged: (Long) -> Unit,
+    onDataLimitEnabledChanged: (Boolean) -> Unit,
+    onDataLimitBytesChanged: (Long) -> Unit,
+    onDataLimitScopeChanged: (Settings.DataLimitScope) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -117,29 +118,72 @@ fun SettingsDownloadsScreen(
 
         SettingsSectionCard {
             SwitchSettingRow(
-                title = stringResource(R.string.settings_total_data_limit),
-                subtitle = stringResource(R.string.settings_total_data_limit_hint),
-                checked = totalDataLimitEnabled,
-                onCheckedChange = onTotalDataLimitEnabledChanged,
+                title = stringResource(R.string.settings_data_limit),
+                subtitle = stringResource(R.string.settings_data_limit_hint),
+                checked = dataLimitEnabled,
+                onCheckedChange = onDataLimitEnabledChanged,
             )
-            if (totalDataLimitEnabled) {
+            if (dataLimitEnabled) {
+                DataLimitScopeRow(
+                    scope = dataLimitScope,
+                    onScopeChanged = onDataLimitScopeChanged,
+                )
                 DataLimitValueRow(
-                    bytes = totalDataLimitBytes,
-                    onBytesChanged = onTotalDataLimitBytesChanged,
+                    bytes = dataLimitBytes,
+                    onBytesChanged = onDataLimitBytesChanged,
                 )
             }
-            SettingsDivider()
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_mobile_data_limit),
-                subtitle = stringResource(R.string.settings_mobile_data_limit_hint),
-                checked = mobileDataLimitEnabled,
-                onCheckedChange = onMobileDataLimitEnabledChanged,
-            )
-            if (mobileDataLimitEnabled) {
-                DataLimitValueRow(
-                    bytes = mobileDataLimitBytes,
-                    onBytesChanged = onMobileDataLimitBytesChanged,
-                )
+        }
+    }
+}
+
+/** Display label for a [Settings.DataLimitScope], shared by the dropdown's
+ *  closed-state button and its menu items below. */
+@Composable
+private fun dataLimitScopeLabel(scope: Settings.DataLimitScope): String = when (scope) {
+    Settings.DataLimitScope.MOBILE -> stringResource(R.string.settings_data_limit_scope_mobile)
+    Settings.DataLimitScope.WIFI -> stringResource(R.string.settings_data_limit_scope_wifi)
+    Settings.DataLimitScope.TOTAL -> stringResource(R.string.settings_data_limit_scope_total)
+}
+
+/**
+ * Which network(s) count toward the data limit above -- a dropdown (same
+ * OutlinedButton + DropdownMenu shape as the quality picker in
+ * AddDownloadDialog) offering Mobile Data Only / Wi-Fi Only / Mobile +
+ * Wi-Fi, replacing what used to be two separate toggles (one per scope).
+ */
+@Composable
+private fun DataLimitScopeRow(
+    scope: Settings.DataLimitScope,
+    onScopeChanged: (Settings.DataLimitScope) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(
+            text = stringResource(R.string.settings_data_limit_scope_label),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        Box {
+            OutlinedButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Text(dataLimitScopeLabel(scope), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                Settings.DataLimitScope.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(dataLimitScopeLabel(option)) },
+                        onClick = {
+                            menuExpanded = false
+                            onScopeChanged(option)
+                        },
+                    )
+                }
             }
         }
     }

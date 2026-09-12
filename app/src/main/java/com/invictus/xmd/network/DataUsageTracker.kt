@@ -85,6 +85,15 @@ object DataUsageTracker {
         return Settings.dataUsageMobileAccum()
     }
 
+    /** Bytes used today while on a non-metered (Wi-Fi) network -- today's
+     *  total minus the metered-only accumulator, since every byte
+     *  [todayTotalBytes] counts is either metered or not. Only as accurate
+     *  as [todayMobileBytes] itself (see its accumulator caveat above). */
+    fun todayWifiBytes(): Long {
+        rolloverIfNeeded()
+        return (todayTotalBytes() - todayMobileBytes()).coerceAtLeast(0L)
+    }
+
     /**
      * Call periodically (same throttle as notification updates is fine --
      * this doesn't need to be exact to the byte) while a download may be

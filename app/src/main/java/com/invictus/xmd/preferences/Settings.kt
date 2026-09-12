@@ -44,10 +44,16 @@ object Settings {
     private const val KEY_DEFAULT_SAVE_LOCATION = "default_save_location_path"
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
+    // Legacy pre-merge keys (total + mobile were separate toggles) --
+    // read-only now, only consulted by [migrateDataLimitIfNeeded] to carry
+    // an existing user's setting forward into the merged key set below.
     private const val KEY_TOTAL_DATA_LIMIT_ENABLED = "total_data_limit_enabled"
     private const val KEY_TOTAL_DATA_LIMIT_BYTES = "total_data_limit_bytes"
     private const val KEY_MOBILE_DATA_LIMIT_ENABLED = "mobile_data_limit_enabled"
     private const val KEY_MOBILE_DATA_LIMIT_BYTES = "mobile_data_limit_bytes"
+    private const val KEY_DATA_LIMIT_ENABLED = "data_limit_enabled"
+    private const val KEY_DATA_LIMIT_BYTES = "data_limit_bytes"
+    private const val KEY_DATA_LIMIT_SCOPE = "data_limit_scope"
     private const val KEY_DATA_USAGE_BASELINE_DAY = "data_usage_baseline_day"
     private const val KEY_DATA_USAGE_TOTAL_BASELINE = "data_usage_total_baseline"
     private const val KEY_DATA_USAGE_MOBILE_ACCUM = "data_usage_mobile_accum"
@@ -163,40 +169,83 @@ object Settings {
     }
 
     /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
-     *  by the daily data limit (total or mobile) -- same idea as
-     *  [WIFI_WAIT_MARKER], but this one does NOT auto-resume; the user is
-     *  only notified, matching the spec (limit resets at midnight, no
-     *  automatic resume). */
+     *  by the daily data limit -- same idea as [WIFI_WAIT_MARKER], but this
+     *  one does NOT auto-resume; the user is only notified, matching the
+     *  spec (limit resets at midnight, no automatic resume). */
     const val DATA_LIMIT_WAIT_MARKER = "Daily data limit reached"
 
+    /** Which network(s) count toward [dataLimitBytes]. Replaces the old
+     *  "Daily Data Limit (Total)" / "Daily Data Limit (Mobile Only)" pair
+     *  of independent toggles with a single toggle whose scope is picked
+     *  from a dropdown -- MOBILE and WIFI match the old mobile-only and
+     *  (new) wifi-only cases, TOTAL matches the old "Total" toggle. */
+    enum class DataLimitScope { MOBILE, WIFI, TOTAL }
+
     // ── Daily data limit ────────────────────────────────────────────────
-    // Two independent caps: total (any network) and mobile-only (metered
-    // networks only), each with its own on/off switch and byte value.
-    // Hitting either one pauses every live download (marked with
-    // DATA_LIMIT_WAIT_MARKER) and blocks new ones from starting; both
-    // reset at local midnight via DataUsageTracker's day rollover, and
-    // resuming after that is manual (a notification is shown, nothing
-    // auto-resumes).
-    fun totalDataLimitEnabled(): Boolean = prefs.getBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, false)
-    fun setTotalDataLimitEnabled(value: Boolean) {
-        prefs.edit().putBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, value).apply()
+    // One on/off switch, one byte cap, and a [DataLimitScope] picking which
+    // network(s) count toward it. Hitting the cap pauses every live
+    // download (marked with DATA_LIMIT_WAIT_MARKER) and blocks new ones
+    // from starting; it resets at local midnight via DataUsageTracker's day
+    // rollover, and resuming after that is manual (a notification is
+    // shown, nothing auto-resumes).
+    fun dataLimitEnabled(): Boolean {
+        migrateDataLimitIfNeeded()
+        return prefs.getBoolean(KEY_DATA_LIMIT_ENABLED, false)
+    }
+    fun setDataLimitEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_DATA_LIMIT_ENABLED, value).apply()
     }
 
-    /** Cap in bytes for [totalDataLimitEnabled]. Default 2 GiB. */
-    fun totalDataLimitBytes(): Long = prefs.getLong(KEY_TOTAL_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024)
-    fun setTotalDataLimitBytes(bytes: Long) {
-        prefs.edit().putLong(KEY_TOTAL_DATA_LIMIT_BYTES, bytes).apply()
+    /** Cap in bytes for [dataLimitEnabled]. Default 2 GiB. */
+    fun dataLimitBytes(): Long {
+        migrateDataLimitIfNeeded()
+        return prefs.getLong(KEY_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024)
+    }
+    fun setDataLimitBytes(bytes: Long) {
+        prefs.edit().putLong(KEY_DATA_LIMIT_BYTES, bytes).apply()
     }
 
-    fun mobileDataLimitEnabled(): Boolean = prefs.getBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, false)
-    fun setMobileDataLimitEnabled(value: Boolean) {
-        prefs.edit().putBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, value).apply()
+    fun dataLimitScope(): DataLimitScope {
+        migrateDataLimitIfNeeded()
+        val name = prefs.getString(KEY_DATA_LIMIT_SCOPE, DataLimitScope.TOTAL.name)
+        return runCatching { DataLimitScope.valueOf(name ?: DataLimitScope.TOTAL.name) }
+            .getOrDefault(DataLimitScope.TOTAL)
+    }
+    fun setDataLimitScope(scope: DataLimitScope) {
+        prefs.edit().putString(KEY_DATA_LIMIT_SCOPE, scope.name).apply()
     }
 
-    /** Cap in bytes for [mobileDataLimitEnabled]. Default 500 MiB. */
-    fun mobileDataLimitBytes(): Long = prefs.getLong(KEY_MOBILE_DATA_LIMIT_BYTES, 500L * 1024 * 1024)
-    fun setMobileDataLimitBytes(bytes: Long) {
-        prefs.edit().putLong(KEY_MOBILE_DATA_LIMIT_BYTES, bytes).apply()
+    /** One-time carry-forward from the old total+mobile toggle pair into
+     *  the merged key set above, run lazily on first read so it doesn't
+     *  need its own spot in FfApp.onCreate. A user who had the "Total"
+     *  toggle on keeps an equivalent TOTAL-scoped limit; one who only had
+     *  "Mobile Only" on keeps an equivalent MOBILE-scoped limit; a user who
+     *  had neither (or, previously, both -- no longer representable as one
+     *  toggle) lands on the same off-by-default TOTAL/2 GiB state a fresh
+     *  install would see. Guarded by KEY_DATA_LIMIT_ENABLED's presence, so
+     *  this only ever runs once per install. */
+    private fun migrateDataLimitIfNeeded() {
+        if (prefs.contains(KEY_DATA_LIMIT_ENABLED)) return
+        val legacyTotalEnabled = prefs.getBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, false)
+        val legacyMobileEnabled = prefs.getBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, false)
+        val (enabled, scope, bytes) = when {
+            legacyTotalEnabled -> Triple(
+                true,
+                DataLimitScope.TOTAL,
+                prefs.getLong(KEY_TOTAL_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024),
+            )
+            legacyMobileEnabled -> Triple(
+                true,
+                DataLimitScope.MOBILE,
+                prefs.getLong(KEY_MOBILE_DATA_LIMIT_BYTES, 500L * 1024 * 1024),
+            )
+            else -> Triple(false, DataLimitScope.TOTAL, 2L * 1024 * 1024 * 1024)
+        }
+        prefs.edit()
+            .putBoolean(KEY_DATA_LIMIT_ENABLED, enabled)
+            .putString(KEY_DATA_LIMIT_SCOPE, scope.name)
+            .putLong(KEY_DATA_LIMIT_BYTES, bytes)
+            .apply()
     }
 
     // ── Daily data usage bookkeeping (DataUsageTracker's persisted state) ─

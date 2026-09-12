@@ -284,19 +284,20 @@ class DownloadService : LifecycleService() {
         if (live.isNotEmpty()) updateNotification()
     }
 
-    /** True if either daily data limit (total or mobile) is enabled and
-     *  today's usage has already reached it. Cheap SharedPreferences reads
-     *  only -- no TrafficStats syscall unless [DataUsageTracker.onTick] has
-     *  been called at least once this session, which [checkDataLimit] does
-     *  on every throttled progress tick. */
+    /** True if the daily data limit is enabled and today's usage for its
+     *  configured scope (mobile-only, Wi-Fi-only, or total) has already
+     *  reached it. Cheap SharedPreferences reads only -- no TrafficStats
+     *  syscall unless [DataUsageTracker.onTick] has been called at least
+     *  once this session, which [checkDataLimit] does on every throttled
+     *  progress tick. */
     private fun isDataLimitReached(): Boolean {
-        if (Settings.totalDataLimitEnabled() &&
-            com.invictus.xmd.network.DataUsageTracker.todayTotalBytes() >= Settings.totalDataLimitBytes()
-        ) return true
-        if (Settings.mobileDataLimitEnabled() &&
-            com.invictus.xmd.network.DataUsageTracker.todayMobileBytes() >= Settings.mobileDataLimitBytes()
-        ) return true
-        return false
+        if (!Settings.dataLimitEnabled()) return false
+        val usage = when (Settings.dataLimitScope()) {
+            Settings.DataLimitScope.MOBILE -> com.invictus.xmd.network.DataUsageTracker.todayMobileBytes()
+            Settings.DataLimitScope.WIFI -> com.invictus.xmd.network.DataUsageTracker.todayWifiBytes()
+            Settings.DataLimitScope.TOTAL -> com.invictus.xmd.network.DataUsageTracker.todayTotalBytes()
+        }
+        return usage >= Settings.dataLimitBytes()
     }
 
     /** Marker so [checkDataLimit] only fires the pause-everything routine

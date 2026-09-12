@@ -123,7 +123,7 @@
     <string name="about_github_url" translatable="false">https://github.com/Utsavrajputt/xmd</string>
     <string name="about_license_title">License</string>
     <string name="about_license_body">Released under the GNU Affero General Public License v3.0 (AGPL-3.0). Xmd is free and open-source software — you are free to use, study, share, and modify it.</string>
-    <string name="about_credits_title">Credits &amp; Open Source</string>
+    <string name="about_libraries_title">Libraries</string>
     <string name="about_credits_hint">Xmd is built on the shoulders of these open-source projects</string>
     <string name="about_credit_ytdlp_desc">YouTube and video-site downloads</string>
     <string name="about_credit_libtorrent_desc">Torrent and magnet link downloads</string>
@@ -205,10 +205,12 @@
     <string name="settings_disable_categorization_hint">Save all downloads directly into the default location instead of sorting them into Videos, Music, Documents, and other subfolders.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
-    <string name="settings_total_data_limit">Daily Data Limit (Total)</string>
-    <string name="settings_total_data_limit_hint">Pause all downloads once today\'s total usage (Wi-Fi + mobile) reaches this. Resets at midnight.</string>
-    <string name="settings_mobile_data_limit">Daily Data Limit (Mobile Only)</string>
-    <string name="settings_mobile_data_limit_hint">Pause all downloads once today\'s mobile-data usage reaches this. Wi-Fi usage doesn\'t count. Resets at midnight.</string>
+    <string name="settings_data_limit">Daily Data Limit</string>
+    <string name="settings_data_limit_hint">Pause all downloads once today\'s usage for the network below reaches this. Resets at midnight.</string>
+    <string name="settings_data_limit_scope_label">Counts usage from</string>
+    <string name="settings_data_limit_scope_mobile">Mobile Data Only</string>
+    <string name="settings_data_limit_scope_wifi">Wi-Fi Only</string>
+    <string name="settings_data_limit_scope_total">Mobile + Wi-Fi</string>
     <string name="settings_data_limit_reached_title">Daily data limit reached</string>
     <string name="settings_data_limit_reached_body">Downloads paused for today. They won\'t resume automatically -- retry after the limit resets at midnight, or raise the limit in Settings.</string>
     <string name="settings_shields_header">Shields</string>

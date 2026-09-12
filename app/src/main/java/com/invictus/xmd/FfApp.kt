@@ -18,6 +18,7 @@ import com.invictus.xmd.repository.HistoryRepository
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.repository.ShortcutRepository
 import com.invictus.xmd.utils.FaviconLoader
+import com.invictus.xmd.utils.GithubAvatarLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +48,7 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
         BookmarkRepository.init(this)
         HistoryRepository.init(this)
         FaviconLoader.init(this)
+        GithubAvatarLoader.init(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 DOWNLOAD_CHANNEL_ID,
