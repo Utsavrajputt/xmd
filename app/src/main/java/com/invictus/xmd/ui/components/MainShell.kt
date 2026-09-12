@@ -394,7 +394,11 @@ private fun DownloadsTopBar(
     TopAppBar(
         title = {
             Text(
-                text = stringResource(R.string.app_header_title),
+                text = if (destination == MainDestination.Downloads) {
+                    stringResource(R.string.tab_downloads)
+                } else {
+                    stringResource(R.string.app_header_title)
+                },
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .onGloballyPositioned { coordinates ->
