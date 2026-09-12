@@ -6,7 +6,18 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 ## [1.0.0-beta.6] - 2026-09-12
 
 ### ✨ Added
-- 🏠 **Home screen shortcuts** — pin any download link to the device home screen for one-tap re-download, with a Home-screen fragment, an "Add to home screen" flow, and a toggle to remove shortcuts again.
+- 🎨 **Full UI migration to Jetpack Compose**, plus a **Material 3 Expressive theming overhaul** — filled icons, an expressive pill-shaped bottom nav, refined theme transitions, dialogs, and download cards across the app.
+- 📸 **Instagram downloads** — reels, posts, and stories are now recognized and routed through the yt-dlp quality-picker flow, same as YouTube.
+- 📤 **Floating background downloads for shared/external links** — links shared from other apps or opened externally now show a floating dialog and download in the background instead of requiring the main UI.
+- 🗂️ **Duplicate-download detection** — path-based detection catches re-downloading a file already in the queue/library, with a resolution strategy (overwrite/rename/skip) instead of silently duplicating.
+- ✅ **Multi-selection for downloads** — select multiple queue items for contextual bulk actions, with browser page gestures now isolated so they don't interfere.
+- 🗂️ **Grid tabs for the browser** — live tab previews in a grid layout, a list-view switcher, and a Clear All action.
+- 🔎 **Search engine selection** — pick your browser's default search engine or set a custom search URL.
+- ▶️ **Background playback setting** for browser-played media, so audio/video keeps playing when you leave the browser.
+- 🛡️ **Adblock overhaul** — remote-updated hosts list, path/pattern-based blocking, and cosmetic element hiding, on top of faster DNS-over-HTTPS resolution (disk cache, quicker timeouts, main-frame requests no longer proxied).
+- 🔍 **Find in page, desktop-site toggle, and improved address bar** — reliable text selection, pinch-to-zoom, tap-to-show suggestions with current-page/clipboard rows, and duplicate-suggestion fixes.
+- 🖱️ Chrome-style **swipe page transitions** between bottom navigation tabs.
+- 🏠 **Home screen shortcuts** — pin any download link to the device home screen for one-tap re-download, with an "Add to home screen" flow and a toggle to remove shortcuts again.
 - 🌐 **Custom browser home page** — Speed Dial, Google, DuckDuckGo, Brave, Bing, Yahoo, or a fully custom URL, instead of always opening Speed Dial.
 - 🛡️ **Brave-style Shields** for the in-app browser — Standard/Aggressive/Off blocking levels, a per-site allowlist, and a lifetime blocked-count counter; site whitelisting now lives directly under Shields settings.
 - 🗺️ **Google Translate in the browser overflow menu** — opens the current page through Google's web-proxy translator with a language picker.
@@ -16,27 +27,40 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 🔄 **Stable/Preview update channel selector** on the About screen, plus a clearer reason shown when an update check fails.
 - 📚 **Libraries screen** added to About, crediting open-source dependencies, alongside a 72-hour on-disk avatar cache for the Developers section.
 - 📂 **Open / Open Folder** actions on completed download items, and an **Open file location** entry in the downloads long-press sheet.
+- ⏸️ **Pause/Resume All** for downloads, with Cancel/Retry/Clear All moved into a top-bar overflow menu, and empty filter chips now hide instead of showing with a zero count.
+- 📋 Downloads gained a **copy-error option and a details dialog** for failed items.
+- 🗒️ **Clipboard-based auto-start** for direct links, a **Start** chip button, and a magnet-glyph torrent icon.
 - 🔍 Website source packs are now scanned from the **whole device**, not a single folder, with a redesigned picker card.
 - ✅ **Link validation** in the Add Download dialog before a download starts, catching bad/unsupported links earlier.
 - 📘 **Facebook link support** added to the downloader.
+- ⏱️ **Completion stats on finished downloads** — duration (e.g. "Took 42s"), size, and localized date/time now shown on completed items, with more reliable filename probing for links.
+- 🔎 **In-header settings button and search bar** integrated directly into the app header.
+- 🎚️ **Video resolution and audio format dropdowns** added to the download dialog.
+- 🌑 **AMOLED dark mode toggle** in theme settings.
 - 🎨 **New launcher icon set**, including a proper monochrome silhouette for Android 13+ themed (Monet) icons.
 
 ### 🛠 Fixed
 - 📤 Sharing a link from YouTube into Xmd no longer keeps the wrong/stale name on the queued item.
 - 🧩 Settings has been reorganised for clearer grouping now that Data Limit, Libraries, and the update-channel picker all live there too.
-- 🩹 An invalid `--` sequence in an XML comment that could break the manifest merge on release builds.
+- 🩹 An invalid `--` sequence in an XML comment that could break the manifest merge on release builds, plus other XML-comment syntax errors that were breaking CI.
 - ⏳ A stuck yt-dlp queue placeholder that could persist after a download finished, and standalone leftover thumbnail files.
 - 📝 About-screen layout and manifest fixes.
 - 🧭 The Downloads tab now shows "Downloads" as its header title instead of a generic label.
+- 🏗️ Crash opening Appearance settings (vector drawables now used instead of selectors for tab icons), and a Home-tab build failure from a non-lifecycle-aware `StateFlow` collector.
+- 🧭 System bars now sync correctly with theme transitions instead of flashing the wrong color, and the floating nav bar shadow no longer clips.
+- 📶 Network-gone strings and behavior corrected on the Home tab.
 
 ### 🎨 Changed
 - 🌐 Site whitelisting for the browser moved from a standalone list into the new Shields settings section, with direct Add from there.
-- 🧵 Internal refactor: duplicated logic across UI components, dialogs, and formatters consolidated to cut repeated code.
+- 🧵 Internal refactor: duplicated logic across UI components, dialogs, and formatters consolidated to cut repeated code, and the project folder structure was reorganized.
+- 📦 R8 code minification and resource shrinking re-enabled for release builds.
 - 🐛 Debug builds now integrate LeakCanary for memory-leak detection during development.
 
 ---
 
 ## [1.0.0-beta.5] - 2026-08-29
+
+
 
 ### ✨ Added
 - 🔖 **Real Bookmarks feature** — the star button now saves/removes a proper bookmark (its own DB table) instead of a shortcut, with a new Bookmarks screen (search, swipe-to-delete, Clear all) off the browser overflow menu; the old speed-dial "Bookmark" tiles are renamed to **Shortcut** throughout, with an "Also add as Shortcut" option when bookmarking.
