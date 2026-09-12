@@ -44,6 +44,14 @@ object Settings {
     private const val KEY_DEFAULT_SAVE_LOCATION = "default_save_location_path"
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
+    private const val KEY_TOTAL_DATA_LIMIT_ENABLED = "total_data_limit_enabled"
+    private const val KEY_TOTAL_DATA_LIMIT_BYTES = "total_data_limit_bytes"
+    private const val KEY_MOBILE_DATA_LIMIT_ENABLED = "mobile_data_limit_enabled"
+    private const val KEY_MOBILE_DATA_LIMIT_BYTES = "mobile_data_limit_bytes"
+    private const val KEY_DATA_USAGE_BASELINE_DAY = "data_usage_baseline_day"
+    private const val KEY_DATA_USAGE_TOTAL_BASELINE = "data_usage_total_baseline"
+    private const val KEY_DATA_USAGE_MOBILE_ACCUM = "data_usage_mobile_accum"
+    private const val KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK = "data_usage_mobile_baseline_last_tick"
     private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
@@ -151,6 +159,67 @@ object Settings {
     fun wifiOnlyDownloads(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
     fun setWifiOnlyDownloads(value: Boolean) {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+    }
+
+    /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
+     *  by the daily data limit (total or mobile) -- same idea as
+     *  [WIFI_WAIT_MARKER], but this one does NOT auto-resume; the user is
+     *  only notified, matching the spec (limit resets at midnight, no
+     *  automatic resume). */
+    const val DATA_LIMIT_WAIT_MARKER = "Daily data limit reached"
+
+    // ── Daily data limit ────────────────────────────────────────────────
+    // Two independent caps: total (any network) and mobile-only (metered
+    // networks only), each with its own on/off switch and byte value.
+    // Hitting either one pauses every live download (marked with
+    // DATA_LIMIT_WAIT_MARKER) and blocks new ones from starting; both
+    // reset at local midnight via DataUsageTracker's day rollover, and
+    // resuming after that is manual (a notification is shown, nothing
+    // auto-resumes).
+    fun totalDataLimitEnabled(): Boolean = prefs.getBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, false)
+    fun setTotalDataLimitEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_TOTAL_DATA_LIMIT_ENABLED, value).apply()
+    }
+
+    /** Cap in bytes for [totalDataLimitEnabled]. Default 2 GiB. */
+    fun totalDataLimitBytes(): Long = prefs.getLong(KEY_TOTAL_DATA_LIMIT_BYTES, 2L * 1024 * 1024 * 1024)
+    fun setTotalDataLimitBytes(bytes: Long) {
+        prefs.edit().putLong(KEY_TOTAL_DATA_LIMIT_BYTES, bytes).apply()
+    }
+
+    fun mobileDataLimitEnabled(): Boolean = prefs.getBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, false)
+    fun setMobileDataLimitEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_MOBILE_DATA_LIMIT_ENABLED, value).apply()
+    }
+
+    /** Cap in bytes for [mobileDataLimitEnabled]. Default 500 MiB. */
+    fun mobileDataLimitBytes(): Long = prefs.getLong(KEY_MOBILE_DATA_LIMIT_BYTES, 500L * 1024 * 1024)
+    fun setMobileDataLimitBytes(bytes: Long) {
+        prefs.edit().putLong(KEY_MOBILE_DATA_LIMIT_BYTES, bytes).apply()
+    }
+
+    // ── Daily data usage bookkeeping (DataUsageTracker's persisted state) ─
+    fun dataUsageBaselineDay(): Long = prefs.getLong(KEY_DATA_USAGE_BASELINE_DAY, -1L)
+    fun dataUsageTotalBaseline(): Long = prefs.getLong(KEY_DATA_USAGE_TOTAL_BASELINE, 0L)
+    fun dataUsageMobileAccum(): Long = prefs.getLong(KEY_DATA_USAGE_MOBILE_ACCUM, 0L)
+    fun dataUsageMobileBaselineAtLastTick(): Long =
+        prefs.getLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, 0L)
+
+    fun setDataUsageBaseline(day: Long, totalBaseline: Long, mobileAccum: Long, mobileBaselineAtLastTick: Long) {
+        prefs.edit()
+            .putLong(KEY_DATA_USAGE_BASELINE_DAY, day)
+            .putLong(KEY_DATA_USAGE_TOTAL_BASELINE, totalBaseline)
+            .putLong(KEY_DATA_USAGE_MOBILE_ACCUM, mobileAccum)
+            .putLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, mobileBaselineAtLastTick)
+            .apply()
+    }
+
+    fun setDataUsageMobileAccum(value: Long) {
+        prefs.edit().putLong(KEY_DATA_USAGE_MOBILE_ACCUM, value).apply()
+    }
+
+    fun setDataUsageMobileBaselineAtLastTick(value: Long) {
+        prefs.edit().putLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, value).apply()
     }
 
     // ── Browser: Adblock (Brave-style Shields: level + per-site allowlist) ─

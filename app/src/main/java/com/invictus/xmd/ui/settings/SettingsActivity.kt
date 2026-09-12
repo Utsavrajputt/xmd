@@ -608,6 +608,18 @@ private fun DownloadsRoute() {
     var wifiOnly by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.wifiOnlyDownloads())
     }
+    var totalDataLimitEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.totalDataLimitEnabled())
+    }
+    var totalDataLimitBytes by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.totalDataLimitBytes())
+    }
+    var mobileDataLimitEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.mobileDataLimitEnabled())
+    }
+    var mobileDataLimitBytes by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.mobileDataLimitBytes())
+    }
 
     // Same SAF folder-picker flow as the per-download "Change" button in
     // AddDownloadDialog/AddTorrentDialog (MainActivity's pickSaveDirLauncher) --
@@ -630,6 +642,10 @@ private fun DownloadsRoute() {
         defaultLocationPath = defaultLocationPath,
         categorizeIntoFolders = categorizeIntoFolders,
         wifiOnly = wifiOnly,
+        totalDataLimitEnabled = totalDataLimitEnabled,
+        totalDataLimitBytes = totalDataLimitBytes,
+        mobileDataLimitEnabled = mobileDataLimitEnabled,
+        mobileDataLimitBytes = mobileDataLimitBytes,
         onAutoRetryChanged = { checked ->
             autoRetry = checked
             com.invictus.xmd.preferences.Settings.setAutoRetryEnabled(checked)
@@ -652,6 +668,22 @@ private fun DownloadsRoute() {
                 // running on cellular until the next Wi-Fi drop/regain.
                 com.invictus.xmd.service.DownloadService.pauseForWifiOnly(context)
             }
+        },
+        onTotalDataLimitEnabledChanged = { checked ->
+            totalDataLimitEnabled = checked
+            com.invictus.xmd.preferences.Settings.setTotalDataLimitEnabled(checked)
+        },
+        onTotalDataLimitBytesChanged = { bytes ->
+            totalDataLimitBytes = bytes
+            com.invictus.xmd.preferences.Settings.setTotalDataLimitBytes(bytes)
+        },
+        onMobileDataLimitEnabledChanged = { checked ->
+            mobileDataLimitEnabled = checked
+            com.invictus.xmd.preferences.Settings.setMobileDataLimitEnabled(checked)
+        },
+        onMobileDataLimitBytesChanged = { bytes ->
+            mobileDataLimitBytes = bytes
+            com.invictus.xmd.preferences.Settings.setMobileDataLimitBytes(bytes)
         },
     )
 }

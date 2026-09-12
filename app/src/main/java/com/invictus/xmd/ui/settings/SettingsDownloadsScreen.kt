@@ -12,15 +12,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
@@ -28,6 +39,9 @@ import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import com.invictus.xmd.ui.downloads.AddDownloadDialog
 import com.invictus.xmd.ui.downloads.AddTorrentDialog
+
+/** MB/GB unit toggle for the data-limit value fields. */
+private enum class DataUnit(val bytesPerUnit: Long) { MB(1024L * 1024), GB(1024L * 1024 * 1024) }
 
 /**
  * Auto-retry, default save location, folder categorization, and Wi-Fi-only.
@@ -52,10 +66,18 @@ fun SettingsDownloadsScreen(
     defaultLocationPath: String,
     categorizeIntoFolders: Boolean,
     wifiOnly: Boolean,
+    totalDataLimitEnabled: Boolean,
+    totalDataLimitBytes: Long,
+    mobileDataLimitEnabled: Boolean,
+    mobileDataLimitBytes: Long,
     onAutoRetryChanged: (Boolean) -> Unit,
     onChangeDefaultLocation: () -> Unit,
     onCategorizeIntoFoldersChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
+    onTotalDataLimitEnabledChanged: (Boolean) -> Unit,
+    onTotalDataLimitBytesChanged: (Long) -> Unit,
+    onMobileDataLimitEnabledChanged: (Boolean) -> Unit,
+    onMobileDataLimitBytesChanged: (Long) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -89,6 +111,88 @@ fun SettingsDownloadsScreen(
                 checked = wifiOnly,
                 onCheckedChange = onWifiOnlyChanged,
             )
+        }
+
+        Spacer(modifier = Modifier.size(16.dp))
+
+        SettingsSectionCard {
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_total_data_limit),
+                subtitle = stringResource(R.string.settings_total_data_limit_hint),
+                checked = totalDataLimitEnabled,
+                onCheckedChange = onTotalDataLimitEnabledChanged,
+            )
+            if (totalDataLimitEnabled) {
+                DataLimitValueRow(
+                    bytes = totalDataLimitBytes,
+                    onBytesChanged = onTotalDataLimitBytesChanged,
+                )
+            }
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_mobile_data_limit),
+                subtitle = stringResource(R.string.settings_mobile_data_limit_hint),
+                checked = mobileDataLimitEnabled,
+                onCheckedChange = onMobileDataLimitEnabledChanged,
+            )
+            if (mobileDataLimitEnabled) {
+                DataLimitValueRow(
+                    bytes = mobileDataLimitBytes,
+                    onBytesChanged = onMobileDataLimitBytesChanged,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Numeric value field + MB/GB segmented unit picker for one data-limit
+ * setting. Defaults the unit shown to whatever the current [bytes] value
+ * divides evenly into GB as (so re-opening Settings after setting "2 GB"
+ * shows "2 GB", not "2048 MB") -- purely a display choice, the persisted
+ * value is always plain bytes via [onBytesChanged].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DataLimitValueRow(
+    bytes: Long,
+    onBytesChanged: (Long) -> Unit,
+) {
+    var unit by remember(bytes) {
+        mutableStateOf(if (bytes % DataUnit.GB.bytesPerUnit == 0L) DataUnit.GB else DataUnit.MB)
+    }
+    var valueText by remember(bytes, unit) {
+        mutableStateOf((bytes / unit.bytesPerUnit).toString())
+    }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = valueText,
+                onValueChange = { input ->
+                    val filtered = input.filter(Char::isDigit)
+                    valueText = filtered
+                    filtered.toLongOrNull()?.let { onBytesChanged(it * unit.bytesPerUnit) }
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.width(140.dp)) {
+                DataUnit.entries.forEachIndexed { index, option ->
+                    SegmentedButton(
+                        selected = unit == option,
+                        onClick = {
+                            unit = option
+                            valueText.toLongOrNull()?.let { onBytesChanged(it * option.bytesPerUnit) }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = DataUnit.entries.size),
+                    ) {
+                        Text(option.name)
+                    }
+                }
+            }
         }
     }
 }

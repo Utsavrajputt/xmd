@@ -1293,6 +1293,7 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
         val label = when (item.error) {
             Settings.WIFI_WAIT_MARKER -> "Waiting for Wi-Fi"
             Settings.NETWORK_WAIT_MARKER -> "Waiting for network"
+            Settings.DATA_LIMIT_WAIT_MARKER -> "Daily data limit reached"
             else -> "Paused"
         }
         if (sizePart != null) "$sizePart • $label" else label

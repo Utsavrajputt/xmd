@@ -201,6 +201,12 @@
     <string name="settings_disable_categorization_hint">Save all downloads directly into the default location instead of sorting them into Videos, Music, Documents, and other subfolders.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
+    <string name="settings_total_data_limit">Daily Data Limit (Total)</string>
+    <string name="settings_total_data_limit_hint">Pause all downloads once today\'s total usage (Wi-Fi + mobile) reaches this. Resets at midnight.</string>
+    <string name="settings_mobile_data_limit">Daily Data Limit (Mobile Only)</string>
+    <string name="settings_mobile_data_limit_hint">Pause all downloads once today\'s mobile-data usage reaches this. Wi-Fi usage doesn\'t count. Resets at midnight.</string>
+    <string name="settings_data_limit_reached_title">Daily data limit reached</string>
+    <string name="settings_data_limit_reached_body">Downloads paused for today. They won\'t resume automatically -- retry after the limit resets at midnight, or raise the limit in Settings.</string>
     <string name="settings_shields_header">Shields</string>
     <string name="settings_shields_standard_title">Standard</string>
     <string name="settings_shields_standard_subtitle">Blocks ads, trackers, and analytics. Safe for any site.</string>
