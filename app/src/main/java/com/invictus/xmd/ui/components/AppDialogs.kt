@@ -172,6 +172,59 @@ internal fun AppMessageDialog(
     )
 }
 
+/**
+ * IDM-style "Link Expired" prompt with an optional third action: besides
+ * Retry (try the normal, non-browser re-fetch again) and Cancel (just
+ * close the dialog, item stays FAILED), it offers "Fetch from browser"
+ * ([fetchFromBrowserLabel] non-null) when the item's source page is known
+ * -- re-opens that page in a WebView so the user can grab a fresh link the
+ * same way they would in a desktop browser. The option is simply omitted
+ * when there's no source page to fall back on.
+ */
+internal data class ExpiredLinkDialogState(
+    val title: String,
+    val message: String,
+    val retryLabel: String,
+    val fetchFromBrowserLabel: String?,
+    val cancelLabel: String,
+    val onRetry: () -> Unit = {},
+    val onFetchFromBrowser: () -> Unit = {},
+    val onCancel: () -> Unit = {},
+)
+
+@Composable
+internal fun ExpiredLinkDialog(
+    state: ExpiredLinkDialogState,
+    onRetry: () -> Unit,
+    onFetchFromBrowser: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        modifier = Modifier.wideDialogWidth(),
+        properties = WideDialogProperties,
+        title = { Text(state.title) },
+        text = { Text(state.message) },
+        confirmButton = {
+            Row {
+                if (state.fetchFromBrowserLabel != null) {
+                    TextButton(onClick = onFetchFromBrowser) {
+                        Text(state.fetchFromBrowserLabel)
+                    }
+                }
+                TextButton(onClick = onRetry) {
+                    Text(state.retryLabel)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(state.cancelLabel)
+            }
+        },
+    )
+}
+
 @Composable
 internal fun AppChoiceDialog(
     title: String,

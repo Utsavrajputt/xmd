@@ -428,6 +428,7 @@
     <string name="link_expired_title">Link expired</string>
     <string name="link_expired_message">%1$s\n\nThis download link has expired or is no longer available.</string>
     <string name="action_fetch_link">Fetch link</string>
+    <string name="action_fetch_from_browser">Fetch from browser</string>
     <string name="link_refetch_title">Fetch link from website</string>
     <string name="link_refetch_hint">This link has gone stale. Find the download button on this page and tap it to grab a fresh link.</string>
     <string name="link_refetch_hint_named">Fetching a fresh link for \"%1$s\". Find the download button on this page and tap it.</string>

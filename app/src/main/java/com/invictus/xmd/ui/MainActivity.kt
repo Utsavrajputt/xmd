@@ -85,6 +85,8 @@ import com.invictus.xmd.ui.components.MainDestination
 import com.invictus.xmd.ui.components.MainNavigationItem
 import com.invictus.xmd.ui.components.AppMessageDialog
 import com.invictus.xmd.ui.components.AppMessageDialogState
+import com.invictus.xmd.ui.components.ExpiredLinkDialog
+import com.invictus.xmd.ui.components.ExpiredLinkDialogState
 import com.invictus.xmd.ui.downloads.AddDownloadDialog
 import com.invictus.xmd.ui.downloads.AddTorrentDialog
 import com.invictus.xmd.ui.downloads.DownloadsFragment
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private var savedPagesDestination: SavedPagesDestination? by mutableStateOf(null)
     private val snackbarHostState = SnackbarHostState()
     private var messageDialogState: AppMessageDialogState? by mutableStateOf(null)
+    private var expiredLinkDialogState: ExpiredLinkDialogState? by mutableStateOf(null)
     // Activity-owned dialog state is rendered by MainShell's root composition.
     private var dnsSettingsDialogOpen: Boolean by mutableStateOf(false)
 
@@ -786,6 +789,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         onDismissAction = {
                             finishMessageDialog(state, state.onDismissAction ?: state.onDismiss)
                         },
+                    )
+                }
+
+                expiredLinkDialogState?.let { state ->
+                    ExpiredLinkDialog(
+                        state = state,
+                        onRetry = { expiredLinkDialogState = null; state.onRetry() },
+                        onFetchFromBrowser = { expiredLinkDialogState = null; state.onFetchFromBrowser() },
+                        onCancel = { expiredLinkDialogState = null; state.onCancel() },
                     )
                 }
             }
@@ -1518,7 +1530,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      * etc.) get a fresh resolve since the previously-resolved directUrl is a
      * short-lived CDN link that may have expired by the time Retry is tapped;
      * a plain direct URL has nothing to re-resolve, so it goes straight back
-     * to READY and the download service picks it up immediately.
+     * to READY and the download service picks it up immediately -- even when
+     * a source page is known (see [QueueItem.pageUrl]), since browser
+     * recovery is now offered as a follow-up action from
+     * [showExpiredLinkDialog] rather than tried automatically up front.
      */
     private suspend fun retrySingle(item: QueueItem) {
         // YouTube items only need a fresh resolve (quality picker) if a
@@ -1527,16 +1542,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // yt-dlp with the same quality rather than re-prompting.
         val needsResolve = LinkParser.isShareLink(item.sourceUrl) ||
             (LinkParser.needsYtDlp(item.sourceUrl) && item.mediaFormatSelector == null)
-
-        // A plain generic direct link has nothing of its own to re-resolve
-        // -- resubmitting it as-is just re-hits the same dead URL. If we
-        // know the page it was captured from (browser "Add to Downloads"),
-        // do the real IDM-style recovery instead: re-open that page and
-        // grab whatever fresh download link it offers now.
-        if (!needsResolve && item.pageUrl != null) {
-            refetchFromPage(item)
-            return
-        }
 
         QueueRepository.update(item.id) {
             it.copy(
@@ -1600,24 +1605,23 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     /**
      * IDM-style prompt shown when a retried download comes back with an
-     * expired/unavailable link: "Clear" drops the item entirely, "Fetch
-     * Link" retries again (re-resolving from the share link, or re-opening
-     * the source page for a plain direct link) -- looping back into this
-     * same check if it expires again.
+     * expired/unavailable link: "Retry" tries the normal (non-browser)
+     * re-fetch again, "Fetch from Browser" re-opens the source page in a
+     * WebView for a fresh link (only offered when [QueueItem.pageUrl] is
+     * known), and "Cancel" just closes the dialog, leaving the item FAILED.
      */
     private fun showExpiredLinkDialog(item: QueueItem) {
-        showMessageDialog(
-            AppMessageDialogState(
-                title = getString(R.string.link_expired_title),
-                message = getString(R.string.link_expired_message, item.fileName ?: item.sourceUrl),
-                confirmLabel = getString(R.string.action_fetch_link),
-                dismissLabel = getString(R.string.action_clear),
-                onConfirm = { retryItem(item.id) },
-                onDismissAction = {
-                    pendingRetryIds.remove(item.id)
-                    QueueRepository.removeItem(item.id)
-                },
-            )
+        expiredLinkDialogState = ExpiredLinkDialogState(
+            title = getString(R.string.link_expired_title),
+            message = getString(R.string.link_expired_message, item.fileName ?: item.sourceUrl),
+            retryLabel = getString(R.string.action_retry),
+            fetchFromBrowserLabel = item.pageUrl?.let { getString(R.string.action_fetch_from_browser) },
+            cancelLabel = getString(android.R.string.cancel),
+            onRetry = { retryItem(item.id) },
+            onFetchFromBrowser = {
+                pendingRetryIds.add(item.id)
+                lifecycleScope.launch { refetchFromPage(item) }
+            },
         )
     }
 
