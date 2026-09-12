@@ -1,0 +1,55 @@
+name: Screenshot carousel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'fastlane/metadata/android/en-US/images/phoneScreenshots/**'
+      - 'scripts/generate-screenshot-carousel.sh'
+      - '.github/workflows/screenshot-carousel.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshot-carousel
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Regenerate docs/screenshot-carousel.gif
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ubuntu-latest ships both already -- this is just a safety net in
+      # case the runner image ever drops one.
+      - name: Ensure ffmpeg/ImageMagick are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          command -v convert >/dev/null || (sudo apt-get update && sudo apt-get install -y imagemagick)
+
+      - name: Generate carousel
+        shell: bash
+        run: scripts/generate-screenshot-carousel.sh
+
+      - name: Commit if changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/screenshot-carousel.gif; then
+            echo "No visual change in the carousel -- nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshot-carousel.gif
+          git commit -m "chore: regenerate screenshot carousel [skip ci]"
+          git push

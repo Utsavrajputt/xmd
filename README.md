@@ -36,6 +36,7 @@
 ## Table of Contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Build Flavors](#build-flavors)
 - [Project Structure](#project-structure)
 - [Building](#building)
@@ -121,6 +122,16 @@
 | **Polished assets** | Refreshed icons, tint work, a dedicated torrent magnet icon, and smoother celestial/placeholder styling throughout |
 
 </details>
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshot-carousel.gif" width="100%" alt="Xmd screenshot carousel">
+</p>
+
+<sub>Auto-generated from <a href="fastlane/metadata/android/en-US/images/phoneScreenshots">fastlane/metadata/android/en-US/images/phoneScreenshots</a> by <a href="scripts/generate-screenshot-carousel.sh">scripts/generate-screenshot-carousel.sh</a> — drop screenshots in that folder and it rebuilds itself on push.</sub>
 
 ---
 
