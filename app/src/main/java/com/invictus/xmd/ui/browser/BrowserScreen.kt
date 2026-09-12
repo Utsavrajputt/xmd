@@ -180,13 +180,10 @@ internal fun BrowserOverflowMenu(
     expanded: Boolean,
     desktopSiteEnabled: Boolean,
     currentPageAvailable: Boolean,
-    siteShieldRowVisible: Boolean,
-    siteShieldEnabled: Boolean,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit,
     onFindInPage: () -> Unit,
     onToggleDesktopSite: () -> Unit,
-    onToggleSiteShield: () -> Unit,
     onCopyPage: () -> Unit,
     onSharePage: () -> Unit,
     onClearBrowsingData: () -> Unit,
@@ -213,18 +210,6 @@ internal fun BrowserOverflowMenu(
             },
             onClick = { onDismiss(); onToggleDesktopSite() },
         )
-        if (siteShieldRowVisible) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.browser_menu_site_shield)) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Shield, contentDescription = null)
-                },
-                trailingIcon = {
-                    Checkbox(checked = siteShieldEnabled, onCheckedChange = null)
-                },
-                onClick = { onDismiss(); onToggleSiteShield() },
-            )
-        }
         BrowserMenuItem(
             label = stringResource(R.string.link_menu_copy_link_address),
             icon = Icons.Copy,

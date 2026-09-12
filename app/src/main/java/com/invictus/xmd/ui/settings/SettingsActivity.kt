@@ -739,6 +739,10 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
             com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = false)
             allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
         },
+        onAddAllowlistedSite = { site ->
+            com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = true)
+            allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
+        },
         backgroundPlaybackEnabled = backgroundPlaybackEnabled,
         onBackgroundPlaybackChanged = { checked ->
             backgroundPlaybackEnabled = checked

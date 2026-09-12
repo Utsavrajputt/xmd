@@ -16,11 +16,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
 import com.invictus.xmd.preferences.Settings
+import com.invictus.xmd.ui.components.WideDialogProperties
+import com.invictus.xmd.ui.components.wideDialogWidth
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 
@@ -46,12 +55,15 @@ fun SettingsBrowserScreen(
     lifetimeBlockedCount: Long,
     allowlistedSites: List<String>,
     onAdblockLevelChanged: (Settings.AdblockLevel) -> Unit,
+    onAddAllowlistedSite: (String) -> Unit,
     onRemoveAllowlistedSite: (String) -> Unit,
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
+    var showAddSiteDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -121,16 +133,33 @@ fun SettingsBrowserScreen(
             }
 
             Spacer(Modifier.height(8.dp))
-            SettingsSectionHeader(title = stringResource(R.string.settings_shields_allowlist_header))
             SettingsSectionCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = if (allowlistedSites.isEmpty()) 0.dp else 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_shields_allowlist_header),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { showAddSiteDialog = true }) {
+                        Text(stringResource(R.string.settings_shields_allowlist_add))
+                    }
+                }
                 if (allowlistedSites.isEmpty()) {
                     Text(
                         text = stringResource(R.string.settings_shields_allowlist_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
                     )
                 } else {
+                    SettingsDivider()
                     allowlistedSites.forEachIndexed { index, site ->
                         Row(
                             modifier = Modifier
@@ -213,4 +242,96 @@ fun SettingsBrowserScreen(
             }
         }
     }
+
+    if (showAddSiteDialog) {
+        AddWhitelistedSiteDialog(
+            onDismiss = { showAddSiteDialog = false },
+            onAdd = { host ->
+                onAddAllowlistedSite(host)
+                showAddSiteDialog = false
+            },
+        )
+    }
+}
+
+/**
+ * Direct "Add" entry point for the Shields allowlist (was previously only
+ * reachable via the Browser's "Block ads & trackers on this site" overflow
+ * menu item, which has been removed). Accepts either a bare host
+ * ("example.com") or a full URL and extracts the host from it.
+ */
+@Composable
+private fun AddWhitelistedSiteDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String) -> Unit,
+) {
+    var input by remember { mutableStateOf("") }
+    var showInvalid by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.wideDialogWidth(),
+        properties = WideDialogProperties,
+        title = { Text(stringResource(R.string.settings_shields_add_site_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = {
+                        input = it
+                        showInvalid = false
+                    },
+                    placeholder = { Text(stringResource(R.string.settings_shields_add_site_hint)) },
+                    singleLine = true,
+                    isError = showInvalid,
+                    supportingText = if (showInvalid) {
+                        { Text(stringResource(R.string.settings_shields_add_site_invalid)) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val host = extractHostForAllowlist(input)
+                    if (host == null) {
+                        showInvalid = true
+                    } else {
+                        onAdd(host)
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.settings_shields_allowlist_add))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
+}
+
+/**
+ * Pulls a bare host out of whatever the user typed -- a full URL
+ * ("https://example.com/path") or just a domain ("example.com") -- so the
+ * allowlist always stores the same shape of key that
+ * Settings.setAdblockAllowlisted expects (it lowercases and strips any
+ * "www." itself, same as it did for the page host coming from the old
+ * per-site browser menu toggle). Returns null when nothing that looks
+ * like a domain can be recovered.
+ */
+private fun extractHostForAllowlist(raw: String): String? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return null
+
+    val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
+    val host = runCatching { android.net.Uri.parse(withScheme).host }.getOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?: return null
+
+    return if (host.contains('.')) host else null
 }

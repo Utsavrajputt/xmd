@@ -376,19 +376,10 @@ class BrowserFragment : Fragment() {
                                     expanded = browserMenuExpanded,
                                     desktopSiteEnabled = isCurrentTabDesktopMode(),
                                     currentPageAvailable = currentPageUrl() != null,
-                                    // Shields row only makes sense for a real http(s) page
-                                    // (matches currentPageAvailable's own definition) and
-                                    // only when the global level isn't already OFF -- with
-                                    // adblock off entirely, "shields for this site" has
-                                    // nothing to toggle.
-                                    siteShieldRowVisible = currentPageUrl() != null &&
-                                        Settings.adblockLevel() != Settings.AdblockLevel.OFF,
-                                    siteShieldEnabled = isCurrentTabShieldEnabled(),
                                     onDismiss = { browserMenuExpanded = false },
                                     onRefresh = ::reloadActiveTab,
                                     onFindInPage = ::showFindInPage,
                                     onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
-                                    onToggleSiteShield = ::toggleSiteShieldForCurrentTab,
                                     onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
@@ -1892,41 +1883,6 @@ class BrowserFragment : Fragment() {
     }
 
     private fun isCurrentTabDesktopMode(): Boolean = tabs.getOrNull(currentTabIndex)?.isDesktopMode == true
-
-    private fun currentTabHost(): String? =
-        tabs.getOrNull(currentTabIndex)?.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
-
-    /** True (shield up, blocking active) unless the current tab's site is
-     *  in the per-site allowlist. Mirrors isCurrentTabDesktopMode's shape
-     *  for the overflow menu's checkbox row. */
-    private fun isCurrentTabShieldEnabled(): Boolean =
-        !Settings.isAdblockAllowlisted(currentTabHost())
-
-    /** Overflow menu's "Block ads & trackers on this site" checkbox.
-     *  Flips the current tab's host in/out of the allowlist and reloads
-     *  so the new state (blocking on or off) actually takes effect on the
-     *  page's own requests -- same reload-to-apply pattern as
-     *  toggleDesktopMode. */
-    private fun toggleSiteShieldForCurrentTab() {
-        val tab = tabs.getOrNull(currentTabIndex) ?: return
-        val host = currentTabHost() ?: return
-        val shieldWasEnabled = isCurrentTabShieldEnabled()
-        Settings.setAdblockAllowlisted(host, allowed = shieldWasEnabled)
-        val webView = webViewFor(tab) ?: return
-        val currentUrl = webView.url ?: tab.url
-        if (currentUrl != null) {
-            webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
-            webView.loadUrl(currentUrl)
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        } else {
-            webView.reload()
-        }
-        Toast.makeText(
-            requireContext(),
-            if (shieldWasEnabled) R.string.browser_shield_disabled_toast else R.string.browser_shield_enabled_toast,
-            Toast.LENGTH_SHORT,
-        ).show()
-    }
 
     private fun onAddLinkClicked() {
         val link = lastDetectedLink ?: return
