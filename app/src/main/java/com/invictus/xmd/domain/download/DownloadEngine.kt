@@ -517,6 +517,15 @@ class DownloadEngine(
         try {
             call.execute().use { response ->
                 if (response.code != 206 && response.code != 200) {
+                    // Same tokenized/time-limited link expiry a single-connection
+                    // download can hit mid-file (see EXPIRED_LINK_CODES in
+                    // download() below) -- a multi-connection segment is just as
+                    // likely to land on a dead token once it expires partway
+                    // through a large file (pixeldrain and similar hosts sign
+                    // each byte-range request), so it gets the same IDM-style
+                    // "Fetch Link" recovery instead of a dead-end "Segment X-Y
+                    // failed" error the user can't do anything about.
+                    if (response.code in EXPIRED_LINK_CODES) throw ExpiredLinkException(response.code)
                     throw RuntimeException("Segment ${seg.start}-${seg.end} failed (HTTP ${response.code})")
                 }
                 val body = response.body ?: throw RuntimeException("Empty segment body")
