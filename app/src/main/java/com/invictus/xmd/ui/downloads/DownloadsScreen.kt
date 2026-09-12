@@ -499,6 +499,7 @@ fun DownloadsScreen(
                             onRetry = onRetry,
                             onClear = { deleteTargets = listOf(it) },
                             onOpen = onOpen,
+                            onOpenFileLocation = onOpenFileLocation,
                             onErrorDetails = { errorDetailsTarget = it },
                             onSwipeClear = onSwipeClearItem,
                             onToggleSelect = { toggled ->
@@ -687,6 +688,7 @@ fun QueueItemRow(
     onRetry: (QueueItem) -> Unit,
     onClear: (QueueItem) -> Unit,
     onOpen: (QueueItem) -> Unit,
+    onOpenFileLocation: (QueueItem) -> Unit = {},
     onErrorDetails: (QueueItem) -> Unit = {},
     onSwipeClear: (QueueItem) -> Unit = onClear,
     onToggleSelect: (QueueItem) -> Unit = {},
@@ -1024,6 +1026,20 @@ fun QueueItemRow(
                                         contentDescription = stringResource(R.string.action_retry),
                                         tint = MaterialTheme.colorScheme.primary,
                                         onClick = { onRetry(item) },
+                                    )
+                                }
+                                ItemStatus.DONE -> {
+                                    CompactIconButton(
+                                        icon = Icons.Folder,
+                                        contentDescription = stringResource(R.string.action_open_file_location),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        onClick = { onOpenFileLocation(item) },
+                                    )
+                                    CompactIconButton(
+                                        icon = Icons.FileOpen,
+                                        contentDescription = stringResource(R.string.action_open),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onOpen(item) },
                                     )
                                 }
                                 else -> Unit
