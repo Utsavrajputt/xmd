@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Pre-release (`v1.0.0-beta.4`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **Pre-release (`v1.0.0-beta.6`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
@@ -66,6 +66,10 @@
 | **Default YouTube quality** | Pick "Ask always" or lock in a fixed quality to skip the picker sheet on every YouTube download |
 | **Video preset & audio format** | Preferred container/codec/FPS ladder for quick quality picks, plus a default audio format (MP3, M4A, Opus, or Original) for Audio-only downloads |
 | **Advanced quality section** | A real yt-dlp format probe surfaced as a collapsible list showing exact FPS/codec/file size per stream, alongside the standard ladder |
+| **Daily data limit** | Optional total or mobile-only data cap for downloads, set from Settings |
+| **Link validation** | Links are checked in the Add Download dialog before a download starts, catching bad/unsupported links earlier |
+| **Home screen shortcuts** | Pin a download link to the device home screen for one-tap re-download, with an "Add to home screen" flow and a toggle to remove it later |
+| **Expired-link recovery** | A redesigned Link Expired dialog offers Retry, Fetch from Browser, or Cancel — retry tries a normal re-fetch first, falling back to the browser and finally a single-connection download only if needed |
 
 </details>
 
@@ -109,6 +113,10 @@
 | **Desktop site & Find in page** | Per-tab desktop UA + wide-viewport toggle, and a Chrome-style find-in-page overlay with prev/next navigation and a live match count |
 | **Long-press menu** | Long-press a link or image for open-in-new-tab, download image, copy link address, or share link |
 | **History** | Full browsing history tab/overlay with search by title/URL |
+| **Custom home page** | Speed Dial, Google, DuckDuckGo, Brave, Bing, Yahoo, or a fully custom URL |
+| **Shields** | Brave-style ad/tracker blocking — Standard, Aggressive, or Off, with a per-site allowlist and a lifetime blocked-count counter |
+| **Translate** | Translate the current page via Google's web-proxy translator, with a language picker, from the overflow menu |
+| **Media picker on YouTube** | A floating "videos found" action on YouTube watch/Shorts pages routes sniffed streams straight into the quality picker |
 
 </details>
 

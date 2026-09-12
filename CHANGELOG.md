@@ -3,6 +3,39 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.0.0-beta.6] - 2026-09-12
+
+### ✨ Added
+- 🏠 **Home screen shortcuts** — pin any download link to the device home screen for one-tap re-download, with a Home-screen fragment, an "Add to home screen" flow, and a toggle to remove shortcuts again.
+- 🌐 **Custom browser home page** — Speed Dial, Google, DuckDuckGo, Brave, Bing, Yahoo, or a fully custom URL, instead of always opening Speed Dial.
+- 🛡️ **Brave-style Shields** for the in-app browser — Standard/Aggressive/Off blocking levels, a per-site allowlist, and a lifetime blocked-count counter; site whitelisting now lives directly under Shields settings.
+- 🗺️ **Google Translate in the browser overflow menu** — opens the current page through Google's web-proxy translator with a language picker.
+- 📊 **Daily data limit** — cap total or mobile-only data use for downloads, configurable from Settings.
+- 🔁 **Better expired/broken-link recovery** — a redesigned Link Expired dialog offers Retry, Fetch from Browser, or Cancel; retrying now tries a normal re-fetch first and only falls back to opening the browser (and finally a single-connection download) if that fails.
+- 🎬 **In-page media picker on YouTube** — a floating "videos found" action appears on YouTube watch/Shorts pages, routing sniffed streams straight into the quality picker.
+- 🔄 **Stable/Preview update channel selector** on the About screen, plus a clearer reason shown when an update check fails.
+- 📚 **Libraries screen** added to About, crediting open-source dependencies, alongside a 72-hour on-disk avatar cache for the Developers section.
+- 📂 **Open / Open Folder** actions on completed download items, and an **Open file location** entry in the downloads long-press sheet.
+- 🔍 Website source packs are now scanned from the **whole device**, not a single folder, with a redesigned picker card.
+- ✅ **Link validation** in the Add Download dialog before a download starts, catching bad/unsupported links earlier.
+- 📘 **Facebook link support** added to the downloader.
+- 🎨 **New launcher icon set**, including a proper monochrome silhouette for Android 13+ themed (Monet) icons.
+
+### 🛠 Fixed
+- 📤 Sharing a link from YouTube into Xmd no longer keeps the wrong/stale name on the queued item.
+- 🧩 Settings has been reorganised for clearer grouping now that Data Limit, Libraries, and the update-channel picker all live there too.
+- 🩹 An invalid `--` sequence in an XML comment that could break the manifest merge on release builds.
+- ⏳ A stuck yt-dlp queue placeholder that could persist after a download finished, and standalone leftover thumbnail files.
+- 📝 About-screen layout and manifest fixes.
+- 🧭 The Downloads tab now shows "Downloads" as its header title instead of a generic label.
+
+### 🎨 Changed
+- 🌐 Site whitelisting for the browser moved from a standalone list into the new Shields settings section, with direct Add from there.
+- 🧵 Internal refactor: duplicated logic across UI components, dialogs, and formatters consolidated to cut repeated code.
+- 🐛 Debug builds now integrate LeakCanary for memory-leak detection during development.
+
+---
+
 ## [1.0.0-beta.5] - 2026-08-29
 
 ### ✨ Added
