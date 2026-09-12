@@ -30,12 +30,18 @@ object PinnedShortcutUtils {
             .take(32)
 
     /** True if a shortcut for this URL is currently pinned to the Home
-     *  screen. Cheap local lookup -- ShortcutManagerCompat.getShortcuts()
-     *  reads from the system's own shortcut store, no network/IO. */
+     *  screen *and enabled*. Deliberately excludes disabled shortcuts --
+     *  Android gives no API for an app to force its own pinned icon off
+     *  the launcher (only disableShortcuts() + removeLongLivedShortcuts(),
+     *  which most launchers only actually clear once the user drags the
+     *  now-disabled icon off manually) -- so once [unpin] disables it,
+     *  this reports "not pinned" right away and the menu flips back to
+     *  "Add to Home screen", instead of getting stuck on "Remove" for an
+     *  icon that's already been disabled. */
     fun isPinned(context: Context, url: String): Boolean {
         val id = shortcutIdFor(url)
         return ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)
-            .any { it.id == id }
+            .any { it.id == id && it.isEnabled }
     }
 
     /** Disables + requests removal of the pinned shortcut for this URL.
