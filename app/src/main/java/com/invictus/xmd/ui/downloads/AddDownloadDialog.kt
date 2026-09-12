@@ -3,7 +3,6 @@ package com.invictus.xmd.ui.downloads
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,8 +18,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
@@ -62,6 +59,9 @@ import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
+import com.invictus.xmd.ui.components.ChipGrid
+import com.invictus.xmd.ui.components.ChipLabel
+import com.invictus.xmd.ui.components.ChipRow
 import com.invictus.xmd.ui.components.StartChipButton
 import com.invictus.xmd.ui.components.WideDialogProperties
 import com.invictus.xmd.ui.components.wideDialogWidth
@@ -392,58 +392,38 @@ fun AddDownloadDialog(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Row(
+                    Spacer(Modifier.height(8.dp))
+                    // Chip grid instead of a dropdown -- every quality rung
+                    // is a single tap, same pattern as the yt-dlp settings
+                    // screen's quality/audio pickers.
+                    ChipGrid(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        var qualityMenuExpanded by remember { mutableStateOf(false) }
-                        Box(Modifier.weight(1f)) {
-                            OutlinedButton(
-                                onClick = { qualityMenuExpanded = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                            ) {
-                                Text(selectedQualityLabel ?: "\u2014")
-                            }
-                            DropdownMenu(expanded = qualityMenuExpanded, onDismissRequest = { qualityMenuExpanded = false }) {
-                                qualityItems.forEach { item ->
-                                    DropdownMenuItem(text = { Text(item) }, onClick = {
-                                        qualityMenuExpanded = false
-                                        selectedQualityLabel = item
-                                        selectedAdvancedFormat = null
-                                        selectedQualityOption = if (item == "Audio only") audioOption
-                                        else videoOptions.firstOrNull { it.label == item }
-                                    })
-                                }
-                            }
-                        }
-                        if (selectedQualityLabel == "Audio only") {
-                            var audioMenuExpanded by remember { mutableStateOf(false) }
-                            val audioFormatChoices = listOf(
-                                "MP3" to Settings.AudioFormatPreset.MP3,
-                                "M4A" to Settings.AudioFormatPreset.M4A,
-                                "Opus" to Settings.AudioFormatPreset.OPUS,
-                                "Original" to Settings.AudioFormatPreset.ORIGINAL,
-                            )
-                            Box(Modifier.weight(1f)) {
-                                OutlinedButton(
-                                    onClick = { audioMenuExpanded = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
-                                ) {
-                                    Text(audioFormatChoices.firstOrNull { it.second == audioFormatPreset }?.first ?: "MP3")
-                                }
-                                DropdownMenu(expanded = audioMenuExpanded, onDismissRequest = { audioMenuExpanded = false }) {
-                                    audioFormatChoices.forEach { (label, preset) ->
-                                        DropdownMenuItem(text = { Text(label) }, onClick = {
-                                            audioMenuExpanded = false
-                                            audioFormatPreset = preset
-                                        })
-                                    }
-                                }
-                            }
-                        }
+                        options = qualityItems,
+                        selected = selectedQualityLabel ?: "",
+                        onSelected = { index ->
+                            val item = qualityItems[index]
+                            selectedQualityLabel = item
+                            selectedAdvancedFormat = null
+                            selectedQualityOption = if (item == "Audio only") audioOption
+                            else videoOptions.firstOrNull { it.label == item }
+                        },
+                        columns = 4,
+                    )
+                    if (selectedQualityLabel == "Audio only") {
+                        val audioFormatChoices = listOf(
+                            "MP3" to Settings.AudioFormatPreset.MP3,
+                            "M4A" to Settings.AudioFormatPreset.M4A,
+                            "Opus" to Settings.AudioFormatPreset.OPUS,
+                            "Original" to Settings.AudioFormatPreset.ORIGINAL,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        ChipLabel(stringResource(R.string.settings_audio_format_title))
+                        ChipRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            options = audioFormatChoices.map { it.first },
+                            selected = audioFormatChoices.firstOrNull { it.second == audioFormatPreset }?.first ?: "MP3",
+                            onSelected = { index -> audioFormatPreset = audioFormatChoices[index].second },
+                        )
                     }
                 }
 
