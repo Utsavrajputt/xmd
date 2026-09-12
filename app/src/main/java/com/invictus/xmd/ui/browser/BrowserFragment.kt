@@ -376,13 +376,14 @@ class BrowserFragment : Fragment() {
                                     expanded = browserMenuExpanded,
                                     desktopSiteEnabled = isCurrentTabDesktopMode(),
                                     currentPageAvailable = currentPageUrl() != null,
+                                    currentPagePinned = if (browserMenuExpanded) isCurrentPagePinned() else false,
                                     onDismiss = { browserMenuExpanded = false },
                                     onRefresh = ::reloadActiveTab,
                                     onFindInPage = ::showFindInPage,
                                     onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
                                     onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
-                                    onAddAsApp = ::addCurrentPageAsApp,
+                                    onAddAsApp = ::toggleCurrentPageAsApp,
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
                                     onAction = { action ->
                                         (activity as? Callbacks)?.onBrowserMenuAction(action)
@@ -1994,10 +1995,24 @@ class BrowserFragment : Fragment() {
      * screen" toast is fired from [PinnedShortcutReceiver] instead, via the
      * callback IntentSender below, which the system only invokes once the
      * shortcut is genuinely placed.
+     *
+     * Same menu entry doubles as "Remove from Home screen" once the
+     * current page is already pinned (see [isCurrentPagePinned]) -- this
+     * function checks pinned state up front and branches to
+     * [PinnedShortcutUtils.unpin] instead of requesting a new pin.
      */
-    private fun addCurrentPageAsApp() {
+    private fun toggleCurrentPageAsApp() {
         val url = currentPageUrl() ?: return
         val context = requireContext().applicationContext
+
+        if (PinnedShortcutUtils.isPinned(context, url)) {
+            PinnedShortcutUtils.unpin(context, url)
+            if (isAdded) {
+                Toast.makeText(requireContext(), R.string.removed_from_home_screen, Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
         if (!androidx.core.content.pm.ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
             Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported, Toast.LENGTH_SHORT).show()
             return
@@ -2010,8 +2025,7 @@ class BrowserFragment : Fragment() {
             }
             if (!isAdded) return@launch
 
-            val icon = favicon?.let { androidx.core.graphics.drawable.IconCompat.createWithAdaptiveBitmap(it) }
-                ?: androidx.core.graphics.drawable.IconCompat.createWithResource(context, R.mipmap.xmd)
+            val icon = PinnedShortcutUtils.buildIcon(context, favicon, R.mipmap.xmd)
 
             val launchIntent = android.content.Intent(context, com.invictus.xmd.ui.WebAppActivity::class.java).apply {
                 action = android.content.Intent.ACTION_VIEW
@@ -2020,13 +2034,7 @@ class BrowserFragment : Fragment() {
                 flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
             }
 
-            // A short, stable id -- some launchers/OEM ShortcutManager
-            // implementations silently drop pin requests whose id is an
-            // entire (possibly very long, query-string-laden) URL.
-            val shortcutId = "webapp_" + java.security.MessageDigest.getInstance("SHA-256")
-                .digest(url.toByteArray())
-                .joinToString("") { "%02x".format(it) }
-                .take(32)
+            val shortcutId = PinnedShortcutUtils.shortcutIdFor(url)
             val shortcut = androidx.core.content.pm.ShortcutInfoCompat.Builder(context, shortcutId)
                 .setShortLabel(title)
                 .setLongLabel(title)
@@ -2042,9 +2050,7 @@ class BrowserFragment : Fragment() {
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
             )
 
-            val requestSent = androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(
-                context, shortcut, callback.intentSender
-            )
+            val requestSent = PinnedShortcutUtils.pin(context, shortcut, callback.intentSender)
             // A false return here means the launcher refused the request
             // outright (e.g. it doesn't support pinning at all) -- a real,
             // immediate failure, unlike a silent decline inside the dialog
@@ -2053,6 +2059,15 @@ class BrowserFragment : Fragment() {
                 Toast.makeText(requireContext(), R.string.add_to_home_screen_failed, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    /** Drives the "Add to Home screen" / "Remove from Home screen" label
+     *  and icon swap in [BrowserOverflowMenu] -- re-checked each time the
+     *  overflow menu opens, since pin state can only change via this
+     *  fragment's own toggle action (no external observer needed). */
+    private fun isCurrentPagePinned(): Boolean {
+        val url = currentPageUrl() ?: return false
+        return PinnedShortcutUtils.isPinned(requireContext().applicationContext, url)
     }
 
 }

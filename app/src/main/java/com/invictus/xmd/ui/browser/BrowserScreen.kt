@@ -180,6 +180,7 @@ internal fun BrowserOverflowMenu(
     expanded: Boolean,
     desktopSiteEnabled: Boolean,
     currentPageAvailable: Boolean,
+    currentPagePinned: Boolean,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit,
     onFindInPage: () -> Unit,
@@ -224,8 +225,11 @@ internal fun BrowserOverflowMenu(
             onClick = { onDismiss(); onSharePage() },
         )
         BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_add_to_home_screen),
-            icon = Icons.AddToHomeScreen,
+            label = stringResource(
+                if (currentPagePinned) R.string.browser_menu_remove_from_home_screen
+                else R.string.browser_menu_add_to_home_screen
+            ),
+            icon = if (currentPagePinned) Icons.RemoveFromHomeScreen else Icons.AddToHomeScreen,
             enabled = currentPageAvailable,
             onClick = { onDismiss(); onAddAsApp() },
         )

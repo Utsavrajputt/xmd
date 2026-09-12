@@ -355,9 +355,12 @@
     <string name="browser_menu_title">Browser</string>
     <string name="browser_menu_private_dns">Private DNS</string>
     <string name="browser_menu_add_to_home_screen">Add to Home screen</string>
+    <string name="browser_menu_remove_from_home_screen">Remove from Home screen</string>
     <string name="add_to_home_screen_unsupported">Your launcher doesn\'t support home screen shortcuts</string>
     <string name="add_to_home_screen_added">Added to Home screen</string>
     <string name="add_to_home_screen_failed">Couldn\'t add to Home screen</string>
+    <string name="removed_from_home_screen">Removed from Home screen</string>
+    <string name="remove_from_home_screen_failed">Couldn\'t remove from Home screen</string>
     <string name="browser_menu_history">History</string>
     <string name="browser_menu_refresh">Refresh</string>
     <string name="browser_menu_desktop_site">Desktop site</string>
