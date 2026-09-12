@@ -123,10 +123,28 @@ object LinkParser {
         return uri.host in FITGIRL_HOSTS
     }
 
-    /** True for a youtube.com/youtu.be video (or music.youtube.com) link -- routed to the yt-dlp quality-picker flow instead of a normal resolve. */
+    /** True for a youtube.com/youtu.be link (or music.youtube.com) -- routed to the yt-dlp quality-picker flow instead of a normal resolve. */
     fun isYoutubeLink(link: String): Boolean {
         val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
         return uri.host in YOUTUBE_HOSTS
+    }
+
+    /**
+     * True only for a YouTube page that's actually playing a single video
+     * -- /watch (regular + music.youtube.com), youtu.be/<id>, and /shorts/<id>
+     * -- as opposed to the homepage, search results, or a channel page,
+     * none of which have a video to sniff. Used to gate the browser's
+     * "video detected" FAB on YouTube: MediaSniffer's URL/extension
+     * matching never catches YouTube's own signed googlevideo.com segment
+     * URLs, so that FAB is driven off the page URL itself here instead,
+     * and only once a video page is actually open.
+     */
+    fun isYoutubeVideoPage(link: String): Boolean {
+        val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
+        if (uri.host !in YOUTUBE_HOSTS) return false
+        if (uri.host == "youtu.be") return uri.path.trim('/').isNotEmpty()
+        val path = uri.path.orEmpty()
+        return path == "/watch" || path.startsWith("/shorts/")
     }
 
     /** True for an instagram.com link (reel/post/story) -- routed to the yt-dlp quality-picker flow instead of a normal resolve. */

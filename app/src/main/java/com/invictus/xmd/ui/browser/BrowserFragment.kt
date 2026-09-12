@@ -214,6 +214,13 @@ class BrowserFragment : Fragment() {
     private var detectedLinkVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabText: String by mutableStateOf("")
+    // True when the sniffed-media FAB is currently showing for "this
+    // YouTube page has a video" rather than MediaSniffer's normal
+    // sniffedMedia list -- see updateSniffedMediaFab()'s YouTube branch.
+    // Drives onSniffedMediaTap to go straight to the quality picker
+    // instead of opening SniffedMediaSheet (which would have nothing to
+    // list, since no MediaSniffer entries exist for a YouTube page).
+    private var sniffedMediaIsYoutubePage: Boolean by mutableStateOf(false)
 
     // ── Phase E: browserToolbar's state ──────────────────────────────────
     // Drives BrowserToolbarRow's setContent lambda below -- same "field on
@@ -468,7 +475,7 @@ class BrowserFragment : Fragment() {
                             onDetectedLinkTap = ::onAddLinkClicked,
                             sniffedMediaVisible = sniffedMediaFabVisible,
                             sniffedMediaText = sniffedMediaFabText,
-                            onSniffedMediaTap = ::showSniffedMediaSheet,
+                            onSniffedMediaTap = ::onSniffedMediaFabTapped,
                         )
                     },
                     dialogs = {
@@ -1811,11 +1818,27 @@ class BrowserFragment : Fragment() {
     /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
      *  from onPageStarted (clears it), and from shouldInterceptRequest's
      *  sniff hook every time a genuinely new stream URL is found. No-op
-     *  visually unless [tab] is the tab currently on screen. */
+     *  visually unless [tab] is the tab currently on screen.
+     *
+     *  Also covers YouTube: MediaSniffer's URL/extension matching never
+     *  catches YouTube's own signed googlevideo.com segment URLs (see
+     *  LinkParser.isYoutubeVideoPage's doc comment), so a YouTube watch/
+     *  shorts page shows the FAB purely off the page URL, independent of
+     *  tab.sniffedMedia. Gated on BuildConfig.HAS_YOUTUBE_SUPPORT since
+     *  the Lite build has no yt-dlp/quality-picker to hand the tap off to. */
     private fun updateSniffedMediaFab(tab: BrowserTab) {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
         if (count == 0) {
+            val url = tab.url
+            if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT &&
+                url != null && com.invictus.xmd.utils.LinkParser.isYoutubeVideoPage(url)
+            ) {
+                sniffedMediaFabText = getString(R.string.sniffed_media_chip_one)
+                sniffedMediaIsYoutubePage = true
+                sniffedMediaFabVisible = true
+                return
+            }
             sniffedMediaFabVisible = false
             return
         }
@@ -1824,7 +1847,22 @@ class BrowserFragment : Fragment() {
         } else {
             getString(R.string.sniffed_media_chip_many, count)
         }
+        sniffedMediaIsYoutubePage = false
         sniffedMediaFabVisible = true
+    }
+
+    /** Tap handler for the sniffed-media FAB -- branches on
+     *  [sniffedMediaIsYoutubePage] since that variant has no
+     *  tab.sniffedMedia entries for SniffedMediaSheet to list; it hands
+     *  the current page URL straight to the same quality-picker flow a
+     *  sheet row would (triggerSniffedMedia(needsPicker = true)) instead. */
+    private fun onSniffedMediaFabTapped() {
+        if (sniffedMediaIsYoutubePage) {
+            val url = currentPageUrl() ?: return
+            (activity as? Callbacks)?.triggerSniffedMedia(url, needsPicker = true)
+            return
+        }
+        showSniffedMediaSheet()
     }
 
     /** Opens the Compose SniffedMediaSheet (see browserDialogHost's
