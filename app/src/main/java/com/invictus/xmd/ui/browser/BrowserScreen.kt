@@ -186,6 +186,7 @@ internal fun BrowserOverflowMenu(
     onToggleDesktopSite: () -> Unit,
     onCopyPage: () -> Unit,
     onSharePage: () -> Unit,
+    onAddAsApp: () -> Unit,
     onClearBrowsingData: () -> Unit,
     onAction: (BrowserMenuAction) -> Unit,
 ) {
@@ -221,6 +222,12 @@ internal fun BrowserOverflowMenu(
             icon = Icons.Share,
             enabled = currentPageAvailable,
             onClick = { onDismiss(); onSharePage() },
+        )
+        BrowserMenuItem(
+            label = stringResource(R.string.browser_menu_add_to_home_screen),
+            icon = Icons.AddToHomeScreen,
+            enabled = currentPageAvailable,
+            onClick = { onDismiss(); onAddAsApp() },
         )
         HorizontalDivider()
         BrowserMenuItem(

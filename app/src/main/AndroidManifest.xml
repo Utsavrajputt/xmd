@@ -105,6 +105,30 @@
             android:exported="false"
             android:label="@string/settings_title" />
 
+        <!-- Chrome-less standalone window for "Add to Home screen" pinned
+             shortcuts (see BrowserFragment.addCurrentPageAsApp()). exported
+             is required here: the pinned icon is launched by the system
+             launcher, a different app/process, so the target activity must
+             be reachable from outside xmd itself. taskAffinity="" keeps
+             every pinned site off MainActivity's own task, and
+             documentLaunchMode="intoExisting" gives each distinct pinned
+             URL its own recents entry (reusing that same entry on repeat
+             launches of the same site) instead of two different pinned
+             sites colliding into one shared task. -->
+        <activity
+            android:name=".ui.WebAppActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:documentLaunchMode="intoExisting" />
+
+        <!-- Fires only once a pinned shortcut is actually placed by the
+             launcher (see PinnedShortcutReceiver's doc comment) -- not
+             exported since only our own PendingIntent, passed straight to
+             ShortcutManagerCompat, ever targets it. -->
+        <receiver
+            android:name=".ui.browser.PinnedShortcutReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.DownloadService"
             android:exported="false"

@@ -382,6 +382,7 @@ class BrowserFragment : Fragment() {
                                     onToggleDesktopSite = ::toggleDesktopModeForCurrentTab,
                                     onCopyPage = { currentPageUrl()?.let(::copyLinkToClipboard) },
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
+                                    onAddAsApp = ::addCurrentPageAsApp,
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
                                     onAction = { action ->
                                         (activity as? Callbacks)?.onBrowserMenuAction(action)
@@ -1977,6 +1978,81 @@ class BrowserFragment : Fragment() {
             putExtra(android.content.Intent.EXTRA_TEXT, url)
         }
         startActivity(android.content.Intent.createChooser(intent, getString(R.string.link_menu_share_link)))
+    }
+
+    /**
+     * Pins a home-screen shortcut that reopens the current page in
+     * [com.invictus.xmd.ui.WebAppActivity] -- a bare WebView with no browser
+     * chrome, so it reads as its own standalone "app" rather than another
+     * XMD browser tab. The icon is the site's own favicon (same
+     * [com.invictus.xmd.utils.FaviconLoader] source used for Shortcuts tiles),
+     * fetched off the main thread since it's a network call.
+     *
+     * requestPinShortcut()'s own return value only means the request
+     * reached the launcher -- not that the user confirmed the "Add to Home
+     * screen" dialog or that the icon actually landed. The "Added to Home
+     * screen" toast is fired from [PinnedShortcutReceiver] instead, via the
+     * callback IntentSender below, which the system only invokes once the
+     * shortcut is genuinely placed.
+     */
+    private fun addCurrentPageAsApp() {
+        val url = currentPageUrl() ?: return
+        val context = requireContext().applicationContext
+        if (!androidx.core.content.pm.ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
+            Toast.makeText(requireContext(), R.string.add_to_home_screen_unsupported, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val title = tabs.getOrNull(currentTabIndex)?.title?.takeIf { it.isNotBlank() && it != "New tab" } ?: url
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val favicon = withContext(Dispatchers.IO) {
+                com.invictus.xmd.utils.FaviconLoader.load(url)
+            }
+            if (!isAdded) return@launch
+
+            val icon = favicon?.let { androidx.core.graphics.drawable.IconCompat.createWithAdaptiveBitmap(it) }
+                ?: androidx.core.graphics.drawable.IconCompat.createWithResource(context, R.mipmap.xmd)
+
+            val launchIntent = android.content.Intent(context, com.invictus.xmd.ui.WebAppActivity::class.java).apply {
+                action = android.content.Intent.ACTION_VIEW
+                putExtra(com.invictus.xmd.ui.WebAppActivity.EXTRA_URL, url)
+                putExtra(com.invictus.xmd.ui.WebAppActivity.EXTRA_TITLE, title)
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+
+            // A short, stable id -- some launchers/OEM ShortcutManager
+            // implementations silently drop pin requests whose id is an
+            // entire (possibly very long, query-string-laden) URL.
+            val shortcutId = "webapp_" + java.security.MessageDigest.getInstance("SHA-256")
+                .digest(url.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+                .take(32)
+            val shortcut = androidx.core.content.pm.ShortcutInfoCompat.Builder(context, shortcutId)
+                .setShortLabel(title)
+                .setLongLabel(title)
+                .setIcon(icon)
+                .setIntent(launchIntent)
+                .build()
+
+            val callback = android.app.PendingIntent.getBroadcast(
+                context,
+                shortcutId.hashCode(),
+                android.content.Intent(context, PinnedShortcutReceiver::class.java)
+                    .setAction(PinnedShortcutReceiver.ACTION_SHORTCUT_PINNED),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val requestSent = androidx.core.content.pm.ShortcutManagerCompat.requestPinShortcut(
+                context, shortcut, callback.intentSender
+            )
+            // A false return here means the launcher refused the request
+            // outright (e.g. it doesn't support pinning at all) -- a real,
+            // immediate failure, unlike a silent decline inside the dialog
+            // (which the launcher never reports back for either).
+            if (!requestSent && isAdded) {
+                Toast.makeText(requireContext(), R.string.add_to_home_screen_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
 }
