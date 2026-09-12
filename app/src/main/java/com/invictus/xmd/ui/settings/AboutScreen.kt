@@ -29,8 +29,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.invictus.xmd.ui.icons.Icon
@@ -60,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.invictus.xmd.R
+import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.utils.GithubAvatarLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,14 +99,17 @@ sealed class UpdateAvailability {
  * Redesigned with mpvRx's About screen as the visual reference: an animated
  * gradient hero card for identity, pill-badge version tag, a pair of
  * action buttons, avatar-style rows for developer credits, and an Updates
- * section -- auto-check toggle, "Check for updates now" button, and (once
- * an update is found) an in-app Download -> Install flow like mpvRx's
- * UpdateSheet, just rendered inline in the card instead of a separate
- * bottom sheet. Trimmed down from mpvRx's version: no donation section, no
- * update channel selector (Xmd ships a single GitHub-Releases channel, not
- * mpvRx's stable/preview split), and release notes show as plain text
- * rather than rendered Markdown (no Markdown-rendering dependency in Xmd).
+ * section -- auto-check toggle, Stable/Preview channel picker, "Check for
+ * updates now" button, and (once an update is found) an in-app Download ->
+ * Install flow like mpvRx's UpdateSheet, just rendered inline in the card
+ * instead of a separate bottom sheet. Trimmed down from mpvRx's version: no
+ * donation section, and release notes show as plain text rather than
+ * rendered Markdown (no Markdown-rendering dependency in Xmd). Unlike
+ * mpvRx's "Preview (Nightly)", Xmd's second channel is labeled "Preview
+ * (Beta)" -- prerelease.yml publishes tagged pre-releases (v1.1.0-beta.1,
+ * -rc.1, etc), not actual nightly builds.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     versionText: String,
@@ -111,6 +119,8 @@ fun AboutScreen(
     onDeveloperClick: (AboutDeveloper) -> Unit,
     autoCheckForUpdates: Boolean,
     onAutoCheckForUpdatesChanged: (Boolean) -> Unit,
+    updateChannel: Settings.UpdateChannel,
+    onUpdateChannelChanged: (Settings.UpdateChannel) -> Unit,
     isCheckingForUpdate: Boolean,
     onCheckForUpdateClick: () -> Unit,
     updateAvailability: UpdateAvailability,
@@ -313,6 +323,40 @@ fun AboutScreen(
             )
             SettingsDivider()
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.about_update_channel_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.about_update_channel_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = updateChannel == Settings.UpdateChannel.STABLE,
+                        onClick = { onUpdateChannelChanged(Settings.UpdateChannel.STABLE) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        icon = {
+                            SegmentedButtonDefaults.Icon(active = updateChannel == Settings.UpdateChannel.STABLE)
+                        },
+                    ) {
+                        Text(stringResource(R.string.about_update_channel_stable))
+                    }
+                    SegmentedButton(
+                        selected = updateChannel == Settings.UpdateChannel.PREVIEW,
+                        onClick = { onUpdateChannelChanged(Settings.UpdateChannel.PREVIEW) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        icon = {
+                            SegmentedButtonDefaults.Icon(active = updateChannel == Settings.UpdateChannel.PREVIEW)
+                        },
+                    ) {
+                        Text(stringResource(R.string.about_update_channel_preview))
+                    }
+                }
+
                 Button(
                     onClick = onCheckForUpdateClick,
                     enabled = !isCheckingForUpdate,

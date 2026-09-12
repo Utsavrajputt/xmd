@@ -135,6 +135,10 @@
     <string name="about_updates_title">Updates</string>
     <string name="about_auto_check_for_updates">Auto-check for updates</string>
     <string name="about_check_on_startup">Check on startup</string>
+    <string name="about_update_channel_title">Update Channel</string>
+    <string name="about_update_channel_subtitle">Preview builds are signed pre-release versions tagged from the latest changes and may be unstable.</string>
+    <string name="about_update_channel_stable">Stable</string>
+    <string name="about_update_channel_preview">Preview (Beta)</string>
     <string name="about_check_for_updates_now">Check for updates now</string>
     <string name="about_checking_for_updates">Checking for updates…</string>
     <string name="about_up_to_date">You\'re on the latest version</string>

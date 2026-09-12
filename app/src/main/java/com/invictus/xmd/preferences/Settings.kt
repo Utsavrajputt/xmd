@@ -56,6 +56,7 @@ object Settings {
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
     private const val KEY_AUTO_CHECK_UPDATES = "about_auto_check_for_updates"
+    private const val KEY_UPDATE_CHANNEL = "about_update_channel"
 
     private lateinit var prefs: SharedPreferences
 
@@ -339,6 +340,26 @@ object Settings {
     fun autoCheckForUpdatesEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_CHECK_UPDATES, false)
     fun setAutoCheckForUpdatesEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_CHECK_UPDATES, value).apply()
+    }
+
+    /** Which GitHub Releases channel the About screen's update check should
+     *  fetch from -- [STABLE] hits `/releases/latest` (GitHub's own
+     *  latest-non-prerelease pointer, built by release.yml's `vX.Y.Z`
+     *  tags), [PREVIEW] lists recent releases and takes the newest one
+     *  flagged `prerelease: true` (built by prerelease.yml's `vX.Y.Z-*`
+     *  tags) even if a newer stable exists -- switching to Preview is an
+     *  explicit opt-in to pre-release builds, not "whichever is newest". */
+    enum class UpdateChannel { STABLE, PREVIEW }
+
+    fun updateChannel(): UpdateChannel =
+        if (prefs.getString(KEY_UPDATE_CHANNEL, null) == UpdateChannel.PREVIEW.name) {
+            UpdateChannel.PREVIEW
+        } else {
+            UpdateChannel.STABLE
+        }
+
+    fun setUpdateChannel(value: UpdateChannel) {
+        prefs.edit().putString(KEY_UPDATE_CHANNEL, value.name).apply()
     }
 
     // ── Browser: Search Engine ─────────────────────────────────────────

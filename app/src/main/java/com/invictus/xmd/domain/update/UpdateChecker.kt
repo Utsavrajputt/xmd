@@ -2,12 +2,14 @@ package com.invictus.xmd.domain.update
 
 import android.os.Build
 import com.invictus.xmd.BuildConfig
+import com.invictus.xmd.preferences.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -17,13 +19,21 @@ import java.util.concurrent.TimeUnit
 /**
  * GitHub-Releases-backed update check + in-app APK download for the About
  * screen -- same shape as mpvRx's UpdateManager, trimmed down for Xmd's
- * simpler release setup: a single GitHub Releases channel (no stable/
- * preview split) and per-flavor/per-ABI APK assets instead of a universal
- * one, since Xmd's release workflow (.github/workflows/release.yml) builds
- * "Xmd-<flavor>-<abi>-<tag>.apk" for each of lite/full x arm64-v8a/
- * armeabi-v7a rather than a single combined APK. No JSON library dependency
- * needed -- org.json ships with the platform, so this avoids pulling in
- * kotlinx.serialization just for two response fields.
+ * simpler per-flavor/per-ABI asset layout instead of a universal one, since
+ * Xmd's release workflows build "Xmd-<flavor>-<abi>-<tag>.apk" for each of
+ * lite/full x arm64-v8a/armeabi-v7a rather than a single combined APK. No
+ * JSON library dependency needed -- org.json ships with the platform, so
+ * this avoids pulling in kotlinx.serialization just for a handful of
+ * response fields.
+ *
+ * Two real channels, matching the two release workflows:
+ * release.yml tags plain "vX.Y.Z" (stable), prerelease.yml tags
+ * "vX.Y.Z-beta.N"/"-rc.N"/etc and marks the GitHub release `prerelease:
+ * true` (preview). [checkForUpdate] fetches strictly within
+ * [Settings.UpdateChannel] -- Stable only ever sees the latest
+ * non-prerelease, Preview only ever sees the latest prerelease, even if a
+ * newer stable exists -- since picking Preview is an explicit opt-in to
+ * pre-release builds, not "whichever tag is newest overall".
  */
 object UpdateChecker {
 
@@ -39,8 +49,15 @@ object UpdateChecker {
 
     class CheckFailedException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-    private const val RELEASES_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases/latest"
-    private const val RELEASES_FALLBACK_URL = "https://github.com/Utsavrajputt/xmd/releases/latest"
+    // /releases/latest is GitHub's own "newest non-prerelease" pointer --
+    // exactly what Stable wants, and cheaper than listing+filtering.
+    // Preview has no equivalent single-object endpoint (GitHub doesn't
+    // expose a "/releases/latest-prerelease"), so it lists recent releases
+    // instead and picks the first one flagged prerelease -- the list is
+    // already newest-first, so that's the latest preview build.
+    private const val RELEASES_LATEST_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases/latest"
+    private const val RELEASES_LIST_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases?per_page=10"
+    private const val RELEASES_FALLBACK_URL = "https://github.com/Utsavrajputt/xmd/releases"
 
     // 10s, not 6s -- GitHub's API can be slow to respond on weak mobile
     // signal, and a too-tight timeout here surfaces as the same generic
@@ -53,54 +70,94 @@ object UpdateChecker {
 
     /**
      * Blocking; call from a background thread/coroutine, never the main
-     * thread. Returns the latest [Release] if it's newer than
-     * [currentVersion], or null if already up to date. Throws
-     * [CheckFailedException] (never a raw network/parse exception) if the
-     * check itself couldn't complete, so callers can tell "no update"
-     * apart from "couldn't check".
+     * thread. Returns the latest [Release] on [channel] if it's newer than
+     * [currentVersion], or null if already up to date with that channel.
+     * Throws [CheckFailedException] (never a raw network/parse exception)
+     * if the check itself couldn't complete, so callers can tell "no
+     * update" apart from "couldn't check".
      */
     @Throws(CheckFailedException::class)
-    fun checkForUpdate(currentVersion: String): Release? {
-        val request = Request.Builder()
-            .url(RELEASES_API_URL)
-            .header("Accept", "application/vnd.github+json")
-            .build()
+    fun checkForUpdate(
+        currentVersion: String,
+        channel: Settings.UpdateChannel = Settings.UpdateChannel.STABLE,
+    ): Release? {
         try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw CheckFailedException("HTTP ${response.code}")
-                val body = response.body?.string()
-                    ?: throw CheckFailedException("Empty response")
-                val json = JSONObject(body)
-                val tagName = json.optString("tag_name").ifBlank {
-                    throw CheckFailedException("Release response missing tag_name")
-                }
-                val htmlUrl = json.optString("html_url", RELEASES_FALLBACK_URL)
-                if (!isNewer(tagName, currentVersion)) return null
+            val json = when (channel) {
+                Settings.UpdateChannel.STABLE -> fetchLatestStable()
+                Settings.UpdateChannel.PREVIEW -> fetchLatestPreview()
+            } ?: return null // Preview: no prerelease exists on the repo at all yet.
 
-                val assetsJson = json.optJSONArray("assets")
-                val assets = buildList {
-                    if (assetsJson != null) {
-                        for (i in 0 until assetsJson.length()) {
-                            val a = assetsJson.optJSONObject(i) ?: continue
-                            val name = a.optString("name").ifBlank { continue }
-                            val downloadUrl = a.optString("browser_download_url").ifBlank { continue }
-                            add(Asset(name = name, downloadUrl = downloadUrl, size = a.optLong("size", 0L)))
-                        }
-                    }
-                }
-                return Release(
-                    tagName = tagName,
-                    htmlUrl = htmlUrl,
-                    body = json.optString("body", ""),
-                    publishedAt = json.optString("published_at", ""),
-                    assets = assets,
-                )
+            val tagName = json.optString("tag_name").ifBlank {
+                throw CheckFailedException("Release response missing tag_name")
             }
+            if (!isNewer(tagName, currentVersion)) return null
+            return parseRelease(json, tagName)
         } catch (e: CheckFailedException) {
             throw e
         } catch (e: Exception) {
             throw CheckFailedException(e.message ?: "Update check failed", e)
         }
+    }
+
+    /** GitHub's own "latest non-prerelease" pointer -- a single release
+     *  object, or null if the repo has no stable release at all. */
+    private fun fetchLatestStable(): JSONObject? {
+        val request = Request.Builder()
+            .url(RELEASES_LATEST_API_URL)
+            .header("Accept", "application/vnd.github+json")
+            .build()
+        client.newCall(request).execute().use { response ->
+            // GitHub returns 404 here (not an empty list) when the repo has
+            // no non-prerelease release yet -- treat that as "no release",
+            // same as Preview finding nothing, not a check failure.
+            if (response.code == 404) return null
+            if (!response.isSuccessful) throw CheckFailedException("HTTP ${response.code}")
+            val body = response.body?.string() ?: throw CheckFailedException("Empty response")
+            return JSONObject(body)
+        }
+    }
+
+    /** Most recent releases (already newest-first), filtered down to the
+     *  first one GitHub has flagged `prerelease: true` -- null if none of
+     *  the fetched page are prereleases (repo has no preview build yet, or
+     *  one further back than [RELEASES_LIST_API_URL]'s page size). */
+    private fun fetchLatestPreview(): JSONObject? {
+        val request = Request.Builder()
+            .url(RELEASES_LIST_API_URL)
+            .header("Accept", "application/vnd.github+json")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw CheckFailedException("HTTP ${response.code}")
+            val body = response.body?.string() ?: throw CheckFailedException("Empty response")
+            val array = JSONArray(body)
+            for (i in 0 until array.length()) {
+                val release = array.optJSONObject(i) ?: continue
+                if (release.optBoolean("prerelease", false)) return release
+            }
+            return null
+        }
+    }
+
+    private fun parseRelease(json: JSONObject, tagName: String): Release {
+        val htmlUrl = json.optString("html_url", RELEASES_FALLBACK_URL)
+        val assetsJson = json.optJSONArray("assets")
+        val assets = buildList {
+            if (assetsJson != null) {
+                for (i in 0 until assetsJson.length()) {
+                    val a = assetsJson.optJSONObject(i) ?: continue
+                    val name = a.optString("name").ifBlank { continue }
+                    val downloadUrl = a.optString("browser_download_url").ifBlank { continue }
+                    add(Asset(name = name, downloadUrl = downloadUrl, size = a.optLong("size", 0L)))
+                }
+            }
+        }
+        return Release(
+            tagName = tagName,
+            htmlUrl = htmlUrl,
+            body = json.optString("body", ""),
+            publishedAt = json.optString("published_at", ""),
+            assets = assets,
+        )
     }
 
     /**

@@ -74,7 +74,7 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
         appScope.launch {
             val release = try {
                 withContext(Dispatchers.IO) {
-                    UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME)
+                    UpdateChecker.checkForUpdate(BuildConfig.VERSION_NAME, Settings.updateChannel())
                 }
             } catch (_: UpdateChecker.CheckFailedException) {
                 null

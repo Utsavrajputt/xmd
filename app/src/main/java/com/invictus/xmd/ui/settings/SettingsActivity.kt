@@ -1000,6 +1000,7 @@ private fun AboutRoute() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var autoCheckForUpdates by remember { mutableStateOf(Settings.autoCheckForUpdatesEnabled()) }
+    var updateChannel by remember { mutableStateOf(Settings.updateChannel()) }
     var isCheckingForUpdate by remember { mutableStateOf(false) }
     var updateAvailability by remember {
         mutableStateOf<UpdateAvailability>(
@@ -1030,6 +1031,7 @@ private fun AboutRoute() {
                         Result.success(
                             com.invictus.xmd.domain.update.UpdateChecker.checkForUpdate(
                                 com.invictus.xmd.BuildConfig.VERSION_NAME,
+                                updateChannel,
                             ),
                         )
                     } catch (e: com.invictus.xmd.domain.update.UpdateChecker.CheckFailedException) {
@@ -1158,6 +1160,18 @@ private fun AboutRoute() {
         onAutoCheckForUpdatesChanged = { enabled ->
             autoCheckForUpdates = enabled
             Settings.setAutoCheckForUpdatesEnabled(enabled)
+        },
+        updateChannel = updateChannel,
+        onUpdateChannelChanged = { channel ->
+            updateChannel = channel
+            Settings.setUpdateChannel(channel)
+            // Any in-progress/found update was resolved against the old
+            // channel -- clear it so a leftover "Download"/"Install" card
+            // (and its cached release+asset) can't point at the wrong
+            // channel's build after switching.
+            pendingRelease = null
+            pendingAsset = null
+            updateAvailability = UpdateAvailability.Idle
         },
         isCheckingForUpdate = isCheckingForUpdate,
         onCheckForUpdateClick = { checkForUpdate() },
