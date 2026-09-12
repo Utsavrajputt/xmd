@@ -232,6 +232,14 @@
     <string name="search_engine_custom_url">Search URL</string>
     <string name="search_engine_custom_url_hint" formatted="false">Use %s where the search query goes (e.g. https://kagi.com/search?q=%s)</string>
     <string name="search_engine_invalid_url">Please enter a valid search URL</string>
+    <string name="settings_home_page">Home Page</string>
+    <string name="settings_home_page_hint">Choose what the Home button in the browser opens.</string>
+    <string name="home_page_speed_dial">Speed Dial</string>
+    <string name="home_page_custom">Custom</string>
+    <string name="home_page_custom_name">Page Name</string>
+    <string name="home_page_custom_url">Home URL</string>
+    <string name="home_page_custom_url_hint">Enter a full URL, e.g. https://example.com</string>
+    <string name="home_page_invalid_url">Please enter a valid URL</string>
     <string name="sniffed_media_title">Videos &amp; audio found on this page</string>
     <string name="sniffed_media_chip_one">🎬 1 video</string>
     <string name="sniffed_media_chip_many">🎬 %d videos</string>

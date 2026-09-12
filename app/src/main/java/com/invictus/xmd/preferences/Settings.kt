@@ -408,6 +408,67 @@ object Settings {
         return template.replace("%s", encoded)
     }
 
+    // ── Browser: Home Page ──────────────────────────────────────────────
+    // What the toolbar's Home button opens. SPEED_DIAL (default) reuses the
+    // existing goHome() behavior (reset tab + show the bookmarks/shortcuts
+    // grid) -- every other entry is a plain URL loaded like a typed address.
+    // Deliberately does NOT affect New Tab or app cold-start, only the Home
+    // button, so those keep landing on the Speed Dial regardless of this
+    // setting.
+    enum class HomePage(
+        val id: String,
+        val displayName: String,
+        val url: String,
+        val domain: String,
+    ) {
+        SPEED_DIAL("speed_dial", "Speed Dial", "", "Bookmarks & shortcuts"),
+        GOOGLE("google", "Google", "https://www.google.com", "google.com"),
+        DUCKDUCKGO("duckduckgo", "DuckDuckGo", "https://duckduckgo.com", "duckduckgo.com"),
+        BRAVE("brave", "Brave Search", "https://search.brave.com", "search.brave.com"),
+        BING("bing", "Bing", "https://www.bing.com", "bing.com"),
+        YAHOO("yahoo", "Yahoo", "https://www.yahoo.com", "yahoo.com"),
+        CUSTOM("custom", "Custom", "", "Custom URL");
+
+        companion object {
+            fun fromId(id: String?): HomePage =
+                entries.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: SPEED_DIAL
+        }
+    }
+
+    private const val KEY_HOME_PAGE = "browser_home_page"
+    private const val KEY_CUSTOM_HOME_URL = "browser_custom_home_url"
+    private const val KEY_CUSTOM_HOME_NAME = "browser_custom_home_name"
+
+    fun homePage(): HomePage =
+        HomePage.fromId(prefs.getString(KEY_HOME_PAGE, HomePage.SPEED_DIAL.id))
+
+    fun setHomePage(page: HomePage) {
+        prefs.edit().putString(KEY_HOME_PAGE, page.id).apply()
+    }
+
+    fun customHomeUrl(): String = prefs.getString(KEY_CUSTOM_HOME_URL, "").orEmpty()
+
+    fun setCustomHomeUrl(url: String) {
+        prefs.edit().putString(KEY_CUSTOM_HOME_URL, url.trim()).apply()
+    }
+
+    fun customHomeName(): String = prefs.getString(KEY_CUSTOM_HOME_NAME, "").orEmpty()
+
+    fun setCustomHomeName(name: String) {
+        prefs.edit().putString(KEY_CUSTOM_HOME_NAME, name.trim()).apply()
+    }
+
+    /** URL the Home button should load, or null when it should show the
+     *  Speed Dial instead (SPEED_DIAL, or CUSTOM with a blank URL). */
+    fun homePageUrl(): String? {
+        val page = homePage()
+        return when (page) {
+            HomePage.SPEED_DIAL -> null
+            HomePage.CUSTOM -> customHomeUrl().trim().ifBlank { null }
+            else -> page.url
+        }
+    }
+
     // Epoch millis of the last successful AdblockListUpdater.refresh() --
     // 0L means "never" (first run, or every attempted refresh has failed
     // so far), which AdblockFilter treats as always-stale so it keeps

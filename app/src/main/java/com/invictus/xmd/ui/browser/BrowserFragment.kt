@@ -695,13 +695,22 @@ class BrowserFragment : Fragment() {
         }
     }
 
-    /** Home button: returns the *current* tab to the speed dial (unlike New
-     *  Tab, which opens an additional tab) -- reuses the existing tab slot
-     *  instead of growing the tab count. */
+    /** Home button: returns the *current* tab to the configured home page
+     *  (Settings.homePageUrl()) -- unlike New Tab, which opens an
+     *  additional tab, this reuses the existing tab slot instead of growing
+     *  the tab count. Default/SPEED_DIAL and a blank custom URL both fall
+     *  back to the original behavior of showing the bookmarks/shortcuts
+     *  grid; any other choice loads that URL the same way a typed address
+     *  would. */
     private fun goHome() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
-        resetTabToBlank(tab)
-        showSpeedDial()
+        val homeUrl = Settings.homePageUrl()
+        if (homeUrl == null) {
+            resetTabToBlank(tab)
+            showSpeedDial()
+        } else {
+            loadUrl(homeUrl)
+        }
     }
 
     // ── WebView pool ─────────────────────────────────────────────────────

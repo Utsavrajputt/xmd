@@ -702,6 +702,17 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     }
     var showSearchEngineDialog by remember { mutableStateOf(false) }
 
+    var homePage by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.homePage())
+    }
+    var customHomeUrl by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.customHomeUrl())
+    }
+    var customHomeName by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.customHomeName())
+    }
+    var showHomePageDialog by remember { mutableStateOf(false) }
+
     var adblockLevel by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
     }
@@ -755,10 +766,34 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
         )
     }
 
+    if (showHomePageDialog) {
+        HomePageDialog(
+            currentPage = homePage,
+            currentCustomUrl = customHomeUrl,
+            currentCustomName = customHomeName,
+            onDismiss = { showHomePageDialog = false },
+            onSave = { page, customUrl, customName ->
+                homePage = page
+                customHomeUrl = customUrl
+                customHomeName = customName
+                com.invictus.xmd.preferences.Settings.setHomePage(page)
+                com.invictus.xmd.preferences.Settings.setCustomHomeUrl(customUrl)
+                com.invictus.xmd.preferences.Settings.setCustomHomeName(customName)
+                showHomePageDialog = false
+            },
+            onInvalidCustomUrl = {
+                android.widget.Toast.makeText(context, R.string.home_page_invalid_url, android.widget.Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+
     SettingsBrowserScreen(
         searchEngine = searchEngine,
         customSearchName = customSearchName,
         onSearchEngineClick = { showSearchEngineDialog = true },
+        homePage = homePage,
+        customHomeName = customHomeName,
+        onHomePageClick = { showHomePageDialog = true },
         adblockLevel = adblockLevel,
         blockedDomainCount = blockedDomainCount,
         lifetimeBlockedCount = lifetimeBlockedCount,
