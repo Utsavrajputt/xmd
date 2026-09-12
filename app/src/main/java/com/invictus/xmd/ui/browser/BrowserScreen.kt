@@ -51,6 +51,42 @@ enum class BrowserMenuAction {
     Settings,
 }
 
+/** A fixed, curated list rather than every Google Translate-supported
+ *  language -- keeps the picker to one screenful. [code] is the Google
+ *  Translate `tl` query param value. */
+internal data class TranslateLanguage(val code: String, val label: String)
+
+internal val TRANSLATE_LANGUAGES = listOf(
+    TranslateLanguage("en", "English"),
+    TranslateLanguage("hi", "Hindi"),
+    TranslateLanguage("es", "Spanish"),
+    TranslateLanguage("fr", "French"),
+    TranslateLanguage("de", "German"),
+    TranslateLanguage("ar", "Arabic"),
+    TranslateLanguage("zh-CN", "Chinese (Simplified)"),
+    TranslateLanguage("ja", "Japanese"),
+    TranslateLanguage("pt", "Portuguese"),
+    TranslateLanguage("ru", "Russian"),
+)
+
+/** Language picker for the browser's Translate menu action -- thin wrapper
+ *  around [com.invictus.xmd.ui.components.AppChoiceDialog] so the language
+ *  list lives next to [BrowserMenuAction]/[BrowserOverflowMenu] rather than
+ *  in the generic dialogs file. */
+@Composable
+internal fun TranslateLanguageDialog(
+    onDismiss: () -> Unit,
+    onLanguageSelected: (code: String) -> Unit,
+) {
+    com.invictus.xmd.ui.components.AppChoiceDialog(
+        title = stringResource(R.string.translate_dialog_title),
+        choices = TRANSLATE_LANGUAGES.map { it.label },
+        dismissLabel = stringResource(android.R.string.cancel),
+        onChoice = { index -> onLanguageSelected(TRANSLATE_LANGUAGES[index].code) },
+        onDismiss = onDismiss,
+    )
+}
+
 internal data class BrowserDownloadPrompt(
     val url: String,
     val fileName: String,
@@ -189,6 +225,7 @@ internal fun BrowserOverflowMenu(
     onSharePage: () -> Unit,
     onAddAsApp: () -> Unit,
     onClearBrowsingData: () -> Unit,
+    onTranslatePage: () -> Unit,
     onAction: (BrowserMenuAction) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
@@ -254,6 +291,12 @@ internal fun BrowserOverflowMenu(
             label = stringResource(R.string.browser_menu_history),
             icon = Icons.History,
             onClick = { onDismiss(); onAction(BrowserMenuAction.History) },
+        )
+        BrowserMenuItem(
+            label = stringResource(R.string.browser_menu_translate),
+            icon = Icons.Language,
+            enabled = currentPageAvailable,
+            onClick = { onDismiss(); onTranslatePage() },
         )
         HorizontalDivider()
         BrowserMenuItem(

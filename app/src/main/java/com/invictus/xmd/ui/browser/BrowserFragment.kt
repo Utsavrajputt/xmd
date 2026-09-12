@@ -162,6 +162,7 @@ class BrowserFragment : Fragment() {
     private var speedDialVisible: Boolean by mutableStateOf(true)
     private var browserMenuExpanded: Boolean by mutableStateOf(false)
     private var clearBrowsingDataDialogOpen: Boolean by mutableStateOf(false)
+    private var showTranslateLanguageDialog: Boolean by mutableStateOf(false)
     private var downloadPrompt: BrowserDownloadPrompt? by mutableStateOf(null)
     // Compose State (not just a plain var) so browserDialogHost's
     // setContent lambda recomposes when this changes -- non-null shows
@@ -402,6 +403,7 @@ class BrowserFragment : Fragment() {
                                     onSharePage = { currentPageUrl()?.let(::shareLink) },
                                     onAddAsApp = ::toggleCurrentPageAsApp,
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
+                                    onTranslatePage = { showTranslateLanguageDialog = true },
                                     onAction = { action ->
                                         (activity as? Callbacks)?.onBrowserMenuAction(action)
                                     },
@@ -550,6 +552,15 @@ class BrowserFragment : Fragment() {
                                         R.string.clear_data_cleared_toast,
                                         Toast.LENGTH_SHORT,
                                     ).show()
+                                },
+                            )
+                        }
+                        if (showTranslateLanguageDialog) {
+                            TranslateLanguageDialog(
+                                onDismiss = { showTranslateLanguageDialog = false },
+                                onLanguageSelected = { code ->
+                                    showTranslateLanguageDialog = false
+                                    translateCurrentPage(code)
                                 },
                             )
                         }
@@ -2034,6 +2045,19 @@ class BrowserFragment : Fragment() {
 
     private fun currentPageUrl(): String? = tabs.getOrNull(currentTabIndex)?.url
         ?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+
+    /** Google Translate's website proxy -- reloads the current page through
+     *  translate.google.com/translate rather than a real on-device
+     *  translation engine, so it needs no API key or extra dependency; same
+     *  trick most lightweight Android browsers use for a "Translate" menu
+     *  item. [targetLangCode] is a Google Translate `tl` value (e.g. "hi",
+     *  "es") from [TRANSLATE_LANGUAGES]. */
+    private fun translateCurrentPage(targetLangCode: String) {
+        val url = currentPageUrl() ?: return
+        val translateUrl = "https://translate.google.com/translate?sl=auto&tl=$targetLangCode&u=" +
+            android.net.Uri.encode(url)
+        loadUrl(translateUrl)
+    }
 
     private fun shareLink(url: String) {
         val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
