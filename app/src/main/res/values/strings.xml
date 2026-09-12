@@ -420,6 +420,9 @@
     <string name="link_expired_title">Link expired</string>
     <string name="link_expired_message">%1$s\n\nThis download link has expired or is no longer available.</string>
     <string name="action_fetch_link">Fetch link</string>
+    <string name="link_refetch_title">Fetch link from website</string>
+    <string name="link_refetch_hint">This link has gone stale. Find the download button on this page and tap it to grab a fresh link.</string>
+    <string name="link_refetch_hint_named">Fetching a fresh link for \"%1$s\". Find the download button on this page and tap it.</string>
     <string name="storage_permission_title">Storage permission required</string>
     <string name="storage_permission_message">Xmd needs all-files access to save downloads in its internal-storage folder. Tap Allow on the next screen.</string>
     <string name="action_allow">Allow</string>

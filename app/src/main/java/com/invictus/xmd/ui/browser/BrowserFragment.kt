@@ -86,6 +86,16 @@ class BrowserFragment : Fragment() {
     interface Callbacks {
         /** Same handoff HomeFragment uses for pasted links -- expands + queues + resolves. */
         fun triggerPrepare(lines: List<String>)
+        /**
+         * Same as [triggerPrepare] for a single link, but also records the
+         * webpage it was captured from ([pageUrl]) -- the browser is the
+         * only entry point that actually knows this. Lets an expired direct
+         * link later be recovered IDM-style by re-opening that page instead
+         * of just re-hitting the same dead URL (see LinkRefetchActivity).
+         * Default implementation just falls back to [triggerPrepare] so
+         * other Callbacks implementers don't need to do anything.
+         */
+        fun triggerPrepareFromPage(url: String, pageUrl: String) { triggerPrepare(listOf(url)) }
         fun onBrowserMenuAction(action: BrowserMenuAction)
         /** A stream MediaSniffer picked up was tapped in the "videos found"
          *  sheet. HLS/DASH ([needsPicker] true) routes through the same
@@ -549,7 +559,12 @@ class BrowserFragment : Fragment() {
                                 onDismiss = { downloadPrompt = null },
                                 onCopyLink = ::copyLinkToClipboard,
                                 onAddToDownloads = { url ->
-                                    (activity as? Callbacks)?.triggerPrepare(listOf(url))
+                                    val pageUrl = tabs.getOrNull(currentTabIndex)?.url
+                                    if (pageUrl != null) {
+                                        (activity as? Callbacks)?.triggerPrepareFromPage(url, pageUrl)
+                                    } else {
+                                        (activity as? Callbacks)?.triggerPrepare(listOf(url))
+                                    }
                                 },
                             )
                         }

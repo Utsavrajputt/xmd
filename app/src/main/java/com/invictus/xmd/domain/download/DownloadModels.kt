@@ -48,3 +48,15 @@ enum class DownloadCategory(val folderName: String, val label: String) {
 
 class ResolutionError(message: String) : Exception(message)
 class DownloadCancelledException(message: String = "Download cancelled") : Exception(message)
+
+/**
+ * Thrown by [DownloadEngine.download] when a direct link comes back
+ * 401/403/404/410 -- the classic "link has expired" signature for any
+ * tokenized/time-limited CDN URL, not just FuckingFast's. Kept distinct
+ * from a plain RuntimeException so callers (DownloadService) can recognize
+ * it by type rather than string-matching the message, while still
+ * surfacing a message containing "expired" for MainActivity's existing
+ * `item.error?.contains("expired")` dialog trigger.
+ */
+class ExpiredLinkException(val httpCode: Int) :
+    Exception("This link has expired or is unavailable (HTTP $httpCode).")

@@ -122,7 +122,7 @@ object QueueRepository {
      * add/replace entries for the links just passed in, so an in-flight
      * download from a prior call is never removed from [master].
      */
-    fun setLinks(rawLinks: List<String>) {
+    fun setLinks(rawLinks: List<String>, pageUrl: String? = null) {
         val toPersist: List<QueueItem>
         synchronized(lock) {
             val current = master.associateBy { it.sourceUrl }
@@ -130,11 +130,11 @@ object QueueRepository {
                 val existing = current[link]
                 when {
                     existing == null ->
-                        QueueItem(id = UUID.randomUUID().toString(), sourceUrl = link, category = CategoryDetector.detect(link))
+                        QueueItem(id = UUID.randomUUID().toString(), sourceUrl = link, category = CategoryDetector.detect(link), pageUrl = pageUrl)
                     // Finished or failed/cancelled items get a clean retry instead of being
                     // stuck reusing their old terminal status (which Prepare would then skip).
                     existing.status == ItemStatus.DONE || existing.status == ItemStatus.FAILED ->
-                        QueueItem(id = UUID.randomUUID().toString(), sourceUrl = link, category = CategoryDetector.detect(link))
+                        QueueItem(id = UUID.randomUUID().toString(), sourceUrl = link, category = CategoryDetector.detect(link), pageUrl = pageUrl)
                     else -> existing // leave anything still in-flight alone
                 }
             }

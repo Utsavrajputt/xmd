@@ -101,6 +101,11 @@
             android:label="@string/challenge_title" />
 
         <activity
+            android:name=".ui.LinkRefetchActivity"
+            android:exported="false"
+            android:label="@string/link_refetch_title" />
+
+        <activity
             android:name=".ui.settings.SettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />

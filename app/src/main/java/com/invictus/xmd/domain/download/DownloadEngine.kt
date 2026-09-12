@@ -27,6 +27,7 @@ typealias LogFn = (String) -> Unit
 private const val STREAM_BLOCK_SIZE = 1024 * 1024
 private const val MULTI_CONNECTION_MIN_BYTES = 4L * 1024 * 1024
 private const val PROGRESS_THROTTLE_NANOS = 200_000_000L // ~5 UI updates/sec
+private val EXPIRED_LINK_CODES = setOf(401, 403, 404, 410)
 
 class DownloadEngine(
     private val client: OkHttpClient,
@@ -604,13 +605,15 @@ class DownloadEngine(
                         streamToFile(response, destination, 0L, totalSize, append = false)
                     }
                     else -> {
-                        val host = runCatching { URI(url).host }.getOrNull()
-                        if (host == "dl.fuckingfast.co" && response.code in setOf(401, 403, 404, 410)) {
-                            throw RuntimeException(
-                                "This direct link has expired or is unavailable. Paste the original " +
-                                "share link to prepare a fresh download URL."
-                            )
-                        }
+                        // Any tokenized/time-limited direct link -- not just
+                        // FuckingFast's -- can come back with one of these once
+                        // its token expires or the CDN drops it. Generalized
+                        // from the old dl.fuckingfast.co-only check so every
+                        // site's expired link gets the same IDM-style "Fetch
+                        // Link" recovery (re-resolve for share links, re-fetch
+                        // from the source page for a plain direct URL) instead
+                        // of just failing outright.
+                        if (response.code in EXPIRED_LINK_CODES) throw ExpiredLinkException(response.code)
                         throw RuntimeException("Failed to download file (HTTP ${response.code})")
                     }
                 }

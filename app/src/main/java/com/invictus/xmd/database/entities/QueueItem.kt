@@ -21,6 +21,12 @@ data class QueueItem(
     val id: String,
     val sourceUrl: String,
     var directUrl: String? = null,
+    // The webpage this link was captured from (browser "Add to Downloads"
+    // only -- other entry points have no page context and leave this null).
+    // Lets an expired generic direct link be recovered IDM-style by
+    // re-opening the page and grabbing a fresh link, instead of just
+    // re-hitting the same dead URL. See LinkRefetchActivity.
+    var pageUrl: String? = null,
     var status: ItemStatus = ItemStatus.PENDING,
     var fileName: String? = null,
     var filePath: String? = null,

@@ -409,6 +409,19 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         pendingChallengeContinuation = null
     }
 
+    // ── LinkRefetchActivity launcher (IDM-style "fetch from website" for an
+    // expired generic direct link -- see retrySingle/refetchFromPage) ─────
+    private var pendingRefetchContinuation: ((directUrl: String?, error: String?) -> Unit)? = null
+
+    private val linkRefetchLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val directUrl = result.data?.getStringExtra(LinkRefetchActivity.EXTRA_DIRECT_URL)
+        val error     = result.data?.getStringExtra(LinkRefetchActivity.EXTRA_ERROR)
+        pendingRefetchContinuation?.invoke(directUrl, error)
+        pendingRefetchContinuation = null
+    }
+
     // ── Storage permission (API 26-28) ────────────────────────────────────
     private val storagePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -1086,6 +1099,21 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
+    /** Same as [triggerPrepare] for a single link, but tags the new/refreshed
+     *  item with the page it was captured from -- see Callbacks doc comment. */
+    override fun triggerPrepareFromPage(url: String, pageUrl: String) {
+        lifecycleScope.launch {
+            val expanded = try {
+                withContext(Dispatchers.IO) { LinkParser.expandSources(listOf(url), client) }
+            } catch (e: ResolutionError) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            QueueRepository.setLinks(expanded, pageUrl = pageUrl)
+            resolveAll()
+        }
+    }
+
     override fun triggerDownloadReady() {
         DownloadService.start(this)
         showDownloadStartedSnackbar()
@@ -1499,6 +1527,17 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         // yt-dlp with the same quality rather than re-prompting.
         val needsResolve = LinkParser.isShareLink(item.sourceUrl) ||
             (LinkParser.needsYtDlp(item.sourceUrl) && item.mediaFormatSelector == null)
+
+        // A plain generic direct link has nothing of its own to re-resolve
+        // -- resubmitting it as-is just re-hits the same dead URL. If we
+        // know the page it was captured from (browser "Add to Downloads"),
+        // do the real IDM-style recovery instead: re-open that page and
+        // grab whatever fresh download link it offers now.
+        if (!needsResolve && item.pageUrl != null) {
+            refetchFromPage(item)
+            return
+        }
+
         QueueRepository.update(item.id) {
             it.copy(
                 status = if (needsResolve) ItemStatus.RESOLVING else ItemStatus.READY,
@@ -1519,10 +1558,52 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     /**
+     * The actual "fetch from website" step for a generic direct link whose
+     * source page we know ([QueueItem.pageUrl]): opens that page in
+     * [LinkRefetchActivity] and waits for it to hand back a fresh download
+     * link (the user may need to click the site's download button again,
+     * same as they would in a desktop browser -- LinkRefetchActivity just
+     * catches whatever URL that click triggers). Mirrors [resolveOne]'s
+     * ChallengeActivity coroutine below, one level more generic since it
+     * isn't tied to FuckingFast's HTMX endpoint.
+     */
+    private suspend fun refetchFromPage(item: QueueItem) {
+        val pageUrl = item.pageUrl ?: return
+        QueueRepository.update(item.id) {
+            it.copy(status = ItemStatus.RESOLVING, error = null, bytesDone = 0L, bytesTotal = 0L, speedBps = 0.0)
+        }
+        val (directUrl, error) = suspendCancellableCoroutine<Pair<String?, String?>> { cont ->
+            val continuation: (String?, String?) -> Unit = { url, err ->
+                if (cont.isActive) cont.resume(url to err)
+            }
+            pendingRefetchContinuation = continuation
+            cont.invokeOnCancellation {
+                if (pendingRefetchContinuation === continuation) {
+                    pendingRefetchContinuation = null
+                }
+            }
+            val intent = Intent(this@MainActivity, LinkRefetchActivity::class.java)
+                .putExtra(LinkRefetchActivity.EXTRA_PAGE_URL, pageUrl)
+                .putExtra(LinkRefetchActivity.EXTRA_FILE_NAME, item.fileName)
+            linkRefetchLauncher.launch(intent)
+        }
+        if (directUrl != null) {
+            QueueRepository.update(item.id) { it.copy(directUrl = directUrl, status = ItemStatus.READY) }
+            DownloadService.start(this@MainActivity)
+            showDownloadStartedSnackbar()
+        } else {
+            QueueRepository.update(item.id) {
+                it.copy(status = ItemStatus.FAILED, error = error ?: "Could not fetch a fresh link from the source page")
+            }
+        }
+    }
+
+    /**
      * IDM-style prompt shown when a retried download comes back with an
      * expired/unavailable link: "Clear" drops the item entirely, "Fetch
-     * Link" retries again (re-resolving from the share link if there is
-     * one) -- looping back into this same check if it expires again.
+     * Link" retries again (re-resolving from the share link, or re-opening
+     * the source page for a plain direct link) -- looping back into this
+     * same check if it expires again.
      */
     private fun showExpiredLinkDialog(item: QueueItem) {
         showMessageDialog(
