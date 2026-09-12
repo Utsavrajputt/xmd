@@ -123,7 +123,7 @@
     <string name="about_github_url" translatable="false">https://github.com/Utsavrajputt/xmd</string>
     <string name="about_license_title">License</string>
     <string name="about_license_body">Released under the GNU Affero General Public License v3.0 (AGPL-3.0). Xmd is free and open-source software — you are free to use, study, share, and modify it.</string>
-    <string name="about_credits_title">Credits &amp; Open Source</string>
+    <string name="about_libraries_title">Libraries</string>
     <string name="about_credits_hint">Xmd is built on the shoulders of these open-source projects</string>
     <string name="about_credit_ytdlp_desc">YouTube and video-site downloads</string>
     <string name="about_credit_libtorrent_desc">Torrent and magnet link downloads</string>
@@ -132,6 +132,20 @@
     <string name="about_credit_room_desc">Local download history storage</string>
     <string name="about_credit_coroutines_desc">Asynchronous downloads</string>
     <string name="about_developers_title">Developers</string>
+    <string name="about_updates_title">Updates</string>
+    <string name="about_auto_check_for_updates">Auto-check for updates</string>
+    <string name="about_check_on_startup">Check on startup</string>
+    <string name="about_check_for_updates_now">Check for updates now</string>
+    <string name="about_checking_for_updates">Checking for updates…</string>
+    <string name="about_up_to_date">You\'re on the latest version</string>
+    <string name="about_update_available">Update available: %1$s</string>
+    <string name="about_ready_to_install">Ready to install: %1$s</string>
+    <string name="about_download_update">Download update</string>
+    <string name="about_install_update">Install update</string>
+    <string name="about_update_progress_percent">%1$d%%</string>
+    <string name="about_update_download_failed">Couldn\'t download the update — check your connection</string>
+    <string name="about_update_check_failed">Couldn\'t check for updates — check your connection</string>
+    <string name="about_update_check_failed_detail">Couldn\'t check for updates: %1$s</string>
     <string name="about_made_by">Built with ♥️ by Invictus</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_hint">Tap a theme to apply it immediately.</string>
@@ -187,9 +201,30 @@
     <string name="settings_disable_categorization_hint">Save all downloads directly into the default location instead of sorting them into Videos, Music, Documents, and other subfolders.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
-    <string name="settings_adblock">Block Ads</string>
-    <string name="settings_adblock_hint">Blocks common ad, tracker, and analytics domains from loading in the in-app browser.</string>
-    <string name="settings_adblock_hint_count">Blocking %,d ad, tracker, and analytics domains in the in-app browser.</string>
+    <string name="settings_data_limit">Daily Data Limit</string>
+    <string name="settings_data_limit_hint">Pause all downloads once today\'s usage for the network below reaches this. Resets at midnight.</string>
+    <string name="settings_data_limit_scope_label">Counts usage from</string>
+    <string name="settings_data_limit_scope_mobile">Mobile Data Only</string>
+    <string name="settings_data_limit_scope_wifi">Wi-Fi Only</string>
+    <string name="settings_data_limit_scope_total">Mobile + Wi-Fi</string>
+    <string name="settings_data_limit_reached_title">Daily data limit reached</string>
+    <string name="settings_data_limit_reached_body">Downloads paused for today. They won\'t resume automatically -- retry after the limit resets at midnight, or raise the limit in Settings.</string>
+    <string name="settings_shields_header">Shields</string>
+    <string name="settings_shields_standard_title">Standard</string>
+    <string name="settings_shields_standard_subtitle">Blocks ads, trackers, and analytics. Safe for any site.</string>
+    <string name="settings_shields_aggressive_title">Aggressive</string>
+    <string name="settings_shields_aggressive_subtitle">Also blocks comment sections, live-chat bubbles, and social embed widgets. May break those on some pages.</string>
+    <string name="settings_shields_off_title">Off</string>
+    <string name="settings_shields_off_subtitle">No ad or tracker blocking in the browser.</string>
+    <string name="settings_shields_coverage">Blocking %,d ad and tracker domains.</string>
+    <string name="settings_shields_coverage_loading">Loading the ad and tracker list\u2026</string>
+    <string name="settings_shields_lifetime_count">%,d requests blocked so far.</string>
+    <string name="settings_shields_allowlist_header">Whitelisted sites</string>
+    <string name="settings_shields_allowlist_empty">No sites yet. Tap Add to whitelist a site.</string>
+    <string name="settings_shields_allowlist_add">Add</string>
+    <string name="settings_shields_add_site_title">Add a whitelisted site</string>
+    <string name="settings_shields_add_site_hint">example.com</string>
+    <string name="settings_shields_add_site_invalid">Enter a valid domain, like example.com</string>
     <string name="settings_background_playback">Background playback</string>
     <string name="settings_background_playback_hint">Keeps audio/video playing when a site would otherwise pause it because the app isn\'t in the foreground.</string>
     <string name="settings_search_engine">Search Engine</string>
@@ -241,7 +276,8 @@
     <string name="audio_format_original">Original (no re-encode)</string>
     <string name="settings_save">Save</string>
     <string name="settings_import_websites">Website Sources</string>
-    <string name="settings_import_websites_hint">Scans Preset folders (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
+    <string name="settings_import_websites_row_title">Source Pack</string>
+    <string name="settings_import_websites_hint">Scans all folders on your device (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
     <string name="settings_import_websites_button">Import Now</string>
 
     <!-- Website Import -->
@@ -326,6 +362,13 @@
     <!-- Browser Menu -->
     <string name="browser_menu_title">Browser</string>
     <string name="browser_menu_private_dns">Private DNS</string>
+    <string name="browser_menu_add_to_home_screen">Add to Home screen</string>
+    <string name="browser_menu_remove_from_home_screen">Remove from Home screen</string>
+    <string name="add_to_home_screen_unsupported">Your launcher doesn\'t support home screen shortcuts</string>
+    <string name="add_to_home_screen_added">Added to Home screen</string>
+    <string name="add_to_home_screen_failed">Couldn\'t add to Home screen</string>
+    <string name="removed_from_home_screen">Removed from Home screen</string>
+    <string name="remove_from_home_screen_failed">Couldn\'t remove from Home screen</string>
     <string name="browser_menu_history">History</string>
     <string name="browser_menu_refresh">Refresh</string>
     <string name="browser_menu_desktop_site">Desktop site</string>
@@ -371,6 +414,11 @@
     <string name="ytdlp_not_installed_title">yt-dlp not installed</string>
     <string name="ytdlp_not_installed_message">This link needs the yt-dlp downloader. Install it from Settings first.</string>
     <string name="action_install_now">Install now</string>
+    <string name="ytdlp_install_prompt_subtitle">This link needs the yt-dlp + ffmpeg engine to download. Install it now?</string>
+    <string name="ytdlp_install_progress_title">Installing yt-dlp\u2026</string>
+    <string name="ytdlp_install_progress_message">Setting up the yt-dlp + ffmpeg engine. This only happens once.</string>
+    <string name="ytdlp_install_failed_message">Couldn\u2019t install yt-dlp. Please try again.</string>
+    <string name="generic_configure">Configure</string>
     <string name="link_expired_title">Link expired</string>
     <string name="link_expired_message">%1$s\n\nThis download link has expired or is no longer available.</string>
     <string name="action_fetch_link">Fetch link</string>
