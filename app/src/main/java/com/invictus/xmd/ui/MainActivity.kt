@@ -169,6 +169,26 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         messageDialogState = state
     }
 
+    /**
+     * Removes the transient RESOLVING placeholder QueueItem that
+     * triggerDownloadDirect() leaves behind for a yt-dlp link while its
+     * AddDownloadDialog is open (setLinks() creates the item up front, and
+     * without a saved default quality the dialog is shown instead of
+     * auto-resolving it). Called from both Cancel and Start on that dialog
+     * so the placeholder never lingers as a stuck duplicate "Queued" entry
+     * either way -- previously only Cancel cleaned it up, and only when the
+     * item happened to already be RESOLVING, which the "no saved default"
+     * path never set.
+     */
+    private fun removeYtDlpDialogPlaceholder(link: String) {
+        val pending = QueueRepository.current().firstOrNull {
+            it.sourceUrl == link && it.status == ItemStatus.RESOLVING
+        }
+        if (pending != null) {
+            QueueRepository.removeItem(pending.id)
+        }
+    }
+
     private fun finishMessageDialog(state: AppMessageDialogState, action: () -> Unit) {
         if (messageDialogState !== state) return
         messageDialogState = null
@@ -647,17 +667,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             pickSaveDirLauncher.launch(null)
                         },
                         onDismiss = {
-                            addDownloadDialogState?.let { state ->
-                                val pending = QueueRepository.current().firstOrNull {
-                                    it.sourceUrl == state.initialLink && it.status == ItemStatus.RESOLVING
-                                }
-                                if (pending != null) {
-                                    QueueRepository.removeItem(pending.id)
-                                }
-                            }
+                            addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                         },
                         onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy ->
+                            addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                             when {
                                 LinkParser.isTorrentLink(link) -> showAddTorrentDialog(prefillLink = link)
@@ -1107,7 +1121,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     }
                 }
             } else {
-                showAddDownloadDialog(ytDlpLines.first())
+                // No saved default quality -- the AddDownloadDialog decides
+                // quality/format instead of auto-resolving. Mark the
+                // setLinks() placeholder RESOLVING (matching the sibling
+                // branch above) so removeYtDlpDialogPlaceholder() actually
+                // finds and clears it once that dialog is dismissed or
+                // started, instead of leaving it stuck at PENDING forever.
+                val firstLink = ytDlpLines.first()
+                val item = QueueRepository.current().firstOrNull { it.sourceUrl == firstLink }
+                if (item != null) {
+                    QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+                }
+                showAddDownloadDialog(firstLink)
             }
         }
     }
