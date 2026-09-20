@@ -46,6 +46,7 @@ object Settings {
     private const val KEY_SPEED_LIMIT_KBPS = "speed_limit_kbps"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
+    private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
     private const val KEY_DEFAULT_SAVE_LOCATION = "default_save_location_path"
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
@@ -142,6 +143,12 @@ object Settings {
     fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, false)
     fun setAutoRetryEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_RETRY, value).apply()
+    }
+
+    /** Tracks whether the initial launch onboarding (storage permission & folder setup) has been finished. */
+    fun isOnboardingCompleted(): Boolean = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+    fun setOnboardingCompleted(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
     }
 
     /** The base folder new downloads are saved under when no per-download

@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.settings
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -106,6 +107,7 @@ class SettingsActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var importCandidates: List<File>? by mutableStateOf(null)
+    private var batteryOptimizationDisabled by mutableStateOf(true)
 
     // Must be registered before onStart -- declared as a property so it's
     // set up during Activity construction, same requirement as any other
@@ -133,6 +135,11 @@ class SettingsActivity : ComponentActivity() {
         appliedEdgeToEdgeDarkMode = isDarkMode
     }
 
+    override fun onResume() {
+        super.onResume()
+        batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() -- Activity.setTheme() only
         // takes effect if called before the window/decor is created. Same
@@ -141,6 +148,7 @@ class SettingsActivity : ComponentActivity() {
         // actually repaint instead of recreating with the default theme.
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
+        batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
         applyEdgeToEdge(isDarkMode = com.invictus.xmd.preferences.Settings.isDarkMode())
 
         // Deep-link straight into a category (e.g. the "Install now" button
@@ -207,8 +215,13 @@ class SettingsActivity : ComponentActivity() {
         onImportWebsites: () -> Unit,
         onExportWebsites: () -> Unit,
     ) {
+        val context = LocalContext.current
         val configuration = LocalConfiguration.current
         val isTablet = configuration.smallestScreenWidthDp >= 600
+
+        var batteryWarningDismissed by remember { mutableStateOf(false) }
+
+        val showBatteryWarning = !batteryOptimizationDisabled && !batteryWarningDismissed
 
         if (isTablet) {
             var selectedRoute by remember {
@@ -247,6 +260,9 @@ class SettingsActivity : ComponentActivity() {
                             SettingsRootScreen(
                                 showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
                                 selectedRoute = selectedRoute,
+                                showBatteryWarning = showBatteryWarning,
+                                onDismissBatteryWarning = { batteryWarningDismissed = true },
+                                onFixBatteryOptimization = { requestDisableBatteryOptimization(context) },
                                 onOpenAppearance = { selectedRoute = Route.APPEARANCE },
                                 onOpenConnections = { selectedRoute = Route.CONNECTIONS },
                                 onOpenBrowser = { selectedRoute = Route.BROWSER },
@@ -334,6 +350,9 @@ class SettingsActivity : ComponentActivity() {
                             SettingsRootScreen(
                                 showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
                                 selectedRoute = null,
+                                showBatteryWarning = showBatteryWarning,
+                                onDismissBatteryWarning = { batteryWarningDismissed = true },
+                                onFixBatteryOptimization = { requestDisableBatteryOptimization(context) },
                                 onOpenAppearance = { navController.navigate(Route.APPEARANCE) },
                                 onOpenConnections = { navController.navigate(Route.CONNECTIONS) },
                                 onOpenBrowser = { navController.navigate(Route.BROWSER) },
@@ -650,21 +669,13 @@ private fun DownloadsRoute() {
     }
     var exactAlarmPermissionGranted by remember { mutableStateOf(hasExactAlarmPermission()) }
 
-    fun hasBatteryOptimizationDisabled(): Boolean {
-        val powerManager = context.getSystemService(android.os.PowerManager::class.java)
-        return powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
-    }
-    var batteryOptimizationDisabled by remember { mutableStateOf(hasBatteryOptimizationDisabled()) }
-
-    // The exact-alarm grant/deny and the battery-optimization dialog both
-    // only happen in a system screen, so there's no callback for either --
+    // The exact-alarm grant/deny only happens in a system screen, so there's no callback --
     // just re-check whenever this screen comes back into the foreground.
     val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 exactAlarmPermissionGranted = hasExactAlarmPermission()
-                batteryOptimizationDisabled = hasBatteryOptimizationDisabled()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -700,7 +711,6 @@ private fun DownloadsRoute() {
         schedulerWindowEndMinute = schedulerWindowEndMinute,
         schedulerDaysMask = schedulerDaysMask,
         exactAlarmPermissionGranted = exactAlarmPermissionGranted,
-        batteryOptimizationDisabled = batteryOptimizationDisabled,
         onAutoRetryChanged = { checked ->
             autoRetry = checked
             com.invictus.xmd.preferences.Settings.setAutoRetryEnabled(checked)
@@ -757,29 +767,35 @@ private fun DownloadsRoute() {
                 context.startActivity(intent)
             }
         },
-        onDisableBatteryOptimization = {
-            val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                .setData(Uri.parse("package:${context.packageName}"))
-            try {
-                context.startActivity(intent)
-            } catch (e: android.content.ActivityNotFoundException) {
-                // Some OEMs (MIUI, ColorOS, etc.) block the direct-request
-                // dialog -- fall back to the generic list screen where the
-                // user finds the app themselves.
-                try {
-                    context.startActivity(
-                        Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    )
-                } catch (e: android.content.ActivityNotFoundException) {
-                    Toast.makeText(
-                        context,
-                        R.string.settings_battery_optimization_settings_unavailable,
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            }
-        },
     )
+}
+
+fun hasBatteryOptimizationDisabled(context: Context): Boolean {
+    val powerManager = context.getSystemService(android.os.PowerManager::class.java)
+    return powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+}
+
+fun requestDisableBatteryOptimization(context: Context) {
+    val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+        .setData(Uri.parse("package:${context.packageName}"))
+    try {
+        context.startActivity(intent)
+    } catch (e: android.content.ActivityNotFoundException) {
+        // Some OEMs (MIUI, ColorOS, etc.) block the direct-request
+        // dialog -- fall back to the generic list screen where the
+        // user finds the app themselves.
+        try {
+            context.startActivity(
+                Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            )
+        } catch (e: android.content.ActivityNotFoundException) {
+            Toast.makeText(
+                context,
+                R.string.settings_battery_optimization_settings_unavailable,
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
 }
 
 @Composable

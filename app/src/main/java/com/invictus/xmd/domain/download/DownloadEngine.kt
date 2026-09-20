@@ -637,15 +637,24 @@ class DownloadEngine(
                             log("File already complete: ${destination.name}"); return
                         }
                         log("Resuming ${destination.name} from $existingSize bytes")
-                        streamToFile(response, destination, existingSize, totalSize, append = true)
+                        streamToFile(response, destination, existingSize, totalSize, append = true, skipBytes = 0L)
                     }
                     200 -> {
                         val totalSize = response.header("content-length")?.toLongOrNull() ?: 0L
                         if (existingSize > 0 && totalSize > 0 && existingSize >= totalSize) {
                             log("File already complete: ${destination.name}"); return
                         }
-                        if (existingSize > 0) log("Server ignored resume; restarting ${destination.name}")
-                        streamToFile(response, destination, 0L, totalSize, append = false)
+                        if (existingSize > 0) {
+                            // Non-resumable download resume (AB Download Manager behavior):
+                            // Server ignored the Range header and is streaming from byte 0.
+                            // Rather than discarding the existing partial file and re-writing from scratch,
+                            // stream from the server, discard/fast-forward the first `existingSize` bytes,
+                            // and resume appending from `existingSize` onwards to completion.
+                            log("Server does not support resuming directly; catching up to $existingSize bytes")
+                            streamToFile(response, destination, initial = 0L, totalSize = totalSize, append = true, skipBytes = existingSize)
+                        } else {
+                            streamToFile(response, destination, 0L, totalSize, append = false, skipBytes = 0L)
+                        }
                     }
                     else -> {
                         // Any tokenized/time-limited direct link -- not just
@@ -679,16 +688,45 @@ class DownloadEngine(
         destination: File,
         initial: Long,
         totalSize: Long,
-        append: Boolean
+        append: Boolean,
+        skipBytes: Long = 0L
     ) {
         val body       = response.body ?: throw RuntimeException("Empty response body")
         var done       = initial
         val speedMeter = SpeedMeter()           // ← per-download sliding window
 
         RandomAccessFile(destination, "rw").use { raf ->
-            if (append) raf.seek(destination.length()) else { raf.setLength(0); raf.seek(0) }
+            if (append) {
+                if (skipBytes > 0) {
+                    raf.seek(skipBytes)
+                } else {
+                    raf.seek(destination.length())
+                }
+            } else {
+                raf.setLength(0)
+                raf.seek(0)
+            }
             body.byteStream().use { input ->
                 val buffer = ByteArray(STREAM_BLOCK_SIZE)
+                var skipped = 0L
+
+                // 1. Fast-forward through already-downloaded bytes if server sent full stream (non-resumable resume)
+                while (skipped < skipBytes) {
+                    checkpoint()
+                    val toRead = (skipBytes - skipped).coerceAtMost(STREAM_BLOCK_SIZE.toLong()).toInt()
+                    val read = input.read(buffer, 0, toRead)
+                    if (read == -1) {
+                        throw IOException("Server closed connection while fast-forwarding to resume position ($skipped/$skipBytes bytes)")
+                    }
+                    if (read == 0) continue
+                    skipped += read
+                    done += read
+                    limiter.acquire(read)
+                    speedMeter.record(read.toLong())
+                    emitProgress(done, totalSize, speedMeter.bps())
+                }
+
+                // 2. Stream remaining content and write directly to file
                 while (true) {
                     checkpoint()
                     val read = input.read(buffer)

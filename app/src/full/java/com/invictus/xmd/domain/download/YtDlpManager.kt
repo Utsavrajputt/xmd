@@ -65,7 +65,7 @@ object YtDlpManager {
      * selector chain is left exactly as before.
      */
     fun standardQualityOptions(isGenericOrHls: Boolean = false): List<QualityOption> = listOf(
-        QualityOption("4K (2160p)", videoSelector(2160, isGenericOrHls), isAudioOnly = false, height = 2160),
+        QualityOption("2160p",      videoSelector(2160, isGenericOrHls), isAudioOnly = false, height = 2160),
         QualityOption("1440p",      videoSelector(1440, isGenericOrHls), isAudioOnly = false, height = 1440),
         QualityOption("1080p",      videoSelector(1080, isGenericOrHls), isAudioOnly = false, height = 1080),
         QualityOption("720p",       videoSelector(720,  isGenericOrHls), isAudioOnly = false, height = 720),
@@ -88,14 +88,14 @@ object YtDlpManager {
             .mapNotNull { it.height }
             .distinct()
             .sortedDescending()
-
+        
         if (videoHeights.isEmpty()) {
             return standardQualityOptions(isGenericOrHls)
         }
 
         val videoOptions = videoHeights.map { h ->
             val label = when (h) {
-                2160 -> "4K (2160p)"
+                2160 -> "2160p"
                 1440 -> "1440p"
                 1080 -> "1080p"
                 720 -> "720p"
@@ -618,18 +618,15 @@ object YtDlpManager {
         request.addOption("--print", "after_move:filepath")
 
         if (option.isAudioOnly) {
-            // Settings.AudioFormatPreset.ORIGINAL (ytDlpFormat == null) skips
-            // -x/--audio-format entirely and keeps whatever container/codec
-            // YouTube actually serves for the best audio-only stream (m4a or
-            // webm/opus) instead of forcing a re-encode; every other preset
-            // extracts+converts to that exact format, same as the old
-            // hardcoded mp3 behavior.
+            // Extract audio to a proper audio container. If a specific format
+            // preset is chosen (e.g. mp3, m4a, flac, opus), convert to it; if
+            // ORIGINAL is selected, -x extracts the raw audio stream into its
+            // native container (e.g. .opus or .m4a instead of raw .webm), which
+            // supports thumbnail embedding.
             val audioFormat = Settings.presetAudioFormat()
+            request.addOption("-x")
             if (audioFormat.ytDlpFormat != null) {
-                request.addOption("-x")
                 request.addOption("--audio-format", audioFormat.ytDlpFormat)
-            } else {
-                request.addOption("-f", "bestaudio/best")
             }
             // ID3 tags: title/uploader come from yt-dlp's own metadata for
             // free via --embed-metadata, but it maps uploader -> "artist"
@@ -665,8 +662,10 @@ object YtDlpManager {
             if (option.height != null) {
                 request.addOption("-S", "res:${option.height}")
             }
-            // Merge container for the video+audio case above.
+            // Merge & remux container for video streams to guarantee a container
+            // (mp4/mkv) that supports thumbnail embedding.
             request.addOption("--merge-output-format", "mp4/mkv")
+            request.addOption("--remux-video", "mp4/mkv")
             request.addOption("--embed-thumbnail")
             // Same reasoning as the audio branch above -- embed it into the
             // video, don't also leave a separate thumbnail image file

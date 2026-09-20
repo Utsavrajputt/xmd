@@ -451,6 +451,33 @@
     <string name="storage_permission_denied">Downloads will fail without storage permission.</string>
     <string name="notification_permission_denied">Download notifications are disabled, so progress will not be shown.</string>
 
+    <!-- Onboarding / Launch Page -->
+    <string name="onboarding_title_storage">Storage &amp; Download Folder</string>
+    <string name="onboarding_desc_storage">Xmd needs storage access to save downloaded files. Please grant permission and choose your default download folder.</string>
+    <string name="onboarding_grant_permission">Grant Storage Access</string>
+    <string name="onboarding_permission_granted">Storage Access Granted</string>
+    <string name="onboarding_permission_required_hint">Storage access is required to proceed.</string>
+    <string name="onboarding_default_path_label">Default Download Location</string>
+    <string name="onboarding_change_path">Change Folder</string>
+    <string name="onboarding_title_notification">Notifications</string>
+    <string name="onboarding_desc_notification">Allow notifications to stay updated on download progress, speed, and completed downloads.</string>
+    <string name="onboarding_grant_notification">Enable Notifications</string>
+    <string name="onboarding_notification_granted">Notifications Enabled</string>
+    <string name="onboarding_notification_hint">Receive real-time progress and alerts when your downloads complete.</string>
+    <string name="onboarding_title_battery">Background Downloads</string>
+    <string name="onboarding_desc_battery">To prevent Android from killing your active downloads in the background, disable battery optimization for Xmd.</string>
+    <string name="onboarding_disable_battery">Disable Battery Optimization</string>
+    <string name="onboarding_battery_disabled">Battery Optimization Disabled</string>
+    <string name="onboarding_skip">Skip for now</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_back">Back</string>
+
+    <!-- Settings Battery Warning Banner -->
+    <string name="settings_battery_warning_title">Battery Optimization Active</string>
+    <string name="settings_battery_warning_desc">Background downloads may be interrupted by the OS.</string>
+    <string name="settings_battery_warning_fix">Disable</string>
+
     <!-- Bottom Nav Tabs -->
     <string name="tab_home">Home</string>
     <string name="tab_downloads">Downloads</string>

@@ -13,6 +13,7 @@ import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,9 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.Color
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -97,12 +100,17 @@ import com.invictus.xmd.ui.downloads.TorrentFilesUiState
 import com.invictus.xmd.ui.downloads.YtDlpInstallPromptDialog
 import com.invictus.xmd.ui.downloads.YtDlpInstallProgressDialog
 import com.invictus.xmd.ui.home.HomeFragment
+import com.invictus.xmd.ui.onboarding.OnboardingScreen
 import com.invictus.xmd.ui.settings.DnsSettingsDialog
 import com.invictus.xmd.ui.settings.SettingsActivity
+import com.invictus.xmd.ui.settings.hasBatteryOptimizationDisabled
+import com.invictus.xmd.ui.settings.requestDisableBatteryOptimization
 import com.invictus.xmd.utils.LinkParser
 import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.utils.storage.OnDuplicateStrategy
 import com.invictus.xmd.utils.storage.StorageUtils
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks,
     HomeFragment.Callbacks {
@@ -468,6 +476,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
+        notificationPermissionGranted = hasNotificationPermission(this)
         if (!granted) {
             Toast.makeText(
                 this,
@@ -485,6 +494,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     // and react only once, only for items the user explicitly retried.
     private val pendingRetryIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
+    private var storagePermissionGranted by mutableStateOf(false)
+    private var notificationPermissionGranted by mutableStateOf(false)
+    private var batteryOptimizationDisabled by mutableStateOf(false)
+
     // ── onResume ──────────────────────────────────────────────────────────
 
     /**
@@ -495,6 +508,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      */
     override fun onResume() {
         super.onResume()
+        storagePermissionGranted = hasStoragePermission()
+        notificationPermissionGranted = hasNotificationPermission(this)
+        batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
         appliedThemeKey = Settings.appTheme().storageKey
         appliedIsDark = Settings.isDarkMode()
         appliedIsAmoled = Settings.isAmoledMode()
@@ -575,9 +591,49 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     destination.name == savedName
                 }
             }
+        storagePermissionGranted = hasStoragePermission()
+        notificationPermissionGranted = hasNotificationPermission(this)
+        batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
         setContent {
             val isDark by Settings.darkModeFlow.collectAsState()
             val themeTransitionState = rememberThemeTransitionState()
+
+            val context = this@MainActivity
+            var defaultLocationPath by remember { mutableStateOf(Settings.defaultSaveLocation()) }
+            var onboardingActive by remember {
+                mutableStateOf(!Settings.isOnboardingCompleted() || !hasStoragePermission())
+            }
+
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+            androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME) {
+                        val hasPerm = hasStoragePermission()
+                        storagePermissionGranted = hasPerm
+                        notificationPermissionGranted = hasNotificationPermission(context)
+                        batteryOptimizationDisabled = hasBatteryOptimizationDisabled(context)
+                        defaultLocationPath = Settings.defaultSaveLocation()
+                        if (hasPerm && Settings.isOnboardingCompleted()) {
+                            onboardingActive = false
+                        }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
+            val pickDefaultSaveDirLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocumentTree()
+            ) { uri: Uri? ->
+                if (uri == null) return@rememberLauncherForActivityResult
+                val path = StorageUtils.resolveTreeUriToPath(uri)
+                if (path != null) {
+                    defaultLocationPath = path
+                    Settings.setDefaultSaveLocation(path)
+                } else {
+                    Toast.makeText(context, R.string.torrent_dialog_save_path_failed, Toast.LENGTH_LONG).show()
+                }
+            }
 
             LaunchedEffect(isDark) {
                 if (themeTransitionState.isAnimating) {
@@ -654,6 +710,24 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         },
                         onInvalidCustomUrl = {
                             Toast.makeText(this, R.string.dns_custom_url_needed, Toast.LENGTH_SHORT).show()
+                        },
+                    )
+                }
+
+                if (onboardingActive) {
+                    OnboardingScreen(
+                        hasStoragePermission = storagePermissionGranted,
+                        defaultLocationPath = defaultLocationPath,
+                        hasNotificationPermission = notificationPermissionGranted,
+                        batteryOptimizationDisabled = batteryOptimizationDisabled,
+                        onGrantStoragePermission = { requestStoragePermission() },
+                        onChangeDefaultLocation = { pickDefaultSaveDirLauncher.launch(null) },
+                        onRequestNotificationPermission = { requestNotificationPermission() },
+                        onDisableBatteryOptimization = { requestDisableBatteryOptimization(this@MainActivity) },
+                        onFinishOnboarding = {
+                            Settings.setOnboardingCompleted(true)
+                            onboardingActive = false
+                            autoResumePendingDownloads()
                         },
                     )
                 }
@@ -915,9 +989,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
         }
 
-        checkStoragePermission()
-        checkNotificationPermission()
-        autoResumePendingDownloads()
+        if (Settings.isOnboardingCompleted() && hasStoragePermission()) {
+            checkNotificationPermission()
+            autoResumePendingDownloads()
+        }
         handleIncomingIntent(intent)
     }
 
@@ -1904,53 +1979,84 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     // ── Storage permission ────────────────────────────────────────────────
 
-    private fun checkStoragePermission() {
+    fun hasStoragePermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(
+                this, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    fun requestStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                showMessageDialog(
-                    AppMessageDialogState(
-                        title = getString(R.string.storage_permission_title),
-                        message = getString(R.string.storage_permission_message),
-                        confirmLabel = getString(R.string.action_allow),
-                        dismissLabel = getString(android.R.string.cancel),
-                        onConfirm = {
-                            startActivity(
-                                Intent(
-                                    AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                                    Uri.fromParts("package", packageName, null)
-                                )
-                            )
-                        },
-                        onDismissAction = {
-                            Toast.makeText(
-                                this,
-                                R.string.storage_permission_denied,
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        },
-                    )
-                )
+            val intent = Intent(
+                AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.fromParts("package", packageName, null)
+            )
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                try {
+                    startActivity(Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                } catch (e2: Exception) {
+                    Toast.makeText(this, R.string.storage_permission_denied, Toast.LENGTH_LONG).show()
+                }
             }
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun checkStoragePermission() {
+        if (!hasStoragePermission()) {
+            requestStoragePermission()
         }
     }
 
     // ── Notification permission ─────────────────────────────────────────
 
-    private fun checkNotificationPermission() {
+    private fun hasNotificationPermission(context: Context): Boolean {
+        val areEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        if (!areEnabled) return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+
+    private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this, Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
             }
+        }
+        val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            val appDetailsIntent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+            try {
+                startActivity(appDetailsIntent)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun checkNotificationPermission() {
+        if (!hasNotificationPermission(this) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
