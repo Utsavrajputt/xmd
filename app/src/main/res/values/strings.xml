@@ -141,6 +141,15 @@
     <string name="about_upi_copied">UPI ID copied!</string>
     <string name="about_upi_no_app">No UPI app found</string>
     <string name="about_upi_send">Send love</string>
+    <string name="about_contributors_loading">Loading contributors…</string>
+    <string name="about_contributors_error">Couldn\'t load contributors</string>
+    <string name="about_contributors_empty">No contributors found.</string>
+    <string name="about_contributors_retry">Retry</string>
+    <string name="about_contributors_view_all">View all contributors</string>
+    <plurals name="about_contributor_commits">
+        <item quantity="one">%d commit</item>
+        <item quantity="other">%d commits</item>
+    </plurals>
     <string name="about_updates_title">Updates</string>
     <string name="about_auto_check_for_updates">Auto-check for updates</string>
     <string name="about_check_on_startup">Check on startup</string>

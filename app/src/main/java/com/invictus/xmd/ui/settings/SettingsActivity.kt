@@ -1238,12 +1238,6 @@ private fun AboutRoute(onLibrariesClick: () -> Unit) {
         context.startActivity(intent)
     }
 
-    val developers = listOf(
-        AboutDeveloper("Utsav Rajput", "Utsavrajputt"),
-        AboutDeveloper("Arnab Sadhukhan", "Arnab11"),
-        AboutDeveloper("Ritesh Pandit", "Riteshp2001"),
-    )
-
     AboutScreen(
         versionText = stringResource(R.string.about_version_format, com.invictus.xmd.BuildConfig.VERSION_NAME),
         onGithubClick = {
@@ -1251,11 +1245,6 @@ private fun AboutRoute(onLibrariesClick: () -> Unit) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         },
         onLibrariesClick = onLibrariesClick,
-        developers = developers,
-        onDeveloperClick = { developer ->
-            val url = "https://github.com/${developer.githubId}"
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        },
         autoCheckForUpdates = autoCheckForUpdates,
         onAutoCheckForUpdatesChanged = { enabled ->
             autoCheckForUpdates = enabled

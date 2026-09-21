@@ -72,16 +72,11 @@ import com.invictus.xmd.utils.GithubAvatarLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** A developer credit -- [name] shown as the row title, [githubId] shown as
- * subtext and used to open `github.com/<githubId>` when the row is tapped. */
-data class AboutDeveloper(val name: String, val githubId: String)
-
 /**
  * Where an update the user has explicitly asked about (via the "Check for
  * updates now" button or a found auto-check) currently stands. UI-only --
  * doesn't reference [com.invictus.xmd.domain.update.UpdateChecker.Release]
- * directly so this file stays decoupled from the domain layer, same as
- * [AboutDeveloper] above.
+ * directly so this file stays decoupled from the domain layer.
  */
 sealed class UpdateAvailability {
     data object Idle : UpdateAvailability()
@@ -119,8 +114,6 @@ fun AboutScreen(
     versionText: String,
     onGithubClick: () -> Unit,
     onLibrariesClick: () -> Unit,
-    developers: List<AboutDeveloper>,
-    onDeveloperClick: (AboutDeveloper) -> Unit,
     autoCheckForUpdates: Boolean,
     onAutoCheckForUpdatesChanged: (Boolean) -> Unit,
     updateChannel: Settings.UpdateChannel,
@@ -454,19 +447,8 @@ fun AboutScreen(
             }
         }
 
-        // ===== Developers =====
-        Spacer(Modifier.height(8.dp))
-        SettingsSectionHeader(title = stringResource(R.string.about_developers_title))
-
-        SettingsSectionCard {
-            developers.forEachIndexed { index, developer ->
-                DeveloperRow(
-                    developer = developer,
-                    onClick = { onDeveloperClick(developer) },
-                )
-                if (index != developers.lastIndex) SettingsDivider()
-            }
-        }
+        // ===== Developers (GitHub contributors, cached 72h) =====
+        AboutContributorsSection(githubRepoUrl = stringResource(R.string.about_github_url))
 
         // ===== License =====
         Spacer(Modifier.height(8.dp))
@@ -614,71 +596,5 @@ private fun UpdateAvailabilityCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DeveloperRow(developer: AboutDeveloper, onClick: () -> Unit) {
-    var avatarBitmap by remember(developer.githubId) {
-        mutableStateOf<android.graphics.Bitmap?>(null)
-    }
-    LaunchedEffect(developer.githubId) {
-        avatarBitmap = withContext(Dispatchers.IO) {
-            GithubAvatarLoader.load(developer.githubId)
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            val bitmap = avatarBitmap
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = developer.name,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "@${developer.githubId}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
-        Icon(
-            imageVector = Icons.OpenInNew,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.size(18.dp),
-        )
     }
 }
