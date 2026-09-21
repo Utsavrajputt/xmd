@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,9 +37,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.invictus.xmd.domain.download.ScheduleMode
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
 import java.util.Calendar
 import java.util.Locale
 
@@ -260,8 +264,8 @@ fun OneTimeStartPickerDialog(
 
 /**
  * Compact per-item schedule control for AddDownloadDialog/AddTorrentDialog's
- * Advanced section -- same OutlinedButton + DropdownMenu shape as the
- * quality picker / DataLimitScopeRow. [globalSchedulerEnabled] hides the
+ * Advanced section -- same card + DropdownMenu shape as the
+ * "Save to" folder picker card. [globalSchedulerEnabled] hides the
  * "Use quiet hours" option when there's no global default to inherit.
  */
 @Composable
@@ -289,19 +293,50 @@ fun ScheduleSelectorRow(
     }
 
     Column {
+        // Label + card mirror the "Save to" / FolderPickerCard row above it
+        // so the two Advanced rows read as one family.
         Text(
             text = "Schedule",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 6.dp),
         )
         Box {
-            OutlinedButton(
+            Surface(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                Text(label, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = label,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Icon(
+                        imageVector = Icons.ArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(
