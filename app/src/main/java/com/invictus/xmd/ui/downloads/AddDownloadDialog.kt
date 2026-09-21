@@ -221,7 +221,7 @@ fun AddDownloadDialog(
     val codecChoices: List<String?> = remember(scopedVideoFormats, probedVideoFormats) {
         if (probedVideoFormats.isEmpty()) listOf(null, "avc1", "vp09", "av01")
         else listOf<String?>(null) + scopedVideoFormats
-            .mapNotNull { it.vcodec?.substringBefore('.') }
+            .mapNotNull { it.vcodec?.substringBefore('.')?.let { c -> if (c == "vp9") "vp09" else c } }
             .distinct()
             .sortedBy { CODEC_ORDER.indexOf(it).let { i -> if (i < 0) CODEC_ORDER.size else i } }
     }

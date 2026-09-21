@@ -221,6 +221,7 @@ private fun AddressPill(
     // BrowserFragment.addressBarText) so a real edit in progress here
     // doesn't get its cursor position clobbered on every recomposition.
     var fieldValue by remember { mutableStateOf(TextFieldValue(text)) }
+    var fieldFocused by remember { mutableStateOf(false) }
     LaunchedEffect(text) {
         if (text != fieldValue.text) {
             // Cursor at the start on programmatic update so the domain stays visible
@@ -269,6 +270,7 @@ private fun AddressPill(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
                         .onFocusChanged { state ->
+                            fieldFocused = state.isFocused
                             onFocusChange(state.isFocused)
                         },
                     singleLine = true,
@@ -295,6 +297,25 @@ private fun AddressPill(
                         innerTextField()
                     },
                 )
+            }
+            // Clear-URL button, next to the bookmark: only while editing a
+            // non-empty address. Focus stays in the field so the keyboard
+            // remains open for typing the next URL.
+            if (fieldFocused && fieldValue.text.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        fieldValue = TextFieldValue("")
+                        onTextChange("")
+                    },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Close,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
             if (bookmarkVisible) {
                 IconButton(

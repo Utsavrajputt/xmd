@@ -181,10 +181,17 @@ object YtDlpManager {
             return "bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]/bestvideo+bestaudio/best$genericFallback"
         }
 
-        val videoFilters = buildList {
+        // YouTube reports VP9 as either "vp09.xx..." or the older plain
+        // "vp9", and `^=` is a literal prefix match, so VP9 gets both
+        // spellings as separate alternatives (canonical form is "vp09").
+        val codecAlternatives: List<String?> = when (codecPrefix) {
+            "vp09" -> listOf("vp09", "vp9")
+            else -> listOf(codecPrefix)
+        }
+        fun videoFilters(codec: String?): String = buildList {
             add("height$heightCmp$maxHeight")
             container.ytDlpExt?.let { add("ext=$it") }
-            codecPrefix?.let { add("vcodec^=$it") }
+            codec?.let { add("vcodec^=$it") }
             maxFps?.let { add("fps<=$it") }
         }.joinToString("][")
 
@@ -199,7 +206,8 @@ object YtDlpManager {
         }
         val strictAudio = audioExt?.let { "bestaudio[ext=$it]" } ?: "bestaudio"
 
-        return "bestvideo[$videoFilters]+$strictAudio/bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]/bestvideo+bestaudio/best$genericFallback"
+        val exactMatches = codecAlternatives.joinToString("/") { "bestvideo[${videoFilters(it)}]+$strictAudio" }
+        return "$exactMatches/bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]/bestvideo+bestaudio/best$genericFallback"
     }
 
     /**
