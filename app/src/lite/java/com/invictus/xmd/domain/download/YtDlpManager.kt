@@ -56,6 +56,13 @@ object YtDlpManager {
     /** Always empty in this flavor -- gated behind BuildConfig.HAS_YOUTUBE_SUPPORT at the call site, same as everything else here. */
     fun probeFormats(url: String, context: Context): ProbeResult = ProbeResult(null, emptyList(), null)
 
+    fun videoSelectorFor(
+        maxHeight: Int,
+        isGenericOrHls: Boolean,
+        codecPrefix: String?,
+        maxFps: Int?,
+    ): String = ""
+
     fun advancedSelector(format: ProbedFormat): String = format.formatId
 
     fun formatSize(format: ProbedFormat, durationSeconds: Int?): String? = null

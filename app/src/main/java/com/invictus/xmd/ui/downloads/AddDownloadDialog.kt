@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.downloads
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -86,7 +88,7 @@ import com.invictus.xmd.utils.storage.OnDuplicateStrategy
  * dialog?.dismiss() + showAddTorrentDialog() redirect) -- the caller is
  * expected to close this dialog and open the torrent one.
  *
- * Note: the advanced-streams list nests a scrollable Column inside this
+ * Note: the streams list (opened by the "Streams" chip after Audio) nests a scrollable Column inside this
  * dialog's own scrollable Column (the old XML used a NestedScrollView with
  * a manual touch-intercept listener for the same reason). Compose handles
  * nested vertical scroll reasonably but this pairing hasn't been verified
@@ -177,6 +179,12 @@ fun AddDownloadDialog(
 
     var selectedQualityLabel by remember { mutableStateOf<String?>(null) }
     var selectedQualityOption by remember { mutableStateOf<YtDlpManager.QualityOption?>(null) }
+    // Per-download fps/codec pick (null = Auto). Seeded from the saved
+    // Settings presets and never written back to them.
+    var selectedFps by remember { mutableStateOf(Settings.presetFps().maxFps) }
+    var selectedCodec by remember { mutableStateOf(Settings.presetCodec().vcodecPrefix) }
+    var formatOptionsExpanded by remember { mutableStateOf(false) }
+    var streamsExpanded by remember { mutableStateOf(false) }
     var advancedLoading by remember { mutableStateOf(false) }
     var advancedFormats by remember { mutableStateOf<List<YtDlpManager.ProbedFormat>>(emptyList()) }
     var advancedDurationSeconds by remember { mutableStateOf<Int?>(null) }
@@ -193,12 +201,47 @@ fun AddDownloadDialog(
         availableQualityOptions.firstOrNull { it.isAudioOnly }
             ?: YtDlpManager.QualityOption("Audio", YtDlpManager.AUDIO_ONLY_SELECTOR, isAudioOnly = true)
     }
-    val qualityItems = remember(videoOptions) { videoOptions.map { it.label } + "Audio" }
+    val qualityItems = remember(videoOptions) { videoOptions.map { it.label } + "Audio" + STREAMS_CHIP_LABEL }
+
+    // FPS / codec chips: start from the fixed presets (same values the
+    // Settings quality section offers), then switch to what the probed
+    // streams really offer at the selected height once the probe returns.
+    val selectedHeight = selectedQualityOption?.height
+    val probedVideoFormats = remember(advancedFormats) { advancedFormats.filter { !it.isAudioOnly } }
+    val scopedVideoFormats = remember(probedVideoFormats, selectedHeight) {
+        if (selectedHeight == null) probedVideoFormats
+        else probedVideoFormats.filter { it.height == selectedHeight }
+            .ifEmpty { probedVideoFormats.filter { (it.height ?: 0) <= selectedHeight } }
+            .ifEmpty { probedVideoFormats }
+    }
+    val fpsChoices: List<Int?> = remember(scopedVideoFormats, probedVideoFormats) {
+        if (probedVideoFormats.isEmpty()) listOf(null, 30, 60)
+        else listOf<Int?>(null) + scopedVideoFormats.mapNotNull { it.fps }.distinct().sorted()
+    }
+    val codecChoices: List<String?> = remember(scopedVideoFormats, probedVideoFormats) {
+        if (probedVideoFormats.isEmpty()) listOf(null, "avc1", "vp09", "av01")
+        else listOf<String?>(null) + scopedVideoFormats
+            .mapNotNull { it.vcodec?.substringBefore('.') }
+            .distinct()
+            .sortedBy { CODEC_ORDER.indexOf(it).let { i -> if (i < 0) CODEC_ORDER.size else i } }
+    }
+    val effectiveFps = selectedFps?.takeIf { it in fpsChoices }
+    val effectiveCodec = selectedCodec?.takeIf { it in codecChoices }
+    val finalQualityOption = remember(selectedQualityOption, selectedAdvancedFormat, effectiveFps, effectiveCodec, isGeneric) {
+        val opt = selectedQualityOption
+        val h = opt?.height
+        if (opt != null && selectedAdvancedFormat == null && !opt.isAudioOnly && h != null) {
+            opt.copy(formatSelector = YtDlpManager.videoSelectorFor(h, isGeneric, effectiveCodec, effectiveFps))
+        } else opt
+    }
 
     // Reset quality selection + kick off the advanced probe whenever the
     // effective link changes -- mirrors updateQualitySection()'s
     // currentQualityLink guard via the LaunchedEffect key.
     LaunchedEffect(link, needsYtDlp) {
+        selectedFps = Settings.presetFps().maxFps
+        selectedCodec = Settings.presetCodec().vcodecPrefix
+        streamsExpanded = false
         if (!needsYtDlp) {
             selectedQualityLabel = null
             selectedQualityOption = null
@@ -446,25 +489,49 @@ fun AddDownloadDialog(
 
                 if (needsYtDlp) {
                     Spacer(Modifier.height(14.dp))
-                    Text(
-                        stringResource(R.string.download_dialog_quality_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.download_dialog_quality_label),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = { formatOptionsExpanded = !formatOptionsExpanded },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.ArrowDown,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .rotate(if (formatOptionsExpanded) 180f else 0f),
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     // Chip grid instead of a dropdown -- every quality rung
                     // is a single tap, same pattern as the yt-dlp settings
-                    // screen's quality/audio pickers.
+                    // screen's quality/audio pickers. "Streams" is the last
+                    // chip; it opens the raw probed stream list below and is
+                    // only highlighted once one of those streams is picked.
                     ChipGrid(
                         modifier = Modifier.fillMaxWidth(),
                         options = qualityItems,
-                        selected = selectedQualityLabel ?: "",
+                        selected = if (selectedAdvancedFormat != null) STREAMS_CHIP_LABEL else selectedQualityLabel ?: "",
                         onSelected = { index ->
                             val item = qualityItems[index]
-                            selectedQualityLabel = item
-                            selectedAdvancedFormat = null
-                            selectedQualityOption = if (item == "Audio") audioOption
-                            else videoOptions.firstOrNull { it.label == item }
+                            if (item == STREAMS_CHIP_LABEL) {
+                                streamsExpanded = !streamsExpanded
+                            } else {
+                                selectedQualityLabel = item
+                                selectedAdvancedFormat = null
+                                selectedQualityOption = if (item == "Audio") audioOption
+                                else videoOptions.firstOrNull { it.label == item }
+                            }
                         },
                         columns = 4,
                     )
@@ -483,6 +550,100 @@ fun AddDownloadDialog(
                             selected = audioFormatChoices.firstOrNull { it.second == audioFormatPreset }?.first ?: "MP3",
                             onSelected = { index -> audioFormatPreset = audioFormatChoices[index].second },
                         )
+                    }
+
+                    // FPS + codec only make sense for the ladder's video rungs;
+                    // an exact stream pick or Audio already pins them.
+                    AnimatedVisibility(
+                        visible = formatOptionsExpanded &&
+                            selectedAdvancedFormat == null &&
+                            selectedQualityLabel != "Audio",
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(10.dp))
+                            ChipLabel("FPS")
+                            ChipRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                options = fpsChoices.map { if (it == null) "Auto" else "${it}fps" },
+                                selected = effectiveFps?.let { "${it}fps" } ?: "Auto",
+                                onSelected = { index -> selectedFps = fpsChoices[index] },
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            ChipLabel("Codec")
+                            ChipRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                options = codecChoices.map { codecLabel(it) },
+                                selected = codecLabel(effectiveCodec),
+                                onSelected = { index -> selectedCodec = codecChoices[index] },
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = streamsExpanded) {
+                        Column {
+                            Spacer(Modifier.height(10.dp))
+                            ChipLabel(stringResource(R.string.download_dialog_advanced_streams_title))
+                            when {
+                                advancedLoading -> Text(
+                                    stringResource(R.string.download_dialog_advanced_streams_probing),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                )
+                                advancedFormats.isEmpty() -> Text(
+                                    stringResource(R.string.download_dialog_advanced_streams_empty),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                )
+                                else -> Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 210.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                ) {
+                                    Column(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        advancedFormats.forEachIndexed { index, format ->
+                                            val label = advancedStreamLabel(format, advancedDurationSeconds)
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .selectable(
+                                                        selected = selectedAdvancedFormat == format,
+                                                        onClick = {
+                                                            selectedAdvancedFormat = format
+                                                            selectedQualityOption = YtDlpManager.QualityOption(
+                                                                label = label,
+                                                                formatSelector = YtDlpManager.advancedSelector(format),
+                                                                isAudioOnly = format.isAudioOnly,
+                                                            )
+                                                            if (format.isAudioOnly) selectedQualityLabel = "Audio"
+                                                        },
+                                                    )
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                RadioButton(selected = selectedAdvancedFormat == format, onClick = null)
+                                                Text(
+                                                    label,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    modifier = Modifier.padding(start = 8.dp),
+                                                )
+                                            }
+                                            if (index < advancedFormats.lastIndex) {
+                                                HorizontalDivider(
+                                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -536,77 +697,6 @@ fun AddDownloadDialog(
                             windowDaysMask = daysMask
                         },
                     )
-
-                    if (needsYtDlp) {
-                        Spacer(Modifier.height(14.dp))
-                        Text(
-                            stringResource(R.string.download_dialog_advanced_streams_title),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        when {
-                            advancedLoading -> Text(
-                                stringResource(R.string.download_dialog_advanced_streams_probing),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(vertical = 4.dp),
-                            )
-                            advancedFormats.isEmpty() -> Text(
-                                stringResource(R.string.download_dialog_advanced_streams_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(vertical = 4.dp),
-                            )
-                            else -> Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 210.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            ) {
-                                Column(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .verticalScroll(rememberScrollState())
-                                ) {
-                                    advancedFormats.forEachIndexed { index, format ->
-                                        val label = advancedStreamLabel(format, advancedDurationSeconds)
-                                        Row(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .selectable(
-                                                    selected = selectedAdvancedFormat == format,
-                                                    onClick = {
-                                                        selectedAdvancedFormat = format
-                                                        selectedQualityOption = YtDlpManager.QualityOption(
-                                                            label = label,
-                                                            formatSelector = YtDlpManager.advancedSelector(format),
-                                                            isAudioOnly = format.isAudioOnly,
-                                                        )
-                                                        if (format.isAudioOnly) selectedQualityLabel = "Audio"
-                                                    },
-                                                )
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            RadioButton(selected = selectedAdvancedFormat == format, onClick = null)
-                                            Text(
-                                                label,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.padding(start = 8.dp),
-                                            )
-                                        }
-                                        if (index < advancedFormats.lastIndex) {
-                                            HorizontalDivider(
-                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         },
@@ -634,7 +724,7 @@ fun AddDownloadDialog(
                             link.trim(),
                             name.trim().takeUnless { it.isBlank() },
                             customSaveDir,
-                            selectedQualityOption,
+                            finalQualityOption,
                             audioFormatPreset,
                             onDuplicateStrategy,
                             scheduleMode,
@@ -775,4 +865,17 @@ private fun advancedStreamLabel(format: YtDlpManager.ProbedFormat, durationSecon
     if (format.acodec != null && format.isAudioOnly) append(" \u00b7 ${format.acodec.substringBefore('.')}")
     val sizeText = YtDlpManager.formatSize(format, durationSeconds)
     if (sizeText != null) append(" \u00b7 $sizeText")
+}
+
+private const val STREAMS_CHIP_LABEL = "Streams"
+
+/** Display order for the codec chips; anything else yt-dlp reports (hevc, vp8...) follows alphabetically-by-arrival. */
+private val CODEC_ORDER = listOf("avc1", "vp09", "av01")
+
+private fun codecLabel(prefix: String?): String = when (prefix) {
+    null -> "Auto"
+    "avc1" -> "AVC"
+    "vp09" -> "VP9"
+    "av01" -> "AV1"
+    else -> prefix.uppercase()
 }

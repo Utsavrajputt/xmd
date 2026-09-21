@@ -150,10 +150,13 @@ object YtDlpManager {
      * All three preset fields at ANY (nothing picked, the default) folds
      * back to exactly the original unconstrained selector.
      */
-    private fun videoSelector(maxHeight: Int, isGenericOrHls: Boolean = false): String {
+    private fun videoSelector(
+        maxHeight: Int,
+        isGenericOrHls: Boolean = false,
+        codecPrefix: String? = Settings.presetCodec().vcodecPrefix,
+        maxFps: Int? = Settings.presetFps().maxFps,
+    ): String {
         val container = Settings.presetContainer()
-        val codec = Settings.presetCodec()
-        val fps = Settings.presetFps()
 
         // "<=?" instead of "<=" for generic/HLS links only: yt-dlp's "?"
         // operator matches a format if the field is within range *or* the
@@ -172,8 +175,8 @@ object YtDlpManager {
         val genericFallback = if (isGenericOrHls) "/best" else ""
 
         if (container == Settings.ContainerPreset.ANY &&
-            codec == Settings.CodecPreset.ANY &&
-            fps == Settings.FpsPreset.ANY
+            codecPrefix == null &&
+            maxFps == null
         ) {
             return "bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]/bestvideo+bestaudio/best$genericFallback"
         }
@@ -181,8 +184,8 @@ object YtDlpManager {
         val videoFilters = buildList {
             add("height$heightCmp$maxHeight")
             container.ytDlpExt?.let { add("ext=$it") }
-            codec.vcodecPrefix?.let { add("vcodec^=$it") }
-            fps.maxFps?.let { add("fps<=$it") }
+            codecPrefix?.let { add("vcodec^=$it") }
+            maxFps?.let { add("fps<=$it") }
         }.joinToString("][")
 
         // Audio track container mirrors the chosen video container where
@@ -198,6 +201,20 @@ object YtDlpManager {
 
         return "bestvideo[$videoFilters]+$strictAudio/bestvideo[height$heightCmp$maxHeight]+bestaudio/best[height$heightCmp$maxHeight]/bestvideo+bestaudio/best$genericFallback"
     }
+
+    /**
+     * Same selector [standardQualityOptions] builds for [maxHeight], but with
+     * the codec prefix (e.g. "avc1") and fps ceiling supplied by the caller
+     * instead of read from Settings -- lets the Add Download dialog apply a
+     * per-download fps/codec pick without touching the saved presets.
+     * Null means "no constraint" (Auto).
+     */
+    fun videoSelectorFor(
+        maxHeight: Int,
+        isGenericOrHls: Boolean,
+        codecPrefix: String?,
+        maxFps: Int?,
+    ): String = videoSelector(maxHeight, isGenericOrHls, codecPrefix, maxFps)
 
     /** Result of [probeFormats]: every real stream yt-dlp reports for a URL, plus the video's title and duration (needed to estimate size for formats where yt-dlp doesn't report filesize directly). */
     data class ProbeResult(
