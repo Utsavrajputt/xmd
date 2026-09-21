@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
@@ -201,7 +202,15 @@ fun AddDownloadDialog(
         availableQualityOptions.firstOrNull { it.isAudioOnly }
             ?: YtDlpManager.QualityOption("Audio", YtDlpManager.AUDIO_ONLY_SELECTOR, isAudioOnly = true)
     }
-    val qualityItems = remember(videoOptions) { videoOptions.map { it.label } + "Audio" + STREAMS_CHIP_LABEL }
+    // Streams chip label doubles as a status: "Streams…" while probing,
+    // "Streams (N)" once formats are in, plain (and disabled) when the
+    // probe found nothing -- so the chip never opens onto an empty list.
+    val streamsLabel = when {
+        advancedLoading -> "$STREAMS_CHIP_LABEL\u2026"
+        advancedFormats.isNotEmpty() -> "$STREAMS_CHIP_LABEL (${advancedFormats.size})"
+        else -> STREAMS_CHIP_LABEL
+    }
+    val qualityItems = remember(videoOptions, streamsLabel) { videoOptions.map { it.label } + "Audio" + streamsLabel }
 
     // FPS / codec chips: start from the fixed presets (same values the
     // Settings quality section offers), then switch to what the probed
@@ -227,6 +236,21 @@ fun AddDownloadDialog(
     }
     val effectiveFps = selectedFps?.takeIf { it in fpsChoices }
     val effectiveCodec = selectedCodec?.takeIf { it in codecChoices }
+    // Collapsed-header summary, e.g. "1080p · 60fps · VP9". Only when an fps
+    // or codec is actually picked (otherwise it'd just repeat the highlighted
+    // chip) and only for ladder video rungs -- Audio / exact streams pin these.
+    val formatSummary = if (
+        (effectiveFps != null || effectiveCodec != null) &&
+        selectedAdvancedFormat == null &&
+        selectedQualityLabel != null &&
+        selectedQualityLabel != "Audio"
+    ) {
+        listOfNotNull(
+            selectedQualityLabel,
+            effectiveFps?.let { "${it}fps" },
+            effectiveCodec?.let { codecLabel(it) },
+        ).joinToString(" \u00b7 ")
+    } else null
     val finalQualityOption = remember(selectedQualityOption, selectedAdvancedFormat, effectiveFps, effectiveCodec, isGeneric) {
         val opt = selectedQualityOption
         val h = opt?.height
@@ -497,8 +521,23 @@ fun AddDownloadDialog(
                             stringResource(R.string.download_dialog_quality_label),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
                         )
+                        if (!formatOptionsExpanded && formatSummary != null) {
+                            Text(
+                                text = formatSummary,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.End,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
                         IconButton(
                             onClick = { formatOptionsExpanded = !formatOptionsExpanded },
                             modifier = Modifier.size(28.dp),
@@ -521,10 +560,10 @@ fun AddDownloadDialog(
                     ChipGrid(
                         modifier = Modifier.fillMaxWidth(),
                         options = qualityItems,
-                        selected = if (selectedAdvancedFormat != null) STREAMS_CHIP_LABEL else selectedQualityLabel ?: "",
+                        selected = if (selectedAdvancedFormat != null) streamsLabel else selectedQualityLabel ?: "",
                         onSelected = { index ->
                             val item = qualityItems[index]
-                            if (item == STREAMS_CHIP_LABEL) {
+                            if (index == qualityItems.lastIndex) {
                                 streamsExpanded = !streamsExpanded
                             } else {
                                 selectedQualityLabel = item
@@ -534,6 +573,8 @@ fun AddDownloadDialog(
                             }
                         },
                         columns = 4,
+                        wrapLongLabels = true,
+                        disabledOptions = if (advancedFormats.isEmpty()) setOf(streamsLabel) else emptySet(),
                     )
                     if (selectedQualityLabel == "Audio") {
                         val audioFormatChoices = listOf(

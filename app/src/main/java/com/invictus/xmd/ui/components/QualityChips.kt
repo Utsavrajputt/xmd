@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -59,6 +60,10 @@ internal fun ChipGrid(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     columns: Int = 4,
+    /** Long labels (e.g. "Streams (14)") shrink slightly and may wrap to two lines instead of clipping. */
+    wrapLongLabels: Boolean = false,
+    /** Options shown dimmed and not tappable. */
+    disabledOptions: Set<String> = emptySet(),
 ) {
     Column(
         modifier = modifier,
@@ -75,6 +80,8 @@ internal fun ChipGrid(
                         label = option,
                         selected = option == selected,
                         onClick = { onSelected(index) },
+                        enabled = option !in disabledOptions,
+                        wrapLongLabel = wrapLongLabels,
                     )
                 }
                 repeat(columns - rowOptions.size) {
@@ -114,6 +121,8 @@ internal fun AppFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    wrapLongLabel: Boolean = false,
 ) {
     val backgroundColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer
@@ -131,12 +140,16 @@ internal fun AppFilterChip(
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     }
 
+    val dimAlpha = if (enabled) 1f else 0.38f
+    val compact = wrapLongLabel && label.length > 8
+
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.height(34.dp),
         shape = RoundedCornerShape(8.dp),
         color = backgroundColor,
-        border = BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor.copy(alpha = borderColor.alpha * dimAlpha)),
     ) {
         Box(
             modifier = Modifier
@@ -146,11 +159,12 @@ internal fun AppFilterChip(
         ) {
             Text(
                 text = label,
-                fontSize = 12.sp,
+                fontSize = if (compact) 10.sp else 12.sp,
+                lineHeight = if (compact) 11.sp else TextUnit.Unspecified,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color = contentColor,
-                maxLines = 1,
-                softWrap = false,
+                color = contentColor.copy(alpha = contentColor.alpha * dimAlpha),
+                maxLines = if (compact) 2 else 1,
+                softWrap = compact,
                 overflow = TextOverflow.Clip,
                 textAlign = TextAlign.Center,
             )
