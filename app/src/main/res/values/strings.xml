@@ -132,6 +132,15 @@
     <string name="about_credit_room_desc">Local download history storage</string>
     <string name="about_credit_coroutines_desc">Asynchronous downloads</string>
     <string name="about_developers_title">Developers</string>
+    <string name="about_support_title">Support</string>
+    <string name="about_support_heading">Support Xmd</string>
+    <string name="about_support_body">Publishing Xmd on the Play Store needs a developer account fee and testing costs. Your small support helps make it happen. Every bit counts!</string>
+    <string name="about_upi_id_label">UPI ID</string>
+    <string name="about_upi_id" translatable="false">utsavrajput@yesfam</string>
+    <string name="about_upi_copy">Copy UPI ID</string>
+    <string name="about_upi_copied">UPI ID copied!</string>
+    <string name="about_upi_no_app">No UPI app found</string>
+    <string name="about_upi_send">Send love</string>
     <string name="about_updates_title">Updates</string>
     <string name="about_auto_check_for_updates">Auto-check for updates</string>
     <string name="about_check_on_startup">Check on startup</string>
