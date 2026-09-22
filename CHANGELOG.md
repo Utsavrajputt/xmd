@@ -3,6 +3,40 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.0.0] - 2026-09-22
+
+### ✨ Added
+- 🎵 **SponsorBlock integration and playlist downloads** for yt-dlp links.
+- 📝 **Embed-subtitles option** in the Add Download dialog's Advanced section — Off/Embed toggle with language chips, mirroring the SponsorBlock UI.
+- 🚀 **3-step launch onboarding flow**, plus a **real-time battery-optimization warning banner** surfaced directly in Settings (replaces the earlier static battery card in Downloads settings).
+- 🔁 **Resume support for non-resumable downloads** — downloads that previously couldn't resume can now continue instead of restarting from scratch.
+- 💳 **Support section** added to About — UPI donation card with a tap-to-copy ID and a "Send love" button that opens a `upi://pay` intent.
+- 👥 About's **Developers section now pulls live GitHub contributors** (avatar, login, commit count, top 8 + View all, loading/error/retry states) instead of a hardcoded list, cached on disk for 72h.
+- 🎚️ **Format summary shown in the Add Download dialog header**, plus a streams-count chip.
+- 🍫 **Quality picker reworked into a 4-per-row chip grid** (replacing the dropdown menu), with the Audio-format sub-picker (MP3/M4A/Opus/Original) shown as its own chip row when "Audio only" is selected.
+- 📥 **Browser downloads now route straight into the full Add Download dialog** — pre-filled with link, detected filename, and page URL — instead of a separate "Add to Downloads?" confirm prompt; this applies to WebView-intercepted downloads too, and expired-link recovery still works through the new path.
+- 📆 **Schedule row restyled** (clock icon, label, chevron, dropdown) to match the Save-to card in both the Add Download and Add Torrent dialogs, with the day picker rebuilt as tappable circles so all 7 days fit without clipping.
+- 🔗 **xmd now shows up in Android's "Open with" chooser for direct file links** (`.apk`/`.zip`/`.rar`/`.7z`/`.exe`/`.msi`/`.iso`/`.pdf`, e.g. GitHub raw downloads) — added explicit `pathPattern`-based `VIEW` filters to `ShareReceiverActivity`, the same technique used elsewhere in the Morphe ecosystem, since a bare `*/*` mimeType wildcard was losing to apps that declare pathPattern matches.
+
+### 🛠 Fixed
+- 🎬 Thumbnail-embedding errors on WebM audio streams from yt-dlp.
+- ✂️ Quality chip text no longer gets cropped; resolution labels simplified.
+- 🎞️ Duplicate VP9 codec chip in the quality picker (vp9/vp09 now canonicalized to one preset); address bar gained a clear (✕) button while focused and non-empty.
+- 🧲 Torrent-file picker no longer shows in the Add Download dialog when it was opened from a browser download click.
+- 📤 Reverted an interim `content://`/`file://` local-file-import fix for the "Open with" issue above — it fired on link tap, before any local file existed to import, so it addressed the wrong stage of the flow.
+- ⚙️ Assorted compile fixes: restored missing imports and resolved a ViewModel setter signature clash introduced during the downloads refactor below.
+
+### 🗑️ Removed
+- 🎚️ The dedicated FPS/Codec dropdown and its header summary were pulled from the quality picker in favor of the plain quality-option selector (later replaced by the chip-grid rework above); the Advanced section's expand icon shrank to a single rotating chevron.
+
+### 🎨 Changed
+- 🧵 **Downloads pipeline hardened**: duplicate-aware enqueue and typed queue-state transitions centralized, queue persistence serialized, yt-dlp stop handling made race-safe, navigation/search state preserved across recreation, and release size reduced.
+- ⚙️ yt-dlp **download execution, format discovery, and file handling realigned** for consistency across entry points.
+- 🔗 About's GitHub link renamed to just "GitHub"; the Home tab is now hidden by default.
+- 📐 Download container icon size reduced.
+
+---
+
 ## [1.0.0-beta.6] - 2026-09-12
 
 ### ✨ Added

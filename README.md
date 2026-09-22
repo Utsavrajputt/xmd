@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Pre-release (`v1.0.0-beta.6`)** — under active development, expect rough edges. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **`v1.0.0`** — first stable release. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
