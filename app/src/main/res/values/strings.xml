@@ -150,6 +150,19 @@
         <item quantity="one">%d commit</item>
         <item quantity="other">%d commits</item>
     </plurals>
+    <string name="download_dialog_sponsorblock_title">SponsorBlock</string>
+    <string name="download_dialog_sponsorblock_off">Off</string>
+    <string name="download_dialog_sponsorblock_mark">Mark</string>
+    <string name="download_dialog_sponsorblock_remove">Remove</string>
+    <string name="download_dialog_sponsorblock_categories_label">Categories</string>
+    <string name="download_dialog_playlist_loading">Checking playlist\u2026</string>
+    <string name="download_dialog_playlist_detected">Playlist detected \u00b7 %d video(s)</string>
+    <string name="download_dialog_playlist_just_this">Just this video</string>
+    <string name="download_dialog_playlist_choose">Choose videos</string>
+    <string name="download_dialog_playlist_selected_count">%1$d of %2$d selected</string>
+    <string name="download_dialog_playlist_select_all">Select all</string>
+    <string name="download_dialog_playlist_select_none">Select none</string>
+    <string name="download_dialog_playlist_add_n">Add %d</string>
     <string name="about_updates_title">Updates</string>
     <string name="about_auto_check_for_updates">Auto-check for updates</string>
     <string name="about_check_on_startup">Check on startup</string>

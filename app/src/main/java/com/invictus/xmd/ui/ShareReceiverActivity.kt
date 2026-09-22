@@ -129,6 +129,9 @@ class ShareReceiverActivity : AppCompatActivity() {
                         probeRealFilename = { link ->
                             withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(filenameClient, link) }
                         },
+                        probePlaylist = { link ->
+                            withContext(Dispatchers.IO) { YtDlpManager.probePlaylist(link, this@ShareReceiverActivity) }
+                        },
                         onDetectedTorrentLink = { torrentLink ->
                             currentDownloadLink = null
                             showAddTorrentDialog(prefillLink = torrentLink)
@@ -164,7 +167,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                         onDismiss = {
                             dismissAndFinish()
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories ->
                             currentDownloadLink = null
                             when {
                                 LinkParser.isTorrentLink(link) -> {
@@ -184,6 +187,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                                     startYoutubeDownload(
                                         link, name, saveDir, quality, audioFormat, duplicateStrategy,
                                         scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask,
+                                        sponsorBlockMode, sponsorBlockCategories,
                                     )
                                 }
                                 LinkParser.isGenericDownloadUrl(link) -> {
@@ -521,6 +525,8 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowStartMinute = windowStartMinute,
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
+            sponsorBlockMode = sponsorBlockMode,
+            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
         QueueRepository.enqueue(newItem)
         DownloadService.start(this)
@@ -540,6 +546,8 @@ class ShareReceiverActivity : AppCompatActivity() {
         windowStartMinute: Int = -1,
         windowEndMinute: Int = -1,
         windowDaysMask: Int = 0x7F,
+        sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
+        sponsorBlockCategories: Set<String> = emptySet(),
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             Toast.makeText(this, R.string.share_full_build_required, Toast.LENGTH_LONG).show()

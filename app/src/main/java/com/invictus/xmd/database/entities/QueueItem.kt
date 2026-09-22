@@ -53,5 +53,10 @@ data class QueueItem(
     var windowStartMinute: Int = -1,
     var windowEndMinute: Int = -1,
     // CUSTOM_WINDOW: bit 0 = Sunday .. bit 6 = Saturday. Defaults to every day.
-    var windowDaysMask: Int = 0x7F
+    var windowDaysMask: Int = 0x7F,
+    // ── SponsorBlock (YouTube items, per-download -- not a saved preset) ─
+    var sponsorBlockMode: com.invictus.xmd.domain.download.YtDlpManager.SponsorBlockMode =
+        com.invictus.xmd.domain.download.YtDlpManager.SponsorBlockMode.OFF,
+    // Comma-joined category ids (see YtDlpManager.SPONSORBLOCK_CATEGORIES); empty = yt-dlp's own "sponsor" default.
+    var sponsorBlockCategories: String = ""
 )

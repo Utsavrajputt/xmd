@@ -166,6 +166,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val windowEndMinute: Int = -1,
         val windowDaysMask: Int = 0x7F,
         val pageUrl: String? = null,
+        val sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
+        val sponsorBlockCategories: Set<String> = emptySet(),
     )
 
     private var pendingYoutubeDownloadRequest: PendingYoutubeDownloadRequest? by mutableStateOf(null)
@@ -245,6 +247,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         windowEndMinute = request.windowEndMinute,
                         windowDaysMask = request.windowDaysMask,
                         pageUrl = request.pageUrl,
+                        sponsorBlockMode = request.sponsorBlockMode,
+                        sponsorBlockCategories = request.sponsorBlockCategories,
                     )
                 }
             } else {
@@ -743,6 +747,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         probeRealFilename = { link ->
                             withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(filenameClient, link) }
                         },
+                        probePlaylist = { link ->
+                            withContext(Dispatchers.IO) { YtDlpManager.probePlaylist(link, this@MainActivity) }
+                        },
                         onDetectedTorrentLink = { link ->
                             addDownloadDialogState = null
                             showAddTorrentDialog(prefillLink = link)
@@ -783,7 +790,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories ->
                             val capturedPageUrl = addDownloadDialogState?.pageUrl
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
@@ -797,6 +804,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                                         scheduleMode = scheduleMode, scheduledAtMs = scheduledAtMs,
                                         windowStartMinute = windowStartMinute, windowEndMinute = windowEndMinute, windowDaysMask = windowDaysMask,
                                         pageUrl = capturedPageUrl,
+                                        sponsorBlockMode = sponsorBlockMode, sponsorBlockCategories = sponsorBlockCategories,
                                     )
                                 LinkParser.isGenericDownloadUrl(link) ->
                                     triggerDownloadDirectCustom(
@@ -1355,6 +1363,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
             pageUrl = pageUrl,
+            sponsorBlockMode = sponsorBlockMode,
+            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
         QueueRepository.enqueue(newItem)
         DownloadService.start(this)
@@ -1374,6 +1384,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         windowEndMinute: Int = -1,
         windowDaysMask: Int = 0x7F,
         pageUrl: String? = null,
+        sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
+        sponsorBlockCategories: Set<String> = emptySet(),
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             showMessageDialog(
@@ -1399,6 +1411,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 windowEndMinute = windowEndMinute,
                 windowDaysMask = windowDaysMask,
                 pageUrl = pageUrl,
+                sponsorBlockMode = sponsorBlockMode,
+                sponsorBlockCategories = sponsorBlockCategories,
             )
             showYtDlpInstallPrompt = true
             return

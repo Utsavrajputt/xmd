@@ -690,7 +690,12 @@ class DownloadService : LifecycleService() {
                     outputDir = outputDir,
                     processId = itemId,
                     context = this@DownloadService,
-                    customFileName = customName
+                    customFileName = customName,
+                    sponsorBlockMode = item.sponsorBlockMode,
+                    sponsorBlockCategories = item.sponsorBlockCategories
+                        .split(',')
+                        .filter { it.isNotBlank() }
+                        .toSet(),
                 ) { progress ->
                     QueueRepository.update(itemId) {
                         it.copy(

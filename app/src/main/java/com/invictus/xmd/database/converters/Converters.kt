@@ -5,6 +5,7 @@ import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.MediaPlatform
 import com.invictus.xmd.domain.download.ScheduleMode
+import com.invictus.xmd.domain.download.YtDlpManager
 
 /**
  * Room can't store enums natively -- it needs an explicit mapping to a
@@ -40,4 +41,11 @@ class Converters {
     @TypeConverter
     fun toScheduleMode(value: String): ScheduleMode =
         runCatching { ScheduleMode.valueOf(value) }.getOrDefault(ScheduleMode.NONE)
+
+    @TypeConverter
+    fun fromSponsorBlockMode(value: YtDlpManager.SponsorBlockMode): String = value.name
+
+    @TypeConverter
+    fun toSponsorBlockMode(value: String): YtDlpManager.SponsorBlockMode =
+        runCatching { YtDlpManager.SponsorBlockMode.valueOf(value) }.getOrDefault(YtDlpManager.SponsorBlockMode.OFF)
 }
