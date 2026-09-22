@@ -1209,7 +1209,7 @@ private fun CompactIconButton(
     tint: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 48.dp,
+    size: androidx.compose.ui.unit.Dp = 28.dp,
     iconSize: androidx.compose.ui.unit.Dp = 20.dp,
 ) {
     Box(
