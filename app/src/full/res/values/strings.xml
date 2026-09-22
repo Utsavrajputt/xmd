@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_supported_sources">Direct links · Torrents · Video sites</string>
+    <string name="settings_ytdlp_hint">Full includes Python and FFmpeg because Android requires executable engines to ship inside the app. Lite omits them for a smaller install.</string>
+</resources>

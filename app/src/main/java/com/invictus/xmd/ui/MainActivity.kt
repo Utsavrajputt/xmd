@@ -17,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -42,6 +43,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.invictus.xmd.R
 import com.invictus.xmd.BuildConfig
 import java.util.UUID
+import com.invictus.xmd.service.DownloadEnqueueCoordinator
 import com.invictus.xmd.service.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -106,7 +108,6 @@ import com.invictus.xmd.ui.settings.SettingsActivity
 import com.invictus.xmd.ui.settings.hasBatteryOptimizationDisabled
 import com.invictus.xmd.ui.settings.requestDisableBatteryOptimization
 import com.invictus.xmd.utils.LinkParser
-import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.utils.storage.OnDuplicateStrategy
 import com.invictus.xmd.utils.storage.StorageUtils
 import androidx.lifecycle.LifecycleEventObserver
@@ -114,12 +115,21 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks,
     HomeFragment.Callbacks {
-    private var mainDestination: MainDestination by mutableStateOf(MainDestination.Downloads)
+    private val activityState: MainActivityViewModel by viewModels()
+    private var mainDestination: MainDestination
+        get() = activityState.mainDestination
+        set(value) = activityState.setMainDestination(value)
     private var navigationItems: List<MainNavigationItem> by mutableStateOf(MainNavigationItem.entries.toList())
     private var activeDownloadCount: Int by mutableIntStateOf(0)
-    private var headerSearchActive: Boolean by mutableStateOf(false)
-    private var headerSearchQuery: String by mutableStateOf("")
-    private var savedPagesDestination: SavedPagesDestination? by mutableStateOf(null)
+    private var headerSearchActive: Boolean
+        get() = activityState.headerSearchActive
+        set(value) = activityState.setHeaderSearchActive(value)
+    private var headerSearchQuery: String
+        get() = activityState.headerSearchQuery
+        set(value) = activityState.setHeaderSearchQuery(value)
+    private var savedPagesDestination: SavedPagesDestination?
+        get() = activityState.savedPagesDestination
+        set(value) = activityState.setSavedPagesDestination(value)
     private val snackbarHostState = SnackbarHostState()
     private var messageDialogState: AppMessageDialogState? by mutableStateOf(null)
     private var expiredLinkDialogState: ExpiredLinkDialogState? by mutableStateOf(null)
@@ -187,7 +197,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private fun updateHeaderSearchQuery(query: String) {
         headerSearchQuery = query
-        downloadsFragment()?.setFilterQuery(query)
     }
 
     private fun showMessageDialog(state: AppMessageDialogState) {
@@ -572,29 +581,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         super.onCreate(savedInstanceState)
         applyEdgeToEdge(isDarkMode = Settings.isDarkMode())
         navigationItems = configuredNavigationItems()
-        if (savedInstanceState == null) {
-            mainDestination = configuredDefaultDestination()
-        } else {
-            // Process death/recreation (e.g. the app was backgrounded -- say,
-            // while the user hopped into the Browser tab and hit back --
-            // long enough for the system to kill it): mainDestination's
-            // in-class default (Downloads) would otherwise win here, which
-            // re-shows the Downloads/Home header even though the user was
-            // last on the Browser tab. Restore whichever tab was actually
-            // showing so the header stays correctly hidden/shown.
-            mainDestination = savedInstanceState
-                .getString(STATE_MAIN_DESTINATION)
-                ?.let { savedName -> MainDestination.entries.firstOrNull { it.name == savedName } }
-                ?: configuredDefaultDestination()
-        }
+        activityState.initializeMainDestination(configuredDefaultDestination())
         currentTabTag = tagFor(mainDestination)
-        savedPagesDestination = savedInstanceState
-            ?.getString(STATE_SAVED_PAGES_DESTINATION)
-            ?.let { savedName ->
-                SavedPagesDestination.entries.firstOrNull { destination ->
-                    destination.name == savedName
-                }
-            }
         storagePermissionGranted = hasStoragePermission()
         notificationPermissionGranted = hasNotificationPermission(this)
         batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
@@ -1004,14 +992,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         handleIncomingIntent(intent)
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString(STATE_MAIN_DESTINATION, mainDestination.name)
-        savedPagesDestination?.let { destination ->
-            outState.putString(STATE_SAVED_PAGES_DESTINATION, destination.name)
-        }
-        super.onSaveInstanceState(outState)
-    }
-
     // ── Incoming links (external download-manager / share target) ──────────
     // Fires when: (a) a browser's download picker launches xmd for a VIEW
     // intent on a http(s) link (see the manifest intent-filter), or (b) a
@@ -1277,7 +1257,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         otherLines.forEach { link ->
             val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
             if (item != null) {
-                QueueRepository.update(item.id) { it.copy(directUrl = link, status = ItemStatus.READY) }
+                QueueRepository.markReady(item.id, directUrl = link)
             }
         }
         if (otherLines.isNotEmpty()) {
@@ -1291,7 +1271,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 lifecycleScope.launch {
                     for (link in ytDlpLines) {
                         val item = QueueRepository.current().firstOrNull { it.sourceUrl == link } ?: continue
-                        QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+                        QueueRepository.markResolving(item.id)
                         resolveOne(item)
                     }
                 }
@@ -1305,9 +1285,23 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 val firstLink = ytDlpLines.first()
                 val item = QueueRepository.current().firstOrNull { it.sourceUrl == firstLink }
                 if (item != null) {
-                    QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+                    QueueRepository.markResolving(item.id)
                 }
                 showAddDownloadDialog(firstLink)
+            }
+        }
+    }
+
+    private fun enqueueDownload(item: QueueItem, duplicateStrategy: OnDuplicateStrategy?): Boolean {
+        return when (DownloadEnqueueCoordinator.enqueueAndStart(this, item, duplicateStrategy)) {
+            is QueueRepository.EnqueueResult.Success -> true
+            is QueueRepository.EnqueueResult.ActiveConflict -> {
+                Toast.makeText(this, R.string.download_override_active, Toast.LENGTH_LONG).show()
+                false
+            }
+            is QueueRepository.EnqueueResult.DeleteFailed -> {
+                Toast.makeText(this, R.string.download_override_delete_failed, Toast.LENGTH_LONG).show()
+                false
             }
         }
     }
@@ -1327,34 +1321,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val category = CategoryDetector.detect(link, hint = name)
         val resolvedName = name?.takeUnless { it.isBlank() }
             ?: DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             category = category,
             scheduleMode = scheduleMode,
@@ -1363,11 +1336,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
             pageUrl = pageUrl,
-            sponsorBlockMode = sponsorBlockMode,
-            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         showDownloadStartedSnackbar()
     }
 
@@ -1440,27 +1410,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
         val category = if (quality.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
         val resolvedName = name?.takeUnless { it.isBlank() } ?: extractYoutubeFallbackName(link)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
@@ -1470,7 +1419,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             mediaFormatSelector = quality.formatSelector,
             mediaFormatLabel = formatLabel,
             category = category,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             scheduleMode = scheduleMode,
             scheduledAtMs = scheduledAtMs,
@@ -1478,9 +1427,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
             pageUrl = pageUrl,
+            sponsorBlockMode = sponsorBlockMode,
+            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         showDownloadStartedSnackbar()
     }
 
@@ -1526,34 +1476,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val link = uri.toString()
         val resolvedName = displayName?.takeUnless { it.isBlank() } ?: "Torrent Download"
         val category = CategoryDetector.detect(link, hint = resolvedName)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             selectedFileIndices = selectedFileIndices,
             category = category,
@@ -1563,8 +1492,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         showDownloadStartedSnackbar()
     }
 
@@ -1588,34 +1516,13 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     ) {
         val resolvedName = name?.takeUnless { it.isBlank() } ?: magnetDisplayName(link) ?: "Magnet Download"
         val category = CategoryDetector.detect(link, hint = resolvedName)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             selectedFileIndices = selectedFileIndices,
             category = category,
@@ -1625,8 +1532,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         showDownloadStartedSnackbar()
     }
 
@@ -1671,7 +1577,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         } else {
             QueueRepository.setLinks(listOf(url))
             val item = QueueRepository.current().firstOrNull { it.sourceUrl == url } ?: return
-            QueueRepository.update(item.id) { it.copy(directUrl = url, status = ItemStatus.READY) }
+            QueueRepository.markReady(item.id, directUrl = url)
             DownloadService.start(this)
             showDownloadStartedSnackbar()
         }
@@ -1740,16 +1646,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val needsResolve = LinkParser.isShareLink(item.sourceUrl) ||
             (LinkParser.needsYtDlp(item.sourceUrl) && item.mediaFormatSelector == null)
 
-        QueueRepository.update(item.id) {
-            it.copy(
-                status = if (needsResolve) ItemStatus.RESOLVING else ItemStatus.READY,
-                error = null,
-                bytesDone = 0L,
-                bytesTotal = 0L,
-                speedBps = 0.0,
-                directUrl = if (needsResolve) null else (it.directUrl ?: it.sourceUrl)
-            )
-        }
+        QueueRepository.resetForRetry(item.id, needsResolve)
         if (needsResolve) {
             val refreshed = QueueRepository.current().first { it.id == item.id }
             resolveOne(refreshed)
@@ -1771,9 +1668,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      */
     private suspend fun refetchFromPage(item: QueueItem) {
         val pageUrl = item.pageUrl ?: return
-        QueueRepository.update(item.id) {
-            it.copy(status = ItemStatus.RESOLVING, error = null, bytesDone = 0L, bytesTotal = 0L, speedBps = 0.0)
-        }
+        QueueRepository.markResolving(item.id, resetProgress = true)
         val (directUrl, error) = suspendCancellableCoroutine<Pair<String?, String?>> { cont ->
             val continuation: (String?, String?) -> Unit = { url, err ->
                 if (cont.isActive) cont.resume(url to err)
@@ -1790,13 +1685,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             linkRefetchLauncher.launch(intent)
         }
         if (directUrl != null) {
-            QueueRepository.update(item.id) { it.copy(directUrl = directUrl, status = ItemStatus.READY) }
+            QueueRepository.markReady(item.id, directUrl = directUrl)
             DownloadService.start(this@MainActivity)
             showDownloadStartedSnackbar()
         } else {
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = error ?: "Could not fetch a fresh link from the source page")
-            }
+            QueueRepository.markFailed(item.id, error ?: "Could not fetch a fresh link from the source page")
         }
     }
 
@@ -1828,7 +1721,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private suspend fun resolveAll() {
         val items = QueueRepository.current().filter { it.status == ItemStatus.PENDING }
         for ((index, item) in items.withIndex()) {
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.RESOLVING) }
+            QueueRepository.markResolving(item.id)
             resolveOne(item)
             if (index + 1 < items.size) delay(500)
         }
@@ -1840,9 +1733,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             return
         }
         if (LinkParser.isGenericDownloadUrl(item.sourceUrl)) {
-            QueueRepository.update(item.id) {
-                it.copy(directUrl = item.sourceUrl, status = ItemStatus.READY)
-            }
+            QueueRepository.markReady(item.id, directUrl = item.sourceUrl)
             // Same as the share-link branch below: without this, an item that
             // becomes READY after the worker pool has already exhausted the
             // queue (or was never started) sits at READY forever -- no live
@@ -1855,18 +1746,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             return
         }
         if (!LinkParser.isShareLink(item.sourceUrl)) {
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = "Not a valid URL: ${item.sourceUrl}")
-            }
+            QueueRepository.markFailed(item.id, "Not a valid URL: ${item.sourceUrl}")
             return
         }
         val fileId = try {
             LinkParser.fileId(item.sourceUrl)
         } catch (e: ResolutionError) {
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = e.message) }
+            QueueRepository.markFailed(item.id, e.message)
             return
         }
-        QueueRepository.update(item.id) { it.copy(status = ItemStatus.NEEDS_CHALLENGE) }
+        QueueRepository.markChallengeNeeded(item.id)
 
         val (directUrl, error) = suspendCancellableCoroutine<Pair<String?, String?>> { cont ->
             val continuation: (String?, String?) -> Unit = { url, err ->
@@ -1884,7 +1773,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             challengeLauncher.launch(intent)
         }
         if (directUrl != null) {
-            QueueRepository.update(item.id) { it.copy(directUrl = directUrl, status = ItemStatus.READY) }
+            QueueRepository.markReady(item.id, directUrl = directUrl)
             // If downloads are already running (or were started earlier and ran out of
             // READY items), this item would otherwise sit at READY with no worker left
             // to claim it. Re-poking the service tops workers back up to the configured
@@ -1892,9 +1781,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             DownloadService.start(this@MainActivity)
             showDownloadStartedSnackbar()
         } else {
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = error ?: "Could not resolve link")
-            }
+            QueueRepository.markFailed(item.id, error ?: "Could not resolve link")
         }
     }
 
@@ -1920,9 +1807,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     confirmLabel = getString(android.R.string.ok),
                 )
             )
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = "Needs the Full build")
-            }
+            QueueRepository.markFailed(item.id, "Needs the Full build")
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
@@ -1943,9 +1828,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     if (messageDialogState === state) messageDialogState = null
                 }
             }
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed")
-            }
+            QueueRepository.markFailed(item.id, "yt-dlp not installed")
             if (openSettings) openSettingsScreen(SettingsActivity.CATEGORY_YOUTUBE)
             return
         }
@@ -1970,21 +1853,16 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
 
         if (chosen == null) {
-            QueueRepository.update(item.id) {
-                it.copy(status = ItemStatus.FAILED, error = "Cancelled")
-            }
+            QueueRepository.markFailed(item.id, "Cancelled")
             return
         }
 
-        QueueRepository.update(item.id) {
-            it.copy(
-                status = ItemStatus.READY,
-                platform = MediaPlatform.YOUTUBE,
-                mediaFormatSelector = chosen.formatSelector,
-                mediaFormatLabel = chosen.label,
-                category = if (chosen.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
-            )
-        }
+        QueueRepository.configureYoutubeDownload(
+            id = item.id,
+            formatSelector = chosen.formatSelector,
+            formatLabel = chosen.label,
+            category = if (chosen.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS,
+        )
         // Same as the other resolve branches: top workers back up so this
         // starts downloading right away instead of sitting at READY until
         // the next unrelated ACTION_START.
@@ -2117,7 +1995,5 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
-        private const val STATE_SAVED_PAGES_DESTINATION = "saved_pages_destination"
-        private const val STATE_MAIN_DESTINATION = "main_destination"
     }
 }

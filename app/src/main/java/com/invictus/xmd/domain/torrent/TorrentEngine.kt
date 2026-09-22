@@ -11,8 +11,6 @@ import com.invictus.xmd.domain.download.DownloadCancelledException
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.domain.download.ProgressFn
 import com.invictus.xmd.domain.download.LogFn
-import com.invictus.xmd.repository.QueueRepository
-import com.invictus.xmd.service.DownloadService
 
 /** What a finished (or in-progress, for naming purposes) torrent looks like. */
 data class TorrentResult(

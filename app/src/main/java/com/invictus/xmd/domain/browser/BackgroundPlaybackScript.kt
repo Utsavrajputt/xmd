@@ -1,7 +1,6 @@
 package com.invictus.xmd.domain.browser
 
 import com.invictus.xmd.preferences.Settings
-import com.invictus.xmd.ui.browser.BrowserFragment
 
 /**
  * Backs the "Background playback" browser setting ([Settings.backgroundPlaybackEnabled]).

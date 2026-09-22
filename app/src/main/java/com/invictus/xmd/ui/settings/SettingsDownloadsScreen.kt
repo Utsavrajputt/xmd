@@ -147,8 +147,8 @@ fun SettingsDownloadsScreen(
 
         SettingsSectionCard {
             SwitchSettingRow(
-                title = "Download scheduler",
-                subtitle = "Only download automatically during a quiet-hours window",
+                title = stringResource(R.string.settings_download_scheduler),
+                subtitle = stringResource(R.string.settings_download_scheduler_hint),
                 checked = schedulerEnabled,
                 onCheckedChange = onSchedulerEnabledChanged,
             )
@@ -163,8 +163,8 @@ fun SettingsDownloadsScreen(
                 if (!exactAlarmPermissionGranted) {
                     SettingsDivider()
                     ClickableSettingRow(
-                        title = "Allow exact alarms",
-                        subtitle = "Needed so the scheduler starts/stops right on time, even in Doze",
+                        title = stringResource(R.string.settings_allow_exact_alarms),
+                        subtitle = stringResource(R.string.settings_allow_exact_alarms_hint),
                         onClick = onGrantExactAlarmPermission,
                     )
                 }
@@ -191,7 +191,7 @@ private fun SchedulerWindowRow(
         com.invictus.xmd.ui.components.formatDaysMask(daysMask)
 
     ClickableSettingRow(
-        title = "Quiet hours",
+        title = stringResource(R.string.schedule_quiet_hours),
         subtitle = subtitle,
         onClick = { showDialog = true },
     )

@@ -171,6 +171,49 @@ class DownloadService : LifecycleService() {
     /** Same idea as [engines], for magnet/.torrent items running through TorrentEngine instead. */
     private val torrentEngines = ConcurrentHashMap<String, TorrentEngine>()
 
+    private enum class YoutubeStopReason(val priority: Int) {
+        SCHEDULE_WAIT(1),
+        WIFI_WAIT(2),
+        NETWORK_WAIT(3),
+        DATA_LIMIT_WAIT(4),
+        USER_PAUSE(5),
+        RESUME_AFTER_STOP(6),
+        CANCELLED(7),
+    }
+
+    /**
+     * yt-dlp has cancellation but no native pause. One prioritized reason per
+     * item keeps concurrent network, schedule, data-limit, and user actions
+     * from leaving the item in several competing state collections.
+     */
+    private val youtubeStopReasonLock = Any()
+    private val youtubeStopReasons = mutableMapOf<String, YoutubeStopReason>()
+
+    private fun recordYoutubeStopReason(itemId: String, reason: YoutubeStopReason) {
+        synchronized(youtubeStopReasonLock) {
+            val current = youtubeStopReasons[itemId]
+            if (current == null || reason.priority >= current.priority) {
+                youtubeStopReasons[itemId] = reason
+            }
+        }
+    }
+
+    private fun stopYoutube(itemId: String, reason: YoutubeStopReason) {
+        recordYoutubeStopReason(itemId, reason)
+        YtDlpManager.cancel(itemId)
+    }
+
+    private fun isYoutubeStopPending(itemId: String): Boolean =
+        synchronized(youtubeStopReasonLock) { itemId in youtubeStopReasons }
+
+    private fun resumeYoutubeAfterPendingStop(itemId: String): Boolean {
+        synchronized(youtubeStopReasonLock) {
+            if (itemId !in youtubeStopReasons) return false
+            youtubeStopReasons[itemId] = YoutubeStopReason.RESUME_AFTER_STOP
+            return true
+        }
+    }
+
     // Number of worker loops currently alive. Workers exit their loop the
     // moment claimNextReady() returns null (nothing READY *right now*) --
     // previously that meant a single ACTION_START only ever spun up workers
@@ -222,15 +265,16 @@ class DownloadService : LifecycleService() {
             .filter { it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.RETRYING }
         live.forEach { item ->
             if (item.platform == MediaPlatform.YOUTUBE) {
-                networkWaitingYoutubeIds.add(item.id)
-                cancelledYoutubeIds.add(item.id)
-                YtDlpManager.cancel(item.id)
+                QueueRepository.markPaused(
+                    item.id,
+                    Settings.NETWORK_WAIT_MARKER,
+                    resetMediaProgress = true,
+                )
+                stopYoutube(item.id, YoutubeStopReason.NETWORK_WAIT)
             } else {
                 engines[item.id]?.pause()
                 torrentEngines[item.id]?.pause()
-                QueueRepository.update(item.id) {
-                    it.copy(status = ItemStatus.PAUSED, error = Settings.NETWORK_WAIT_MARKER)
-                }
+                QueueRepository.markPaused(item.id, Settings.NETWORK_WAIT_MARKER)
             }
         }
         if (live.isNotEmpty()) updateNotification()
@@ -243,27 +287,24 @@ class DownloadService : LifecycleService() {
         val autoPaused = QueueRepository.current()
             .filter { it.status == ItemStatus.PAUSED && it.error == Settings.NETWORK_WAIT_MARKER }
         autoPaused.forEach { item ->
+            if (item.platform == MediaPlatform.YOUTUBE && isYoutubeStopPending(item.id)) {
+                return@forEach
+            }
             val liveEngine = engines[item.id] != null || torrentEngines[item.id] != null
             if (liveEngine) {
                 engines[item.id]?.resume()
                 torrentEngines[item.id]?.resume()
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.DOWNLOADING, error = null) }
+                QueueRepository.markDownloading(item.id)
             } else {
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.READY, error = null) }
+                QueueRepository.markReady(item.id)
             }
         }
-        val hadWaitingYoutube = networkWaitingYoutubeIds.isNotEmpty()
-        if (autoPaused.isNotEmpty() || hadWaitingYoutube) {
+        if (autoPaused.isNotEmpty()) {
             startForeground(NOTIFICATION_ID, buildNotification())
             topUpWorkers()
             updateNotification()
         }
     }
-
-    /** YouTube item ids cancelled by [onInternetLost] specifically -- same
-     *  idea as [wifiWaitingYoutubeIds] but for a total outage, so their
-     *  catch block in [downloadYoutube] knows to land on READY, not FAILED. */
-    private val networkWaitingYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     /** Wi-Fi dropped (or vanished entirely) while Wi-Fi-only downloads is ON --
      *  pause every live download in place, marking each with [Settings.WIFI_WAIT_MARKER]
@@ -276,15 +317,16 @@ class DownloadService : LifecycleService() {
         val live = QueueRepository.current().filter { it.status == ItemStatus.DOWNLOADING }
         live.forEach { item ->
             if (item.platform == MediaPlatform.YOUTUBE) {
-                wifiWaitingYoutubeIds.add(item.id)
-                cancelledYoutubeIds.add(item.id)
-                YtDlpManager.cancel(item.id)
+                QueueRepository.markPaused(
+                    item.id,
+                    Settings.WIFI_WAIT_MARKER,
+                    resetMediaProgress = true,
+                )
+                stopYoutube(item.id, YoutubeStopReason.WIFI_WAIT)
             } else {
                 engines[item.id]?.pause()
                 torrentEngines[item.id]?.pause()
-                QueueRepository.update(item.id) {
-                    it.copy(status = ItemStatus.PAUSED, error = Settings.WIFI_WAIT_MARKER)
-                }
+                QueueRepository.markPaused(item.id, Settings.WIFI_WAIT_MARKER)
             }
         }
         if (live.isNotEmpty()) updateNotification()
@@ -332,17 +374,16 @@ class DownloadService : LifecycleService() {
             .filter { it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.RETRYING }
         live.forEach { item ->
             if (item.platform == MediaPlatform.YOUTUBE) {
-                wifiWaitingYoutubeIds.remove(item.id)
-                networkWaitingYoutubeIds.remove(item.id)
-                dataLimitYoutubeIds.add(item.id)
-                cancelledYoutubeIds.add(item.id)
-                YtDlpManager.cancel(item.id)
+                QueueRepository.markPaused(
+                    item.id,
+                    Settings.DATA_LIMIT_WAIT_MARKER,
+                    resetMediaProgress = true,
+                )
+                stopYoutube(item.id, YoutubeStopReason.DATA_LIMIT_WAIT)
             } else {
                 engines[item.id]?.pause()
                 torrentEngines[item.id]?.pause()
-                QueueRepository.update(item.id) {
-                    it.copy(status = ItemStatus.PAUSED, error = Settings.DATA_LIMIT_WAIT_MARKER)
-                }
+                QueueRepository.markPaused(item.id, Settings.DATA_LIMIT_WAIT_MARKER)
             }
         }
         if (live.isNotEmpty()) {
@@ -350,12 +391,6 @@ class DownloadService : LifecycleService() {
             showDataLimitReachedNotification()
         }
     }
-
-    /** Same idea as [wifiWaitingYoutubeIds] but for the data-limit pause --
-     *  kept separate so a YouTube item's catch block (in [downloadYoutube])
-     *  can tell which of the three "we cancelled you, not a real failure"
-     *  reasons applies and land on the right status/marker. */
-    private val dataLimitYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     /** One-shot heads-up notification (separate from the persistent
      *  download-progress notification) telling the user why everything
@@ -386,35 +421,27 @@ class DownloadService : LifecycleService() {
         val autoPaused = QueueRepository.current()
             .filter { it.status == ItemStatus.PAUSED && it.error == Settings.WIFI_WAIT_MARKER }
         autoPaused.forEach { item ->
+            if (item.platform == MediaPlatform.YOUTUBE && isYoutubeStopPending(item.id)) {
+                return@forEach
+            }
             val liveEngine = engines[item.id] != null || torrentEngines[item.id] != null
             if (liveEngine) {
                 engines[item.id]?.resume()
                 torrentEngines[item.id]?.resume()
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.DOWNLOADING, error = null) }
+                QueueRepository.markDownloading(item.id)
             } else {
                 // Process died while waiting -- same fallback as a dead-engine
                 // resume: back to READY so a fresh worker re-claims it and
                 // downloadOne()'s Range header picks up the partial file.
-                QueueRepository.update(item.id) { it.copy(status = ItemStatus.READY, error = null) }
+                QueueRepository.markReady(item.id)
             }
         }
-        // YouTube items: their cancel() call from onWifiLost() is async and
-        // lands in downloadYoutube()'s catch block, which handles the
-        // READY transition itself (see wifiWaitingYoutubeIds there) --
-        // nothing to requeue here, just make sure a worker exists to pick
-        // them up once that catch block runs.
-        val hadWifiWaitingYoutube = wifiWaitingYoutubeIds.isNotEmpty()
-        if (autoPaused.isNotEmpty() || hadWifiWaitingYoutube) {
+        if (autoPaused.isNotEmpty()) {
             startForeground(NOTIFICATION_ID, buildNotification())
             topUpWorkers()
             updateNotification()
         }
     }
-
-    /** YouTube item ids cancelled by [onWifiLost] specifically -- distinct
-     *  from [cancelledYoutubeIds] (which also covers a real user Cancel and
-     *  routes to FAILED) so these instead land back at READY once Wi-Fi returns. */
-    private val wifiWaitingYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
@@ -453,8 +480,8 @@ class DownloadService : LifecycleService() {
             ACTION_CANCEL_ITEM -> intent.getStringExtra(EXTRA_ITEM_ID)?.let { id ->
                 val current = QueueRepository.current().firstOrNull { it.id == id }
                 if (current?.platform == MediaPlatform.YOUTUBE) {
-                    cancelledYoutubeIds.add(id)
-                    YtDlpManager.cancel(id)
+                    stopYoutube(id, YoutubeStopReason.CANCELLED)
+                    QueueRepository.markFailed(id, "Cancelled", resetMediaProgress = true)
                 } else {
                     engines[id]?.cancel()
                     torrentEngines[id]?.cancel()
@@ -470,7 +497,7 @@ class DownloadService : LifecycleService() {
                     current.status != ItemStatus.DONE && current.status != ItemStatus.FAILED &&
                     current.status != ItemStatus.READY
                 ) {
-                    QueueRepository.update(id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+                    QueueRepository.markFailed(id, "Cancelled")
                 }
                 updateNotification()
             }
@@ -485,11 +512,11 @@ class DownloadService : LifecycleService() {
                 QueueRepository.current()
                     .filter { it.platform == MediaPlatform.YOUTUBE && it.status == ItemStatus.DOWNLOADING }
                     .forEach {
-                        cancelledYoutubeIds.add(it.id)
-                        YtDlpManager.cancel(it.id)
+                        stopYoutube(it.id, YoutubeStopReason.CANCELLED)
+                        QueueRepository.markFailed(it.id, "Cancelled", resetMediaProgress = true)
                     }
                 QueueRepository.current().filter { it.status == ItemStatus.RETRYING }.forEach { item ->
-                    QueueRepository.update(item.id) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+                    QueueRepository.markFailed(item.id, "Cancelled")
                 }
                 updateNotification()
             }
@@ -501,14 +528,12 @@ class DownloadService : LifecycleService() {
     private fun pauseSingleItem(id: String) {
         val current = QueueRepository.current().firstOrNull { it.id == id } ?: return
         if (current.platform == MediaPlatform.YOUTUBE) {
-            pausedYoutubeIds.add(id)
-            cancelledYoutubeIds.add(id)
-            YtDlpManager.cancel(id)
-            QueueRepository.update(id) { it.copy(status = ItemStatus.PAUSED, mediaStatusText = null) }
+            stopYoutube(id, YoutubeStopReason.USER_PAUSE)
+            QueueRepository.markPaused(id, resetMediaProgress = true)
         } else {
             engines[id]?.pause()
             torrentEngines[id]?.pause()
-            QueueRepository.update(id) { it.copy(status = ItemStatus.PAUSED) }
+            QueueRepository.markPaused(id)
         }
     }
 
@@ -517,6 +542,10 @@ class DownloadService : LifecycleService() {
      *  notification and top up workers, i.e. this item had no live engine
      *  left and was routed back through READY/PENDING instead. */
     private fun resumeSingleItem(id: String): Boolean {
+        val current = QueueRepository.current().firstOrNull { it.id == id }
+        if (current?.platform == MediaPlatform.YOUTUBE && resumeYoutubeAfterPendingStop(id)) {
+            return false
+        }
         val liveEngine = engines[id] != null || torrentEngines[id] != null
         if (liveEngine) {
             // Same app session, engine's coroutine is still alive and
@@ -524,7 +553,7 @@ class DownloadService : LifecycleService() {
             // flag and it picks the exact same connection back up.
             engines[id]?.resume()
             torrentEngines[id]?.resume()
-            QueueRepository.update(id) { it.copy(status = ItemStatus.DOWNLOADING) }
+            QueueRepository.markDownloading(id)
             return false
         }
         // No live engine -- the process was killed while this item
@@ -535,15 +564,14 @@ class DownloadService : LifecycleService() {
         // a fresh worker claims it and downloadAuto() picks the
         // temp file back up via Range: bytes=<existingSize>-, so
         // already-downloaded bytes aren't wasted.
-        val current = QueueRepository.current().firstOrNull { it.id == id }
         return if (current?.directUrl != null || current?.platform == MediaPlatform.YOUTUBE ||
             LinkParser.isTorrentLink(current?.sourceUrl.orEmpty())) {
-            QueueRepository.update(id) { it.copy(status = ItemStatus.READY, error = null, mediaStatusText = null) }
+            QueueRepository.markReady(id, resetMediaProgress = true)
             true
         } else {
             // No resolved direct link cached either -- needs a
             // full re-resolve, not just a restarted download.
-            QueueRepository.update(id) { it.copy(status = ItemStatus.PENDING, error = null) }
+            QueueRepository.markPending(id)
             false
         }
     }
@@ -567,21 +595,19 @@ class DownloadService : LifecycleService() {
         }
         toPause.forEach { item ->
             if (item.platform == MediaPlatform.YOUTUBE) {
-                pausedYoutubeIds.add(item.id)
-                cancelledYoutubeIds.add(item.id)
-                YtDlpManager.cancel(item.id)
+                stopYoutube(item.id, YoutubeStopReason.SCHEDULE_WAIT)
             } else {
                 engines[item.id]?.pause()
                 torrentEngines[item.id]?.pause()
             }
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.PAUSED, error = Settings.SCHEDULE_WAIT_MARKER) }
+            QueueRepository.markPaused(item.id, Settings.SCHEDULE_WAIT_MARKER)
         }
 
         val toResume = QueueRepository.current().filter {
             it.status == ItemStatus.PAUSED && it.error == Settings.SCHEDULE_WAIT_MARKER && DownloadScheduler.isAllowedNow(it)
         }
         toResume.forEach { item ->
-            QueueRepository.update(item.id) { it.copy(status = ItemStatus.READY, error = null) }
+            QueueRepository.markReady(item.id)
         }
 
         if (toResume.isNotEmpty()) {
@@ -610,10 +636,6 @@ class DownloadService : LifecycleService() {
             }
         }
     }
-
-    /** Same idea as [engines], for YouTube (yt-dlp) items -- keyed by processId (== item id). */
-    private val cancelledYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
-    private val pausedYoutubeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private suspend fun worker() {
         while (true) {
@@ -653,18 +675,14 @@ class DownloadService : LifecycleService() {
         val formatSelector = item.mediaFormatSelector
         val formatLabel = item.mediaFormatLabel
         if (formatSelector == null || formatLabel == null) {
-            QueueRepository.update(itemId) {
-                it.copy(status = ItemStatus.FAILED, error = "No quality selected")
-            }
+            QueueRepository.markFailed(itemId, "No quality selected")
             return
         }
         if (!YtDlpManager.isInstalled(this)) {
             // Shouldn't normally reach here since MainActivity checks this
             // before ever showing the quality picker -- but guard anyway
             // (e.g. user deleted it from Settings after the item was queued).
-            QueueRepository.update(itemId) {
-                it.copy(status = ItemStatus.FAILED, error = "yt-dlp not installed — install it from Settings")
-            }
+            QueueRepository.markFailed(itemId, "yt-dlp not installed — install it from Settings")
             return
         }
 
@@ -697,90 +715,87 @@ class DownloadService : LifecycleService() {
                         .filter { it.isNotBlank() }
                         .toSet(),
                 ) { progress ->
-                    QueueRepository.update(itemId) {
-                        it.copy(
-                            status = ItemStatus.DOWNLOADING,
-                            progressPercent = progress.percent,
-                            mediaStatusText = progress.statusText
-                        )
-                    }
+                    QueueRepository.reportYoutubeProgress(itemId, progress.percent, progress.statusText)
                     updateNotificationThrottled()
                 }
             }
-            QueueRepository.update(itemId) {
-                it.copy(
-                    status = ItemStatus.DONE,
-                    fileName = file.name,
-                    filePath = file.absolutePath,
-                    progressPercent = 100,
-                    mediaStatusText = null,
-                    downloadFinishedAtMs = System.currentTimeMillis()
-                )
-            }
+            QueueRepository.markDone(
+                id = itemId,
+                filePath = file.absolutePath,
+                fileName = file.name,
+                progressPercent = 100,
+            )
         } catch (e: Throwable) {
             // Throwable (not just Exception) for the same reason as
             // YtDlpManager.install() -- the underlying library's native
             // binary invocation can surface as an Error subtype.
-            val cancelled = cancelledYoutubeIds.remove(itemId)
-            val wifiWait = wifiWaitingYoutubeIds.remove(itemId)
-            val networkWait = networkWaitingYoutubeIds.remove(itemId)
-            val dataLimitWait = dataLimitYoutubeIds.remove(itemId)
-            val userPaused = pausedYoutubeIds.remove(itemId)
-            QueueRepository.update(itemId) {
+            synchronized(youtubeStopReasonLock) {
+                val stopReason = youtubeStopReasons.remove(itemId)
                 when {
-                    // User explicitly paused this YouTube download
-                    userPaused -> it.copy(
-                        status = ItemStatus.PAUSED,
-                        error = null,
-                        progressPercent = -1,
-                        mediaStatusText = null
+                    stopReason == YoutubeStopReason.USER_PAUSE ->
+                        QueueRepository.markPaused(itemId, resetMediaProgress = true)
+                    stopReason == YoutubeStopReason.RESUME_AFTER_STOP ->
+                        QueueRepository.markReady(itemId, resetMediaProgress = true)
+                    stopReason == YoutubeStopReason.WIFI_WAIT -> {
+                        if (NetworkMonitor.isOnWifi(this@DownloadService)) {
+                            QueueRepository.markReady(itemId, resetMediaProgress = true)
+                        } else {
+                            QueueRepository.markPaused(
+                                itemId,
+                                Settings.WIFI_WAIT_MARKER,
+                                resetMediaProgress = true,
+                            )
+                        }
+                    }
+                    stopReason == YoutubeStopReason.NETWORK_WAIT -> {
+                        if (NetworkMonitor.hasInternet(this@DownloadService)) {
+                            QueueRepository.markReady(itemId, resetMediaProgress = true)
+                        } else {
+                            QueueRepository.markPaused(
+                                itemId,
+                                Settings.NETWORK_WAIT_MARKER,
+                                resetMediaProgress = true,
+                            )
+                        }
+                    }
+                    stopReason == YoutubeStopReason.DATA_LIMIT_WAIT -> QueueRepository.markPaused(
+                        itemId,
+                        Settings.DATA_LIMIT_WAIT_MARKER,
+                        resetMediaProgress = true,
                     )
-                    // Cancelled specifically for a Wi-Fi or total-outage wait --
-                    // land on READY (not FAILED) so a fresh worker re-claims it
-                    // once connectivity is back, mirroring the non-YouTube path.
-                    wifiWait || networkWait -> it.copy(
-                        status = ItemStatus.READY,
-                        error = null,
-                        progressPercent = -1,
-                        mediaStatusText = null
-                    )
-                    // Cancelled for the daily data limit -- unlike Wi-Fi/
-                    // network waits, this does NOT go back to READY: there's
-                    // no auto-resume for the data limit, so it stays PAUSED
-                    // with the marker until the user retries by hand.
-                    dataLimitWait -> it.copy(
-                        status = ItemStatus.PAUSED,
-                        error = Settings.DATA_LIMIT_WAIT_MARKER,
-                        progressPercent = -1,
-                        mediaStatusText = null
-                    )
-                    // Not an explicit cancel/wait, but there's genuinely no
-                    // internet right now -- pause as "Waiting for network"
-                    // instead of failing outright; onInternetRegained() will
-                    // put it back to READY once connectivity returns.
-                    !cancelled && !NetworkMonitor.hasInternet(this@DownloadService) -> it.copy(
-                        status = ItemStatus.PAUSED,
-                        error = Settings.NETWORK_WAIT_MARKER,
-                        progressPercent = -1,
-                        mediaStatusText = null
+                    stopReason == YoutubeStopReason.SCHEDULE_WAIT -> {
+                        val current = QueueRepository.current().firstOrNull { it.id == itemId }
+                        if (current != null && DownloadScheduler.isAllowedNow(current)) {
+                            QueueRepository.markReady(itemId, resetMediaProgress = true)
+                        } else {
+                            QueueRepository.markPaused(
+                                itemId,
+                                Settings.SCHEDULE_WAIT_MARKER,
+                                resetMediaProgress = true,
+                            )
+                        }
+                    }
+                    stopReason == YoutubeStopReason.CANCELLED ->
+                        QueueRepository.markFailed(itemId, "Cancelled", resetMediaProgress = true)
+                    !NetworkMonitor.hasInternet(this@DownloadService) -> QueueRepository.markPaused(
+                        itemId,
+                        Settings.NETWORK_WAIT_MARKER,
+                        resetMediaProgress = true,
                     )
                     else -> {
                         val cleanMsg = e.message?.let { msg -> ErrorUtils.cleanErrorText(msg).takeIf { it.isNotBlank() } }
-                        it.copy(
-                            status = ItemStatus.FAILED,
-                            error = if (cancelled) "Cancelled" else (cleanMsg ?: "YouTube download failed"),
-                            progressPercent = -1,
-                            mediaStatusText = null
+                        QueueRepository.markFailed(
+                            itemId,
+                            cleanMsg ?: "YouTube download failed",
+                            resetMediaProgress = true,
                         )
                     }
                 }
             }
         } finally {
-            cancelledYoutubeIds.remove(itemId)
-            wifiWaitingYoutubeIds.remove(itemId)
-            networkWaitingYoutubeIds.remove(itemId)
-            dataLimitYoutubeIds.remove(itemId)
-            pausedYoutubeIds.remove(itemId)
+            synchronized(youtubeStopReasonLock) {
+                youtubeStopReasons.remove(itemId)
+            }
             updateNotification()
         }
     }
@@ -794,7 +809,7 @@ class DownloadService : LifecycleService() {
     private suspend fun downloadTorrentOne(itemId: String, sourceUrl: String, customSaveDirPath: String?, selectedFileIndices: String?) {
         val engine = TorrentEngine(
             progress = { done, total, speed ->
-                QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
+                QueueRepository.reportProgress(itemId, done, total, speed)
                 updateNotificationThrottled()
             },
             log = { }
@@ -844,24 +859,20 @@ class DownloadService : LifecycleService() {
                 }
             }
 
-            QueueRepository.update(itemId) {
-                it.copy(
-                    fileName = result.name,
-                    // Single-file torrent: point straight at the file so
-                    // "Open" can hand it to an external app. Multi-file
-                    // torrents don't have one sensible "the file" to open --
-                    // filePath is left null unless exactly 1 file was selected.
-                    filePath = if (result.numFiles == 1) {
-                        result.singleFilePath ?: File(result.saveDir, result.name).absolutePath
-                    } else null,
-                    status = ItemStatus.DONE,
-                    downloadFinishedAtMs = System.currentTimeMillis()
-                )
-            }
+            QueueRepository.markDone(
+                id = itemId,
+                fileName = result.name,
+                // Single-file torrent: point straight at the file so
+                // "Open" can hand it to an external app. Multi-file
+                // torrents don't have one sensible "the file" to open.
+                filePath = if (result.numFiles == 1) {
+                    result.singleFilePath ?: File(result.saveDir, result.name).absolutePath
+                } else null,
+            )
         } catch (e: DownloadCancelledException) {
-            QueueRepository.update(itemId) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+            QueueRepository.markFailed(itemId, "Cancelled")
         } catch (e: Exception) {
-            QueueRepository.update(itemId) { it.copy(status = ItemStatus.FAILED, error = e.message ?: "Torrent download failed") }
+            QueueRepository.markFailed(itemId, e.message ?: "Torrent download failed")
         } finally {
             torrentEngines.remove(itemId)
             updateNotification()
@@ -882,7 +893,7 @@ class DownloadService : LifecycleService() {
             val engine = DownloadEngine(
                 client = client,
                 progress = { done, total, speed ->
-                    QueueRepository.update(itemId) { it.copy(bytesDone = done, bytesTotal = total, speedBps = speed) }
+                    QueueRepository.reportProgress(itemId, done, total, speed)
                     updateNotificationThrottled()
                 },
                 log = { },
@@ -906,7 +917,7 @@ class DownloadService : LifecycleService() {
                 // so it doesn't wrongly land in Others just because the share link was opaque.
                 val category = CategoryDetector.detect(directUrl, hint = fileName)
                     .takeIf { it != DownloadCategory.default() } ?: categoryAtClaim
-                QueueRepository.update(itemId) { it.copy(fileName = fileName, category = category) }
+                QueueRepository.updateDownloadMetadata(itemId, fileName, category)
 
                 // Download into the app's private cache first. Public/shared storage
                 // (/sdcard/...) is served through Android's FUSE emulation layer, where
@@ -958,21 +969,15 @@ class DownloadService : LifecycleService() {
                         (if (knownTotal > 0) " of ${knownTotal}B" else "") + ")")
                 }
 
-                QueueRepository.update(itemId) { it.copy(status = ItemStatus.SAVING) }
+                QueueRepository.markSaving(itemId)
                 withContext(Dispatchers.IO) { moveToPublicStorage(tempFile, finalFile) }
                 destinationFile = finalFile
 
-                QueueRepository.update(itemId) {
-                    it.copy(
-                        status = ItemStatus.DONE,
-                        filePath = finalFile.absolutePath,
-                        downloadFinishedAtMs = System.currentTimeMillis()
-                    )
-                }
+                QueueRepository.markDone(itemId, finalFile.absolutePath)
                 return
             } catch (e: DownloadCancelledException) {
                 destinationFile?.let { DownloadEngine.deletePartialFiles(it) }
-                QueueRepository.update(itemId) { it.copy(status = ItemStatus.FAILED, error = "Cancelled") }
+                QueueRepository.markFailed(itemId, "Cancelled")
                 return
             } catch (e: Exception) {
                 // Only a plain network-level failure (timeout, connection dropped, DNS
@@ -992,21 +997,17 @@ class DownloadService : LifecycleService() {
                     // onInternetRegained() flips it back to READY/DOWNLOADING
                     // the instant connectivity returns, no manual Retry needed.
                     engines.remove(itemId)
-                    QueueRepository.update(itemId) {
-                        it.copy(status = ItemStatus.PAUSED, error = Settings.NETWORK_WAIT_MARKER)
-                    }
+                    QueueRepository.markPaused(itemId, Settings.NETWORK_WAIT_MARKER)
                     updateNotification()
                     return
                 }
                 if (isNetworkError && Settings.autoRetryEnabled() && attempt < MAX_AUTO_RETRIES) {
                     attempt++
                     engines.remove(itemId)
-                    QueueRepository.update(itemId) {
-                        it.copy(
-                            status = ItemStatus.RETRYING,
-                            error = "Network error — retrying ($attempt/$MAX_AUTO_RETRIES)…"
-                        )
-                    }
+                    QueueRepository.markRetrying(
+                        itemId,
+                        "Network error — retrying ($attempt/$MAX_AUTO_RETRIES)…",
+                    )
                     updateNotification()
                     kotlinx.coroutines.delay(2_000L * attempt) // 2s, 4s, 6s backoff
 
@@ -1019,7 +1020,7 @@ class DownloadService : LifecycleService() {
 
                     continue
                 }
-                QueueRepository.update(itemId) { it.copy(status = ItemStatus.FAILED, error = e.message) }
+                QueueRepository.markFailed(itemId, e.message)
                 return
             } finally {
                 engines.remove(itemId)

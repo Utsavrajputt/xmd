@@ -140,7 +140,7 @@ fun SettingsYoutubeScreen(
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(8.dp),
                     ) {
                         Icon(
                             imageVector = if (!ytDlpInstalled) Icons.Download else Icons.Sync,
@@ -156,7 +156,7 @@ fun SettingsYoutubeScreen(
                             onClick = onNightlyToggleClick,
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         ) {
                             Icon(Icons.Sync, null, modifier = Modifier.size(18.dp))
@@ -168,7 +168,7 @@ fun SettingsYoutubeScreen(
                             onClick = onInstallOrDeleteClick,
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
@@ -212,34 +212,35 @@ fun SettingsYoutubeScreen(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(
+                Column(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     PresetDropdownField(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         label = stringResource(R.string.settings_preset_container_label),
                         options = containerOptions,
                         selected = selectedContainer,
                         onSelected = onContainerChanged,
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    PresetDropdownField(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(R.string.settings_preset_fps_label),
-                        options = fpsOptions,
-                        selected = selectedFps,
-                        onSelected = onFpsChanged,
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    PresetDropdownField(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(R.string.settings_preset_codec_label),
-                        options = codecOptions,
-                        selected = selectedCodec,
-                        onSelected = onCodecChanged,
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PresetDropdownField(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.settings_preset_fps_label),
+                            options = fpsOptions,
+                            selected = selectedFps,
+                            onSelected = onFpsChanged,
+                        )
+                        PresetDropdownField(
+                            modifier = Modifier.weight(1f),
+                            label = stringResource(R.string.settings_preset_codec_label),
+                            options = codecOptions,
+                            selected = selectedCodec,
+                            onSelected = onCodecChanged,
+                        )
+                    }
                 }
             }
         }
@@ -303,14 +304,14 @@ private fun YtdlpStatusCard(
     }
 
     val details = when {
-        !installed -> stringResource(R.string.settings_ytdlp_hint)
-        usingNightly -> "Nightly channel active · updates receive latest fixes"
-        else -> "Stable release channel active"
+        !installed -> stringResource(R.string.settings_ytdlp_not_installed_hint)
+        usingNightly -> stringResource(R.string.settings_ytdlp_nightly_hint)
+        else -> stringResource(R.string.settings_ytdlp_stable_hint)
     }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(8.dp),
         color = containerColor,
         border = BorderStroke(1.dp, contentColor.copy(alpha = 0.2f)),
         tonalElevation = 2.dp,
@@ -382,7 +383,7 @@ private fun PresetDropdownField(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(8.dp),
             label = label?.let { l -> { Text(l, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             textStyle = MaterialTheme.typography.bodyMedium,

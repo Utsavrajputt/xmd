@@ -1,7 +1,6 @@
 package com.invictus.xmd.domain.download
 
 import java.util.Locale
-import com.invictus.xmd.service.DownloadService
 
 /**
  * Auto-categorizes a link/filename into a [DownloadCategory] by file

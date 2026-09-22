@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.invictus.xmd.BuildConfig
 import com.invictus.xmd.R
 import java.util.UUID
+import com.invictus.xmd.service.DownloadEnqueueCoordinator
 import com.invictus.xmd.service.DownloadService
 import com.invictus.xmd.ui.theme.XmdTheme
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +50,6 @@ import com.invictus.xmd.ui.downloads.AddTorrentDialog
 import com.invictus.xmd.ui.downloads.TorrentFileRow
 import com.invictus.xmd.ui.downloads.TorrentFilesUiState
 import com.invictus.xmd.utils.LinkParser
-import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.utils.storage.OnDuplicateStrategy
 import com.invictus.xmd.utils.storage.StorageUtils
 
@@ -476,6 +476,20 @@ class ShareReceiverActivity : AppCompatActivity() {
         currentTorrentData = state.copy(filesState = state.filesState.copy(files = updated))
     }
 
+    private fun enqueueDownload(item: QueueItem, duplicateStrategy: OnDuplicateStrategy?): Boolean {
+        return when (DownloadEnqueueCoordinator.enqueueAndStart(this, item, duplicateStrategy)) {
+            is QueueRepository.EnqueueResult.Success -> true
+            is QueueRepository.EnqueueResult.ActiveConflict -> {
+                Toast.makeText(this, R.string.download_override_active, Toast.LENGTH_LONG).show()
+                false
+            }
+            is QueueRepository.EnqueueResult.DeleteFailed -> {
+                Toast.makeText(this, R.string.download_override_delete_failed, Toast.LENGTH_LONG).show()
+                false
+            }
+        }
+    }
+
     private fun startDirectDownload(
         link: String,
         name: String?,
@@ -490,34 +504,13 @@ class ShareReceiverActivity : AppCompatActivity() {
         val category = CategoryDetector.detect(link, hint = name)
         val resolvedName = name?.takeUnless { it.isBlank() }
             ?: DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             category = category,
             scheduleMode = scheduleMode,
@@ -525,11 +518,8 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowStartMinute = windowStartMinute,
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
-            sponsorBlockMode = sponsorBlockMode,
-            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
         finish()
     }
@@ -583,27 +573,6 @@ class ShareReceiverActivity : AppCompatActivity() {
 
         val category = if (quality.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
         val resolvedName = name?.takeUnless { it.isBlank() } ?: extractYoutubeFallbackName(link)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
@@ -613,16 +582,17 @@ class ShareReceiverActivity : AppCompatActivity() {
             mediaFormatSelector = quality.formatSelector,
             mediaFormatLabel = formatLabel,
             category = category,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             scheduleMode = scheduleMode,
             scheduledAtMs = scheduledAtMs,
             windowStartMinute = windowStartMinute,
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
+            sponsorBlockMode = sponsorBlockMode,
+            sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
         finish()
     }
@@ -641,34 +611,13 @@ class ShareReceiverActivity : AppCompatActivity() {
     ) {
         val resolvedName = name?.takeUnless { it.isBlank() } ?: magnetDisplayName(link) ?: "Magnet Download"
         val category = CategoryDetector.detect(link, hint = resolvedName)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             selectedFileIndices = selectedIndices,
             category = category,
@@ -678,8 +627,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
         finish()
     }
@@ -699,34 +647,13 @@ class ShareReceiverActivity : AppCompatActivity() {
         val link = uri.toString()
         val resolvedName = name?.takeUnless { it.isBlank() } ?: "Torrent Download"
         val category = CategoryDetector.detect(link, hint = resolvedName)
-        val targetFile = FileNameUtils.resolveDestinationFile(resolvedName, customSaveDirPath, category)
-
-        val finalName = when (duplicateStrategy) {
-            OnDuplicateStrategy.OverrideDownload -> {
-                QueueRepository.removeDuplicatesOf(targetFile)
-                if (targetFile.exists()) targetFile.delete()
-                resolvedName
-            }
-            OnDuplicateStrategy.AddNumbered -> {
-                val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-            }
-            null -> {
-                if (FileNameUtils.isDuplicate(targetFile, QueueRepository.current())) {
-                    val activeFiles = QueueRepository.current().mapNotNull { FileNameUtils.destinationFileOf(it) }.toSet()
-                    FileNameUtils.numberedNameIfExists(targetFile, activeFiles)
-                } else {
-                    resolvedName
-                }
-            }
-        }
 
         val newItem = QueueItem(
             id = UUID.randomUUID().toString(),
             sourceUrl = link,
             directUrl = link,
             status = ItemStatus.READY,
-            fileName = finalName,
+            fileName = resolvedName,
             customSaveDirPath = customSaveDirPath,
             selectedFileIndices = selectedIndices,
             category = category,
@@ -736,8 +663,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowEndMinute = windowEndMinute,
             windowDaysMask = windowDaysMask,
         )
-        QueueRepository.enqueue(newItem)
-        DownloadService.start(this)
+        if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
         finish()
     }
