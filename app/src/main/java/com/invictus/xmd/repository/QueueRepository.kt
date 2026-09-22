@@ -15,6 +15,7 @@ import com.invictus.xmd.database.dao.QueueItemDao
 import com.invictus.xmd.database.entities.Bookmark
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.CategoryDetector
+import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.DownloadScheduler
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.ScheduleAlarmManager

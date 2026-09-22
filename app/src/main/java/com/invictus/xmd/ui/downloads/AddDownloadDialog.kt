@@ -69,6 +69,7 @@ import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
+import com.invictus.xmd.ui.components.AppFilterChip
 import com.invictus.xmd.ui.components.ChipGrid
 import com.invictus.xmd.ui.components.ChipLabel
 import com.invictus.xmd.ui.components.ChipRow
