@@ -5,6 +5,19 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 
 ## [1.0.0] - 2026-09-22
 
+🎉 **First stable release** — out of beta.
+
+### ✨ Highlights
+- 🎵 SponsorBlock integration and playlist downloads for yt-dlp links.
+- 🚀 3-step launch onboarding, plus a real-time battery-optimization warning banner in Settings.
+- 🔁 Resume support for downloads that previously couldn't resume.
+- 🍫 Quality picker reworked into a chip grid; format summary + streams-count chip in the Add Download dialog header.
+- 💳 New Support section in About (UPI donation card) and live GitHub contributors.
+- 🔗 xmd now shows up in Android's "Open with" chooser for direct file links again.
+
+<details>
+<summary>See all changes since v1.0.0-beta.6</summary>
+
 ### ✨ Added
 - 🎵 **SponsorBlock integration and playlist downloads** for yt-dlp links.
 - 📝 **Embed-subtitles option** in the Add Download dialog's Advanced section — Off/Embed toggle with language chips, mirroring the SponsorBlock UI.
@@ -34,6 +47,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - ⚙️ yt-dlp **download execution, format discovery, and file handling realigned** for consistency across entry points.
 - 🔗 About's GitHub link renamed to just "GitHub"; the Home tab is now hidden by default.
 - 📐 Download container icon size reduced.
+
+</details>
 
 ---
 
