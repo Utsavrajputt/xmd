@@ -82,7 +82,17 @@
 
             <!-- Lets browsers (Firefox, Vivaldi, etc.) offer xmd as an
                  "external download manager" / open-with target when a
-                 download link is tapped. -->
+                 download link is tapped. Generic */* wildcard covers most
+                 browsers' own "external download manager" hand-off, but
+                 Chrome resolves a direct file link (raw.githubusercontent.com
+                 etc.) straight to a VIEW intent with no download step, and
+                 in that resolver a bare */* wildcard filter loses out to
+                 other installed apps (e.g. mpvRx) that declare explicit
+                 pathPattern matches on the file extension: those rank as a
+                 stronger match than our wildcard and can push xmd out of the
+                 chooser entirely. The pathPattern filter below mirrors that
+                 same technique for xmd's own common downloadable extensions
+                 so xmd reliably shows up alongside them. -->
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -90,6 +100,87 @@
                 <data android:scheme="http" />
                 <data android:scheme="https" />
                 <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <!-- Same http/https VIEW action, matched by file-extension
+                 pathPattern instead of mimeType: see the comment above.
+                 Each extension needs one pathPattern per path-segment-depth
+                 because Android's SIMPLE_GLOB pathPattern has no "match
+                 anywhere" option: ".*\.apk" only matches a single-segment
+                 path, so a URL with more slashes before the filename (e.g.
+                 raw.githubusercontent.com/user/repo/releases/x.apk) needs
+                 its own extra ".*" per extra "/" to still match, same
+                 pattern mpvRx uses for its own video/audio extensions. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+
+                <data android:pathPattern=".*\\.apk" />
+                <data android:pathPattern=".*\\..*\\.apk" />
+                <data android:pathPattern=".*\\..*\\..*\\.apk" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.apk" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.apk" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.apk" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.apk" />
+
+                <data android:pathPattern=".*\\.zip" />
+                <data android:pathPattern=".*\\..*\\.zip" />
+                <data android:pathPattern=".*\\..*\\..*\\.zip" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.zip" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.zip" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.zip" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.zip" />
+
+                <data android:pathPattern=".*\\.rar" />
+                <data android:pathPattern=".*\\..*\\.rar" />
+                <data android:pathPattern=".*\\..*\\..*\\.rar" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.rar" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.rar" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.rar" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.rar" />
+
+                <data android:pathPattern=".*\\.7z" />
+                <data android:pathPattern=".*\\..*\\.7z" />
+                <data android:pathPattern=".*\\..*\\..*\\.7z" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.7z" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.7z" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.7z" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.7z" />
+
+                <data android:pathPattern=".*\\.exe" />
+                <data android:pathPattern=".*\\..*\\.exe" />
+                <data android:pathPattern=".*\\..*\\..*\\.exe" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.exe" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.exe" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.exe" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.exe" />
+
+                <data android:pathPattern=".*\\.msi" />
+                <data android:pathPattern=".*\\..*\\.msi" />
+                <data android:pathPattern=".*\\..*\\..*\\.msi" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.msi" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.msi" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.msi" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.msi" />
+
+                <data android:pathPattern=".*\\.iso" />
+                <data android:pathPattern=".*\\..*\\.iso" />
+                <data android:pathPattern=".*\\..*\\..*\\.iso" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.iso" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.iso" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.iso" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.iso" />
+
+                <data android:pathPattern=".*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\..*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.pdf" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.pdf" />
             </intent-filter>
 
             <!-- magnet: links tapped in browsers, torrent-search apps, etc. -->
@@ -106,27 +197,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:mimeType="application/x-bittorrent" />
-            </intent-filter>
-
-            <!-- Lets xmd show up in the system "Open with" chooser for an
-                 already-downloaded file (e.g. tapping a .apk/.zip download
-                 notification, or a file in a file manager). content:// is
-                 how Android 7+ resolvers hand off the file, file:// covers
-                 older apps/file managers still using raw paths. No BROWSABLE
-                 category here: unlike the http/https filter above, this one
-                 isn't meant to catch webpage navigation, just local file
-                 opens. See handleIncomingIntent's content/file branch. -->
-            <intent-filter android:label="@string/app_name">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-            <intent-filter android:label="@string/app_name">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="file" />
-                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 
