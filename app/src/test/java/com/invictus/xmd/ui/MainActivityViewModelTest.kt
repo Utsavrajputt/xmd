@@ -16,9 +16,9 @@ class MainActivityViewModelTest {
         val original = MainActivityViewModel(handle)
 
         original.initializeMainDestination(MainDestination.Browser)
-        original.setHeaderSearchActive(true)
-        original.setHeaderSearchQuery("release notes")
-        original.setSavedPagesDestination(SavedPagesDestination.History)
+        original.updateHeaderSearchActive(true)
+        original.updateHeaderSearchQuery("release notes")
+        original.updateSavedPagesDestination(SavedPagesDestination.History)
 
         val restored = MainActivityViewModel(handle)
 

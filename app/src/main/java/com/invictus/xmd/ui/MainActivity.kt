@@ -118,18 +118,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private val activityState: MainActivityViewModel by viewModels()
     private var mainDestination: MainDestination
         get() = activityState.mainDestination
-        set(value) = activityState.setMainDestination(value)
+        set(value) = activityState.updateMainDestination(value)
     private var navigationItems: List<MainNavigationItem> by mutableStateOf(MainNavigationItem.entries.toList())
     private var activeDownloadCount: Int by mutableIntStateOf(0)
     private var headerSearchActive: Boolean
         get() = activityState.headerSearchActive
-        set(value) = activityState.setHeaderSearchActive(value)
+        set(value) = activityState.updateHeaderSearchActive(value)
     private var headerSearchQuery: String
         get() = activityState.headerSearchQuery
-        set(value) = activityState.setHeaderSearchQuery(value)
+        set(value) = activityState.updateHeaderSearchQuery(value)
     private var savedPagesDestination: SavedPagesDestination?
         get() = activityState.savedPagesDestination
-        set(value) = activityState.setSavedPagesDestination(value)
+        set(value) = activityState.updateSavedPagesDestination(value)
     private val snackbarHostState = SnackbarHostState()
     private var messageDialogState: AppMessageDialogState? by mutableStateOf(null)
     private var expiredLinkDialogState: ExpiredLinkDialogState? by mutableStateOf(null)

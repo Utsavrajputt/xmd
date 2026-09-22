@@ -33,26 +33,26 @@ internal class MainActivityViewModel(
 
     fun initializeMainDestination(defaultDestination: MainDestination) {
         if (!savedStateHandle.contains(KEY_MAIN_DESTINATION)) {
-            setMainDestination(defaultDestination)
+            updateMainDestination(defaultDestination)
         }
     }
 
-    fun setMainDestination(destination: MainDestination) {
+    fun updateMainDestination(destination: MainDestination) {
         mainDestination = destination
         savedStateHandle[KEY_MAIN_DESTINATION] = destination.name
     }
 
-    fun setHeaderSearchActive(active: Boolean) {
+    fun updateHeaderSearchActive(active: Boolean) {
         headerSearchActive = active
         savedStateHandle[KEY_SEARCH_ACTIVE] = active
     }
 
-    fun setHeaderSearchQuery(query: String) {
+    fun updateHeaderSearchQuery(query: String) {
         headerSearchQuery = query
         savedStateHandle[KEY_SEARCH_QUERY] = query
     }
 
-    fun setSavedPagesDestination(destination: SavedPagesDestination?) {
+    fun updateSavedPagesDestination(destination: SavedPagesDestination?) {
         savedPagesDestination = destination
         savedStateHandle[KEY_SAVED_PAGES_DESTINATION] = destination?.name
     }
