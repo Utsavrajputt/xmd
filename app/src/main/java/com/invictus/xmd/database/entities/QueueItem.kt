@@ -58,5 +58,10 @@ data class QueueItem(
     var sponsorBlockMode: com.invictus.xmd.domain.download.YtDlpManager.SponsorBlockMode =
         com.invictus.xmd.domain.download.YtDlpManager.SponsorBlockMode.OFF,
     // Comma-joined category ids (see YtDlpManager.SPONSORBLOCK_CATEGORIES); empty = yt-dlp's own "sponsor" default.
-    var sponsorBlockCategories: String = ""
+    var sponsorBlockCategories: String = "",
+    // ── Subtitles (YouTube items, per-download -- not a saved preset) ───
+    // Video only -- ignored for an audio-only item.
+    var embedSubtitles: Boolean = false,
+    // Comma-joined language codes (see YtDlpManager.SUBTITLE_LANGUAGES); empty = falls back to "en".
+    var subtitleLanguages: String = ""
 )

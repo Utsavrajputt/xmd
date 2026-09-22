@@ -714,6 +714,11 @@ class DownloadService : LifecycleService() {
                         .split(',')
                         .filter { it.isNotBlank() }
                         .toSet(),
+                    embedSubtitles = item.embedSubtitles,
+                    subtitleLanguages = item.subtitleLanguages
+                        .split(',')
+                        .filter { it.isNotBlank() }
+                        .toSet(),
                 ) { progress ->
                     QueueRepository.reportYoutubeProgress(itemId, progress.percent, progress.statusText)
                     updateNotificationThrottled()

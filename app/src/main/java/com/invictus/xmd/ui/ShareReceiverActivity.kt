@@ -167,7 +167,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                         onDismiss = {
                             dismissAndFinish()
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages ->
                             currentDownloadLink = null
                             when {
                                 LinkParser.isTorrentLink(link) -> {
@@ -187,7 +187,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                                     startYoutubeDownload(
                                         link, name, saveDir, quality, audioFormat, duplicateStrategy,
                                         scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask,
-                                        sponsorBlockMode, sponsorBlockCategories,
+                                        sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages,
                                     )
                                 }
                                 LinkParser.isGenericDownloadUrl(link) -> {
@@ -538,6 +538,8 @@ class ShareReceiverActivity : AppCompatActivity() {
         windowDaysMask: Int = 0x7F,
         sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
         sponsorBlockCategories: Set<String> = emptySet(),
+        embedSubtitles: Boolean = false,
+        subtitleLanguages: Set<String> = emptySet(),
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             Toast.makeText(this, R.string.share_full_build_required, Toast.LENGTH_LONG).show()
@@ -591,6 +593,8 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
             sponsorBlockMode = sponsorBlockMode,
             sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
+            embedSubtitles = embedSubtitles,
+            subtitleLanguages = subtitleLanguages.joinToString(","),
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()

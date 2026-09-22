@@ -143,6 +143,8 @@ fun AddDownloadDialog(
         windowDaysMask: Int,
         sponsorBlockMode: YtDlpManager.SponsorBlockMode,
         sponsorBlockCategories: Set<String>,
+        embedSubtitles: Boolean,
+        subtitleLanguages: Set<String>,
     ) -> Unit,
     /** Playlist entries for the "choose videos" picker; empty result for a non-playlist link. Full flavor only -- lite returns empty. */
     probePlaylist: suspend (String) -> YtDlpManager.PlaylistProbeResult = { YtDlpManager.PlaylistProbeResult(null, emptyList()) },
@@ -158,6 +160,10 @@ fun AddDownloadDialog(
     // ── SponsorBlock (Advanced) ──────────────────────────────────────────
     var sponsorBlockMode by remember { mutableStateOf(YtDlpManager.SponsorBlockMode.OFF) }
     val sponsorBlockCategories = remember { mutableStateListOf("sponsor") }
+
+    // ── Subtitles (Advanced) ─────────────────────────────────────────────
+    var embedSubtitles by remember { mutableStateOf(false) }
+    val subtitleLanguages = remember { mutableStateListOf("en") }
 
     // ── Playlist picker ──────────────────────────────────────────────────
     var playlistResult by remember { mutableStateOf<YtDlpManager.PlaylistProbeResult?>(null) }
@@ -255,6 +261,9 @@ fun AddDownloadDialog(
         sponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF
         sponsorBlockCategories.clear()
         sponsorBlockCategories.add("sponsor")
+        embedSubtitles = false
+        subtitleLanguages.clear()
+        subtitleLanguages.add("en")
         playlistResult = null
         playlistPickerOpen = false
         selectedPlaylistIds.clear()
@@ -879,6 +888,62 @@ fun AddDownloadDialog(
                             }
                         }
                     }
+
+                    // Video only -- an audio extraction has no video stream
+                    // to mux a subtitle track into.
+                    if (needsYtDlp && finalQualityOption?.isAudioOnly != true) {
+                        Spacer(Modifier.height(14.dp))
+                        ChipLabel(stringResource(R.string.download_dialog_subtitles_title))
+                        ChipRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            options = listOf(
+                                stringResource(R.string.download_dialog_subtitles_off),
+                                stringResource(R.string.download_dialog_subtitles_embed),
+                            ),
+                            selected = if (embedSubtitles) {
+                                stringResource(R.string.download_dialog_subtitles_embed)
+                            } else {
+                                stringResource(R.string.download_dialog_subtitles_off)
+                            },
+                            onSelected = { index -> embedSubtitles = index == 1 },
+                        )
+                        AnimatedVisibility(visible = embedSubtitles) {
+                            Column {
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    text = stringResource(R.string.download_dialog_subtitles_languages_label),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 6.dp),
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    YtDlpManager.SUBTITLE_LANGUAGES.forEach { (code, label) ->
+                                        val checked = code in subtitleLanguages
+                                        AppFilterChip(
+                                            label = label,
+                                            selected = checked,
+                                            onClick = {
+                                                if (checked) {
+                                                    // Keep at least one language selected -- an
+                                                    // empty set falls back to "en" anyway (see
+                                                    // YtDlpManager.download), silently diverging
+                                                    // from what the chips show as picked.
+                                                    if (subtitleLanguages.size > 1) subtitleLanguages.remove(code)
+                                                } else {
+                                                    subtitleLanguages.add(code)
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -925,6 +990,8 @@ fun AddDownloadDialog(
                                     windowDaysMask,
                                     sponsorBlockMode,
                                     sponsorBlockCategories.toSet(),
+                                    embedSubtitles,
+                                    subtitleLanguages.toSet(),
                                 )
                             }
                     } else if (link.isNotBlank()) {
@@ -942,6 +1009,8 @@ fun AddDownloadDialog(
                             windowDaysMask,
                             sponsorBlockMode,
                             sponsorBlockCategories.toSet(),
+                            embedSubtitles,
+                            subtitleLanguages.toSet(),
                         )
                     }
                 }) {

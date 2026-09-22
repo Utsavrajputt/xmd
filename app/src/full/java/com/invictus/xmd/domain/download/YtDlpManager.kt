@@ -56,6 +56,21 @@ object YtDlpManager {
     /** SponsorBlock category ids yt-dlp accepts, in the order shown as chips. "sponsor" is on by default when a mode is picked. */
     val SPONSORBLOCK_CATEGORIES = listOf("sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "filler", "music_offtopic")
 
+    /** Subtitle language codes offered as chips (Add Download dialog only), in display order. "en" is on by default when embedding is turned on. */
+    val SUBTITLE_LANGUAGES = listOf(
+        "en" to "English",
+        "hi" to "Hindi",
+        "es" to "Spanish",
+        "fr" to "French",
+        "ar" to "Arabic",
+        "pt" to "Portuguese",
+        "ja" to "Japanese",
+        "ko" to "Korean",
+        "de" to "German",
+        "ru" to "Russian",
+        "all" to "All",
+    )
+
     /** One entry probed from a playlist/channel URL via [probePlaylist] -- enough to enqueue it as its own download (see AddDownloadDialog's playlist picker). */
     data class PlaylistEntry(
         val id: String,
@@ -637,6 +652,11 @@ object YtDlpManager {
         customFileName: String? = null,
         sponsorBlockMode: SponsorBlockMode = SponsorBlockMode.OFF,
         sponsorBlockCategories: Set<String> = emptySet(),
+        // Video only (see the `!option.isAudioOnly` guard below) -- an audio
+        // extraction has no video stream for yt-dlp to mux a subtitle track
+        // into, so the dialog hides this section once "Audio" is picked.
+        embedSubtitles: Boolean = false,
+        subtitleLanguages: Set<String> = setOf("en"),
         onProgress: (DownloadProgress) -> Unit
     ): File {
         if (!ensureReady(context)) throw IllegalStateException("yt-dlp not installed")
@@ -727,6 +747,19 @@ object YtDlpManager {
             request.addOption("--merge-output-format", "mp4/mkv")
             request.addOption("--remux-video", "mp4/mkv")
             request.addOption("--embed-thumbnail")
+            if (embedSubtitles) {
+                // --write-subs alone only grabs manually-uploaded subs; pairing
+                // it with --write-auto-subs makes yt-dlp fall back to YouTube's
+                // auto-generated captions per language when no manual track
+                // exists, without dropping a manual one that does. --embed-subs
+                // then muxes whatever got written into the remuxed mp4/mkv above
+                // instead of leaving a separate .srt/.vtt file next to it.
+                val langs = subtitleLanguages.takeUnless { it.isEmpty() } ?: setOf("en")
+                request.addOption("--write-subs")
+                request.addOption("--write-auto-subs")
+                request.addOption("--sub-langs", langs.joinToString(","))
+                request.addOption("--embed-subs")
+            }
             // Same reasoning as the audio branch above -- embed it into the
             // video, don't also leave a separate thumbnail image file
             // sitting next to it in the same folder.

@@ -178,6 +178,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val pageUrl: String? = null,
         val sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
         val sponsorBlockCategories: Set<String> = emptySet(),
+        val embedSubtitles: Boolean = false,
+        val subtitleLanguages: Set<String> = emptySet(),
     )
 
     private var pendingYoutubeDownloadRequest: PendingYoutubeDownloadRequest? by mutableStateOf(null)
@@ -258,6 +260,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         pageUrl = request.pageUrl,
                         sponsorBlockMode = request.sponsorBlockMode,
                         sponsorBlockCategories = request.sponsorBlockCategories,
+                        embedSubtitles = request.embedSubtitles,
+                        subtitleLanguages = request.subtitleLanguages,
                     )
                 }
             } else {
@@ -778,7 +782,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages ->
                             val capturedPageUrl = addDownloadDialogState?.pageUrl
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
@@ -793,6 +797,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                                         windowStartMinute = windowStartMinute, windowEndMinute = windowEndMinute, windowDaysMask = windowDaysMask,
                                         pageUrl = capturedPageUrl,
                                         sponsorBlockMode = sponsorBlockMode, sponsorBlockCategories = sponsorBlockCategories,
+                                        embedSubtitles = embedSubtitles, subtitleLanguages = subtitleLanguages,
                                     )
                                 LinkParser.isGenericDownloadUrl(link) ->
                                     triggerDownloadDirectCustom(
@@ -1356,6 +1361,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         pageUrl: String? = null,
         sponsorBlockMode: YtDlpManager.SponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF,
         sponsorBlockCategories: Set<String> = emptySet(),
+        embedSubtitles: Boolean = false,
+        subtitleLanguages: Set<String> = emptySet(),
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             showMessageDialog(
@@ -1383,6 +1390,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 pageUrl = pageUrl,
                 sponsorBlockMode = sponsorBlockMode,
                 sponsorBlockCategories = sponsorBlockCategories,
+                embedSubtitles = embedSubtitles,
+                subtitleLanguages = subtitleLanguages,
             )
             showYtDlpInstallPrompt = true
             return
@@ -1429,6 +1438,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             pageUrl = pageUrl,
             sponsorBlockMode = sponsorBlockMode,
             sponsorBlockCategories = sponsorBlockCategories.joinToString(","),
+            embedSubtitles = embedSubtitles,
+            subtitleLanguages = subtitleLanguages.joinToString(","),
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
         showDownloadStartedSnackbar()
