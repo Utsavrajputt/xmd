@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
-import com.invictus.xmd.ui.MainActivity
 
 typealias ProgressFn = (done: Long, total: Long, speedBps: Double) -> Unit
 typealias LogFn = (String) -> Unit

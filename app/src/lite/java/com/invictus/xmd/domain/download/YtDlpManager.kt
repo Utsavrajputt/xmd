@@ -25,6 +25,11 @@ object YtDlpManager {
         val height: Int? = null
     )
 
+    enum class SponsorBlockMode { OFF, MARK, REMOVE }
+    val SPONSORBLOCK_CATEGORIES = listOf("sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "filler", "music_offtopic")
+    data class PlaylistEntry(val id: String, val title: String, val url: String, val durationSeconds: Int?)
+    data class PlaylistProbeResult(val playlistTitle: String?, val entries: List<PlaylistEntry>)
+
     fun standardQualityOptions(isGenericOrHls: Boolean = false): List<QualityOption> = emptyList()
 
     fun qualityOptionsFromProbedFormats(
@@ -93,8 +98,12 @@ object YtDlpManager {
         processId: String,
         context: Context,
         customFileName: String? = null,
+        sponsorBlockMode: SponsorBlockMode = SponsorBlockMode.OFF,
+        sponsorBlockCategories: Set<String> = emptySet(),
         onProgress: (DownloadProgress) -> Unit
     ): File = throw IllegalStateException("This build doesn't include YouTube support")
+
+    fun probePlaylist(url: String, context: Context): PlaylistProbeResult = PlaylistProbeResult(null, emptyList())
 
     fun cancel(processId: String) {}
 }

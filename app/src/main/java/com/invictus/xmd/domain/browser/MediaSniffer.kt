@@ -2,7 +2,6 @@ package com.invictus.xmd.domain.browser
 
 import java.net.URI
 import com.invictus.xmd.domain.download.DownloadEngine
-import com.invictus.xmd.ui.browser.BrowserFragment
 import com.invictus.xmd.utils.LinkParser
 
 /**

@@ -188,6 +188,19 @@ object LinkParser {
      * and gets "downloaded" as the raw manifest text instead of the actual
      * video.
      */
+    /**
+     * True for a YouTube link that's a playlist -- either a bare
+     * /playlist?list=... page or a /watch?v=...&list=... video-in-playlist
+     * link. Drives the Add Download dialog's playlist picker (checkbox
+     * list of entries) instead of the normal single-video quality flow.
+     */
+    fun isYoutubePlaylistLink(link: String): Boolean {
+        if (!isYoutubeLink(link)) return false
+        val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
+        val query = uri.rawQuery ?: return false
+        return query.split('&').any { it.startsWith("list=") && it.length > "list=".length }
+    }
+
     fun needsYtDlp(link: String): Boolean =
         isYoutubeLink(link) || isInstagramLink(link) || isFacebookLink(link) || isHlsOrDashLink(link)
 

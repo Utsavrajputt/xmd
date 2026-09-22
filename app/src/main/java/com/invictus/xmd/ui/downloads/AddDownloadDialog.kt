@@ -14,8 +14,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -34,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +69,7 @@ import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
+import com.invictus.xmd.ui.components.AppFilterChip
 import com.invictus.xmd.ui.components.ChipGrid
 import com.invictus.xmd.ui.components.ChipLabel
 import com.invictus.xmd.ui.components.ChipRow
@@ -133,7 +141,11 @@ fun AddDownloadDialog(
         windowStartMinute: Int,
         windowEndMinute: Int,
         windowDaysMask: Int,
+        sponsorBlockMode: YtDlpManager.SponsorBlockMode,
+        sponsorBlockCategories: Set<String>,
     ) -> Unit,
+    /** Playlist entries for the "choose videos" picker; empty result for a non-playlist link. Full flavor only -- lite returns empty. */
+    probePlaylist: suspend (String) -> YtDlpManager.PlaylistProbeResult = { YtDlpManager.PlaylistProbeResult(null, emptyList()) },
 ) {
     val context = LocalContext.current
     var link by remember { mutableStateOf(initialLink) }
@@ -142,6 +154,16 @@ fun AddDownloadDialog(
     var customSaveDir by remember { mutableStateOf<String?>(null) }
     var advancedExpanded by remember { mutableStateOf(false) }
     var audioFormatPreset by remember { mutableStateOf(Settings.presetAudioFormat()) }
+
+    // ── SponsorBlock (Advanced) ──────────────────────────────────────────
+    var sponsorBlockMode by remember { mutableStateOf(YtDlpManager.SponsorBlockMode.OFF) }
+    val sponsorBlockCategories = remember { mutableStateListOf("sponsor") }
+
+    // ── Playlist picker ──────────────────────────────────────────────────
+    var playlistResult by remember { mutableStateOf<YtDlpManager.PlaylistProbeResult?>(null) }
+    var playlistProbing by remember { mutableStateOf(false) }
+    var playlistPickerOpen by remember { mutableStateOf(false) }
+    val selectedPlaylistIds = remember { mutableStateListOf<String>() }
 
     var onDuplicateStrategy by remember { mutableStateOf<OnDuplicateStrategy?>(null) }
     var showSolutionsDialog by remember { mutableStateOf(false) }
@@ -180,11 +202,6 @@ fun AddDownloadDialog(
 
     var selectedQualityLabel by remember { mutableStateOf<String?>(null) }
     var selectedQualityOption by remember { mutableStateOf<YtDlpManager.QualityOption?>(null) }
-    // Per-download fps/codec pick (null = Auto). Seeded from the saved
-    // Settings presets and never written back to them.
-    var selectedFps by remember { mutableStateOf(Settings.presetFps().maxFps) }
-    var selectedCodec by remember { mutableStateOf(Settings.presetCodec().vcodecPrefix) }
-    var formatOptionsExpanded by remember { mutableStateOf(false) }
     var streamsExpanded by remember { mutableStateOf(false) }
     var advancedLoading by remember { mutableStateOf(false) }
     var advancedFormats by remember { mutableStateOf<List<YtDlpManager.ProbedFormat>>(emptyList()) }
@@ -212,60 +229,35 @@ fun AddDownloadDialog(
     }
     val qualityItems = remember(videoOptions, streamsLabel) { videoOptions.map { it.label } + "Audio" + streamsLabel }
 
-    // FPS / codec chips: start from the fixed presets (same values the
-    // Settings quality section offers), then switch to what the probed
-    // streams really offer at the selected height once the probe returns.
-    val selectedHeight = selectedQualityOption?.height
-    val probedVideoFormats = remember(advancedFormats) { advancedFormats.filter { !it.isAudioOnly } }
-    val scopedVideoFormats = remember(probedVideoFormats, selectedHeight) {
-        if (selectedHeight == null) probedVideoFormats
-        else probedVideoFormats.filter { it.height == selectedHeight }
-            .ifEmpty { probedVideoFormats.filter { (it.height ?: 0) <= selectedHeight } }
-            .ifEmpty { probedVideoFormats }
-    }
-    val fpsChoices: List<Int?> = remember(scopedVideoFormats, probedVideoFormats) {
-        if (probedVideoFormats.isEmpty()) listOf(null, 30, 60)
-        else listOf<Int?>(null) + scopedVideoFormats.mapNotNull { it.fps }.distinct().sorted()
-    }
-    val codecChoices: List<String?> = remember(scopedVideoFormats, probedVideoFormats) {
-        if (probedVideoFormats.isEmpty()) listOf(null, "avc1", "vp09", "av01")
-        else listOf<String?>(null) + scopedVideoFormats
-            .mapNotNull { it.vcodec?.substringBefore('.')?.let { c -> if (c == "vp9") "vp09" else c } }
-            .distinct()
-            .sortedBy { CODEC_ORDER.indexOf(it).let { i -> if (i < 0) CODEC_ORDER.size else i } }
-    }
-    val effectiveFps = selectedFps?.takeIf { it in fpsChoices }
-    val effectiveCodec = selectedCodec?.takeIf { it in codecChoices }
-    // Collapsed-header summary, e.g. "1080p · 60fps · VP9". Only when an fps
-    // or codec is actually picked (otherwise it'd just repeat the highlighted
-    // chip) and only for ladder video rungs -- Audio / exact streams pin these.
-    val formatSummary = if (
-        (effectiveFps != null || effectiveCodec != null) &&
-        selectedAdvancedFormat == null &&
-        selectedQualityLabel != null &&
-        selectedQualityLabel != "Audio"
-    ) {
-        listOfNotNull(
-            selectedQualityLabel,
-            effectiveFps?.let { "${it}fps" },
-            effectiveCodec?.let { codecLabel(it) },
-        ).joinToString(" \u00b7 ")
-    } else null
-    val finalQualityOption = remember(selectedQualityOption, selectedAdvancedFormat, effectiveFps, effectiveCodec, isGeneric) {
-        val opt = selectedQualityOption
-        val h = opt?.height
-        if (opt != null && selectedAdvancedFormat == null && !opt.isAudioOnly && h != null) {
-            opt.copy(formatSelector = YtDlpManager.videoSelectorFor(h, isGeneric, effectiveCodec, effectiveFps))
-        } else opt
-    }
+    val finalQualityOption = selectedQualityOption
 
     // Reset quality selection + kick off the advanced probe whenever the
     // effective link changes -- mirrors updateQualitySection()'s
     // currentQualityLink guard via the LaunchedEffect key.
+    LaunchedEffect(link) {
+        val trimmed = link.trim()
+        if (!LinkParser.isYoutubePlaylistLink(trimmed)) {
+            playlistResult = null
+            return@LaunchedEffect
+        }
+        playlistProbing = true
+        val result = probePlaylist(trimmed)
+        playlistProbing = false
+        playlistResult = result
+        // Pre-select everything -- "Add all N" is the common case; unchecking
+        // a couple is less friction than starting from an all-empty list.
+        selectedPlaylistIds.clear()
+        selectedPlaylistIds.addAll(result.entries.map { it.id })
+    }
+
     LaunchedEffect(link, needsYtDlp) {
-        selectedFps = Settings.presetFps().maxFps
-        selectedCodec = Settings.presetCodec().vcodecPrefix
         streamsExpanded = false
+        sponsorBlockMode = YtDlpManager.SponsorBlockMode.OFF
+        sponsorBlockCategories.clear()
+        sponsorBlockCategories.add("sponsor")
+        playlistResult = null
+        playlistPickerOpen = false
+        selectedPlaylistIds.clear()
         if (!needsYtDlp) {
             selectedQualityLabel = null
             selectedQualityOption = null
@@ -511,46 +503,137 @@ fun AddDownloadDialog(
                     }
                 }
 
-                if (needsYtDlp) {
+                // ── Playlist picker ──────────────────────────────────────
+                // Only for an actual /playlist or ...&list=... link; a plain
+                // single-video URL never triggers the probe (playlistResult
+                // stays null), so this block simply doesn't render for it.
+                val playlistEntries = playlistResult?.entries.orEmpty()
+                if (playlistProbing || playlistEntries.isNotEmpty()) {
                     Spacer(Modifier.height(14.dp))
-                    Row(
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            stringResource(R.string.download_dialog_quality_label),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
-                        if (!formatOptionsExpanded && formatSummary != null) {
-                            Text(
-                                text = formatSummary,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.End,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 8.dp),
-                            )
-                        } else {
-                            Spacer(Modifier.weight(1f))
-                        }
-                        IconButton(
-                            onClick = { formatOptionsExpanded = !formatOptionsExpanded },
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.ArrowDown,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .rotate(if (formatOptionsExpanded) 180f else 0f),
-                            )
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.ViewList,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = if (playlistProbing) {
+                                        stringResource(R.string.download_dialog_playlist_loading)
+                                    } else {
+                                        stringResource(R.string.download_dialog_playlist_detected, playlistEntries.size)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (playlistProbing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                }
+                            }
+                            if (!playlistProbing && playlistEntries.isNotEmpty()) {
+                                Spacer(Modifier.height(10.dp))
+                                ChipRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    options = listOf(
+                                        stringResource(R.string.download_dialog_playlist_just_this),
+                                        stringResource(R.string.download_dialog_playlist_choose),
+                                    ),
+                                    selected = if (playlistPickerOpen) {
+                                        stringResource(R.string.download_dialog_playlist_choose)
+                                    } else {
+                                        stringResource(R.string.download_dialog_playlist_just_this)
+                                    },
+                                    onSelected = { index -> playlistPickerOpen = index == 1 },
+                                )
+                                AnimatedVisibility(visible = playlistPickerOpen) {
+                                    Column {
+                                        Spacer(Modifier.height(10.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.download_dialog_playlist_selected_count,
+                                                    selectedPlaylistIds.size, playlistEntries.size,
+                                                ),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    if (selectedPlaylistIds.size == playlistEntries.size) {
+                                                        selectedPlaylistIds.clear()
+                                                    } else {
+                                                        selectedPlaylistIds.clear()
+                                                        selectedPlaylistIds.addAll(playlistEntries.map { it.id })
+                                                    }
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                            ) {
+                                                Text(
+                                                    text = if (selectedPlaylistIds.size == playlistEntries.size) {
+                                                        stringResource(R.string.download_dialog_playlist_select_none)
+                                                    } else {
+                                                        stringResource(R.string.download_dialog_playlist_select_all)
+                                                    },
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            }
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 260.dp),
+                                        ) {
+                                            items(playlistEntries, key = { it.id }) { entry ->
+                                                val checked = entry.id in selectedPlaylistIds
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .toggleable(
+                                                            value = checked,
+                                                            onValueChange = { on ->
+                                                                if (on) selectedPlaylistIds.add(entry.id)
+                                                                else selectedPlaylistIds.remove(entry.id)
+                                                            },
+                                                        )
+                                                        .padding(vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Checkbox(checked = checked, onCheckedChange = null)
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(
+                                                        text = entry.title,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+                }
+
+                if (needsYtDlp) {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        stringResource(R.string.download_dialog_quality_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
                     Spacer(Modifier.height(8.dp))
                     // Chip grid instead of a dropdown -- every quality rung
                     // is a single tap, same pattern as the yt-dlp settings
@@ -566,6 +649,11 @@ fun AddDownloadDialog(
                             if (index == qualityItems.lastIndex) {
                                 streamsExpanded = !streamsExpanded
                             } else {
+                                // Picking a ladder rung (or Audio) while the probed
+                                // streams list is open makes it stale -- close it
+                                // rather than leaving it showing options for the
+                                // previous height.
+                                streamsExpanded = false
                                 selectedQualityLabel = item
                                 selectedAdvancedFormat = null
                                 selectedQualityOption = if (item == "Audio") audioOption
@@ -593,32 +681,6 @@ fun AddDownloadDialog(
                         )
                     }
 
-                    // FPS + codec only make sense for the ladder's video rungs;
-                    // an exact stream pick or Audio already pins them.
-                    AnimatedVisibility(
-                        visible = formatOptionsExpanded &&
-                            selectedAdvancedFormat == null &&
-                            selectedQualityLabel != "Audio",
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(10.dp))
-                            ChipLabel("FPS")
-                            ChipRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                options = fpsChoices.map { if (it == null) "Auto" else "${it}fps" },
-                                selected = effectiveFps?.let { "${it}fps" } ?: "Auto",
-                                onSelected = { index -> selectedFps = fpsChoices[index] },
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            ChipLabel("Codec")
-                            ChipRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                options = codecChoices.map { codecLabel(it) },
-                                selected = codecLabel(effectiveCodec),
-                                onSelected = { index -> selectedCodec = codecChoices[index] },
-                            )
-                        }
-                    }
 
                     AnimatedVisibility(visible = streamsExpanded) {
                         Column {
@@ -700,11 +762,33 @@ fun AddDownloadDialog(
                         stringResource(R.string.torrent_dialog_advanced_label),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
                     )
+                    // Schedule summary while collapsed -- only when one is
+                    // actually set ("Start now" is the default, so nothing shown).
+                    if (!advancedExpanded && scheduleMode != com.invictus.xmd.domain.download.ScheduleMode.NONE) {
+                        Text(
+                            text = com.invictus.xmd.ui.components.scheduleLabel(
+                                scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, compact = true,
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.End,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp),
+                        )
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
                     Icon(
-                        imageVector = if (advancedExpanded) Icons.ArrowDown else Icons.ChevronRight,
+                        imageVector = Icons.ArrowDown,
                         contentDescription = null,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(if (advancedExpanded) 0f else -90f),
                     )
                 }
 
@@ -738,6 +822,63 @@ fun AddDownloadDialog(
                             windowDaysMask = daysMask
                         },
                     )
+
+                    if (needsYtDlp) {
+                        Spacer(Modifier.height(14.dp))
+                        ChipLabel(stringResource(R.string.download_dialog_sponsorblock_title))
+                        ChipRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            options = listOf(
+                                stringResource(R.string.download_dialog_sponsorblock_off),
+                                stringResource(R.string.download_dialog_sponsorblock_mark),
+                                stringResource(R.string.download_dialog_sponsorblock_remove),
+                            ),
+                            selected = when (sponsorBlockMode) {
+                                YtDlpManager.SponsorBlockMode.OFF -> stringResource(R.string.download_dialog_sponsorblock_off)
+                                YtDlpManager.SponsorBlockMode.MARK -> stringResource(R.string.download_dialog_sponsorblock_mark)
+                                YtDlpManager.SponsorBlockMode.REMOVE -> stringResource(R.string.download_dialog_sponsorblock_remove)
+                            },
+                            onSelected = { index ->
+                                sponsorBlockMode = YtDlpManager.SponsorBlockMode.entries[index]
+                            },
+                        )
+                        AnimatedVisibility(visible = sponsorBlockMode != YtDlpManager.SponsorBlockMode.OFF) {
+                            Column {
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    text = stringResource(R.string.download_dialog_sponsorblock_categories_label),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 6.dp),
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    YtDlpManager.SPONSORBLOCK_CATEGORIES.forEach { category ->
+                                        val checked = category in sponsorBlockCategories
+                                        AppFilterChip(
+                                            label = category.replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                            selected = checked,
+                                            onClick = {
+                                                if (checked) {
+                                                    // Keep at least one category selected -- an
+                                                    // empty set falls back to yt-dlp's own
+                                                    // "sponsor"-only default, silently diverging
+                                                    // from what the chips show as picked.
+                                                    if (sponsorBlockCategories.size > 1) sponsorBlockCategories.remove(category)
+                                                } else {
+                                                    sponsorBlockCategories.add(category)
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -759,8 +900,34 @@ fun AddDownloadDialog(
                     }
                 }
             } else {
+                val playlistEntriesForStart = playlistResult?.entries.orEmpty()
+                val startingPlaylistSelection = playlistPickerOpen && playlistEntriesForStart.isNotEmpty()
                 StartChipButton(onClick = {
-                    if (link.isNotBlank()) {
+                    if (startingPlaylistSelection) {
+                        // One onStart call per selected entry -- reuses the
+                        // exact same enqueue path as a single download, just
+                        // looped, so no new plumbing was needed in the two
+                        // callers (MainActivity / ShareReceiverActivity).
+                        playlistEntriesForStart
+                            .filter { it.id in selectedPlaylistIds }
+                            .forEach { entry ->
+                                onStart(
+                                    entry.url,
+                                    entry.title,
+                                    customSaveDir,
+                                    finalQualityOption,
+                                    audioFormatPreset,
+                                    onDuplicateStrategy,
+                                    scheduleMode,
+                                    scheduledAtMs,
+                                    windowStartMinute,
+                                    windowEndMinute,
+                                    windowDaysMask,
+                                    sponsorBlockMode,
+                                    sponsorBlockCategories.toSet(),
+                                )
+                            }
+                    } else if (link.isNotBlank()) {
                         onStart(
                             link.trim(),
                             name.trim().takeUnless { it.isBlank() },
@@ -773,6 +940,8 @@ fun AddDownloadDialog(
                             windowStartMinute,
                             windowEndMinute,
                             windowDaysMask,
+                            sponsorBlockMode,
+                            sponsorBlockCategories.toSet(),
                         )
                     }
                 }) {
@@ -784,6 +953,13 @@ fun AddDownloadDialog(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.action_prepare))
+                    } else if (startingPlaylistSelection) {
+                        Text(
+                            stringResource(
+                                R.string.download_dialog_playlist_add_n,
+                                selectedPlaylistIds.size,
+                            ),
+                        )
                     } else {
                         Text(stringResource(R.string.torrent_dialog_start))
                     }
@@ -909,14 +1085,3 @@ private fun advancedStreamLabel(format: YtDlpManager.ProbedFormat, durationSecon
 }
 
 private const val STREAMS_CHIP_LABEL = "Streams"
-
-/** Display order for the codec chips; anything else yt-dlp reports (hevc, vp8...) follows alphabetically-by-arrival. */
-private val CODEC_ORDER = listOf("avc1", "vp09", "av01")
-
-private fun codecLabel(prefix: String?): String = when (prefix) {
-    null -> "Auto"
-    "avc1" -> "AVC"
-    "vp09" -> "VP9"
-    "av01" -> "AV1"
-    else -> prefix.uppercase()
-}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_ytdlp_hint">Lite omits Python, FFmpeg, and yt-dlp to stay small. Use Full for video-site downloads.</string>
+</resources>

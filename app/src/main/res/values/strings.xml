@@ -4,13 +4,13 @@
     <!-- App -->
     <string name="app_name">Xmd</string>
     <string name="app_header_title">Xtreme Media Downloader</string>
-    <string name="hint_links">Paste direct links, YouTube links, or FuckingFast links — one per line.</string>
+    <string name="hint_links">Paste links, one per line</string>
     <string name="home_paste_links_hint">Paste links above to start downloading</string>
     <string name="home_links_required">Paste at least one link</string>
-    <string name="home_no_valid_links">No valid links found — paste a real URL, magnet link, or supported site link</string>
+    <string name="home_no_valid_links">No valid links found</string>
     <string name="home_skipped_invalid_links">Skipped %1$d line(s) that weren\'t valid links</string>
     <string name="no_ready_files_yet">No ready files yet. Tap Prepare first.</string>
-    <string name="home_supported_sources">Direct links · FuckingFast · yt-dlp</string>
+    <string name="home_supported_sources">Direct links · Torrents</string>
     <string name="home_download_activity">Download activity</string>
     <string name="home_stat_downloading">⬇ %1$d downloading</string>
     <string name="home_stat_paused">⏸ %1$d paused</string>
@@ -19,8 +19,8 @@
 
     <!-- Actions -->
     <string name="action_prepare">Prepare</string>
-    <string name="section_add_new_download">ADD NEW DOWNLOAD</string>
-    <string name="action_download">Download Ready Files</string>
+    <string name="section_add_new_download">NEW DOWNLOAD</string>
+    <string name="action_download">Download ready</string>
     <string name="action_pick_torrent_file">Pick .torrent file</string>
     <string name="action_add_torrent">Add torrent</string>
     <string name="torrent_dialog_title">Add Torrent</string>
@@ -57,6 +57,7 @@
     <string name="action_pause_all">Pause All</string>
     <string name="action_resume_all">Resume All</string>
     <string name="action_add">Add</string>
+    <string name="action_next">Next</string>
     <string name="action_paste">Paste</string>
     <string name="action_dismiss">Dismiss</string>
     <string name="action_view">View</string>
@@ -74,6 +75,11 @@
     <string name="select_all">Select all</string>
     <string name="invert_selection">Invert selection</string>
     <string name="selection_options">Selection options</string>
+    <string name="selection_count">%1$d/%2$d selected</string>
+    <string name="delete_downloads_title">Delete selected downloads?</string>
+    <string name="delete_downloads_message">Remove %1$d downloads from the queue?</string>
+    <string name="delete_file_from_device">Also delete file from device</string>
+    <string name="delete_files_from_device">Also delete files from device</string>
 
     <!-- Downloads -->
     <string name="empty_queue">Paste some links above and tap Prepare.</string>
@@ -110,8 +116,8 @@
     <string name="settings_category_browser_desc">Ad blocking</string>
     <string name="settings_category_downloads">Downloads</string>
     <string name="settings_category_downloads_desc">Save location, retries, Wi-Fi only</string>
-    <string name="settings_category_youtube">Ytdlp</string>
-    <string name="settings_category_youtube_desc">Default quality, format, yt-dlp engine</string>
+    <string name="settings_category_youtube">Video downloads</string>
+    <string name="settings_category_youtube_desc">Quality, formats, and yt-dlp</string>
     <string name="settings_category_about">About</string>
     <string name="settings_category_about_desc">Version, credits, and licenses</string>
 
@@ -150,6 +156,19 @@
         <item quantity="one">%d commit</item>
         <item quantity="other">%d commits</item>
     </plurals>
+    <string name="download_dialog_sponsorblock_title">SponsorBlock</string>
+    <string name="download_dialog_sponsorblock_off">Off</string>
+    <string name="download_dialog_sponsorblock_mark">Mark</string>
+    <string name="download_dialog_sponsorblock_remove">Remove</string>
+    <string name="download_dialog_sponsorblock_categories_label">Categories</string>
+    <string name="download_dialog_playlist_loading">Checking playlist\u2026</string>
+    <string name="download_dialog_playlist_detected">Playlist detected \u00b7 %d video(s)</string>
+    <string name="download_dialog_playlist_just_this">Just this video</string>
+    <string name="download_dialog_playlist_choose">Choose videos</string>
+    <string name="download_dialog_playlist_selected_count">%1$d of %2$d selected</string>
+    <string name="download_dialog_playlist_select_all">Select all</string>
+    <string name="download_dialog_playlist_select_none">Select none</string>
+    <string name="download_dialog_playlist_add_n">Add %d</string>
     <string name="about_updates_title">Updates</string>
     <string name="about_auto_check_for_updates">Auto-check for updates</string>
     <string name="about_check_on_startup">Check on startup</string>
@@ -209,18 +228,18 @@
     <string name="theme_mode_dark">Dark mode</string>
     <string name="theme_mode_light">Light mode</string>
     <string name="settings_dark_mode">Dark Mode</string>
-    <string name="settings_dark_mode_hint">Switch between the dark and light variant of the selected theme. Tapping the header once does the same thing.</string>
+    <string name="settings_dark_mode_hint">Use the selected theme in dark mode.</string>
     <string name="settings_amoled_mode">AMOLED Dark</string>
     <string name="settings_amoled_mode_hint">Use pure black background in dark mode while keeping theme accent colors.</string>
     <string name="settings_connections">Connections per Download</string>
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>
     <string name="settings_auto_retry">Auto Retry on Network Error</string>
-    <string name="settings_auto_retry_hint">Retries up to 3 times automatically if the connection times out or drops. Expired links still require a manual retry.</string>
+    <string name="settings_auto_retry_hint">Retry network failures up to 3 times.</string>
     <string name="settings_default_location">Default Save Location</string>
     <string name="settings_default_location_hint">Where new downloads are saved unless a custom folder is picked for that download.</string>
     <string name="settings_disable_categorization">Disable Folder Categorization</string>
-    <string name="settings_disable_categorization_hint">Save all downloads directly into the default location instead of sorting them into Videos, Music, Documents, and other subfolders.</string>
+    <string name="settings_disable_categorization_hint">Save files directly in the default folder.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
     <string name="settings_battery_optimization">Disable battery optimization</string>
@@ -234,6 +253,10 @@
     <string name="settings_data_limit_scope_total">Mobile + Wi-Fi</string>
     <string name="settings_data_limit_reached_title">Daily data limit reached</string>
     <string name="settings_data_limit_reached_body">Downloads paused for today. They won\'t resume automatically -- retry after the limit resets at midnight, or raise the limit in Settings.</string>
+    <string name="settings_download_scheduler">Download scheduler</string>
+    <string name="settings_download_scheduler_hint">Limit automatic downloads to quiet hours.</string>
+    <string name="settings_allow_exact_alarms">Allow exact alarms</string>
+    <string name="settings_allow_exact_alarms_hint">Start and stop on time, even in Doze.</string>
     <string name="settings_shields_header">Shields</string>
     <string name="settings_shields_standard_title">Standard</string>
     <string name="settings_shields_standard_subtitle">Blocks ads, trackers, and analytics. Safe for any site.</string>
@@ -272,10 +295,13 @@
     <string name="sniffed_media_title">Videos &amp; audio found on this page</string>
     <string name="sniffed_media_chip_one">🎬 1 video</string>
     <string name="sniffed_media_chip_many">🎬 %d videos</string>
-    <string name="settings_ytdlp_title">YouTube downloader (yt-dlp)</string>
-    <string name="settings_ytdlp_hint">Required for YouTube downloads. Adds on-device storage once installed.</string>
+    <string name="settings_ytdlp_title">yt-dlp engine</string>
+    <string name="settings_ytdlp_hint">Video-site support depends on the selected build.</string>
+    <string name="settings_ytdlp_not_installed_hint">Install to download from supported video sites.</string>
+    <string name="settings_ytdlp_stable_hint">Stable channel · Recommended</string>
+    <string name="settings_ytdlp_nightly_hint">Nightly channel · Latest fixes</string>
     <string name="settings_default_quality">Default quality</string>
-    <string name="settings_default_quality_hint">"Ask always" shows the quality picker on every YouTube download. Picking a fixed quality skips it and downloads at that quality directly.</string>
+    <string name="settings_default_quality_hint">Ask each time, or choose a default.</string>
     <string name="quality_ask_always">Ask always</string>
     <string name="settings_ytdlp_install">Install</string>
     <string name="settings_ytdlp_delete">Delete</string>
@@ -291,7 +317,7 @@
     <string name="settings_ytdlp_channel_nightly">Channel: Nightly</string>
     <string name="settings_ytdlp_removed">yt-dlp removed</string>
     <string name="settings_video_preset_title">Video preset</string>
-    <string name="settings_video_preset_hint">Preferred container, codec, and frame rate for the quick quality picks (144p–4K). Falls back automatically if a video doesn\'t offer that exact combination.</string>
+    <string name="settings_video_preset_hint">Used when available; otherwise yt-dlp picks the closest match.</string>
     <string name="settings_preset_container_label">Container</string>
     <string name="settings_preset_fps_label">FPS</string>
     <string name="settings_preset_codec_label">Codec</string>
@@ -310,6 +336,24 @@
     <string name="audio_format_opus">Opus</string>
     <string name="audio_format_original">Original (no re-encode)</string>
     <string name="settings_save">Save</string>
+    <string name="schedule_label">Schedule</string>
+    <string name="schedule_start_time">Start time</string>
+    <string name="schedule_end_time">End time</string>
+    <string name="schedule_repeat_on">Repeat on</string>
+    <string name="schedule_today">Today</string>
+    <string name="schedule_tomorrow">Tomorrow</string>
+    <string name="schedule_start_at">Start at</string>
+    <string name="schedule_start_now">Start now</string>
+    <string name="schedule_quiet_hours">Quiet hours</string>
+    <string name="schedule_use_quiet_hours">Use quiet hours</string>
+    <string name="schedule_start_specific_time">Start at specific time…</string>
+    <string name="schedule_custom_window">Custom window…</string>
+    <string name="schedule_start_at_time">Start at %1$s</string>
+    <string name="schedule_custom_window_time">Custom window (%1$s)</string>
+    <string name="schedule_every_day">Every day</string>
+    <string name="schedule_weekdays">Weekdays</string>
+    <string name="schedule_weekends">Weekends</string>
+    <string name="schedule_never">Never</string>
     <string name="settings_import_websites">Website Sources</string>
     <string name="settings_import_websites_row_title">Source Pack</string>
     <string name="settings_import_websites_hint">Scans all folders on your device (incl. subfolders) for any xmdweb source-pack file (e.g. xmd_web.json) and lets you pick which one to import.</string>
@@ -545,6 +589,8 @@
     <string name="download_strategy_add_a_numbered_file_description">Save as a new file with a numbered suffix (e.g. name_1.ext)</string>
     <string name="download_strategy_override_existing_file">Overwrite existing file</string>
     <string name="download_strategy_override_existing_file_description">Remove existing download and overwrite this file</string>
+    <string name="download_override_active">Can\'t overwrite an active download. Cancel it or save a numbered copy.</string>
+    <string name="download_override_delete_failed">Couldn\'t remove the existing file. Save a numbered copy instead.</string>
     <string name="show_solutions">Show solutions</string>
     <string name="change_solution">Change solution</string>
     <string name="open_existing_file">Open file</string>

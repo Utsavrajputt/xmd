@@ -267,7 +267,11 @@ private fun DownloadsTopBar(
                             .padding(horizontal = 6.dp, vertical = 4.dp),
                     ) {
                         Text(
-                            text = "${downloadsSelectionState.selectedCount}/${downloadsSelectionState.totalCount} Selected",
+                            text = stringResource(
+                                R.string.selection_count,
+                                downloadsSelectionState.selectedCount,
+                                downloadsSelectionState.totalCount,
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,

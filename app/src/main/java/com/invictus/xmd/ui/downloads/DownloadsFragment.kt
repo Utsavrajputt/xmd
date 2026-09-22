@@ -12,12 +12,11 @@ import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.invictus.xmd.R
 import com.invictus.xmd.service.DownloadService
@@ -27,6 +26,7 @@ import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
+import com.invictus.xmd.ui.MainActivityViewModel
 import com.invictus.xmd.ui.settings.AboutScreen
 import com.invictus.xmd.ui.settings.SettingsActivity
 
@@ -46,15 +46,7 @@ class DownloadsFragment : Fragment() {
         fun onDownloadsSelectionChanged(selectionState: DownloadsSelectionUiState?)
     }
 
-    // Search query comes from MainActivity's in-header search box via
-    // setFilterQuery(), same as before -- held as Compose state so the
-    // screen recomposes immediately when it changes.
-    private var queryState by mutableStateOf("")
-
-    /** Called by MainActivity when the in-header search query updates. */
-    fun setFilterQuery(query: String) {
-        queryState = query
-    }
+    private val activityState: MainActivityViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -65,7 +57,7 @@ class DownloadsFragment : Fragment() {
             XmdTheme {
                 DownloadsScreen(
                     items = items,
-                    query = queryState,
+                    query = activityState.headerSearchQuery,
                     onPauseResume = { onItemPauseResume(it) },
                     onCancel = { DownloadService.cancelItem(requireContext(), it.id) },
                     onRetry = { (activity as? Callbacks)?.retryItem(it.id) },
@@ -221,7 +213,7 @@ class DownloadsFragment : Fragment() {
             return
         }
         if (file.renameTo(newFile)) {
-            QueueRepository.update(item.id) { it.copy(fileName = newName, filePath = newFile.absolutePath) }
+            QueueRepository.renameDownloadedFile(item.id, newName, newFile.absolutePath)
         } else {
             Toast.makeText(requireContext(), R.string.rename_failed_toast, Toast.LENGTH_SHORT).show()
         }

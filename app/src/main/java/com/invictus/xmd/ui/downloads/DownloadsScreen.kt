@@ -107,9 +107,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.invictus.xmd.R
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.DownloadScheduler
 import com.invictus.xmd.domain.download.ItemStatus
@@ -131,8 +129,8 @@ import com.invictus.xmd.utils.formatRemainingTimeChrome
  * Cancel All/Retry All + Clear All. Mirrors fragment_downloads.xml.
  *
  * Unlike Bookmarks/History, this screen owns no header or search field of
- * its own -- the query comes from MainActivity's in-header search box via
- * DownloadsFragment.setFilterQuery(), same as before.
+ * its own -- the query comes from MainActivity's saved-state owner through
+ * DownloadsFragment.
  */
 @Composable
 fun DownloadsScreen(
@@ -405,27 +403,19 @@ fun DownloadsScreen(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_start_all)) },
                                 leadingIcon = { Icon(imageVector = Icons.Play, contentDescription = null) },
-                                enabled = true,
+                                enabled = startableItems.isNotEmpty(),
                                 onClick = {
                                     overflowMenuExpanded = false
-                                    val targets = startableItems.ifEmpty {
-                                        items.filter { it.status == ItemStatus.PAUSED || it.status == ItemStatus.READY || it.status == ItemStatus.PENDING }
-                                    }
-                                    onStartAll(targets.ifEmpty { items })
+                                    onStartAll(startableItems)
                                 },
                             )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_pause_all)) },
                                 leadingIcon = { Icon(imageVector = Icons.Pause, contentDescription = null) },
-                                enabled = true,
+                                enabled = pausableItems.isNotEmpty(),
                                 onClick = {
                                     overflowMenuExpanded = false
-                                    val targets = pausableItems.ifEmpty {
-                                        items.filter { it.status == ItemStatus.DOWNLOADING || it.status == ItemStatus.RETRYING || it.status == ItemStatus.SAVING }
-                                    }
-                                    if (targets.isNotEmpty()) {
-                                        onPauseAll(targets)
-                                    }
+                                    onPauseAll(pausableItems)
                                 },
                             )
                             if (hasActive) {
@@ -545,7 +535,7 @@ fun DownloadsScreen(
             title = {
                 Text(
                     if (isSingle) stringResource(R.string.delete_download_title)
-                    else "Delete ${targets.size} downloads?"
+                    else stringResource(R.string.delete_downloads_title)
                 )
             },
             text = {
@@ -555,7 +545,7 @@ fun DownloadsScreen(
                 ) {
                     Text(
                         text = if (isSingle) (firstItem.fileName ?: firstItem.sourceUrl)
-                        else "Remove ${targets.size} selected downloads from the queue?",
+                        else stringResource(R.string.delete_downloads_message, targets.size),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 3,
@@ -577,7 +567,10 @@ fun DownloadsScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (isSingle) "Also delete file from device" else "Also delete files from device",
+                                text = stringResource(
+                                    if (isSingle) R.string.delete_file_from_device
+                                    else R.string.delete_files_from_device
+                                ),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -1216,7 +1209,7 @@ private fun CompactIconButton(
     tint: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 28.dp,
+    size: androidx.compose.ui.unit.Dp = 48.dp,
     iconSize: androidx.compose.ui.unit.Dp = 20.dp,
 ) {
     Box(
@@ -1254,7 +1247,10 @@ private fun progressFor(item: QueueItem): Pair<Float, Boolean> = when (item.stat
     else -> 0f to true
 }
 
-private fun statusText(item: QueueItem, speedEta: String?): String = when (item.status) {
+@Composable
+private fun statusText(item: QueueItem, speedEta: String?): String {
+    val context = LocalContext.current
+    return when (item.status) {
     ItemStatus.PENDING -> "Queued"
     ItemStatus.RESOLVING -> "Resolving…"
     ItemStatus.NEEDS_CHALLENGE -> "Verifying — complete check in browser"
@@ -1326,11 +1322,17 @@ private fun statusText(item: QueueItem, speedEta: String?): String = when (item.
         val parts = buildList {
             if (bytes > 0) add(formatBytes(bytes))
             if (durationMs > 500) add("Took ${formatElapsedDuration(durationMs)}")
-            if (finishedAt > 0) add(dateFormat.format(Date(finishedAt)))
+            if (finishedAt > 0) {
+                val finishedDate = Date(finishedAt)
+                val date = android.text.format.DateFormat.getMediumDateFormat(context).format(finishedDate)
+                val time = android.text.format.DateFormat.getTimeFormat(context).format(finishedDate)
+                add("$date \u00b7 $time")
+            }
         }
         if (parts.isNotEmpty()) parts.joinToString("  •  ") else "Completed"
     }
     ItemStatus.FAILED -> item.error ?: "Failed"
+}
 }
 
 @Composable
@@ -1341,8 +1343,6 @@ private fun colorForStatus(status: ItemStatus): Color = when (status) {
     ItemStatus.DONE -> MaterialTheme.colorScheme.primary
     ItemStatus.FAILED -> MaterialTheme.colorScheme.error
 }
-
-private val dateFormat by lazy { SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()) }
 
 private fun formatElapsedDuration(durationMs: Long): String {
     val totalSecs = (durationMs / 1000).coerceAtLeast(1)

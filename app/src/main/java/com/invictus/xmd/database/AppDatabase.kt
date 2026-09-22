@@ -19,7 +19,7 @@ import com.invictus.xmd.database.entities.Shortcut
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.ui.downloads.DownloadsFragment
 
-@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 14, exportSchema = false)
+@Database(entities = [QueueItem::class, Shortcut::class, HistoryEntry::class, Bookmark::class], version = 15, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -172,6 +172,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // v14 -> v15: adds per-download SponsorBlock choice to queue_items
+        // (Add Download dialog only -- not a saved Settings preset).
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN sponsorBlockMode TEXT NOT NULL DEFAULT 'OFF'")
+                db.execSQL("ALTER TABLE queue_items ADD COLUMN sponsorBlockCategories TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         // v13 -> v14: adds the download scheduler fields to queue_items --
         // scheduleMode (NONE/INHERIT_GLOBAL/ONE_TIME/CUSTOM_WINDOW), a
         // one-time start timestamp, and a per-item quiet-hours window +
@@ -196,7 +205,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                         MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                        MIGRATION_12_13, MIGRATION_13_14
+                        MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15
                     )
                     // Safety net only for schema drift beyond the explicit
                     // migrations above (shouldn't trigger in practice).

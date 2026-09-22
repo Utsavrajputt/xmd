@@ -1,5 +1,7 @@
 package com.invictus.xmd.ui.components
 
+import android.icu.text.DateFormatSymbols
+import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,28 +37,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.invictus.xmd.R
 import com.invictus.xmd.domain.download.ScheduleMode
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import java.util.Calendar
-import java.util.Locale
 
-/** "1:00 AM" for a minutes-since-midnight value. */
+/** Locale-aware time for a minutes-since-midnight value. */
+@Composable
 fun formatMinuteOfDay(minute: Int): String {
     if (minute < 0) return "--:--"
+    val context = LocalContext.current
     val cal = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, minute / 60)
         set(Calendar.MINUTE, minute % 60)
     }
-    return String.format(Locale.getDefault(), "%tl:%tM %tp", cal, cal, cal).uppercase(Locale.getDefault())
+    return DateFormat.getTimeFormat(context).format(cal.time)
 }
 
-private val DAY_LABELS = listOf("S", "M", "T", "W", "T", "F", "S") // bit 0 = Sunday
+@Composable
+private fun localizedDayLabels(width: Int): List<String> {
+    val locale = LocalConfiguration.current.locales[0]
+    val weekdays = DateFormatSymbols.getInstance(locale).getWeekdays(DateFormatSymbols.FORMAT, width)
+    return (Calendar.SUNDAY..Calendar.SATURDAY).map { weekdays[it] }
+}
 
 /**
  * One day-of-week circle in the "Repeat on" row. Plain custom toggle
@@ -97,14 +109,19 @@ private fun DayToggle(
     }
 }
 
-/** "Every day" / "Weekdays" / "Weekends" / "Sun, Wed" for a day-of-week bitmask. */
-fun formatDaysMask(mask: Int): String = when (mask) {
-    0x7F -> "Every day"
-    0b0111110 -> "Weekdays"
-    0b1000001 -> "Weekends"
-    else -> (0..6).filter { (mask and (1 shl it)) != 0 }
-        .joinToString(", ") { listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")[it] }
-        .ifBlank { "Never" }
+/** Localized summary for a day-of-week bitmask. */
+@Composable
+fun formatDaysMask(mask: Int): String {
+    val dayLabels = localizedDayLabels(DateFormatSymbols.SHORT)
+    return when (mask) {
+        0x7F -> stringResource(R.string.schedule_every_day)
+        0b0111110 -> stringResource(R.string.schedule_weekdays)
+        0b1000001 -> stringResource(R.string.schedule_weekends)
+        0 -> stringResource(R.string.schedule_never)
+        else -> (0..6)
+            .filter { (mask and (1 shl it)) != 0 }
+            .joinToString(", ") { dayLabels[it] }
+    }
 }
 
 /**
@@ -122,27 +139,31 @@ fun TimeRangePickerDialog(
     onConfirm: (startMinute: Int, endMinute: Int, daysMask: Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
+    val dayLabels = localizedDayLabels(DateFormatSymbols.NARROW)
     var showingEnd by remember { mutableStateOf(false) }
     var daysMask by remember { mutableStateOf(initialDaysMask) }
     val startState = rememberTimePickerState(
         initialHour = (initialStartMinute.takeIf { it >= 0 } ?: 60) / 60,
         initialMinute = (initialStartMinute.takeIf { it >= 0 } ?: 60) % 60,
-        is24Hour = false,
+        is24Hour = is24Hour,
     )
     val endState = rememberTimePickerState(
         initialHour = (initialEndMinute.takeIf { it >= 0 } ?: 360) / 60,
         initialMinute = (initialEndMinute.takeIf { it >= 0 } ?: 360) % 60,
-        is24Hour = false,
+        is24Hour = is24Hour,
     )
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = if (!showingEnd) "Start time" else "End time",
+                text = stringResource(
+                    if (!showingEnd) R.string.schedule_start_time else R.string.schedule_end_time
+                ),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
@@ -150,7 +171,7 @@ fun TimeRangePickerDialog(
 
             Spacer(modifier = Modifier.size(16.dp))
             Text(
-                text = "Repeat on",
+                text = stringResource(R.string.schedule_repeat_on),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -160,7 +181,7 @@ fun TimeRangePickerDialog(
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                DAY_LABELS.forEachIndexed { index, label ->
+                dayLabels.forEachIndexed { index, label ->
                     val bit = 1 shl index
                     val selected = (daysMask and bit) != 0
                     DayToggle(
@@ -173,16 +194,19 @@ fun TimeRangePickerDialog(
 
             Spacer(modifier = Modifier.size(20.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
                 Spacer(modifier = Modifier.weight(1f))
                 if (!showingEnd) {
-                    Button(onClick = { showingEnd = true }) { Text("Next") }
+                    Button(onClick = { showingEnd = true }) { Text(stringResource(R.string.action_next)) }
                 } else {
-                    Button(onClick = {
-                        val start = startState.hour * 60 + startState.minute
-                        val end = endState.hour * 60 + endState.minute
-                        onConfirm(start, end, daysMask.takeIf { it != 0 } ?: 0x7F)
-                    }) { Text("Save") }
+                    Button(
+                        onClick = {
+                            val start = startState.hour * 60 + startState.minute
+                            val end = endState.hour * 60 + endState.minute
+                            onConfirm(start, end, daysMask)
+                        },
+                        enabled = daysMask != 0,
+                    ) { Text(stringResource(R.string.settings_save)) }
                 }
             }
         }
@@ -200,6 +224,7 @@ fun OneTimeStartPickerDialog(
     onConfirm: (atMs: Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
     val now = remember { Calendar.getInstance() }
     val initial = remember {
         Calendar.getInstance().apply {
@@ -209,18 +234,18 @@ fun OneTimeStartPickerDialog(
     val state = rememberTimePickerState(
         initialHour = initial.get(Calendar.HOUR_OF_DAY),
         initialMinute = initial.get(Calendar.MINUTE),
-        is24Hour = false,
+        is24Hour = is24Hour,
     )
     var startTomorrow by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Start at",
+                text = stringResource(R.string.schedule_start_at),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
@@ -230,19 +255,19 @@ fun OneTimeStartPickerDialog(
                 FilterChip(
                     selected = !startTomorrow,
                     onClick = { startTomorrow = false },
-                    label = { Text("Today") },
+                    label = { Text(stringResource(R.string.schedule_today)) },
                     modifier = Modifier.padding(end = 6.dp),
                 )
                 FilterChip(
                     selected = startTomorrow,
                     onClick = { startTomorrow = true },
-                    label = { Text("Tomorrow") },
+                    label = { Text(stringResource(R.string.schedule_tomorrow)) },
                 )
             }
 
             Spacer(modifier = Modifier.size(20.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
                 Spacer(modifier = Modifier.weight(1f))
                 Button(onClick = {
                     val cal = Calendar.getInstance().apply {
@@ -255,10 +280,39 @@ fun OneTimeStartPickerDialog(
                         }
                     }
                     onConfirm(cal.timeInMillis)
-                }) { Text("Save") }
+                }) { Text(stringResource(R.string.settings_save)) }
             }
         }
         }
+    }
+}
+
+/**
+ * Human-readable summary of a schedule, e.g. for the collapsed-Advanced-
+ * section row in AddDownloadDialog. [compact] drops the "Start at " / "Custom
+ * window " prefixes so it fits in a narrow trailing label next to the
+ * section's own "Advanced" title.
+ */
+@Composable
+fun scheduleLabel(
+    scheduleMode: ScheduleMode,
+    scheduledAtMs: Long,
+    windowStartMinute: Int,
+    windowEndMinute: Int,
+    compact: Boolean = false,
+): String = when (scheduleMode) {
+    ScheduleMode.NONE -> stringResource(R.string.schedule_start_now)
+    ScheduleMode.INHERIT_GLOBAL -> stringResource(R.string.schedule_quiet_hours)
+    ScheduleMode.ONE_TIME -> {
+        val time = formatMinuteOfDay(
+            Calendar.getInstance().apply { timeInMillis = scheduledAtMs }
+                .let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
+        )
+        if (compact) time else stringResource(R.string.schedule_start_at_time, time)
+    }
+    ScheduleMode.CUSTOM_WINDOW -> {
+        val range = "${formatMinuteOfDay(windowStartMinute)}\u2013${formatMinuteOfDay(windowEndMinute)}"
+        if (compact) range else stringResource(R.string.schedule_custom_window_time, range)
     }
 }
 
@@ -283,20 +337,23 @@ fun ScheduleSelectorRow(
     var showOneTimeDialog by remember { mutableStateOf(false) }
 
     val label = when (scheduleMode) {
-        ScheduleMode.NONE -> "Start now"
-        ScheduleMode.INHERIT_GLOBAL -> "Use quiet hours"
-        ScheduleMode.ONE_TIME -> "Start at " + formatMinuteOfDay(
+        ScheduleMode.NONE -> stringResource(R.string.schedule_start_now)
+        ScheduleMode.INHERIT_GLOBAL -> stringResource(R.string.schedule_use_quiet_hours)
+        ScheduleMode.ONE_TIME -> stringResource(R.string.schedule_start_at_time, formatMinuteOfDay(
             Calendar.getInstance().apply { timeInMillis = scheduledAtMs }
                 .let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
+        ))
+        ScheduleMode.CUSTOM_WINDOW -> stringResource(
+            R.string.schedule_custom_window_time,
+            "${formatMinuteOfDay(windowStartMinute)}\u2013${formatMinuteOfDay(windowEndMinute)}",
         )
-        ScheduleMode.CUSTOM_WINDOW -> "Custom window (${formatMinuteOfDay(windowStartMinute)}\u2013${formatMinuteOfDay(windowEndMinute)})"
     }
 
     Column {
         // Label + card mirror the "Save to" / FolderPickerCard row above it
         // so the two Advanced rows read as one family.
         Text(
-            text = "Schedule",
+            text = stringResource(R.string.schedule_label),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -306,7 +363,7 @@ fun ScheduleSelectorRow(
             Surface(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(8.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
@@ -340,7 +397,7 @@ fun ScheduleSelectorRow(
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(
-                    text = { Text("Start now") },
+                    text = { Text(stringResource(R.string.schedule_start_now)) },
                     onClick = {
                         menuExpanded = false
                         onChanged(ScheduleMode.NONE, 0L, -1, -1, 0x7F)
@@ -348,7 +405,7 @@ fun ScheduleSelectorRow(
                 )
                 if (globalSchedulerEnabled) {
                     DropdownMenuItem(
-                        text = { Text("Use quiet hours") },
+                        text = { Text(stringResource(R.string.schedule_use_quiet_hours)) },
                         onClick = {
                             menuExpanded = false
                             onChanged(ScheduleMode.INHERIT_GLOBAL, 0L, -1, -1, 0x7F)
@@ -356,14 +413,14 @@ fun ScheduleSelectorRow(
                     )
                 }
                 DropdownMenuItem(
-                    text = { Text("Start at specific time\u2026") },
+                    text = { Text(stringResource(R.string.schedule_start_specific_time)) },
                     onClick = {
                         menuExpanded = false
                         showOneTimeDialog = true
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Custom window\u2026") },
+                    text = { Text(stringResource(R.string.schedule_custom_window)) },
                     onClick = {
                         menuExpanded = false
                         showWindowDialog = true

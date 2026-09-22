@@ -47,6 +47,29 @@ object YtDlpManager {
     )
 
     /**
+     * Per-download SponsorBlock choice (Add Download dialog only -- not a
+     * saved Settings preset). MARK just chapters the segments; REMOVE cuts
+     * them out of the file entirely via yt-dlp's --sponsorblock-remove.
+     */
+    enum class SponsorBlockMode { OFF, MARK, REMOVE }
+
+    /** SponsorBlock category ids yt-dlp accepts, in the order shown as chips. "sponsor" is on by default when a mode is picked. */
+    val SPONSORBLOCK_CATEGORIES = listOf("sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "filler", "music_offtopic")
+
+    /** One entry probed from a playlist/channel URL via [probePlaylist] -- enough to enqueue it as its own download (see AddDownloadDialog's playlist picker). */
+    data class PlaylistEntry(
+        val id: String,
+        val title: String,
+        val url: String,
+        val durationSeconds: Int?,
+    )
+
+    data class PlaylistProbeResult(
+        val playlistTitle: String?,
+        val entries: List<PlaylistEntry>,
+    )
+
+    /**
      * Fixed, simplified quality ladder (over the full raw yt-dlp format
      * list). Each video selector falls back gracefully to whatever's
      * actually available at or below that height -- yt-dlp doesn't error
@@ -612,6 +635,8 @@ object YtDlpManager {
         processId: String,
         context: Context,
         customFileName: String? = null,
+        sponsorBlockMode: SponsorBlockMode = SponsorBlockMode.OFF,
+        sponsorBlockCategories: Set<String> = emptySet(),
         onProgress: (DownloadProgress) -> Unit
     ): File {
         if (!ensureReady(context)) throw IllegalStateException("yt-dlp not installed")
@@ -641,6 +666,16 @@ object YtDlpManager {
         request.addOption("--compat-options", "manifest-filesize-approx")
         request.addOption("-N", "4")
         request.addOption("--print", "after_move:filepath")
+
+        if (sponsorBlockMode != SponsorBlockMode.OFF) {
+            val cats = sponsorBlockCategories.takeUnless { it.isEmpty() } ?: setOf("sponsor")
+            val catsArg = cats.joinToString(",")
+            when (sponsorBlockMode) {
+                SponsorBlockMode.MARK -> request.addOption("--sponsorblock-mark", catsArg)
+                SponsorBlockMode.REMOVE -> request.addOption("--sponsorblock-remove", catsArg)
+                SponsorBlockMode.OFF -> Unit
+            }
+        }
 
         if (option.isAudioOnly) {
             // Extract audio to a proper audio container. If a specific format
@@ -749,6 +784,53 @@ object YtDlpManager {
         }
         tempDir.deleteRecursively()
         return finalFile
+    }
+
+    /**
+     * Flat-lists a playlist/channel/mix URL's entries via yt-dlp's
+     * `--flat-playlist --dump-json`, one JSON line per entry -- cheap
+     * (no per-video format probing) so it stays fast even for long
+     * playlists. Feeds the Add Download dialog's playlist picker.
+     * Returns an empty entry list (not a thrown error) for a plain
+     * single-video URL, so callers can probe unconditionally rather than
+     * needing to pre-check the link shape.
+     */
+    fun probePlaylist(url: String, context: Context): PlaylistProbeResult {
+        if (!ensureReady(context)) return PlaylistProbeResult(null, emptyList())
+        return try {
+            val request = YoutubeDLRequest(url)
+            request.addOption("--flat-playlist")
+            request.addOption("--dump-json")
+            request.addOption("--no-warnings")
+            request.addOption("--no-check-certificates")
+            request.addOption("-R", "1")
+            request.addOption("--socket-timeout", "10")
+            val response = YoutubeDL.getInstance().execute(request, "playlist-probe-" + System.nanoTime()) { _, _, _ -> }
+
+            var playlistTitle: String? = null
+            val entries = mutableListOf<PlaylistEntry>()
+            response.out.lineSequence().map { it.trim() }.filter { it.startsWith("{") }.forEach { line ->
+                val obj = runCatching { org.json.JSONObject(line) }.getOrNull() ?: return@forEach
+                if (playlistTitle == null) {
+                    playlistTitle = obj.optString("playlist_title").takeIf { it.isNotBlank() }
+                        ?: obj.optString("playlist").takeIf { it.isNotBlank() }
+                }
+                val id = obj.optString("id").takeIf { it.isNotBlank() } ?: return@forEach
+                val title = obj.optString("title").takeIf { it.isNotBlank() } ?: id
+                // --flat-playlist entries don't always carry a usable "url" (can
+                // be a bare video id depending on extractor/yt-dlp version) --
+                // "webpage_url" is the one field that's reliably a real link.
+                val entryUrl = obj.optString("webpage_url").takeIf { it.startsWith("http") }
+                    ?: obj.optString("url").takeIf { it.startsWith("http") }
+                    ?: "https://www.youtube.com/watch?v=$id"
+                val duration = obj.optDouble("duration", -1.0).takeIf { it > 0 }?.toInt()
+                entries += PlaylistEntry(id = id, title = title, url = entryUrl, durationSeconds = duration)
+            }
+            PlaylistProbeResult(playlistTitle, entries)
+        } catch (e: Throwable) {
+            Log.w(TAG, "Playlist probe failed for $url", e)
+            PlaylistProbeResult(null, emptyList())
+        }
     }
 
     /** Force-stops an in-flight download started with the same [processId]. */
