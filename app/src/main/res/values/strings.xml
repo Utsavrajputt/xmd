@@ -101,6 +101,8 @@
     <string name="share_unsupported_link">This link is not supported</string>
     <string name="share_full_build_required">This link needs the Full build of Xmd.</string>
     <string name="share_ytdlp_install_required">Install yt-dlp from Xmd\'s Settings first.</string>
+    <string name="share_file_imported">File added to Downloads</string>
+    <string name="share_file_import_failed">Couldn\'t import file</string>
 
     <!-- Settings -->
     <string name="menu_settings">Settings</string>

@@ -50,6 +50,7 @@ import com.invictus.xmd.ui.downloads.AddTorrentDialog
 import com.invictus.xmd.ui.downloads.TorrentFileRow
 import com.invictus.xmd.ui.downloads.TorrentFilesUiState
 import com.invictus.xmd.utils.LinkParser
+import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.utils.storage.OnDuplicateStrategy
 import com.invictus.xmd.utils.storage.StorageUtils
 
@@ -295,14 +296,23 @@ class ShareReceiverActivity : AppCompatActivity() {
                 return
             }
             if (scheme == "content" || scheme == "file") {
-                val displayName = queryDisplayName(dataUri)
+                val displayName = queryDisplayName(dataUri) ?: dataUri.lastPathSegment
                 runCatching {
                     contentResolver.takePersistableUriPermission(
                         dataUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
                 }
-                currentDownloadLink = null
-                showAddTorrentDialog(prefillTorrentUri = dataUri, prefillDisplayName = displayName)
+                if (displayName != null && displayName.endsWith(".torrent", ignoreCase = true)) {
+                    currentDownloadLink = null
+                    showAddTorrentDialog(prefillTorrentUri = dataUri, prefillDisplayName = displayName)
+                } else {
+                    // Anything else opened "with xmd" (apk/zip/etc from a
+                    // downloads notification, file manager, etc.) -- treat
+                    // it as an already-finished download: copy it into the
+                    // normal save location and add a DONE queue entry,
+                    // same as if xmd had downloaded it itself.
+                    importLocalFileAsCompletedDownload(dataUri, displayName)
+                }
                 return
             }
             val urlString = dataUri.toString().trim()
@@ -670,6 +680,88 @@ class ShareReceiverActivity : AppCompatActivity() {
         if (!enqueueDownload(newItem, duplicateStrategy)) return
         Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    /**
+     * Handles the "Open with xmd" case for an already-downloaded local file
+     * (content:// from the system's Open-with resolver, file:// from an
+     * older file manager) that isn't a .torrent -- e.g. an apk/zip tapped
+     * from a Downloads notification or Chrome's own downloads list. Since
+     * the bytes already exist locally, there's nothing to fetch: this just
+     * copies the file into xmd's normal save location (reusing the same
+     * duplicate-numbering as a real download, via
+     * [QueueRepository.enqueueResolvingDuplicate]) and records it as a
+     * DONE queue item, so it shows up in Downloads like anything else xmd
+     * pulled down itself.
+     */
+    private fun importLocalFileAsCompletedDownload(uri: Uri, displayName: String?) {
+        val resolvedName = displayName?.takeUnless { it.isBlank() } ?: "Imported file"
+        val category = CategoryDetector.detect(resolvedName, hint = resolvedName)
+        val sourceLabel = uri.toString()
+
+        val newItem = QueueItem(
+            id = UUID.randomUUID().toString(),
+            sourceUrl = sourceLabel,
+            status = ItemStatus.DONE,
+            fileName = resolvedName,
+            category = category,
+            downloadFinishedAtMs = System.currentTimeMillis(),
+        )
+
+        val result = QueueRepository.enqueueResolvingDuplicate(newItem, duplicateStrategy = null)
+        val queuedItem = when (result) {
+            is QueueRepository.EnqueueResult.Success -> result.item
+            is QueueRepository.EnqueueResult.ActiveConflict -> {
+                Toast.makeText(this, R.string.download_override_active, Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
+            is QueueRepository.EnqueueResult.DeleteFailed -> {
+                Toast.makeText(this, R.string.download_override_delete_failed, Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
+        }
+
+        val targetFile = FileNameUtils.destinationFileOf(queuedItem)
+        if (targetFile == null) {
+            QueueRepository.removeItem(queuedItem.id)
+            Toast.makeText(this, R.string.share_file_import_failed, Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        lifecycleScope.launch {
+            val copiedBytes = withContext(Dispatchers.IO) {
+                runCatching {
+                    targetFile.parentFile?.mkdirs()
+                    contentResolver.openInputStream(uri)?.use { input ->
+                        targetFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    targetFile.length()
+                }.getOrNull()
+            }
+
+            if (copiedBytes == null) {
+                runCatching { targetFile.delete() }
+                QueueRepository.removeItem(queuedItem.id)
+                Toast.makeText(this@ShareReceiverActivity, R.string.share_file_import_failed, Toast.LENGTH_SHORT).show()
+                finish()
+                return@launch
+            }
+
+            // queuedItem was already enqueued with status = DONE (there's no
+            // download to run), so markDone's DOWNLOADING/SAVING guard would
+            // just no-op here -- use renameDownloadedFile instead, which sets
+            // fileName/filePath unconditionally.
+            QueueRepository.renameDownloadedFile(
+                queuedItem.id,
+                fileName = targetFile.name,
+                filePath = targetFile.absolutePath,
+            )
+            Toast.makeText(this@ShareReceiverActivity, R.string.share_file_imported, Toast.LENGTH_SHORT).show()
+            finish()
+        }
     }
 
     private fun extractYoutubeFallbackName(url: String): String {

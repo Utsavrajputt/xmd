@@ -107,6 +107,27 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
+
+            <!-- Lets xmd show up in the system "Open with" chooser for an
+                 already-downloaded file (e.g. tapping a .apk/.zip download
+                 notification, or a file in a file manager). content:// is
+                 how Android 7+ resolvers hand off the file, file:// covers
+                 older apps/file managers still using raw paths. No BROWSABLE
+                 category here: unlike the http/https filter above, this one
+                 isn't meant to catch webpage navigation, just local file
+                 opens. See handleIncomingIntent's content/file branch. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
 
         <activity
