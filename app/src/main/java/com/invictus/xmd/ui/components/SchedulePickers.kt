@@ -263,6 +263,34 @@ fun OneTimeStartPickerDialog(
 }
 
 /**
+ * Human-readable summary of a schedule, e.g. for the collapsed-Advanced-
+ * section row in AddDownloadDialog. [compact] drops the "Start at " / "Custom
+ * window " prefixes so it fits in a narrow trailing label next to the
+ * section's own "Advanced" title.
+ */
+fun scheduleLabel(
+    scheduleMode: ScheduleMode,
+    scheduledAtMs: Long,
+    windowStartMinute: Int,
+    windowEndMinute: Int,
+    compact: Boolean = false,
+): String = when (scheduleMode) {
+    ScheduleMode.NONE -> "Start now"
+    ScheduleMode.INHERIT_GLOBAL -> "Quiet hours"
+    ScheduleMode.ONE_TIME -> {
+        val time = formatMinuteOfDay(
+            Calendar.getInstance().apply { timeInMillis = scheduledAtMs }
+                .let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
+        )
+        if (compact) time else "Start at $time"
+    }
+    ScheduleMode.CUSTOM_WINDOW -> {
+        val range = "${formatMinuteOfDay(windowStartMinute)}\u2013${formatMinuteOfDay(windowEndMinute)}"
+        if (compact) range else "Custom window ($range)"
+    }
+}
+
+/**
  * Compact per-item schedule control for AddDownloadDialog/AddTorrentDialog's
  * Advanced section -- same card + DropdownMenu shape as the
  * "Save to" folder picker card. [globalSchedulerEnabled] hides the
