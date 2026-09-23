@@ -26,14 +26,13 @@ import java.util.concurrent.TimeUnit
  * this avoids pulling in kotlinx.serialization just for a handful of
  * response fields.
  *
- * Two real channels, matching the two release workflows:
- * release.yml tags plain "vX.Y.Z" (stable), prerelease.yml tags
- * "vX.Y.Z-beta.N"/"-rc.N"/etc and marks the GitHub release `prerelease:
- * true` (preview). [checkForUpdate] fetches strictly within
- * [Settings.UpdateChannel] -- Stable only ever sees the latest
- * non-prerelease, Preview only ever sees the latest prerelease, even if a
- * newer stable exists -- since picking Preview is an explicit opt-in to
- * pre-release builds, not "whichever tag is newest overall".
+ * Two channels, matching the two release workflows: release.yml tags plain
+ * "vX.Y.Z" (stable), prerelease.yml tags "vX.Y.Z-beta.N"/"-rc.N"/etc and
+ * marks the GitHub release `prerelease: true`. Stable only ever sees the
+ * latest non-prerelease. Preview sees the highest version among recent
+ * releases of either kind, so a preview user is also offered the stable
+ * release that supersedes their beta -- while a stable build is never
+ * offered an older pre-release of the same version (1.0.0 > 1.0.0-beta.6).
  */
 object UpdateChecker {
 
@@ -51,10 +50,9 @@ object UpdateChecker {
 
     // /releases/latest is GitHub's own "newest non-prerelease" pointer --
     // exactly what Stable wants, and cheaper than listing+filtering.
-    // Preview has no equivalent single-object endpoint (GitHub doesn't
-    // expose a "/releases/latest-prerelease"), so it lists recent releases
-    // instead and picks the first one flagged prerelease -- the list is
-    // already newest-first, so that's the latest preview build.
+    // Preview lists recent releases and picks the highest version among
+    // them (prerelease or stable) -- not just the first in list order, which
+    // is by creation date and could put an older line's hotfix on top.
     private const val RELEASES_LATEST_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases/latest"
     private const val RELEASES_LIST_API_URL = "https://api.github.com/repos/Utsavrajputt/xmd/releases?per_page=10"
     private const val RELEASES_FALLBACK_URL = "https://github.com/Utsavrajputt/xmd/releases"
@@ -85,7 +83,7 @@ object UpdateChecker {
             val json = when (channel) {
                 Settings.UpdateChannel.STABLE -> fetchLatestStable()
                 Settings.UpdateChannel.PREVIEW -> fetchLatestPreview()
-            } ?: return null // Preview: no prerelease exists on the repo at all yet.
+            } ?: return null // No matching release on the repo at all yet.
 
             val tagName = json.optString("tag_name").ifBlank {
                 throw CheckFailedException("Release response missing tag_name")
@@ -117,10 +115,8 @@ object UpdateChecker {
         }
     }
 
-    /** Most recent releases (already newest-first), filtered down to the
-     *  first one GitHub has flagged `prerelease: true` -- null if none of
-     *  the fetched page are prereleases (repo has no preview build yet, or
-     *  one further back than [RELEASES_LIST_API_URL]'s page size). */
+    /** Highest-versioned release among the most recent page, prerelease or
+     *  stable, skipping drafts -- null if the repo has no releases at all. */
     private fun fetchLatestPreview(): JSONObject? {
         val request = Request.Builder()
             .url(RELEASES_LIST_API_URL)
@@ -130,11 +126,16 @@ object UpdateChecker {
             if (!response.isSuccessful) throw CheckFailedException("HTTP ${response.code}")
             val body = response.body?.string() ?: throw CheckFailedException("Empty response")
             val array = JSONArray(body)
+            var best: JSONObject? = null
             for (i in 0 until array.length()) {
                 val release = array.optJSONObject(i) ?: continue
-                if (release.optBoolean("prerelease", false)) return release
+                if (release.optBoolean("draft", false)) continue
+                val tag = release.optString("tag_name")
+                if (tag.isBlank()) continue
+                val currentBest = best
+                if (currentBest == null || isNewer(tag, currentBest.optString("tag_name"))) best = release
             }
-            return null
+            return best
         }
     }
 
@@ -216,30 +217,56 @@ object UpdateChecker {
     }
 
     /**
-     * Dotted/numeric version comparison, e.g. "v1.0.0-beta.5" > "1.0.0-beta.4".
-     * The leading "v" and the "-" before a pre-release suffix are both
-     * normalized to ordinary "." separators first, so "-beta.N" compares
-     * numerically like any other component instead of being dropped --
-     * matters here since Xmd's own tags are all pre-release (v1.0.0-beta.*).
+     * SemVer precedence: "1.0.0" > "1.0.0-rc.1" > "1.0.0-beta.6" > "1.0.0-beta.2".
+     * [currentVersion] is BuildConfig.VERSION_NAME, which carries the flavor
+     * suffix ("1.0.0-beta.6-full"); that suffix is not a pre-release marker,
+     * so it's stripped first -- otherwise "1.0.0-full" would rank below 1.0.0.
      */
-    private fun isNewer(remoteTag: String, currentVersion: String): Boolean {
-        val remote = versionComponents(remoteTag)
-        val current = versionComponents(currentVersion)
-        val length = maxOf(remote.size, current.size)
-        for (i in 0 until length) {
-            val r = remote.getOrElse(i) { 0 }
-            val c = current.getOrElse(i) { 0 }
-            if (r != c) return r > c
+    private fun isNewer(remoteTag: String, currentVersion: String): Boolean =
+        compareVersions(remoteTag, currentVersion) > 0
+
+    private fun compareVersions(a: String, b: String): Int {
+        val (coreA, preA) = parseVersion(a)
+        val (coreB, preB) = parseVersion(b)
+        for (i in 0 until maxOf(coreA.size, coreB.size)) {
+            val x = coreA.getOrElse(i) { 0 }
+            val y = coreB.getOrElse(i) { 0 }
+            if (x != y) return x.compareTo(y)
         }
-        return false
+        // Same X.Y.Z: a release (no pre-release part) outranks any pre-release.
+        if (preA.isEmpty() && preB.isEmpty()) return 0
+        if (preA.isEmpty()) return 1
+        if (preB.isEmpty()) return -1
+        for (i in 0 until maxOf(preA.size, preB.size)) {
+            if (i >= preA.size) return -1 // fewer identifiers = lower precedence
+            if (i >= preB.size) return 1
+            val x = preA[i]
+            val y = preB[i]
+            val xn = x.toIntOrNull()
+            val yn = y.toIntOrNull()
+            val cmp = when {
+                xn != null && yn != null -> xn.compareTo(yn)
+                xn != null -> -1 // numeric identifiers rank below alphanumeric ones
+                yn != null -> 1
+                else -> x.compareTo(y)
+            }
+            if (cmp != 0) return cmp
+        }
+        return 0
     }
 
-    private fun versionComponents(version: String): List<Int> =
-        version
+    /** "v1.0.0-beta.6-full" -> ([1,0,0], ["beta","6"]). */
+    private fun parseVersion(raw: String): Pair<List<Int>, List<String>> {
+        val cleaned = raw.trim()
             .removePrefix("v")
-            .replace("-", ".")
-            .split(".")
-            .mapNotNull { it.toIntOrNull() }
+            .substringBefore("+") // SemVer build metadata never affects precedence
+            .removeSuffix("-full")
+            .removeSuffix("-lite")
+        val core = cleaned.substringBefore("-")
+        val pre = cleaned.substringAfter("-", "")
+        return core.split(".").map { it.toIntOrNull() ?: 0 } to
+            if (pre.isEmpty()) emptyList() else pre.split(".")
+    }
 
     private val SUPPORTED_ABIS = listOf("arm64-v8a", "armeabi-v7a")
 }

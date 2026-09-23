@@ -55,7 +55,7 @@ jobs:
 
       - name: Build unsigned release APK
         shell: bash
-        run: ./gradlew assembleRelease --stacktrace --no-daemon
+        run: ./gradlew assembleRelease -PversionName="${VERSION_TAG#v}" --stacktrace --no-daemon
 
       - name: Sign and verify release APKs
         shell: bash

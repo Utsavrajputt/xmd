@@ -14,7 +14,11 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 10
-        versionName = "1.0.0"
+        // Release workflows pass the git tag (minus the leading "v") as
+        // -PversionName=1.0.0-beta.6 so the installed app reports the exact
+        // version it was built from -- UpdateChecker compares against this.
+        // Local/CI-debug builds without the property fall back to the base version.
+        versionName = (project.findProperty("versionName") as String?)?.takeIf { it.isNotBlank() } ?: "1.0.0"
     }
 
     // Two flavors instead of one do-everything APK:
