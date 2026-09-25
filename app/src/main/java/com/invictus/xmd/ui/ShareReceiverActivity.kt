@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.CategoryDetector
 import com.invictus.xmd.domain.download.DownloadCategory
+import com.invictus.xmd.utils.media.MediaDurationUtils
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.MediaPlatform
@@ -167,7 +168,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                         onDismiss = {
                             dismissAndFinish()
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages, durationSeconds ->
                             currentDownloadLink = null
                             when {
                                 LinkParser.isTorrentLink(link) -> {
@@ -188,6 +189,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                                         link, name, saveDir, quality, audioFormat, duplicateStrategy,
                                         scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask,
                                         sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages,
+                                        durationSeconds,
                                     )
                                 }
                                 LinkParser.isGenericDownloadUrl(link) -> {
@@ -540,6 +542,7 @@ class ShareReceiverActivity : AppCompatActivity() {
         sponsorBlockCategories: Set<String> = emptySet(),
         embedSubtitles: Boolean = false,
         subtitleLanguages: Set<String> = emptySet(),
+        durationSeconds: Int? = null,
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             Toast.makeText(this, R.string.share_full_build_required, Toast.LENGTH_LONG).show()
@@ -573,7 +576,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             quality.label
         }
 
-        val category = if (quality.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
+        val category = MediaDurationUtils.resolveYoutubeCategory(quality.isAudioOnly, durationSeconds)
         val resolvedName = name?.takeUnless { it.isBlank() } ?: extractYoutubeFallbackName(link)
 
         val newItem = QueueItem(

@@ -73,6 +73,7 @@ import com.invictus.xmd.FfApp
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.CategoryDetector
 import com.invictus.xmd.domain.download.DownloadCategory
+import com.invictus.xmd.utils.media.MediaDurationUtils
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.MediaPlatform
@@ -782,7 +783,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
                         },
-                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages ->
+                        onStart = { link, name, saveDir, quality, audioFormat, duplicateStrategy, scheduleMode, scheduledAtMs, windowStartMinute, windowEndMinute, windowDaysMask, sponsorBlockMode, sponsorBlockCategories, embedSubtitles, subtitleLanguages, durationSeconds ->
                             val capturedPageUrl = addDownloadDialogState?.pageUrl
                             addDownloadDialogState?.initialLink?.let(::removeYtDlpDialogPlaceholder)
                             addDownloadDialogState = null
@@ -798,6 +799,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                                         pageUrl = capturedPageUrl,
                                         sponsorBlockMode = sponsorBlockMode, sponsorBlockCategories = sponsorBlockCategories,
                                         embedSubtitles = embedSubtitles, subtitleLanguages = subtitleLanguages,
+                                        durationSeconds = durationSeconds,
                                     )
                                 LinkParser.isGenericDownloadUrl(link) ->
                                     triggerDownloadDirectCustom(
@@ -1363,6 +1365,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         sponsorBlockCategories: Set<String> = emptySet(),
         embedSubtitles: Boolean = false,
         subtitleLanguages: Set<String> = emptySet(),
+        durationSeconds: Int? = null,
     ) {
         if (!BuildConfig.HAS_YOUTUBE_SUPPORT) {
             showMessageDialog(
@@ -1417,7 +1420,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             quality.label
         }
 
-        val category = if (quality.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS
+        val category = MediaDurationUtils.resolveYoutubeCategory(quality.isAudioOnly, durationSeconds)
         val resolvedName = name?.takeUnless { it.isBlank() } ?: extractYoutubeFallbackName(link)
 
         val newItem = QueueItem(
@@ -1868,11 +1871,25 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             return
         }
 
+        // Saved-default-quality path skips the Add Download dialog (and its
+        // probe) entirely, so duration isn't known yet here -- probe it
+        // ourselves so a long video picked up this way still lands in
+        // Movies instead of always defaulting to Videos. Best-effort: a
+        // failed/slow probe just falls back to null (-> Videos), it never
+        // blocks the download over this.
+        val durationSeconds = if (!chosen.isAudioOnly) {
+            withContext(Dispatchers.IO) {
+                runCatching { YtDlpManager.probeFormats(item.sourceUrl, this@MainActivity).durationSeconds }.getOrNull()
+            }
+        } else {
+            null
+        }
+
         QueueRepository.configureYoutubeDownload(
             id = item.id,
             formatSelector = chosen.formatSelector,
             formatLabel = chosen.label,
-            category = if (chosen.isAudioOnly) DownloadCategory.MUSIC else DownloadCategory.VIDEOS,
+            category = MediaDurationUtils.resolveYoutubeCategory(chosen.isAudioOnly, durationSeconds),
         )
         // Same as the other resolve branches: top workers back up so this
         // starts downloading right away instead of sitting at READY until

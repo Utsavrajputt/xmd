@@ -145,6 +145,13 @@ fun AddDownloadDialog(
         sponsorBlockCategories: Set<String>,
         embedSubtitles: Boolean,
         subtitleLanguages: Set<String>,
+        // yt-dlp's probed duration for this link, in seconds -- null for a
+        // playlist entry (every video in a bulk playlist add stays in
+        // VIDEOS regardless of length, no per-entry Movies split) or when
+        // probing hasn't resolved it yet. Used to route >=100min videos
+        // into the Movies category instead of Videos (see
+        // MediaDurationUtils.resolveYoutubeCategory).
+        durationSeconds: Int?,
     ) -> Unit,
     /** Playlist entries for the "choose videos" picker; empty result for a non-playlist link. Full flavor only -- lite returns empty. */
     probePlaylist: suspend (String) -> YtDlpManager.PlaylistProbeResult = { YtDlpManager.PlaylistProbeResult(null, emptyList()) },
@@ -992,6 +999,7 @@ fun AddDownloadDialog(
                                     sponsorBlockCategories.toSet(),
                                     embedSubtitles,
                                     subtitleLanguages.toSet(),
+                                    null, // playlist bulk-add: whole playlist stays in Videos, no per-entry Movies split
                                 )
                             }
                     } else if (link.isNotBlank()) {
@@ -1011,6 +1019,7 @@ fun AddDownloadDialog(
                             sponsorBlockCategories.toSet(),
                             embedSubtitles,
                             subtitleLanguages.toSet(),
+                            advancedDurationSeconds,
                         )
                     }
                 }) {

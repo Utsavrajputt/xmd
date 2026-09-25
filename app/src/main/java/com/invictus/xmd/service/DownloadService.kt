@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.invictus.xmd.FfApp
 import com.invictus.xmd.R
+import com.invictus.xmd.utils.media.MediaDurationUtils
 import com.composables.icons.materialsymbols.roundedfilled.R as MaterialSymbols
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -920,7 +921,7 @@ class DownloadService : LifecycleService() {
                 // The source URL alone (e.g. a FuckingFast share link) often has no visible
                 // extension -- re-detect the category now that the real filename is resolved,
                 // so it doesn't wrongly land in Others just because the share link was opaque.
-                val category = CategoryDetector.detect(directUrl, hint = fileName)
+                var category = CategoryDetector.detect(directUrl, hint = fileName)
                     .takeIf { it != DownloadCategory.default() } ?: categoryAtClaim
                 QueueRepository.updateDownloadMetadata(itemId, fileName, category)
 
@@ -937,19 +938,6 @@ class DownloadService : LifecycleService() {
                 destinationFile = tempFile
 
                 val customDir = currentItem?.customSaveDirPath
-                val finalDir = if (!customDir.isNullOrBlank()) {
-                    File(customDir)
-                } else {
-                    val saveRoot = File(Settings.defaultSaveLocation())
-                    if (Settings.categorizationDisabled()) {
-                        // Chrome-style: flat, straight into the default save
-                        // location, no <location>/<Category> subfolder at all.
-                        saveRoot
-                    } else {
-                        File(saveRoot, category.folderName)
-                    }
-                }
-                val finalFile = File(finalDir, fileName)
 
                 // Pause (engine.pause()) blocks in-place inside downloadAuto and never throws here --
                 // the engine stays registered in `engines` so Resume can call engine.resume() on the
@@ -973,6 +961,36 @@ class DownloadService : LifecycleService() {
                     throw RuntimeException("Incomplete download (got ${actualSize}B" +
                         (if (knownTotal > 0) " of ${knownTotal}B" else "") + ")")
                 }
+
+                // Direct/generic video links carry no duration metadata up front
+                // (unlike YouTube, where yt-dlp's probe already knows it) -- the
+                // only way to tell a movie from a clip is to check the finished
+                // file itself, so this has to happen post-download rather than
+                // at queue time. A failed probe (corrupt/partial file, wrong
+                // format) just leaves it in VIDEOS rather than blocking the save.
+                if (category == DownloadCategory.VIDEOS && !Settings.categorizationDisabled()) {
+                    val durationSeconds = withContext(Dispatchers.IO) {
+                        MediaDurationUtils.probeDurationSeconds(tempFile)
+                    }
+                    if (MediaDurationUtils.isMovieLength(durationSeconds)) {
+                        category = DownloadCategory.MOVIES
+                        QueueRepository.updateDownloadMetadata(itemId, fileName, category)
+                    }
+                }
+
+                val finalDir = if (!customDir.isNullOrBlank()) {
+                    File(customDir)
+                } else {
+                    val saveRoot = File(Settings.defaultSaveLocation())
+                    if (Settings.categorizationDisabled()) {
+                        // Chrome-style: flat, straight into the default save
+                        // location, no <location>/<Category> subfolder at all.
+                        saveRoot
+                    } else {
+                        File(saveRoot, category.folderName)
+                    }
+                }
+                val finalFile = File(finalDir, fileName)
 
                 QueueRepository.markSaving(itemId)
                 withContext(Dispatchers.IO) { moveToPublicStorage(tempFile, finalFile) }

@@ -36,6 +36,13 @@ enum class MediaPlatform {
  */
 enum class DownloadCategory(val folderName: String, val label: String) {
     VIDEOS("Videos", "Videos"),
+    // Long-form video (>= MOVIE_DURATION_THRESHOLD_SECONDS, see
+    // MediaDurationUtils) gets split out of VIDEOS into its own folder --
+    // YouTube via the probed duration at Add-Download time, direct/generic
+    // links via MediaMetadataRetriever on the finished file in
+    // DownloadService. Never assigned at queue time by CategoryDetector
+    // itself (extension alone can't tell a movie from a clip).
+    MOVIES("Movies", "Movies"),
     MUSIC("Music", "Music"),
     DOCUMENTS("Documents", "Documents"),
     APPS("Apps", "Apps"),
