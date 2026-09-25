@@ -1013,6 +1013,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun handleIncomingIntent(intent: Intent) {
+        // Captured before the when-block below can still tell us -- needed
+        // further down to gate the "open in Browser" branch to ACTION_VIEW
+        // only (a Shared link should still always go to the download flow).
+        val isViewAction = intent.action == Intent.ACTION_VIEW
+
         val url = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data?.toString()
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty().let { text ->
@@ -1031,17 +1036,30 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         intent.action = null
         intent.data = null
 
-        selectMainDestination(MainDestination.Downloads)
-
         // External download manager flow: show a popup allowing user to
         // copy/modify link, rename file, and change save folder in a
         // collapsible section. Torrents also show all files for selection.
         if (LinkParser.isTorrentLink(url)) {
+            selectMainDestination(MainDestination.Downloads)
             showAddTorrentDialog(prefillLink = url)
             return
         }
 
         val needsPrepare = LinkParser.isShareLink(url) || LinkParser.isFitgirlPage(url)
+
+        // Only ACTION_VIEW (the "open with"/chooser entry point the manifest's
+        // generic http/https intent-filter exists for) reaches here for a
+        // plain webpage link. ACTION_SEND (Shared links) always keeps the old
+        // download-flow behavior regardless of extension. isPlainWebpageLink
+        // already excludes torrents/known download extensions/share pages --
+        // kept here too as a normal ACTION_SEND text share can also match it.
+        if (isViewAction && LinkParser.isPlainWebpageLink(url)) {
+            browserFragment()?.openInNewTab(url)
+            selectMainDestination(MainDestination.Browser)
+            return
+        }
+
+        selectMainDestination(MainDestination.Downloads)
         if (needsPrepare) {
             triggerPrepare(listOf(url))
         } else {

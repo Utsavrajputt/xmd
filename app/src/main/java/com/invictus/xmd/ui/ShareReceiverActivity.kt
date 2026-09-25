@@ -309,12 +309,31 @@ class ShareReceiverActivity : AppCompatActivity() {
             }
             val urlString = dataUri.toString().trim()
             if (urlString.isNotBlank()) {
-                if (LinkParser.isTorrentLink(urlString)) {
-                    currentDownloadLink = null
-                    showAddTorrentDialog(prefillLink = urlString)
-                } else {
-                    currentTorrentData = null
-                    currentDownloadLink = urlString
+                when {
+                    LinkParser.isTorrentLink(urlString) -> {
+                        currentDownloadLink = null
+                        showAddTorrentDialog(prefillLink = urlString)
+                    }
+                    // Plain webpage link (no known download extension, not a
+                    // share/fitgirl page needing the Cloudflare WebView hop)
+                    // tapped in another app's chooser -- open it in xmd's own
+                    // Browser tab instead of popping the Add Download dialog.
+                    // Forward to MainActivity, which does the actual routing
+                    // (see MainActivity.handleIncomingIntent), and finish this
+                    // transparent activity.
+                    LinkParser.isPlainWebpageLink(urlString) -> {
+                        startActivity(
+                            Intent(this, MainActivity::class.java)
+                                .setAction(Intent.ACTION_VIEW)
+                                .setData(dataUri)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        )
+                        finish()
+                    }
+                    else -> {
+                        currentTorrentData = null
+                        currentDownloadLink = urlString
+                    }
                 }
                 return
             }

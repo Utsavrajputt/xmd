@@ -85,6 +85,60 @@ object LinkParser {
 
     fun isTorrentLink(link: String): Boolean = isMagnetLink(link) || isTorrentFileLink(link)
 
+    // Mirrors AndroidManifest.xml's http/https pathPattern intent-filter --
+    // these are the extensions xmd registers itself as an external
+    // download-manager target for. Kept in sync manually since manifest
+    // pathPatterns can't be read at runtime. Video/audio extensions
+    // (mkv/mp4/... below) aren't in the manifest's pathPatterns -- those
+    // links only reach xmd via the generic */* mimeType filter, which
+    // doesn't key off extension at all -- but they still need to count as
+    // downloads here, or a direct media-file link would wrongly open in
+    // Browser instead of the Add Download dialog.
+    private val KNOWN_DOWNLOAD_EXTENSIONS = setOf(
+        // Archives / installers / documents (manifest pathPatterns)
+        "apk", "zip", "rar", "7z", "exe", "msi", "iso", "pdf",
+        // Video
+        "mkv", "mp4", "avi", "mov", "wmv", "flv", "webm", "m4v", "ts",
+        // Audio
+        "mp3", "m4a", "wav", "flac", "aac", "ogg", "wma"
+    )
+
+    /**
+     * True if [link]'s path ends in one of [KNOWN_DOWNLOAD_EXTENSIONS] --
+     * i.e. a link the manifest's VIEW intent-filter would already have
+     * matched by file extension, as opposed to a plain webpage URL that
+     * only matched because of the generic http/https filter. Used to decide
+     * whether an externally-launched http(s) VIEW intent is an actual file
+     * download (open the Add Download dialog) or just a normal link tapped
+     * in another app's chooser (open it in the Browser tab instead).
+     */
+    fun hasKnownDownloadExtension(link: String): Boolean {
+        val uri = runCatching { URI(link.trim()) }.getOrNull() ?: return false
+        val name = uri.path?.substringAfterLast('/').orEmpty()
+        val ext = name.substringAfterLast('.', missingDelimiterValue = "").lowercase()
+        return ext.isNotEmpty() && ext in KNOWN_DOWNLOAD_EXTENSIONS
+    }
+
+    /**
+     * True for an http(s) link that should just be opened in xmd's Browser
+     * tab rather than routed through the Add Download flow -- i.e. it's not
+     * a torrent/magnet link, doesn't need the ShareReceiverActivity ->
+     * MainActivity Cloudflare-challenge WebView hop (isShareLink /
+     * isFitgirlPage), and has no known download extension. Shared by
+     * ShareReceiverActivity (deciding how to handle an incoming VIEW intent)
+     * and MainActivity (deciding what to do once forwarded there) so the two
+     * stay in sync.
+     */
+    fun isPlainWebpageLink(link: String): Boolean {
+        val isHttp = link.startsWith("http://", ignoreCase = true) ||
+            link.startsWith("https://", ignoreCase = true)
+        if (!isHttp) return false
+        return !isTorrentLink(link) &&
+            !isShareLink(link) &&
+            !isFitgirlPage(link) &&
+            !hasKnownDownloadExtension(link)
+    }
+
     /**
      * True for any well-formed http(s) URL that isn't a FuckingFast share
      * link or a fitgirl-repacks page — i.e. something already downloadable

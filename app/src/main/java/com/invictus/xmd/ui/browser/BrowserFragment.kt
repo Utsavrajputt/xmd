@@ -1483,6 +1483,16 @@ class BrowserFragment : Fragment() {
         loadUrl(url)
     }
 
+    /** Public entry point for opening [url] in a fresh tab -- used when a
+     *  plain webpage link arrives from outside the app (see
+     *  MainActivity.handleIncomingIntent) rather than reusing whatever the
+     *  current/last tab happens to be showing. Thin wrapper so external
+     *  callers don't need to know about [openUrlInNewTab]'s tab-management
+     *  internals. */
+    fun openInNewTab(url: String) {
+        openUrlInNewTab(url)
+    }
+
     private fun loadUrl(raw: String) {
         val input = raw.trim()
         if (input.isEmpty()) return
