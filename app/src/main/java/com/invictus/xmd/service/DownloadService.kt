@@ -1016,6 +1016,12 @@ class DownloadService : LifecycleService() {
         while (true) {
             var destinationFile: File? = null
 
+            val currentItem = QueueRepository.current().firstOrNull { it.id == itemId }
+            val extraHeaders = mutableMapOf<String, String>()
+            currentItem?.pageUrl?.takeIf { it.isNotBlank() }?.let { page ->
+                extraHeaders["Referer"] = page
+            }
+
             val engine = DownloadEngine(
                 client = client,
                 progress = { done, total, speed ->
@@ -1024,16 +1030,18 @@ class DownloadService : LifecycleService() {
                 },
                 log = { },
                 connections = Settings.connectionsPerDownload(),
-                speedLimitBytesPerSec = Settings.speedLimitKBps().toLong() * 1024L
+                speedLimitBytesPerSec = Settings.speedLimitKBps().toLong() * 1024L,
+                extraHeaders = extraHeaders,
             )
             engines[itemId] = engine
 
             try {
                 val directUrl = directUrlAtClaim ?: throw RuntimeException("No resolved URL")
 
-                val currentItem = QueueRepository.current().firstOrNull { it.id == itemId }
                 val customName = currentItem?.fileName?.takeUnless { it.isBlank() }
-                val realName = if (customName != null) customName else withContext(Dispatchers.IO) { DownloadEngine.probeRealFilename(client, directUrl) }
+                val realName = if (customName != null) customName else withContext(Dispatchers.IO) {
+                    DownloadEngine.probeRealFilename(client, directUrl, currentItem?.pageUrl)
+                }
                 val fileName = customName
                     ?: realName
                     ?: DownloadEngine.filenameFromLink(sourceUrl).ifBlank { DownloadEngine.filenameFromUrl(directUrl) }

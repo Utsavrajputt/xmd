@@ -134,6 +134,7 @@ internal fun MainShell(
     onBottomBarDrag: (Float) -> Unit = {},
     onBottomBarDragEnd: () -> Unit = {},
     overlayActive: Boolean = false,
+    isBrowserWebpageOpen: Boolean = false,
     overlay: @Composable BoxScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -172,7 +173,13 @@ internal fun MainShell(
             }
         },
         bottomBar = {
-            if (!imeVisible) {
+            val hideForBrowserWebpage = destination == MainDestination.Browser && isBrowserWebpageOpen
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !imeVisible && !hideForBrowserWebpage,
+                enter = slideInVertically { height -> height } + fadeIn(),
+                exit = slideOutVertically { height -> height } + fadeOut(),
+                label = "BottomBarVisibilityTransition",
+            ) {
                 val showSelectionPill = destination == MainDestination.Downloads && downloadsSelectionState != null
                 AnimatedContent(
                     targetState = showSelectionPill,

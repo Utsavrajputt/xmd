@@ -77,8 +77,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.invictus.xmd.domain.browser.MediaSniffer
 import com.invictus.xmd.domain.download.CategoryDetector
 import com.invictus.xmd.domain.download.DownloadEngine
+import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
@@ -92,6 +94,7 @@ import com.invictus.xmd.ui.components.WideDialogProperties
 import com.invictus.xmd.ui.components.wideDialogWidth
 import com.invictus.xmd.ui.settings.DnsSettingsDialog
 import com.invictus.xmd.utils.LinkParser
+import com.invictus.xmd.utils.media.MediaPlaybackUtils
 import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.utils.storage.OnDuplicateStrategy
 
@@ -262,6 +265,18 @@ fun AddDownloadDialog(
     val needsPrepare = remember(link) {
         val trimmed = link.trim()
         trimmed.isNotBlank() && (LinkParser.isShareLink(trimmed) || LinkParser.isFitgirlPage(trimmed))
+    }
+    val isMediaLink = remember(link, category, needsYtDlp, isWebpage, isBarePlaylistLink) {
+        val trimmed = link.trim()
+        !isWebpage && !isBarePlaylistLink && trimmed.isNotBlank() && (
+            category == DownloadCategory.VIDEOS ||
+            category == DownloadCategory.MUSIC ||
+            category == DownloadCategory.MOVIES ||
+            category == DownloadCategory.SHOWS ||
+            needsYtDlp ||
+            MediaSniffer.classifyUrl(trimmed) != null ||
+            LinkParser.isHlsOrDashLink(trimmed)
+        )
     }
 
     var selectedQualityLabel by remember { mutableStateOf<String?>(null) }
@@ -449,16 +464,40 @@ fun AddDownloadDialog(
                     else stringResource(R.string.download_dialog_title),
                     modifier = Modifier.weight(1f),
                 )
-                if (!needsYtDlp && !LinkParser.isMagnetLink(link)) {
-                    IconButton(
-                        onClick = { showHttpSettingsDialog = true },
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.More,
-                            contentDescription = stringResource(R.string.download_settings_title),
-                            modifier = Modifier.size(20.dp),
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (isMediaLink) {
+                        IconButton(
+                            onClick = {
+                                MediaPlaybackUtils.openMediaInExternalPlayer(
+                                    context = context,
+                                    url = link.trim(),
+                                    isAudioOnly = selectedQualityOption?.isAudioOnly == true,
+                                )
+                            },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.PlayCircle,
+                                contentDescription = stringResource(R.string.download_dialog_play_external),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                    if (!needsYtDlp && !LinkParser.isMagnetLink(link)) {
+                        IconButton(
+                            onClick = { showHttpSettingsDialog = true },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.More,
+                                contentDescription = stringResource(R.string.download_settings_title),
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -524,7 +563,8 @@ fun AddDownloadDialog(
                     maxLines = 4,
                 )
 
-                if (!needsYtDlp && allowPickTorrentFile) {
+                val showPickTorrent = allowPickTorrentFile && !needsYtDlp && (link.isBlank() || LinkParser.isMagnetLink(link))
+                if (showPickTorrent) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onPickTorrentFile,

@@ -58,7 +58,9 @@ class BrowserViewModel : ViewModel() {
         // WebView background thread for parallel sub-resource loads, so
         // this needs to be a synchronized map, not a plain LinkedHashMap.
         val sniffedMedia: MutableMap<String, MediaSniffer.Sniffed> =
-            java.util.Collections.synchronizedMap(LinkedHashMap())
+            java.util.Collections.synchronizedMap(LinkedHashMap()),
+        var openedBy: Long? = null,
+        var openedByUrl: String? = null,
     )
 
     val tabs = mutableListOf(BrowserTabState(id = 0L))

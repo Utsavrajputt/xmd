@@ -49,6 +49,7 @@ fun SniffedMediaSheet(
     streams: List<MediaSniffer.Sniffed>,
     onStreamSelected: (MediaSniffer.Sniffed) -> Unit,
     onCopyLink: (String) -> Unit,
+    onPlayClick: ((MediaSniffer.Sniffed) -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -80,6 +81,12 @@ fun SniffedMediaSheet(
                         closeSheet()
                     },
                     onCopyClick = { onCopyLink(stream.url) },
+                    onPlayClick = onPlayClick?.let { playAction ->
+                        {
+                            playAction(stream)
+                            closeSheet()
+                        }
+                    },
                 )
             }
         }
@@ -91,6 +98,7 @@ private fun SniffedMediaRow(
     stream: MediaSniffer.Sniffed,
     onClick: () -> Unit,
     onCopyClick: () -> Unit,
+    onPlayClick: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -124,6 +132,16 @@ private fun SniffedMediaRow(
                 .weight(1f)
                 .padding(start = 12.dp, top = 14.dp, bottom = 14.dp, end = 8.dp),
         )
+        if (onPlayClick != null) {
+            IconButton(onClick = onPlayClick) {
+                Icon(
+                    imageVector = Icons.Play,
+                    contentDescription = stringResource(R.string.download_dialog_play_external),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
         IconButton(onClick = onCopyClick) {
             Icon(
                 imageVector = Icons.Link,

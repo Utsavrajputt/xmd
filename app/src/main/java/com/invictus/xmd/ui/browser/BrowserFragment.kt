@@ -118,6 +118,7 @@ class BrowserFragment : Fragment() {
          *  any other direct-download link. */
         fun triggerSniffedMedia(url: String, needsPicker: Boolean)
         fun onBrowserHeaderInteractionChanged(locked: Boolean)
+        fun onBrowserWebpageVisibilityChanged(isWebpageOpen: Boolean) {}
     }
 
     companion object {
@@ -323,6 +324,10 @@ class BrowserFragment : Fragment() {
     // WebView, oldest first. Drives LRU eviction in evictIfNeeded().
     private val tabAccessOrder = mutableListOf<Long>()
 
+    private val downloadInterceptor by lazy {
+        com.invictus.xmd.domain.browser.DownloadInterceptor(viewLifecycleOwner.lifecycleScope)
+    }
+
     // Own client instead of reusing MainActivity's -- this is a short-timeout,
     // fire-and-forget lookup that shouldn't share connection pool pressure
     // with the resolve/download clients.
@@ -513,6 +518,13 @@ class BrowserFragment : Fragment() {
                                     (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
                                 },
                                 onCopyLink = ::copyLinkToClipboard,
+                                onPlayClick = { stream ->
+                                    com.invictus.xmd.utils.media.MediaPlaybackUtils.openMediaInExternalPlayer(
+                                        context = requireContext(),
+                                        url = stream.url,
+                                        isAudioOnly = stream.kind == com.invictus.xmd.domain.browser.MediaSniffer.Kind.DIRECT_AUDIO,
+                                    )
+                                },
                                 onDismiss = { sniffedSheetStreams = null },
                             )
                         }
@@ -521,9 +533,37 @@ class BrowserFragment : Fragment() {
                                 state = menuState,
                                 onDismiss = { linkContextMenuState = null },
                                 onOpenNewTab = ::openUrlInNewTab,
+                                onOpenBackgroundTab = ::openUrlInBackgroundTab,
+                                onDownloadLink = { url ->
+                                    val currentTab = tabs.getOrNull(currentTabIndex)
+                                    val webView = webViewFor(currentTab)
+                                    val request = downloadInterceptor.getWebRequestOrDefault(
+                                        url = url,
+                                        userAgent = webView?.settings?.userAgentString,
+                                        page = currentTab?.url
+                                    )
+                                    onWebViewDownloadRequested(
+                                        url = request.url,
+                                        contentDisposition = null,
+                                        mimeType = null,
+                                        pageUrl = request.page ?: currentTab?.url
+                                    )
+                                },
                                 onOpenImageNewTab = ::openUrlInNewTab,
                                 onDownloadImage = { url ->
-                                    onWebViewDownloadRequested(url, null, "image/*", tabs.getOrNull(currentTabIndex)?.url)
+                                    val currentTab = tabs.getOrNull(currentTabIndex)
+                                    val webView = webViewFor(currentTab)
+                                    val request = downloadInterceptor.getWebRequestOrDefault(
+                                        url = url,
+                                        userAgent = webView?.settings?.userAgentString,
+                                        page = currentTab?.url
+                                    )
+                                    onWebViewDownloadRequested(
+                                        url = request.url,
+                                        contentDisposition = null,
+                                        mimeType = "image/*",
+                                        pageUrl = request.page ?: currentTab?.url
+                                    )
                                 },
                                 onCopyLinkAddress = ::copyLinkToClipboard,
                                 onShareLink = ::shareLink,
@@ -822,10 +862,35 @@ class BrowserFragment : Fragment() {
             CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         }
 
+        webView.settings.setSupportMultipleWindows(true)
         applyDesktopMode(webView, tab.isDesktopMode)
 
-        webView.setDownloadListener { url, _, contentDisposition, mimeType, _ ->
-            if (isCurrentTab(tab)) onWebViewDownloadRequested(url, contentDisposition, mimeType, tab.url)
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                if (!isAdded) return@launch
+                if (url.isNullOrBlank() || !com.invictus.xmd.utils.UrlUtils.isValidUrl(url)) return@launch
+
+                // If this tab was opened as a popup / new window solely for a download (never loaded an actual page),
+                // close this empty tab immediately so it does not show up!
+                val isPopup = !webView.canGoBack() && (webView.originalUrl == null || tab.url == null || tab.openedBy != null)
+                if (isPopup) {
+                    val tabIndex = tabs.indexOfFirst { it.id == tab.id }
+                    if (tabIndex >= 0) {
+                        closeTab(tabIndex)
+                    }
+                }
+                val request = downloadInterceptor.getWebRequestOrDefault(
+                    url = url,
+                    userAgent = userAgent ?: webView.settings.userAgentString,
+                    page = webView.originalUrl ?: tab.openedByUrl ?: tab.url
+                )
+                onWebViewDownloadRequested(
+                    url = request.url,
+                    contentDisposition = contentDisposition,
+                    mimeType = mimeType,
+                    pageUrl = request.page ?: tab.url
+                )
+            }
         }
 
 
@@ -1042,6 +1107,17 @@ class BrowserFragment : Fragment() {
                     )
                 }
 
+                val pageUrl = request.requestHeaders?.entries?.firstOrNull {
+                    it.key.equals("Referer", ignoreCase = true)
+                }?.value ?: tab.openedByUrl ?: tab.url
+                downloadInterceptor.interceptRequest(
+                    com.invictus.xmd.domain.browser.WebRequest(
+                        url = request.url.toString(),
+                        headers = request.requestHeaders ?: emptyMap(),
+                        page = pageUrl
+                    )
+                )
+
                 sniffRequest(view, request)
 
                 // Main-frame navigations (the page document itself) are
@@ -1188,6 +1264,42 @@ class BrowserFragment : Fragment() {
                 fullscreenCallback?.onCustomViewHidden()
                 fullscreenCallback = null
                 setImmersiveMode(false)
+            }
+
+            override fun onCreateWindow(
+                view: WebView?,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: android.os.Message?
+            ): Boolean {
+                if (view == null || resultMsg == null) return false
+                val transport = (resultMsg.obj as? WebView.WebViewTransport) ?: return false
+                val parentTab = tab
+                val parentUrl = view.originalUrl ?: view.url ?: parentTab.url
+                val newTab = BrowserTab(
+                    id = nextTabId++,
+                    url = null,
+                    openedBy = parentTab.id,
+                    openedByUrl = parentUrl,
+                    isDesktopMode = parentTab.isDesktopMode,
+                    isPrivate = parentTab.isPrivate,
+                )
+                val parentIndex = tabs.indexOfFirst { it.id == parentTab.id }
+                val newPosition = if (parentIndex >= 0) parentIndex + 1 else tabs.size
+                tabs.add(newPosition.coerceIn(0, tabs.size), newTab)
+                updateTabsCount()
+                val newWebView = ensureWebView(newTab)
+                transport.webView = newWebView
+                resultMsg.sendToTarget()
+                activateTab(newPosition)
+                return true
+            }
+
+            override fun onCloseWindow(window: WebView?) {
+                val tabIndex = tabs.indexOfFirst { it.id == tab.id }
+                if (tabIndex >= 0) {
+                    closeTab(tabIndex)
+                }
             }
         }
     }
@@ -1566,6 +1678,7 @@ class BrowserFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateHeaderInteractionState()
+        (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(!speedDialVisible)
     }
 
     private fun showSpeedDial() {
@@ -1580,10 +1693,12 @@ class BrowserFragment : Fragment() {
         clearDetectedLink()
         sniffedMediaFabVisible = false
         hideNavLoadingVeil()
+        (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(false)
     }
 
     private fun showWebView() {
         speedDialVisible = false
+        (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(true)
     }
 
     /**
@@ -1673,7 +1788,7 @@ class BrowserFragment : Fragment() {
         // effect, regardless of what the previously-active tab last set it to.
         CookieManager.getInstance().setAcceptCookie(!tab.isPrivate)
 
-        if (tab.url.isNullOrBlank()) {
+        if (tab.url.isNullOrBlank() && tab.openedBy == null) {
             previousView?.let {
                 it.animate().cancel()
                 it.alpha = 0f
@@ -1694,7 +1809,7 @@ class BrowserFragment : Fragment() {
                 // Restores from WebView's own cache/history -- no network
                 // round-trip, so this is still fast even on a pool miss.
                 view.restoreState(state)
-            } else {
+            } else if (!tab.url.isNullOrBlank()) {
                 view.loadUrl(tab.url!!)
             }
         }
@@ -1743,7 +1858,11 @@ class BrowserFragment : Fragment() {
         when {
             // previousView = null: closingTab's WebView is already torn
             // down above, so activateTab shouldn't try to crossfade/hide it again.
-            closingCurrent -> activateTab(index.coerceAtMost(tabs.size - 1), previousView = null)
+            closingCurrent -> {
+                val parentIndex = closingTab.openedBy?.let { pid -> tabs.indexOfFirst { it.id == pid } }?.takeIf { it >= 0 }
+                val targetIndex = parentIndex ?: index.coerceAtMost(tabs.size - 1)
+                activateTab(targetIndex, previousView = null)
+            }
             index < currentTabIndex -> currentTabIndex--
         }
         updateTabsCount()
@@ -2031,6 +2150,16 @@ class BrowserFragment : Fragment() {
         view.loadUrl(url)
         crossfadeSwap(view, previousView)
         updateTabsCount()
+    }
+
+    private fun openUrlInBackgroundTab(url: String) {
+        val newTab = BrowserTab(id = nextTabId++, url = url)
+        val newPosition = (currentTabIndex + 1).coerceIn(0, tabs.size)
+        tabs.add(newPosition, newTab)
+        val view = ensureWebView(newTab)
+        view.loadUrl(url)
+        updateTabsCount()
+        Toast.makeText(requireContext(), R.string.link_menu_open_background_tab, Toast.LENGTH_SHORT).show()
     }
 
     private fun copyLinkToClipboard(url: String) {

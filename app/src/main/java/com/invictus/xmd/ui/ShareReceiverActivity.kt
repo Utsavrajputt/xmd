@@ -77,6 +77,7 @@ class ShareReceiverActivity : AppCompatActivity() {
     )
 
     private var currentDownloadLink by mutableStateOf<String?>(null)
+    private var currentInitialName by mutableStateOf<String?>(null)
     private var currentTorrentData by mutableStateOf<TorrentDialogData?>(null)
 
     private val clipboardManager by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
@@ -123,6 +124,7 @@ class ShareReceiverActivity : AppCompatActivity() {
                 currentDownloadLink?.let { initialLink ->
                     AddDownloadDialog(
                         initialLink = initialLink,
+                        initialName = currentInitialName ?: "",
                         defaultSavePath = defaultSavePath(),
                         magnetDisplayName = { magnetDisplayName(it) },
                         extractYoutubeFallbackName = { extractYoutubeFallbackName(it) },
@@ -289,57 +291,63 @@ class ShareReceiverActivity : AppCompatActivity() {
         val action = intent.action
         val dataUri = intent.data
 
-        if (action == Intent.ACTION_VIEW && dataUri != null) {
-            val scheme = dataUri.scheme.orEmpty().lowercase()
-            if (scheme == "magnet") {
-                currentDownloadLink = null
-                showAddTorrentDialog(prefillLink = dataUri.toString())
-                return
-            }
-            if (scheme == "content" || scheme == "file") {
-                val displayName = queryDisplayName(dataUri)
-                runCatching {
-                    contentResolver.takePersistableUriPermission(
-                        dataUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
+        val suggestedName = intent.getStringExtra("filename")
+            ?: intent.getStringExtra("suggested_filename")
+            ?: intent.getStringExtra("name")
+            ?: intent.getStringExtra("download_name")
+            ?: intent.getStringExtra("download_path")?.let { File(it).name }
+        currentInitialName = suggestedName
+
+        if (action == Intent.ACTION_VIEW || action == "android.intent.action.DOWNLOAD" || action == "com.android.providers.downloads.MANAGE_DOWNLOADS") {
+            if (dataUri != null) {
+                val scheme = dataUri.scheme.orEmpty().lowercase()
+                if (scheme == "magnet") {
+                    currentDownloadLink = null
+                    showAddTorrentDialog(prefillLink = dataUri.toString())
+                    return
                 }
-                currentDownloadLink = null
-                showAddTorrentDialog(prefillTorrentUri = dataUri, prefillDisplayName = displayName)
-                return
-            }
-            val urlString = dataUri.toString().trim()
-            if (urlString.isNotBlank()) {
-                when {
-                    LinkParser.isTorrentLink(urlString) -> {
+                if (scheme == "content" || scheme == "file") {
+                    val displayName = queryDisplayName(dataUri) ?: suggestedName
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(
+                            dataUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    }
+                    currentDownloadLink = null
+                    showAddTorrentDialog(prefillTorrentUri = dataUri, prefillDisplayName = displayName)
+                    return
+                }
+                val urlString = dataUri.toString().trim()
+                if (urlString.isNotBlank()) {
+                    if (LinkParser.isTorrentLink(urlString)) {
                         currentDownloadLink = null
                         showAddTorrentDialog(prefillLink = urlString)
-                    }
-                    // Plain webpage link (no known download extension, not a
-                    // share/fitgirl page needing the Cloudflare WebView hop)
-                    // tapped in another app's chooser -- open it in xmd's own
-                    // Browser tab instead of popping the Add Download dialog.
-                    // Forward to MainActivity, which does the actual routing
-                    // (see MainActivity.handleIncomingIntent), and finish this
-                    // transparent activity.
-                    LinkParser.isPlainWebpageLink(urlString) -> {
-                        startActivity(
-                            Intent(this, MainActivity::class.java)
-                                .setAction(Intent.ACTION_VIEW)
-                                .setData(dataUri)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        )
-                        finish()
-                    }
-                    else -> {
+                    } else {
                         currentTorrentData = null
                         currentDownloadLink = urlString
                     }
+                    return
                 }
-                return
+            } else {
+                val extraUrl = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    ?: intent.getStringExtra("url")
+                    ?: intent.getStringExtra("link")
+                    ?: intent.getStringExtra("download_url")
+                if (!extraUrl.isNullOrBlank()) {
+                    val trimmed = extraUrl.trim()
+                    if (LinkParser.isTorrentLink(trimmed)) {
+                        currentDownloadLink = null
+                        showAddTorrentDialog(prefillLink = trimmed)
+                    } else {
+                        currentTorrentData = null
+                        currentDownloadLink = trimmed
+                    }
+                    return
+                }
             }
         }
 
-        if (action == Intent.ACTION_SEND) {
+        if (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) {
             val streamUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
             } else {
@@ -347,13 +355,16 @@ class ShareReceiverActivity : AppCompatActivity() {
                 intent.getParcelableExtra(Intent.EXTRA_STREAM)
             }
             if (streamUri != null) {
-                val displayName = queryDisplayName(streamUri)
+                val displayName = queryDisplayName(streamUri) ?: suggestedName
                 currentDownloadLink = null
                 showAddTorrentDialog(prefillTorrentUri = streamUri, prefillDisplayName = displayName)
                 return
             }
 
-            val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+                ?: intent.getStringExtra("url")?.trim()
+                ?: intent.getStringExtra("link")?.trim()
+                .orEmpty()
             val url = if (text.startsWith("magnet:", ignoreCase = true)) {
                 text
             } else {
@@ -366,17 +377,6 @@ class ShareReceiverActivity : AppCompatActivity() {
                 if (LinkParser.isTorrentLink(url)) {
                     currentDownloadLink = null
                     showAddTorrentDialog(prefillLink = url)
-                } else if (LinkParser.isSharedWebpageForBrowser(url)) {
-                    // Shared normal webpage -> xmd's Browser tab, not the Add
-                    // Download sheet. MainActivity does the routing.
-                    startActivity(
-                        Intent(this, MainActivity::class.java)
-                            .setAction(Intent.ACTION_SEND)
-                            .setType("text/plain")
-                            .putExtra(Intent.EXTRA_TEXT, url)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    )
-                    finish()
                 } else {
                     currentTorrentData = null
                     currentDownloadLink = url

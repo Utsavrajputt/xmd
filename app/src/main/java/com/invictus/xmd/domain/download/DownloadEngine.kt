@@ -33,12 +33,37 @@ class DownloadEngine(
     private val progress: ProgressFn = { _, _, _ -> },
     private val log: LogFn = {},
     private val connections: Int = 4,
-    private val speedLimitBytesPerSec: Long = 0L
+    private val speedLimitBytesPerSec: Long = 0L,
+    private val extraHeaders: Map<String, String> = emptyMap(),
 ) {
     private val paused    = AtomicBoolean(false)
     private val cancelled = AtomicBoolean(false)
     private val lastProgressEmitNanos = AtomicLong(0L)
     private val limiter   = RateLimiter(speedLimitBytesPerSec)
+
+    private fun newRequestBuilder(url: String): Request.Builder {
+        val builder = Request.Builder().url(url)
+        extraHeaders.forEach { (name, value) ->
+            if (!name.equals("Range", ignoreCase = true)) {
+                builder.header(name, value)
+            }
+        }
+        val hasUserAgent = extraHeaders.keys.any { it.equals("User-Agent", ignoreCase = true) }
+        if (!hasUserAgent) {
+            builder.header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+        }
+        val cmCookie = runCatching { android.webkit.CookieManager.getInstance().getCookie(url) }.getOrNull()
+        if (!cmCookie.isNullOrBlank()) {
+            val existingCookie = extraHeaders.entries.firstOrNull { it.key.equals("Cookie", ignoreCase = true) }?.value
+            val finalCookie = if (existingCookie != null && !existingCookie.contains(cmCookie)) {
+                "$existingCookie; $cmCookie"
+            } else {
+                existingCookie ?: cmCookie
+            }
+            builder.header("Cookie", finalCookie)
+        }
+        return builder
+    }
 
     // Every in-flight OkHttp Call (single-connection download, each segment of
     // a multi-connection download, and the range-support probe) registers
@@ -275,16 +300,43 @@ class DownloadEngine(
          * Returns null (never throws) if neither yields a usable name, so
          * callers can fall back to the URL-based naming as before.
          */
-        fun probeRealFilename(client: OkHttpClient, url: String): String? {
+        fun probeRealFilename(
+            client: OkHttpClient,
+            url: String,
+            pageUrl: String? = null,
+            headers: Map<String, String> = emptyMap()
+        ): String? {
+            fun createBuilder(): Request.Builder {
+                val b = Request.Builder().url(url)
+                headers.forEach { (k, v) -> if (!k.equals("Range", ignoreCase = true)) b.header(k, v) }
+                if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
+                    b.header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                }
+                val cmCookie = runCatching { android.webkit.CookieManager.getInstance().getCookie(url) }.getOrNull()
+                if (!cmCookie.isNullOrBlank()) {
+                    val existingCookie = headers.entries.firstOrNull { it.key.equals("Cookie", ignoreCase = true) }?.value
+                    val finalCookie = if (existingCookie != null && !existingCookie.contains(cmCookie)) {
+                        "$existingCookie; $cmCookie"
+                    } else {
+                        existingCookie ?: cmCookie
+                    }
+                    b.header("Cookie", finalCookie)
+                }
+                if (!pageUrl.isNullOrBlank() && !headers.keys.any { it.equals("Referer", ignoreCase = true) }) {
+                    b.header("Referer", pageUrl)
+                }
+                return b
+            }
+
             val headName = runCatching {
-                client.newCall(Request.Builder().url(url).head().build()).execute().use { resp ->
+                client.newCall(createBuilder().head().build()).execute().use { resp ->
                     if (resp.isSuccessful) filenameFromContentDisposition(resp.header("Content-Disposition")) else null
                 }
             }.getOrNull()
             if (headName != null) return headName
 
             return runCatching {
-                val rangeRequest = Request.Builder().url(url).header("Range", "bytes=0-0").build()
+                val rangeRequest = createBuilder().header("Range", "bytes=0-0").build()
                 client.newCall(rangeRequest).execute().use { resp ->
                     filenameFromContentDisposition(resp.header("Content-Disposition"))
                 }
@@ -399,7 +451,7 @@ class DownloadEngine(
     private data class RangeProbe(val totalSize: Long, val supportsRanges: Boolean)
 
     private fun probeRangeSupport(url: String): RangeProbe {
-        val request = Request.Builder().url(url).header("Range", "bytes=0-0").build()
+        val request = newRequestBuilder(url).header("Range", "bytes=0-0").build()
         val call = client.newCall(request)
         activeCalls.add(call)
         return try {
@@ -544,7 +596,7 @@ class DownloadEngine(
     ) {
         val resumeStart = seg.start + seg.done
         if (resumeStart > seg.end) return // already fully downloaded in a prior attempt
-        val request = Request.Builder().url(url).header("Range", "bytes=$resumeStart-${seg.end}").build()
+        val request = newRequestBuilder(url).header("Range", "bytes=$resumeStart-${seg.end}").build()
         val call = client.newCall(request)
         activeCalls.add(call)
         try {
@@ -612,7 +664,7 @@ class DownloadEngine(
         paused.set(false)
 
         val existingSize    = if (destination.isFile) destination.length() else 0L
-        val requestBuilder  = Request.Builder().url(url)
+        val requestBuilder  = newRequestBuilder(url)
         if (existingSize > 0) requestBuilder.header("Range", "bytes=$existingSize-")
 
         val call = client.newCall(requestBuilder.build())

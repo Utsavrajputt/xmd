@@ -41,6 +41,8 @@ fun LinkContextMenu(
     state: LinkContextMenuState,
     onDismiss: () -> Unit,
     onOpenNewTab: (String) -> Unit,
+    onOpenBackgroundTab: (String) -> Unit,
+    onDownloadLink: (String) -> Unit,
     onOpenImageNewTab: (String) -> Unit,
     onDownloadImage: (String) -> Unit,
     onCopyLinkAddress: (String) -> Unit,
@@ -63,6 +65,14 @@ fun LinkContextMenu(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.link_menu_open_new_tab)) },
                         onClick = { onOpenNewTab(link); onDismiss() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.link_menu_open_background_tab)) },
+                        onClick = { onOpenBackgroundTab(link); onDismiss() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.link_menu_download_link)) },
+                        onClick = { onDownloadLink(link); onDismiss() },
                     )
                 }
                 if (!image.isNullOrBlank()) {

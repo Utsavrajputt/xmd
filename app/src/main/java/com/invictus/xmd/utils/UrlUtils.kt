@@ -17,6 +17,12 @@ object UrlUtils {
 
     private const val ILLEGAL = " []{}|^`\"<>\\"
 
+    fun isValidUrl(url: String): Boolean {
+        val uri = lenientUri(url) ?: return false
+        val scheme = uri.scheme?.lowercase()
+        return scheme == "http" || scheme == "https"
+    }
+
     fun lenientUri(link: String): URI? {
         val trimmed = link.trim()
         if (trimmed.isEmpty()) return null
