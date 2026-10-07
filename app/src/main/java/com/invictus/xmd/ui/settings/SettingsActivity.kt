@@ -1044,6 +1044,9 @@ private fun YoutubeRoute() {
     var subtitlesAutoCaptions by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.subtitlesAutoCaptions())
     }
+    var moveSbSubsToAdvanced by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.moveSponsorSubsToAdvanced())
+    }
 
     var ytDlpInstalled by remember {
         mutableStateOf(com.invictus.xmd.domain.download.YtDlpManager.isInstalled(context))
@@ -1132,6 +1135,11 @@ private fun YoutubeRoute() {
         onSubtitlesAutoCaptionsChanged = { value ->
             subtitlesAutoCaptions = value
             com.invictus.xmd.preferences.Settings.setSubtitlesAutoCaptions(value)
+        },
+        moveSbSubsToAdvanced = moveSbSubsToAdvanced,
+        onMoveSbSubsToAdvancedChanged = { value ->
+            moveSbSubsToAdvanced = value
+            com.invictus.xmd.preferences.Settings.setMoveSponsorSubsToAdvanced(value)
         },
         ytDlpInstalled = ytDlpInstalled,
         ytDlpUsingNightly = ytDlpUsingNightly,

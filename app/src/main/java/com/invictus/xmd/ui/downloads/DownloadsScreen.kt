@@ -111,6 +111,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.invictus.xmd.R
@@ -939,15 +944,40 @@ fun QueueItemRow(
                         ?: item.mediaStatusText?.takeIf { it.startsWith("Warning", ignoreCase = true) }
                     val hasErrorOrWarning = !warningOrError.isNullOrBlank() &&
                         (item.status == ItemStatus.FAILED || item.status == ItemStatus.RETRYING || item.status == ItemStatus.DOWNLOADING)
+                    // Auto-wrap: when "size • speed • ETA" doesn't fit on one line
+                    // (large font/display scale), move "speed • ETA" to a second line.
+                    // NOTE: no BoxWithConstraints/SubcomposeLayout here -- the card row
+                    // above uses IntrinsicSize.Min, which subcompose layouts can't answer.
+                    // The text's width comes from the Row weight, so reading it via
+                    // onSizeChanged can't feed back into the text content.
+                    val textMeasurer = rememberTextMeasurer()
+                    val statusStyle = LocalTextStyle.current.merge(
+                        TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    )
+                    var statusWidthPx by remember { mutableIntStateOf(0) }
+                    val singleLine = statusText(item, throttledSpeedEta)
+                    val needsWrap = throttledSpeedEta != null && statusWidthPx > 0 &&
+                        remember(singleLine, statusWidthPx, statusStyle) {
+                            textMeasurer.measure(
+                                text = AnnotatedString(singleLine),
+                                style = statusStyle,
+                                maxLines = 1,
+                                softWrap = false,
+                            ).size.width > statusWidthPx
+                        }
+                    val shownText = if (needsWrap) {
+                        statusText(item, throttledSpeedEta, splitSpeedEta = true)
+                    } else singleLine
                     Text(
-                        text = statusText(item, throttledSpeedEta),
+                        text = shownText,
                         color = if (item.status == ItemStatus.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        maxLines = 1,
+                        maxLines = if (needsWrap) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .weight(1f)
+                            .onSizeChanged { statusWidthPx = it.width }
                             .then(
                                 if (hasErrorOrWarning && !isSelectionMode) {
                                     Modifier
@@ -1329,7 +1359,7 @@ private fun progressFor(item: QueueItem): Pair<Float, Boolean> = when (item.stat
 }
 
 @Composable
-private fun statusText(item: QueueItem, speedEta: String?): String {
+private fun statusText(item: QueueItem, speedEta: String?, splitSpeedEta: Boolean = false): String {
     val context = LocalContext.current
     return when (item.status) {
     ItemStatus.PENDING -> "Queued"
@@ -1359,7 +1389,7 @@ private fun statusText(item: QueueItem, speedEta: String?): String {
             // A YouTube stage label ("Merging…") replaces the size, so no speed/ETA next to it.
             val ytStage = item.platform == MediaPlatform.YOUTUBE && !item.mediaStatusText.isNullOrBlank()
             if (speedEta != null && !ytStage) {
-                append(" • ")
+                append(if (splitSpeedEta) "\n" else " • ")
                 append(speedEta)
             }
         }

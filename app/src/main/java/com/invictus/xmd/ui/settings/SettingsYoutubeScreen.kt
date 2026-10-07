@@ -98,6 +98,9 @@ fun SettingsYoutubeScreen(
     onSubtitlesDefaultChanged: (Boolean) -> Unit,
     subtitlesAutoCaptions: Boolean,
     onSubtitlesAutoCaptionsChanged: (Boolean) -> Unit,
+    // Add Download dialog layout
+    moveSbSubsToAdvanced: Boolean,
+    onMoveSbSubsToAdvancedChanged: (Boolean) -> Unit,
     // yt-dlp engine
     ytDlpInstalled: Boolean,
     ytDlpUsingNightly: Boolean,
@@ -370,6 +373,19 @@ fun SettingsYoutubeScreen(
                     subtitle = stringResource(R.string.settings_subtitles_auto_hint),
                     checked = subtitlesAutoCaptions,
                     onCheckedChange = onSubtitlesAutoCaptionsChanged,
+                )
+            }
+        }
+
+        // ===== 8. Download dialog layout =====
+        Column {
+            SettingsSectionHeader(title = stringResource(R.string.settings_download_dialog_title))
+            SettingsSectionCard {
+                SwitchSettingRow(
+                    title = stringResource(R.string.settings_move_sb_subs_advanced),
+                    subtitle = stringResource(R.string.settings_move_sb_subs_advanced_hint),
+                    checked = moveSbSubsToAdvanced,
+                    onCheckedChange = onMoveSbSubsToAdvancedChanged,
                 )
             }
         }

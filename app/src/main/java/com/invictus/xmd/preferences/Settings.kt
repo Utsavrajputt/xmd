@@ -785,6 +785,7 @@ object Settings {
     private const val KEY_SB_CATEGORIES = "yt_sponsorblock_categories"
     private const val KEY_SUBS_DEFAULT_ON = "yt_subtitles_default_on"
     private const val KEY_SUBS_AUTO = "yt_subtitles_auto_captions"
+    private const val KEY_MOVE_SB_SUBS_ADV = "yt_move_sb_subs_to_advanced"
 
     fun sponsorBlockDefaultOn(): Boolean = prefs.getBoolean(KEY_SB_DEFAULT_ON, false)
     fun setSponsorBlockDefaultOn(value: Boolean) {
@@ -830,6 +831,13 @@ object Settings {
     fun subtitlesAutoCaptions(): Boolean = prefs.getBoolean(KEY_SUBS_AUTO, false)
     fun setSubtitlesAutoCaptions(value: Boolean) {
         prefs.edit().putBoolean(KEY_SUBS_AUTO, value).apply()
+    }
+
+    /** When on, the SponsorBlock + Subtitles toggles leave the Add Download
+     *  dialog's main body and live under its Advanced section. Off by default. */
+    fun moveSponsorSubsToAdvanced(): Boolean = prefs.getBoolean(KEY_MOVE_SB_SUBS_ADV, false)
+    fun setMoveSponsorSubsToAdvanced(value: Boolean) {
+        prefs.edit().putBoolean(KEY_MOVE_SB_SUBS_ADV, value).apply()
     }
 
     // ── Bottom nav: tab order / hidden tabs / default tab ──────────────────

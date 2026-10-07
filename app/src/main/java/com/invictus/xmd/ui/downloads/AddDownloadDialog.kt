@@ -204,6 +204,7 @@ fun AddDownloadDialog(
     var sponsorBlockAction by remember { mutableStateOf(Settings.sponsorBlockMode()) }
     val sponsorBlockCategories = remember { Settings.sponsorBlockCategories() }
     var subtitlesOn by remember { mutableStateOf(Settings.subtitlesDefaultOn()) }
+    val moveSbSubsToAdvanced = remember { Settings.moveSponsorSubsToAdvanced() }
     // Resolution & Format section collapse (chevron in its header).
     var qualityExpanded by remember { mutableStateOf(true) }
 
@@ -314,6 +315,22 @@ fun AddDownloadDialog(
     val effectiveSponsorBlockMode =
         if (sponsorBlockOn) sponsorBlockAction else YtDlpManager.SponsorBlockMode.OFF
     val effectiveEmbedSubtitles = subtitlesOn && finalQualityOption?.isAudioOnly != true
+
+    // SponsorBlock + Subtitles switches. Rendered either in the dialog's main
+    // body or inside Advanced, per Settings.moveSponsorSubsToAdvanced().
+    val sponsorSubsToggles: @Composable () -> Unit = {
+        DialogToggleRow(
+            title = stringResource(R.string.download_dialog_sponsorblock_title),
+            checked = sponsorBlockOn,
+            onCheckedChange = { sponsorBlockOn = it },
+        )
+        DialogToggleRow(
+            title = stringResource(R.string.download_dialog_subtitles_title),
+            checked = subtitlesOn && finalQualityOption?.isAudioOnly != true,
+            enabled = finalQualityOption?.isAudioOnly != true,
+            onCheckedChange = { subtitlesOn = it },
+        )
+    }
 
     // Reset quality selection + kick off the advanced probe whenever the
     // effective link changes -- mirrors updateQualitySection()'s
@@ -918,19 +935,9 @@ fun AddDownloadDialog(
                     }
                 }
 
-                if (needsYtDlp) {
+                if (needsYtDlp && !moveSbSubsToAdvanced) {
                     Spacer(Modifier.height(8.dp))
-                    DialogToggleRow(
-                        title = stringResource(R.string.download_dialog_sponsorblock_title),
-                        checked = sponsorBlockOn,
-                        onCheckedChange = { sponsorBlockOn = it },
-                    )
-                    DialogToggleRow(
-                        title = stringResource(R.string.download_dialog_subtitles_title),
-                        checked = subtitlesOn && finalQualityOption?.isAudioOnly != true,
-                        enabled = finalQualityOption?.isAudioOnly != true,
-                        onCheckedChange = { subtitlesOn = it },
-                    )
+                    sponsorSubsToggles()
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -1005,6 +1012,11 @@ fun AddDownloadDialog(
                             windowDaysMask = daysMask
                         },
                     )
+
+                    if (needsYtDlp && moveSbSubsToAdvanced) {
+                        Spacer(Modifier.height(8.dp))
+                        sponsorSubsToggles()
+                    }
 
                     if (needsYtDlp) {
                         AnimatedVisibility(visible = sponsorBlockOn) {

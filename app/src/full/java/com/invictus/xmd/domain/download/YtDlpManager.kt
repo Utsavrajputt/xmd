@@ -761,6 +761,18 @@ object YtDlpManager {
             // still widely compatible for m4a/opus/original too), not
             // yt-dlp's default webp thumbnail -- ffmpeg (bundled) converts.
             request.addOption("--convert-thumbnails", "jpg")
+            // Cover-art quality: yt-dlp already fetches the largest thumbnail
+            // YouTube offers, but ffmpeg's default JPEG conversion is lossy
+            // and the art stays 16:9 (letterboxed/stretched in players).
+            // Re-encode at top MJPEG quality (-q:v 1) and centre-crop to a
+            // square so it displays like real album art. YouTube Music
+            // uploads already centre a square cover in the 16:9 frame, so the
+            // crop is lossless for them.
+            request.addOption(
+                "--postprocessor-args",
+                "ThumbnailsConvertor+FFmpeg_o:-c:v mjpeg -q:v 1 " +
+                    "-vf crop=\"'if(gt(ih,iw),iw,ih)':'if(gt(iw,ih),ih,iw)'\""
+            )
             request.addOption(
                 "--parse-metadata",
                 "%(artist,creator,uploader,channel)s:%(meta_artist)s"

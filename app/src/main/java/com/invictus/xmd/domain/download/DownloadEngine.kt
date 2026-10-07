@@ -3,7 +3,9 @@ package com.invictus.xmd.domain.download
 import org.json.JSONArray
 import org.json.JSONObject
 import okhttp3.Call
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import java.io.File
@@ -11,6 +13,7 @@ import java.io.IOException
 import java.io.RandomAccessFile
 import java.net.URI
 import java.net.URLDecoder
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -27,6 +30,15 @@ private const val STREAM_BLOCK_SIZE = 1024 * 1024
 private const val MULTI_CONNECTION_MIN_BYTES = 4L * 1024 * 1024
 private const val PROGRESS_THROTTLE_NANOS = 200_000_000L // ~5 UI updates/sec
 private val EXPIRED_LINK_CODES = setOf(401, 403, 404, 410)
+// Server-side throttling (not a dead link): too many simultaneous connections
+// from one client, or the host asking us to slow down.
+private val RATE_LIMIT_CODES = setOf(429, 503)
+
+private class RateLimitedException(val httpCode: Int, val retryAfterMs: Long) :
+    RuntimeException("Rate limited (HTTP $httpCode)")
+
+/** How a host tolerates parallel segments: HTTP/2 multiplexing and/or fewer concurrent segments. */
+private data class HostPlan(val useH2: Boolean, val maxConcurrent: Int)
 
 class DownloadEngine(
     private val client: OkHttpClient,
@@ -40,6 +52,17 @@ class DownloadEngine(
     private val cancelled = AtomicBoolean(false)
     private val lastProgressEmitNanos = AtomicLong(0L)
     private val limiter   = RateLimiter(speedLimitBytesPerSec)
+
+    // The shared client forces HTTP/1.1 so each segment gets its own TCP flow.
+    // Some hosts (Seedr, ...) throttle by TCP connections per IP and answer
+    // 429 to the extras, while allowing the same number of range requests as
+    // HTTP/2 streams over one connection. newBuilder() shares the dispatcher
+    // and pool, so this is cheap.
+    @Volatile private var useH2 = false
+    private val h2Client: OkHttpClient by lazy {
+        client.newBuilder().protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)).build()
+    }
+    private fun segmentClient(): OkHttpClient = if (useH2) h2Client else client
 
     private fun newRequestBuilder(url: String): Request.Builder {
         val builder = Request.Builder().url(url)
@@ -253,6 +276,9 @@ class DownloadEngine(
 
     // ── Companions (filename utils) ─────────────────────────────────────
     companion object {
+        /** Per-host plan that worked after a 429/503, kept for this process so later downloads skip the failures. */
+        private val hostPlans = ConcurrentHashMap<String, HostPlan>()
+
         private val INVALID_CHARS       = charArrayOf('<', '>', ':', '"', '/', '\\', '|', '?', '*')
         private val CONTENT_RANGE_TOTAL = Pattern.compile("/(\\d+)$")
         private val CONTENT_DISPOSITION_FILENAME =
@@ -504,13 +530,47 @@ class DownloadEngine(
      * and the caller's Link Expired handling is correct to kick in.
      */
     private fun downloadMultiWithFallback(url: String, destination: File, totalSize: Long, segments: List<SegmentState>) {
-        try {
-            downloadMulti(url, destination, totalSize, segments)
-        } catch (e: ExpiredLinkException) {
-            log("Segment failed with HTTP ${e.httpCode} -- retrying remaining bytes on a single connection in case it's a per-connection limit rather than a dead link")
-            cancelled.set(false)
-            downloadMulti(url, destination, totalSize, segments, maxConcurrent = 1)
+        val host = url.toHttpUrlOrNull()?.host.orEmpty()
+        val default = HostPlan(useH2 = false, maxConcurrent = segments.size)
+        // A plan that already worked for this host earlier this session.
+        var plan = hostPlans[host]?.let { it.copy(maxConcurrent = it.maxConcurrent.coerceIn(1, segments.size)) } ?: default
+        while (true) {
+            useH2 = plan.useH2
+            try {
+                downloadMulti(url, destination, totalSize, segments, maxConcurrent = plan.maxConcurrent)
+                if (host.isNotEmpty() && plan != default) hostPlans[host] = plan
+                return
+            } catch (e: RateLimitedException) {
+                // 429/503 = the host is throttling, not a dead link. First try
+                // the same segments as HTTP/2 streams on one connection, then
+                // halve the concurrency (6 -> 3 -> 1), honouring Retry-After.
+                val next = nextPlan(plan) ?: throw RuntimeException(
+                    "Server keeps rejecting requests (HTTP ${e.httpCode}) even on a single connection. Try again in a few minutes."
+                )
+                log("HTTP ${e.httpCode} from $host -- retrying with ${if (next.useH2) "HTTP/2" else "HTTP/1.1"}, ${next.maxConcurrent} at a time")
+                cancelled.set(false)
+                var waited = 0L
+                while (waited < e.retryAfterMs) {
+                    checkpoint()
+                    Thread.sleep(200)
+                    waited += 200
+                }
+                plan = next
+            } catch (e: ExpiredLinkException) {
+                // Per-connection caps (pixeldrain & co.) 403 the extra segments.
+                // Retry once on a single connection before believing the link is dead.
+                if (plan.maxConcurrent <= 1) throw e
+                log("Segment failed with HTTP ${e.httpCode} -- retrying remaining bytes on a single connection in case it's a per-connection limit rather than a dead link")
+                cancelled.set(false)
+                plan = plan.copy(maxConcurrent = 1)
+            }
         }
+    }
+
+    private fun nextPlan(plan: HostPlan): HostPlan? = when {
+        plan.maxConcurrent > 1 && !plan.useH2 -> plan.copy(useH2 = true)
+        plan.maxConcurrent > 1 -> plan.copy(maxConcurrent = plan.maxConcurrent / 2)
+        else -> null
     }
 
     private fun downloadMulti(
@@ -597,7 +657,7 @@ class DownloadEngine(
         val resumeStart = seg.start + seg.done
         if (resumeStart > seg.end) return // already fully downloaded in a prior attempt
         val request = newRequestBuilder(url).header("Range", "bytes=$resumeStart-${seg.end}").build()
-        val call = client.newCall(request)
+        val call = segmentClient().newCall(request)
         activeCalls.add(call)
         try {
             call.execute().use { response ->
@@ -611,6 +671,11 @@ class DownloadEngine(
                     // "Fetch Link" recovery instead of a dead-end "Segment X-Y
                     // failed" error the user can't do anything about.
                     if (response.code in EXPIRED_LINK_CODES) throw ExpiredLinkException(response.code)
+                    if (response.code in RATE_LIMIT_CODES) {
+                        val retryAfter = response.header("Retry-After")?.trim()?.toLongOrNull()
+                            ?.times(1000)?.coerceIn(500L, 15_000L) ?: 1_500L
+                        throw RateLimitedException(response.code, retryAfter)
+                    }
                     throw RuntimeException("Segment ${seg.start}-${seg.end} failed (HTTP ${response.code})")
                 }
                 val body = response.body ?: throw RuntimeException("Empty segment body")

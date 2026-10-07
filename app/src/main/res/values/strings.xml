@@ -383,6 +383,9 @@
     <string name="settings_subtitles_default_hint">Starts the Subtitles chip switched on in the Add Download dialog. Every available language is embedded in the video; audio-only downloads are skipped.</string>
     <string name="settings_subtitles_auto">Include auto-generated captions</string>
     <string name="settings_subtitles_auto_hint">Also embeds YouTube\'s automatic captions in the video\'s original language. Off by default.</string>
+    <string name="settings_download_dialog_title">Download dialog</string>
+    <string name="settings_move_sb_subs_advanced">Move SponsorBlock &amp; Subtitles to Advanced</string>
+    <string name="settings_move_sb_subs_advanced_hint">Hides the SponsorBlock and Subtitles toggles from the main Add Download dialog and shows them inside its Advanced section instead.</string>
     <string name="audio_format_mp3">MP3</string>
     <string name="audio_format_m4a">M4A (AAC)</string>
     <string name="audio_format_opus">Opus</string>
