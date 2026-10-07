@@ -386,6 +386,16 @@
     <string name="settings_download_dialog_title">Download dialog</string>
     <string name="settings_move_sb_subs_advanced">Move SponsorBlock &amp; Subtitles to Advanced</string>
     <string name="settings_move_sb_subs_advanced_hint">Hides the SponsorBlock and Subtitles toggles from the main Add Download dialog and shows them inside its Advanced section instead.</string>
+    <string name="settings_filter_lists_header">Filter lists</string>
+    <string name="settings_filter_set_easylist_title">EasyList + uBlock</string>
+    <string name="settings_filter_set_easylist_subtitle">EasyList, EasyPrivacy and uBlock filters. Best all-round coverage.</string>
+    <string name="settings_filter_set_adguard_title">AdGuard</string>
+    <string name="settings_filter_set_adguard_subtitle">AdGuard Base, Mobile and Tracking Protection.</string>
+    <string name="settings_filter_set_both_title">Both</string>
+    <string name="settings_filter_set_both_subtitle">Maximum blocking. Uses more memory and may break more sites.</string>
+    <string name="settings_filter_rules_loaded">%1$,d filter rules loaded</string>
+    <string name="settings_filter_rules_loading">Loading filter lists…</string>
+    <string name="settings_filter_update_now">Update filter lists now</string>
     <string name="audio_format_mp3">MP3</string>
     <string name="audio_format_m4a">M4A (AAC)</string>
     <string name="audio_format_opus">Opus</string>

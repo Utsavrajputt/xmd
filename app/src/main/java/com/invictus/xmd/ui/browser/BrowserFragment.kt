@@ -863,6 +863,19 @@ class BrowserFragment : Fragment() {
         }
 
         webView.settings.setSupportMultipleWindows(true)
+
+        // Adblock: popup guard + YouTube ad pruning run in the page itself.
+        // Prefer a true document-start script (runs before any page JS, in
+        // every frame); older WebViews fall back to onPageStarted injection.
+        webView.addJavascriptInterface(AdblockBridge(), "XmdAdblock")
+        val adblockDocStart = runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                    webView, com.invictus.xmd.domain.browser.AdblockScripts.documentStart(), setOf("*")
+                )
+                true
+            } else false
+        }.getOrDefault(false)
         applyDesktopMode(webView, tab.isDesktopMode)
 
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
@@ -924,6 +937,15 @@ class BrowserFragment : Fragment() {
                 tab.isLoading = true
                 tab.progress = 0
                 tab.sniffedMedia.clear()
+                if (!adblockDocStart && Settings.adblockLevel() != Settings.AdblockLevel.OFF) {
+                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockScripts.documentStart(), null)
+                }
+                // A popup tab that was opened straight onto an ad page: close it.
+                if (tab.openedBy != null && url != null && isBlockedPopupTarget(tab, url)) {
+                    view.stopLoading()
+                    view.post { closeBlockedPopupTab(tab) }
+                    return
+                }
                 // Has to run from here, not onPageFinished -- needs to land
                 // before the new page's own scripts read document.hidden or
                 // attach their own visibilitychange listener. See
@@ -960,7 +982,7 @@ class BrowserFragment : Fragment() {
                 val level = Settings.adblockLevel()
                 val pageHost = url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
                 if (level != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(pageHost)) {
-                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level), null)
+                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level, pageHost), null)
                 }
                 if (isCurrentTab(tab)) {
                     toolbarProgressVisible = false
@@ -1005,7 +1027,20 @@ class BrowserFragment : Fragment() {
             ): Boolean {
                 val uri = request.url
                 val scheme = uri.scheme?.lowercase()
-                if (scheme == "http" || scheme == "https") return false
+                if (scheme == "http" || scheme == "https") {
+                    // Popup tabs opened onto ad pages, and script-driven redirects
+                    // (no user gesture) into ad hosts, are refused here.
+                    if (request.isForMainFrame && (tab.openedBy != null || !request.hasGesture())) {
+                        if (isBlockedPopupTarget(tab, uri.toString())) {
+                            Settings.incrementAdblockLifetimeBlockedCount()
+                            if (tab.openedBy != null && view.copyBackForwardList().currentIndex <= 0) {
+                                view.post { closeBlockedPopupTab(tab) }
+                            }
+                            return true
+                        }
+                    }
+                    return false
+                }
 
                 try {
                     val intent = if (scheme == "intent") {
@@ -1096,15 +1131,25 @@ class BrowserFragment : Fragment() {
                 // naturally) is what keeps pages from stalling on a
                 // blocked request or logging it as a load failure.
                 val adblockLevel = Settings.adblockLevel()
-                if (adblockLevel != Settings.AdblockLevel.OFF &&
-                    com.invictus.xmd.domain.browser.AdblockFilter.isBlocked(request.url, tab.url?.let {
-                        runCatching { android.net.Uri.parse(it).host }.getOrNull()
-                    }, adblockLevel)
-                ) {
-                    Settings.incrementAdblockLifetimeBlockedCount()
-                    return android.webkit.WebResourceResponse(
-                        "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
-                    )
+                if (adblockLevel != Settings.AdblockLevel.OFF) {
+                    val pageHost = tab.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+                    val accept = request.requestHeaders?.entries
+                        ?.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
+                    val blocked = if (request.isForMainFrame) {
+                        // Only ever refuse a popup tab's landing page; normal
+                        // top-level navigations are never blocked here.
+                        tab.openedBy != null && isBlockedPopupTarget(tab, request.url.toString())
+                    } else {
+                        com.invictus.xmd.domain.browser.AdblockFilter.isBlockedRequest(
+                            request.url, pageHost, false, accept, adblockLevel
+                        )
+                    }
+                    if (blocked) {
+                        Settings.incrementAdblockLifetimeBlockedCount()
+                        return android.webkit.WebResourceResponse(
+                            "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
+                        )
+                    }
                 }
 
                 val pageUrl = request.requestHeaders?.entries?.firstOrNull {
@@ -1276,6 +1321,16 @@ class BrowserFragment : Fragment() {
                 val transport = (resultMsg.obj as? WebView.WebViewTransport) ?: return false
                 val parentTab = tab
                 val parentUrl = view.originalUrl ?: view.url ?: parentTab.url
+                // Pop-ups the page opens without any user gesture are ad
+                // pop-unders in practice -- refuse them outright.
+                val openerHost = parentUrl?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+                if (!isUserGesture &&
+                    Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
+                    !Settings.isAdblockAllowlisted(openerHost)
+                ) {
+                    Settings.incrementAdblockLifetimeBlockedCount()
+                    return false
+                }
                 val newTab = BrowserTab(
                     id = nextTabId++,
                     url = null,
@@ -1302,6 +1357,33 @@ class BrowserFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Bridge the document-start script talks to (popup guard + YouTube pruning). */
+    private inner class AdblockBridge {
+        @android.webkit.JavascriptInterface
+        fun enabled(host: String?): Boolean =
+            Settings.adblockLevel() != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(host)
+
+        @android.webkit.JavascriptInterface
+        fun popupBlocked() {
+            Settings.incrementAdblockLifetimeBlockedCount()
+        }
+    }
+
+    /** True if [url] is an ad/redirect target that a popup tab (or a gesture-less
+     *  redirect) opened from [tab]'s page should not be allowed to load. */
+    private fun isBlockedPopupTarget(tab: BrowserTab, url: String): Boolean {
+        val level = Settings.adblockLevel()
+        if (level == Settings.AdblockLevel.OFF) return false
+        val openerHost = (tab.openedByUrl ?: tab.url)
+            ?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
+        return com.invictus.xmd.domain.browser.AdblockFilter.isPopupBlocked(url, openerHost, level)
+    }
+
+    private fun closeBlockedPopupTab(tab: BrowserTab) {
+        val index = tabs.indexOfFirst { it.id == tab.id }
+        if (index >= 0) closeTab(index)
     }
 
     // Fullscreen <video> state -- see onShowCustomView/onHideCustomView.

@@ -859,6 +859,13 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     var adblockLevel by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
     }
+    var filterSet by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockFilterSet())
+    }
+    var engineRuleCount by remember {
+        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount())
+    }
+    val adblockContext = androidx.compose.ui.platform.LocalContext.current
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
     }
@@ -878,9 +885,12 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     // the lifetime blocked count ticking up if the user still has a
     // Browser tab open behind this screen. Stops after a few seconds
     // either way.
-    LaunchedEffect(Unit) {
-        repeat(10) {
+    LaunchedEffect(filterSet) {
+        // Filter lists can take a while to download and parse, so poll longer.
+        repeat(120) {
             kotlinx.coroutines.delay(500)
+            val rules = com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount()
+            if (rules != engineRuleCount) engineRuleCount = rules
             val count = com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount()
             if (count != blockedDomainCount) blockedDomainCount = count
             val lifetime = com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount()
@@ -944,6 +954,18 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
         onAdblockLevelChanged = { level ->
             adblockLevel = level
             com.invictus.xmd.preferences.Settings.setAdblockLevel(level)
+        },
+        filterSet = filterSet,
+        engineRuleCount = engineRuleCount,
+        onFilterSetChanged = { set ->
+            filterSet = set
+            engineRuleCount = 0
+            com.invictus.xmd.preferences.Settings.setAdblockFilterSet(set)
+            com.invictus.xmd.domain.browser.AdblockFilter.reloadEngine(adblockContext)
+        },
+        onUpdateFilterLists = {
+            engineRuleCount = 0
+            com.invictus.xmd.domain.browser.AdblockFilter.reloadEngine(adblockContext, force = true)
         },
         onRemoveAllowlistedSite = { site ->
             com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = false)

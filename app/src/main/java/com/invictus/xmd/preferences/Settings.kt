@@ -347,6 +347,19 @@ object Settings {
 
     private const val KEY_ADBLOCK_LEVEL = "browser_adblock_level"
 
+    /** Which maintained filter lists feed the rule engine (see FilterListManager). */
+    enum class AdblockFilterSet { EASYLIST, ADGUARD, BOTH }
+
+    private const val KEY_ADBLOCK_FILTER_SET = "browser_adblock_filter_set"
+
+    fun adblockFilterSet(): AdblockFilterSet =
+        runCatching { AdblockFilterSet.valueOf(prefs.getString(KEY_ADBLOCK_FILTER_SET, null) ?: "") }
+            .getOrDefault(AdblockFilterSet.EASYLIST)
+
+    fun setAdblockFilterSet(set: AdblockFilterSet) {
+        prefs.edit().putString(KEY_ADBLOCK_FILTER_SET, set.name).apply()
+    }
+
     fun adblockLevel(): AdblockLevel {
         val stored = prefs.getString(KEY_ADBLOCK_LEVEL, null)
         if (stored != null) {

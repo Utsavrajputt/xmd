@@ -73,6 +73,11 @@ object AdblockFilter {
     // network fetch a week.
     private val REFRESH_INTERVAL_MS = java.util.concurrent.TimeUnit.DAYS.toMillis(7)
 
+    // Rule engine built from the user's chosen EasyList/AdGuard set -- the
+    // real workhorse on top of the host lists. Null until the first build.
+    @Volatile private var engine: FilterEngine? = null
+    private val engineLock = Any()
+
     @Volatile private var blockedHosts: Set<String>? = null
     // Aggressive-tier host set -- bundled-only (no remote updater; it's a
     // small, deliberately curated list, not something that needs weekly
@@ -151,8 +156,10 @@ object AdblockFilter {
      *  single style tag; safe to call again on the same page. Callers
      *  should skip calling this entirely at [Settings.AdblockLevel.OFF]
      *  or when the current site is allowlisted. */
-    fun cosmeticHideScript(level: Settings.AdblockLevel): String {
-        val cssLiteral = "\"" + cosmeticCss(level).replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    fun cosmeticHideScript(level: Settings.AdblockLevel, pageHost: String? = null): String {
+        val engineCss = engine?.cosmeticCss(pageHost).orEmpty()
+        val css = cosmeticCss(level) + engineCss
+        val cssLiteral = "\"" + css.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         return """
             (function(){
               if (document.getElementById('__xmd_adblock_css__')) return;
@@ -181,8 +188,34 @@ object AdblockFilter {
                 .getOrDefault(emptySet())
 
             maybeRefreshInBackground(appContext)
+            reloadEngineBlocking(appContext, force = false)
         }.start()
     }
+
+    /** Rebuilds the rule engine for the currently selected list set (and
+     *  downloads any missing/stale lists first). Safe to call from any thread;
+     *  runs on its own background thread. */
+    fun reloadEngine(context: Context, force: Boolean = false, onDone: (() -> Unit)? = null) {
+        val appContext = context.applicationContext
+        Thread {
+            reloadEngineBlocking(appContext, force)
+            onDone?.invoke()
+        }.start()
+    }
+
+    private fun reloadEngineBlocking(context: Context, force: Boolean) = synchronized(engineLock) {
+        val set = Settings.adblockFilterSet()
+        // Show cached rules immediately, then top up from the network.
+        runCatching { FilterListManager.loadEngine(context, set) }.getOrNull()?.let { engine = it }
+        if ((force || FilterListManager.needsRefresh(context, set)) && isNetworkAvailable(context)) {
+            if (runCatching { FilterListManager.refresh(context, set, force) }.getOrDefault(false)) {
+                runCatching { FilterListManager.loadEngine(context, set) }.getOrNull()?.let { engine = it }
+            }
+        }
+    }
+
+    /** Network + cosmetic rules currently loaded in the engine (0 while loading). */
+    fun engineRuleCount(): Int = engine?.let { it.networkRuleCount + it.cosmeticRuleCount } ?: 0
 
     internal fun cacheFile(context: Context): File = File(context.filesDir, CACHE_FILE_NAME)
 
@@ -238,6 +271,52 @@ object AdblockFilter {
         }
         val full = uri.toString().lowercase()
         return blockedUrlPatterns.any { full.contains(it) }
+    }
+
+    /** Infers a FilterEngine.TYPE_* bitmask from what WebView tells us about a
+     *  request (it gives no resource type, so the URL extension and Accept
+     *  header stand in). Unknown means "any non-document type". */
+    private fun inferType(path: String, accept: String?): Int {
+        val p = path.substringBefore('?').lowercase()
+        val ext = p.substringAfterLast('.', "")
+        return when (ext) {
+            "js", "mjs" -> FilterEngine.TYPE_SCRIPT
+            "css" -> FilterEngine.TYPE_STYLESHEET
+            "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "avif", "bmp" -> FilterEngine.TYPE_IMAGE
+            "mp4", "webm", "m3u8", "mpd", "mp3", "m4a", "m4s", "ts", "ogg" -> FilterEngine.TYPE_MEDIA
+            "woff", "woff2", "ttf", "otf", "eot" -> FilterEngine.TYPE_FONT
+            "html", "htm", "php", "aspx" ->
+                if (accept?.contains("text/html", ignoreCase = true) == true) FilterEngine.TYPE_SUBDOC
+                else FilterEngine.DEFAULT_TYPES
+            else -> if (accept?.contains("text/html", ignoreCase = true) == true) FilterEngine.TYPE_SUBDOC
+            else FilterEngine.DEFAULT_TYPES
+        }
+    }
+
+    /** Sub-resource check for shouldInterceptRequest: legacy host/URL lists first
+     *  (cheapest), then the rule engine. Never blocks the main-frame document. */
+    fun isBlockedRequest(
+        uri: Uri?, pageHost: String?, isMainFrame: Boolean, accept: String?,
+        level: Settings.AdblockLevel,
+    ): Boolean {
+        if (uri == null || isMainFrame || level == Settings.AdblockLevel.OFF) return false
+        if (Settings.isAdblockAllowlisted(pageHost)) return false
+        if (isBlocked(uri, pageHost, level)) return true
+        val eng = engine ?: return false
+        val host = uri.host?.lowercase() ?: return false
+        return eng.shouldBlock(uri.toString(), host, pageHost, inferType(uri.path.orEmpty(), accept))
+    }
+
+    /** True if navigating to / opening [url] as a popup or redirect from a page on
+     *  [openerHost] should be refused: a known ad host, or an engine rule that
+     *  targets popups/documents. */
+    fun isPopupBlocked(url: String, openerHost: String?, level: Settings.AdblockLevel): Boolean {
+        if (level == Settings.AdblockLevel.OFF || Settings.isAdblockAllowlisted(openerHost)) return false
+        val host = runCatching { Uri.parse(url).host }.getOrNull()?.lowercase() ?: return false
+        if (isHostBlocked(host, blockedHosts)) return true
+        if (level == Settings.AdblockLevel.AGGRESSIVE && isHostBlocked(host, aggressiveHosts)) return true
+        val eng = engine ?: return false
+        return eng.shouldBlock(url, host, openerHost, FilterEngine.TYPE_DOCUMENT or FilterEngine.TYPE_POPUP)
     }
 
     private fun isHostBlocked(host: String?, hosts: Set<String>?): Boolean {

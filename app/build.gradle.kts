@@ -159,6 +159,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Document-start JS injection (popup guard + YouTube ad pruning in the in-app browser).
+    implementation("androidx.webkit:webkit:1.12.1")
     implementation("org.jsoup:jsoup:1.17.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

@@ -53,6 +53,10 @@ fun SettingsBrowserScreen(
     lifetimeBlockedCount: Long,
     allowlistedSites: List<String>,
     onAdblockLevelChanged: (Settings.AdblockLevel) -> Unit,
+    filterSet: Settings.AdblockFilterSet,
+    engineRuleCount: Int,
+    onFilterSetChanged: (Settings.AdblockFilterSet) -> Unit,
+    onUpdateFilterLists: () -> Unit,
     onAddAllowlistedSite: (String) -> Unit,
     onRemoveAllowlistedSite: (String) -> Unit,
     backgroundPlaybackEnabled: Boolean,
@@ -126,6 +130,50 @@ fun SettingsBrowserScreen(
         // actually doing something -- hidden at OFF rather than shown with
         // a permanently-zero count, which would just read as broken.
         if (adblockLevel != Settings.AdblockLevel.OFF) {
+            Spacer(Modifier.height(8.dp))
+            SettingsSectionHeader(title = stringResource(R.string.settings_filter_lists_header))
+            SettingsSectionCard {
+                RadioSettingRow(
+                    title = stringResource(R.string.settings_filter_set_easylist_title),
+                    subtitle = stringResource(R.string.settings_filter_set_easylist_subtitle),
+                    selected = filterSet == Settings.AdblockFilterSet.EASYLIST,
+                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.EASYLIST) },
+                )
+                SettingsDivider()
+                RadioSettingRow(
+                    title = stringResource(R.string.settings_filter_set_adguard_title),
+                    subtitle = stringResource(R.string.settings_filter_set_adguard_subtitle),
+                    selected = filterSet == Settings.AdblockFilterSet.ADGUARD,
+                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.ADGUARD) },
+                )
+                SettingsDivider()
+                RadioSettingRow(
+                    title = stringResource(R.string.settings_filter_set_both_title),
+                    subtitle = stringResource(R.string.settings_filter_set_both_subtitle),
+                    selected = filterSet == Settings.AdblockFilterSet.BOTH,
+                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.BOTH) },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
+                Text(
+                    text = if (engineRuleCount > 0) {
+                        stringResource(R.string.settings_filter_rules_loaded, engineRuleCount)
+                    } else {
+                        stringResource(R.string.settings_filter_rules_loading)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                androidx.compose.material3.TextButton(
+                    onClick = onUpdateFilterLists,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text(stringResource(R.string.settings_filter_update_now))
+                }
+            }
+
             Spacer(Modifier.height(8.dp))
             SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
                 Text(
