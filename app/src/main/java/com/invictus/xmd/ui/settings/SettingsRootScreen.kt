@@ -37,6 +37,7 @@ import com.invictus.xmd.ui.icons.Icon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 
 /**
  * Root of the Settings screen: category rows with dividers, styled
@@ -173,6 +174,7 @@ fun SettingsRootScreen(
                     isSelected = selectedRoute == Route.DOWNLOADS,
                     isLast = !showYoutubeRow,
                     onClick = onOpenDownloads,
+                    extraContent = { StorageMeter() },
                 )
                 if (showYoutubeRow) {
                     CategoryRowGap()
@@ -202,53 +204,44 @@ fun SettingsRootScreen(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        StorageIndicatorSection()
-        Spacer(Modifier.height(4.dp))
     }
 }
 
+/**
+ * Compact storage meter shown under the Downloads row's subtitle: a thin
+ * rounded bar plus one quiet line. It sits in the row's text column, so it
+ * lines up with the title and subtitle above it.
+ */
 @Composable
-private fun StorageIndicatorSection(modifier: Modifier = Modifier) {
+private fun StorageMeter(modifier: Modifier = Modifier) {
     val storageInfo = remember {
         getStorageInfo(Settings.defaultSaveLocation())
     }
+    if (storageInfo.totalBytes <= 0L) return
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.settings_storage_title),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(
-                    R.string.settings_storage_free_of,
-                    com.invictus.xmd.utils.formatBytes(storageInfo.freeBytes),
-                    com.invictus.xmd.utils.formatBytes(storageInfo.totalBytes)
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(8.dp))
+    Column(modifier = modifier.fillMaxWidth().padding(top = 10.dp)) {
         LinearProgressIndicator(
             progress = { storageInfo.usedFraction },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(4.dp)
                 .clip(RoundedCornerShape(100.dp)),
             color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            gapSize = 0.dp,
+            drawStopIndicator = {},
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            text = stringResource(
+                R.string.settings_storage_free_of,
+                com.invictus.xmd.utils.formatBytes(storageInfo.freeBytes),
+                com.invictus.xmd.utils.formatBytes(storageInfo.totalBytes),
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

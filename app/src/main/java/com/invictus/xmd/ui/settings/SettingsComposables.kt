@@ -272,6 +272,7 @@ fun CategoryRow(
     isSelected: Boolean = false,
     isFirst: Boolean = false,
     isLast: Boolean = false,
+    extraContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val rowShape = when {
         isFirst && isLast -> RoundedCornerShape(20.dp)
@@ -327,6 +328,7 @@ fun CategoryRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            extraContent?.invoke(this)
         }
         Spacer(modifier = Modifier.width(10.dp))
         Icon(
