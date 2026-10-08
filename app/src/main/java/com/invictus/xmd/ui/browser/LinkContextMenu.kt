@@ -87,10 +87,6 @@ fun LinkContextMenu(
                 }
                 if (!link.isNullOrBlank()) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.link_menu_copy_link_address)) },
-                        onClick = { onCopyLinkAddress(link); onDismiss() },
-                    )
-                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.link_menu_share_link)) },
                         onClick = { onShareLink(link); onDismiss() },
                     )

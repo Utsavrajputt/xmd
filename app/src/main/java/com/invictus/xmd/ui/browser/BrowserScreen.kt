@@ -247,12 +247,6 @@ internal fun BrowserOverflowMenu(
             onClick = { onDismiss(); onToggleDesktopSite() },
         )
         BrowserMenuItem(
-            label = stringResource(R.string.link_menu_copy_link_address),
-            icon = Icons.Copy,
-            enabled = currentPageAvailable,
-            onClick = { onDismiss(); onCopyPage() },
-        )
-        BrowserMenuItem(
             label = stringResource(R.string.link_menu_share_link),
             icon = Icons.Share,
             enabled = currentPageAvailable,
