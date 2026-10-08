@@ -61,6 +61,10 @@ class BrowserViewModel : ViewModel() {
             java.util.Collections.synchronizedMap(LinkedHashMap()),
         var openedBy: Long? = null,
         var openedByUrl: String? = null,
+        // Chrome-style parent: the tab this one was opened from via a link,
+        // long-press or pop-up. Back with no page history closes this tab
+        // and returns to the parent. Separate from openedBy (ad-popup logic).
+        var parentTabId: Long? = null,
     )
 
     val tabs = mutableListOf(BrowserTabState(id = 0L))

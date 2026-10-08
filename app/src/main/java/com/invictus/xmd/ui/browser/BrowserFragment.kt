@@ -1327,11 +1327,14 @@ class BrowserFragment : Fragment() {
                 // Pop-ups the page opens without any user gesture are ad
                 // pop-unders in practice -- refuse them outright.
                 val openerHost = parentUrl?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
-                if (!isUserGesture &&
-                    Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
-                    !Settings.isAdblockAllowlisted(openerHost)
-                ) {
-                    Settings.incrementAdblockLifetimeBlockedCount()
+                // Chrome-style: a tap on a target="_blank" link / window.open
+                // from a real tap opens a new tab; script-only pop-ups never do.
+                if (!isUserGesture) {
+                    if (Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
+                        !Settings.isAdblockAllowlisted(openerHost)
+                    ) {
+                        Settings.incrementAdblockLifetimeBlockedCount()
+                    }
                     return false
                 }
                 val newTab = BrowserTab(
@@ -1339,6 +1342,7 @@ class BrowserFragment : Fragment() {
                     url = null,
                     openedBy = parentTab.id,
                     openedByUrl = parentUrl,
+                    parentTabId = parentTab.id,
                     isDesktopMode = parentTab.isDesktopMode,
                     isPrivate = parentTab.isPrivate,
                 )
@@ -1472,6 +1476,10 @@ class BrowserFragment : Fragment() {
             if (view.canGoBack()) {
                 showNavLoadingVeil()
                 view.goBack()
+            } else if (tab.parentTabId != null && tabs.any { it.id == tab.parentTabId }) {
+                // Chrome: no history left in a tab opened from another tab ->
+                // close it and land back on the tab it came from.
+                closeTab(currentTabIndex)
             } else {
                 resetTabToBlank(tab)
                 showSpeedDial()
@@ -1709,7 +1717,8 @@ class BrowserFragment : Fragment() {
      *  callers don't need to know about [openUrlInNewTab]'s tab-management
      *  internals. */
     fun openInNewTab(url: String) {
-        openUrlInNewTab(url)
+        // External entry point: not a child of whatever tab happens to be open.
+        openTabFor(url, childOfCurrent = false)
     }
 
     private fun loadUrl(raw: String) {
@@ -1966,7 +1975,7 @@ class BrowserFragment : Fragment() {
             // previousView = null: closingTab's WebView is already torn
             // down above, so activateTab shouldn't try to crossfade/hide it again.
             closingCurrent -> {
-                val parentIndex = closingTab.openedBy?.let { pid -> tabs.indexOfFirst { it.id == pid } }?.takeIf { it >= 0 }
+                val parentIndex = (closingTab.parentTabId ?: closingTab.openedBy)?.let { pid -> tabs.indexOfFirst { it.id == pid } }?.takeIf { it >= 0 }
                 val targetIndex = parentIndex ?: index.coerceAtMost(tabs.size - 1)
                 activateTab(targetIndex, previousView = null)
             }
@@ -2246,9 +2255,15 @@ class BrowserFragment : Fragment() {
 
     /** Opens [url] in a brand-new background... actually foreground tab,
      *  Chrome-style: the new tab becomes current and is shown immediately. */
-    private fun openUrlInNewTab(url: String) {
+    private fun openUrlInNewTab(url: String) = openTabFor(url, childOfCurrent = true)
+
+    private fun openTabFor(url: String, childOfCurrent: Boolean) {
         val previousView = webViewFor(tabs.getOrNull(currentTabIndex))
-        val newTab = BrowserTab(id = nextTabId++, url = url)
+        val newTab = BrowserTab(
+            id = nextTabId++,
+            url = url,
+            parentTabId = if (childOfCurrent) tabs.getOrNull(currentTabIndex)?.id else null,
+        )
         tabs.add(newTab)
         currentTabIndex = tabs.lastIndex
         showWebView()
@@ -2260,7 +2275,7 @@ class BrowserFragment : Fragment() {
     }
 
     private fun openUrlInBackgroundTab(url: String) {
-        val newTab = BrowserTab(id = nextTabId++, url = url)
+        val newTab = BrowserTab(id = nextTabId++, url = url, parentTabId = tabs.getOrNull(currentTabIndex)?.id)
         val newPosition = (currentTabIndex + 1).coerceIn(0, tabs.size)
         tabs.add(newPosition, newTab)
         val view = ensureWebView(newTab)
