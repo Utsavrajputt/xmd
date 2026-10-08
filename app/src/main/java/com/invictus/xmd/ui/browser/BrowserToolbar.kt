@@ -105,6 +105,7 @@ fun BrowserToolbarRow(
     bookmarkFilled: Boolean,
     onBookmarkTap: () -> Unit,
     onHomeTap: () -> Unit,
+    homeVisible: Boolean = true,
     onNewTabTap: () -> Unit,
     onTabsTap: () -> Unit,
     tabsCount: Int,
@@ -130,15 +131,17 @@ fun BrowserToolbarRow(
                     .padding(horizontal = 6.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ToolbarIconButton(
-                    icon = Icons.Home,
-                    contentDescription = stringResource(R.string.action_home),
-                    onClick = onHomeTap,
-                )
+                if (homeVisible) {
+                    ToolbarIconButton(
+                        icon = Icons.Home,
+                        contentDescription = stringResource(R.string.action_home),
+                        onClick = onHomeTap,
+                    )
+                }
                 AddressPill(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 6.dp),
+                        .padding(start = if (homeVisible) 6.dp else 0.dp),
                     text = addressText,
                     onTextChange = onAddressTextChange,
                     onFocusChange = onAddressFocusChange,

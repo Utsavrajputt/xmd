@@ -36,8 +36,8 @@ import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 
 /**
- * Browser settings: default search engine, Brave-style Shields (blocking
- * level + per-site allowlist + lifetime stats), background playback, and
+ * Browser settings: search engine, home page, one row into the ad blocking
+ * page, bottom navigation bar and background playback switches, and
  * the website source-pack import/export trigger.
  */
 @Composable
@@ -49,16 +49,7 @@ fun SettingsBrowserScreen(
     customHomeName: String,
     onHomePageClick: () -> Unit,
     adblockLevel: Settings.AdblockLevel,
-    blockedDomainCount: Int,
-    lifetimeBlockedCount: Long,
-    allowlistedSites: List<String>,
-    onAdblockLevelChanged: (Settings.AdblockLevel) -> Unit,
-    filterSet: Settings.AdblockFilterSet,
-    engineRuleCount: Int,
-    onFilterSetChanged: (Settings.AdblockFilterSet) -> Unit,
-    onUpdateFilterLists: () -> Unit,
-    onAddAllowlistedSite: (String) -> Unit,
-    onRemoveAllowlistedSite: (String) -> Unit,
+    onOpenAdblock: () -> Unit,
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
     bottomBarEnabled: Boolean,
@@ -66,16 +57,12 @@ fun SettingsBrowserScreen(
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
-    var showAddSiteDialog by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        SettingsSectionHeader(title = stringResource(R.string.settings_general_header))
-
         SettingsSectionCard {
             val engineSubtitle = if (searchEngine == Settings.SearchEngine.CUSTOM && customSearchName.isNotBlank()) {
                 "${stringResource(R.string.search_engine_custom)} ($customSearchName)"
@@ -100,9 +87,61 @@ fun SettingsBrowserScreen(
                 subtitle = homePageSubtitle,
                 onClick = onHomePageClick,
             )
+            SettingsDivider()
+            ClickableSettingRow(
+                title = stringResource(R.string.settings_adblock_title),
+                subtitle = when (adblockLevel) {
+                    Settings.AdblockLevel.STANDARD -> stringResource(R.string.settings_shields_standard_title)
+                    Settings.AdblockLevel.AGGRESSIVE -> stringResource(R.string.settings_shields_aggressive_title)
+                    Settings.AdblockLevel.OFF -> stringResource(R.string.settings_shields_off_title)
+                },
+                onClick = onOpenAdblock,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_bottom_bar),
+                subtitle = stringResource(R.string.settings_bottom_bar_hint),
+                checked = bottomBarEnabled,
+                onCheckedChange = onBottomBarChanged,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_background_playback),
+                subtitle = stringResource(R.string.settings_background_playback_hint),
+                checked = backgroundPlaybackEnabled,
+                onCheckedChange = onBackgroundPlaybackChanged,
+            )
         }
 
         Spacer(Modifier.height(8.dp))
+        WebsiteSourcesSection(onImport = onImportWebsites, onExport = onExportWebsites)
+    }
+}
+
+
+/** Ad blocking (Shields) page -- level, filter lists, stats and per-site allowlist, opened from one row in [SettingsBrowserScreen]. */
+@Composable
+fun SettingsAdblockScreen(
+    adblockLevel: Settings.AdblockLevel,
+    blockedDomainCount: Int,
+    lifetimeBlockedCount: Long,
+    allowlistedSites: List<String>,
+    onAdblockLevelChanged: (Settings.AdblockLevel) -> Unit,
+    filterSet: Settings.AdblockFilterSet,
+    engineRuleCount: Int,
+    onFilterSetChanged: (Settings.AdblockFilterSet) -> Unit,
+    onUpdateFilterLists: () -> Unit,
+    onAddAllowlistedSite: (String) -> Unit,
+    onRemoveAllowlistedSite: (String) -> Unit,
+) {
+    var showAddSiteDialog by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
         SettingsSectionHeader(title = stringResource(R.string.settings_shields_header))
 
         SettingsSectionCard {
@@ -246,32 +285,6 @@ fun SettingsBrowserScreen(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-        SettingsSectionHeader(title = stringResource(R.string.settings_playback_header))
-
-        SettingsSectionCard {
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_background_playback),
-                subtitle = stringResource(R.string.settings_background_playback_hint),
-                checked = backgroundPlaybackEnabled,
-                onCheckedChange = onBackgroundPlaybackChanged,
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        SettingsSectionHeader(title = stringResource(R.string.settings_bottom_bar_header))
-
-        SettingsSectionCard {
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_bottom_bar),
-                subtitle = stringResource(R.string.settings_bottom_bar_hint),
-                checked = bottomBarEnabled,
-                onCheckedChange = onBottomBarChanged,
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        WebsiteSourcesSection(onImport = onImportWebsites, onExport = onExportWebsites)
     }
 
     if (showAddSiteDialog) {

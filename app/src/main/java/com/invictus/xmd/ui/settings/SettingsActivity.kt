@@ -267,7 +267,7 @@ class SettingsActivity : ComponentActivity() {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             SettingsRootScreen(
                                 showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
-                                selectedRoute = selectedRoute,
+                                selectedRoute = if (selectedRoute == Route.ADBLOCK) Route.BROWSER else selectedRoute,
                                 showBatteryWarning = showBatteryWarning,
                                 onDismissBatteryWarning = { batteryWarningDismissed = true },
                                 onFixBatteryOptimization = { requestDisableBatteryOptimization(context) },
@@ -315,7 +315,9 @@ class SettingsActivity : ComponentActivity() {
                                 Route.BROWSER -> BrowserRoute(
                                     onImportWebsites = onImportWebsites,
                                     onExportWebsites = onExportWebsites,
+                                    onOpenAdblock = { selectedRoute = Route.ADBLOCK },
                                 )
+                                Route.ADBLOCK -> AdblockRoute()
                                 Route.YOUTUBE -> YoutubeRoute()
                                 Route.ABOUT -> AboutRoute(
                                     onLibrariesClick = { selectedRoute = Route.LIBRARIES },
@@ -382,8 +384,13 @@ class SettingsActivity : ComponentActivity() {
                         composable(Route.CONNECTIONS) { ConnectionsRoute() }
                         composable(Route.DOWNLOADS) { DownloadsRoute() }
                         composable(Route.BROWSER) {
-                            BrowserRoute(onImportWebsites = onImportWebsites, onExportWebsites = onExportWebsites)
+                            BrowserRoute(
+                                onImportWebsites = onImportWebsites,
+                                onExportWebsites = onExportWebsites,
+                                onOpenAdblock = { navController.navigate(Route.ADBLOCK) },
+                            )
                         }
+                        composable(Route.ADBLOCK) { AdblockRoute() }
                         composable(Route.YOUTUBE) { YoutubeRoute() }
                         composable(Route.ABOUT) {
                             AboutRoute(
@@ -508,6 +515,7 @@ internal object Route {
     const val CONNECTIONS = "connections"
     const val DOWNLOADS = "downloads"
     const val BROWSER = "browser"
+    const val ADBLOCK = "adblock"
     const val YOUTUBE = "youtube"
     const val ABOUT = "about"
     const val LIBRARIES = "libraries"
@@ -518,6 +526,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
     Route.APPEARANCE to R.string.settings_category_appearance,
     Route.CONNECTIONS to R.string.settings_category_connections,
     Route.BROWSER to R.string.settings_category_browser,
+    Route.ADBLOCK to R.string.settings_adblock_title,
     Route.DOWNLOADS to R.string.settings_category_downloads,
     Route.YOUTUBE to R.string.settings_category_youtube,
     Route.ABOUT to R.string.settings_category_about,
@@ -832,7 +841,11 @@ fun requestDisableBatteryOptimization(context: Context) {
 }
 
 @Composable
-private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> Unit) {
+private fun BrowserRoute(
+    onImportWebsites: () -> Unit,
+    onExportWebsites: () -> Unit,
+    onOpenAdblock: () -> Unit,
+) {
     val context = LocalContext.current
     var searchEngine by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.searchEngine())
@@ -859,48 +872,12 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     var adblockLevel by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
     }
-    var filterSet by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockFilterSet())
-    }
-    var engineRuleCount by remember {
-        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount())
-    }
-    val adblockContext = androidx.compose.ui.platform.LocalContext.current
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
     }
     var bottomBarEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.browserBottomBarEnabled())
     }
-    var blockedDomainCount by remember {
-        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount())
-    }
-    var lifetimeBlockedCount by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount())
-    }
-    var allowlistedSites by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted())
-    }
-    // The host list loads off the main thread (AdblockFilter.init, called
-    // from FfApp.onCreate) and a background remote refresh may still be
-    // in flight -- poll briefly rather than wiring up a dedicated
-    // callback/broadcast just for this settings subtitle. Also picks up
-    // the lifetime blocked count ticking up if the user still has a
-    // Browser tab open behind this screen. Stops after a few seconds
-    // either way.
-    LaunchedEffect(filterSet) {
-        // Filter lists can take a while to download and parse, so poll longer.
-        repeat(120) {
-            kotlinx.coroutines.delay(500)
-            val rules = com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount()
-            if (rules != engineRuleCount) engineRuleCount = rules
-            val count = com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount()
-            if (count != blockedDomainCount) blockedDomainCount = count
-            val lifetime = com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount()
-            if (lifetime != lifetimeBlockedCount) lifetimeBlockedCount = lifetime
-        }
-    }
-
     if (showSearchEngineDialog) {
         SearchEngineDialog(
             currentEngine = searchEngine,
@@ -951,6 +928,65 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
         customHomeName = customHomeName,
         onHomePageClick = { showHomePageDialog = true },
         adblockLevel = adblockLevel,
+        onOpenAdblock = onOpenAdblock,
+        backgroundPlaybackEnabled = backgroundPlaybackEnabled,
+        onBackgroundPlaybackChanged = { checked ->
+            backgroundPlaybackEnabled = checked
+            com.invictus.xmd.preferences.Settings.setBackgroundPlaybackEnabled(checked)
+        },
+        bottomBarEnabled = bottomBarEnabled,
+        onBottomBarChanged = { checked ->
+            bottomBarEnabled = checked
+            com.invictus.xmd.preferences.Settings.setBrowserBottomBarEnabled(checked)
+        },
+        onImportWebsites = onImportWebsites,
+        onExportWebsites = onExportWebsites,
+    )
+}
+
+@Composable
+private fun AdblockRoute() {
+    var adblockLevel by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
+    }
+    var filterSet by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockFilterSet())
+    }
+    var engineRuleCount by remember {
+        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount())
+    }
+    val adblockContext = androidx.compose.ui.platform.LocalContext.current
+    var blockedDomainCount by remember {
+        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount())
+    }
+    var lifetimeBlockedCount by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount())
+    }
+    var allowlistedSites by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted())
+    }
+    // The host list loads off the main thread (AdblockFilter.init, called
+    // from FfApp.onCreate) and a background remote refresh may still be
+    // in flight -- poll briefly rather than wiring up a dedicated
+    // callback/broadcast just for this settings subtitle. Also picks up
+    // the lifetime blocked count ticking up if the user still has a
+    // Browser tab open behind this screen. Stops after a few seconds
+    // either way.
+    LaunchedEffect(filterSet) {
+        // Filter lists can take a while to download and parse, so poll longer.
+        repeat(120) {
+            kotlinx.coroutines.delay(500)
+            val rules = com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount()
+            if (rules != engineRuleCount) engineRuleCount = rules
+            val count = com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount()
+            if (count != blockedDomainCount) blockedDomainCount = count
+            val lifetime = com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount()
+            if (lifetime != lifetimeBlockedCount) lifetimeBlockedCount = lifetime
+        }
+    }
+
+    SettingsAdblockScreen(
+        adblockLevel = adblockLevel,
         blockedDomainCount = blockedDomainCount,
         lifetimeBlockedCount = lifetimeBlockedCount,
         allowlistedSites = allowlistedSites,
@@ -978,18 +1014,6 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
             com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = true)
             allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
         },
-        backgroundPlaybackEnabled = backgroundPlaybackEnabled,
-        onBackgroundPlaybackChanged = { checked ->
-            backgroundPlaybackEnabled = checked
-            com.invictus.xmd.preferences.Settings.setBackgroundPlaybackEnabled(checked)
-        },
-        bottomBarEnabled = bottomBarEnabled,
-        onBottomBarChanged = { checked ->
-            bottomBarEnabled = checked
-            com.invictus.xmd.preferences.Settings.setBrowserBottomBarEnabled(checked)
-        },
-        onImportWebsites = onImportWebsites,
-        onExportWebsites = onExportWebsites,
     )
 }
 

@@ -451,7 +451,7 @@ object Settings {
 
     // ── Browser: Bottom navigation bar (Back/Forward/Home/Bookmarks/Downloads) ──
     fun browserBottomBarEnabled(): Boolean =
-        prefs.getBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, true)
+        prefs.getBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, false)
     fun setBrowserBottomBarEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, value).apply()
     }

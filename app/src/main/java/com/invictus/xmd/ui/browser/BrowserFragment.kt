@@ -411,6 +411,8 @@ class BrowserFragment : Fragment() {
                             bookmarkFilled = bookmarkStarFilled,
                             onBookmarkTap = ::onBookmarkStarTapped,
                             onHomeTap = ::goHome,
+                            // The bottom bar already has Home, so drop the duplicate up here.
+                            homeVisible = !bottomBarEnabled,
                             onNewTabTap = ::addNewTab,
                             onTabsTap = ::showTabsOverlay,
                             tabsCount = tabsCountValue,
