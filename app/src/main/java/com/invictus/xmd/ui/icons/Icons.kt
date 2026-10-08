@@ -41,38 +41,46 @@ private fun magnetIcon(): ImageVector = ImageVector.Builder(
 ).build()
 
 /**
- * WhatsApp-status style glyph: a ring broken into three arcs around a solid
- * dot. Built as an ImageVector (same approach as magnetIcon above) so it
- * takes Icon()'s tint like every other entry in [Icons].
+ * WhatsApp-status style glyph: a speech bubble (tail bottom-left) outlining a
+ * ring broken into four dashes. Built as an ImageVector (same approach as
+ * magnetIcon above) so it takes Icon()'s tint like every other entry in [Icons].
  */
 private fun statusRingIcon(): ImageVector {
-    val radius = 9.0
-    val arcs = (0 until 3).joinToString(" ") { i ->
-        val start = Math.toRadians(-90.0 + i * 120.0 + 12.0)
-        val end = Math.toRadians(-90.0 + i * 120.0 + 108.0)
+    val cx = 12.0
+    val cy = 11.5
+    val ringRadius = 4.9
+    val dashes = (0 until 4).joinToString(" ") { i ->
+        val start = Math.toRadians(i * 90.0 + 18.0)
+        val end = Math.toRadians(i * 90.0 + 72.0)
         String.format(
             java.util.Locale.US,
-            "M%.2f,%.2f A9,9 0 0 1 %.2f,%.2f",
-            12.0 + radius * cos(start), 12.0 + radius * sin(start),
-            12.0 + radius * cos(end), 12.0 + radius * sin(end),
+            "M%.2f,%.2f A%.2f,%.2f 0 0 1 %.2f,%.2f",
+            cx + ringRadius * cos(start), cy + ringRadius * sin(start),
+            ringRadius, ringRadius,
+            cx + ringRadius * cos(end), cy + ringRadius * sin(end),
         )
     }
+    val bubble = "M5.64,17.86 L3,21.2 L9.67,20.19 A9,9 0 1 0 5.64,17.86 Z"
     return ImageVector.Builder(
-        name = "StatusRing",
+        name = "StatusBubble",
         defaultWidth = 24.dp,
         defaultHeight = 24.dp,
         viewportWidth = 24f,
         viewportHeight = 24f,
     ).addPath(
-        pathData = PathParser().parsePathString(arcs).toNodes(),
+        pathData = PathParser().parsePathString(bubble).toNodes(),
         fill = null,
         stroke = SolidColor(Color.Black),
-        strokeLineWidth = 2.2f,
+        strokeLineWidth = 2f,
         strokeLineCap = StrokeCap.Round,
         strokeLineJoin = StrokeJoin.Round,
     ).addPath(
-        pathData = PathParser().parsePathString("M12,8 A4,4 0 1 1 12,16 A4,4 0 1 1 12,8 Z").toNodes(),
-        fill = SolidColor(Color.Black),
+        pathData = PathParser().parsePathString(dashes).toNodes(),
+        fill = null,
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
     ).build()
 }
 

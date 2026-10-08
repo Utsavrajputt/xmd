@@ -195,62 +195,84 @@ internal fun StatusSaverScreen(
                 }
             }
 
-            if (isRecentTab) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    StatusSource.entries.forEach { source ->
-                        FilterChip(
-                            selected = viewModel.source == source,
-                            onClick = { viewModel.selectSource(source) },
-                            label = {
-                                Text(
-                                    stringResource(
-                                        if (source == StatusSource.WHATSAPP) {
-                                            R.string.status_source_whatsapp
-                                        } else {
-                                            R.string.status_source_business
-                                        },
-                                    ),
-                                )
-                            },
-                        )
-                    }
+            val pagerState = rememberPagerState(initialPage = viewModel.tab.ordinal) { StatusTab.entries.size }
+
+            LaunchedEffect(pagerState.currentPage) {
+                viewModel.selectTab(StatusTab.entries[pagerState.currentPage])
+            }
+            LaunchedEffect(viewModel.tab) {
+                if (pagerState.currentPage != viewModel.tab.ordinal) {
+                    pagerState.animateScrollToPage(viewModel.tab.ordinal)
                 }
             }
 
-            when {
-                !viewModel.hasAccess -> AccessRequired(onGrantAccess)
-                viewModel.loading && items.isEmpty() -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
-                items.isEmpty() -> CenteredMessage(
-                    stringResource(if (isRecentTab) R.string.status_empty_recent else R.string.status_empty_saved),
-                )
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(104.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                        StatusTile(
-                            item = item,
-                            showSaveState = isRecentTab,
-                            isSaved = item.name in viewModel.savedNames,
-                            selecting = selecting,
-                            isSelected = item.path in viewModel.selected,
-                            onClick = {
-                                if (selecting) viewModel.toggleSelect(item.path) else previewIndex = index
-                            },
-                            onLongClick = { viewModel.toggleSelect(item.path) },
-                            onSave = { viewModel.save(listOf(item)) },
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                val tabForPage = StatusTab.entries[page]
+                val pageIsRecent = tabForPage == StatusTab.Recent
+                val pageItems = if (pageIsRecent) viewModel.recent else viewModel.saved
+
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (pageIsRecent) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            StatusSource.entries.forEach { source ->
+                                FilterChip(
+                                    selected = viewModel.source == source,
+                                    onClick = { viewModel.selectSource(source) },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                if (source == StatusSource.WHATSAPP) {
+                                                    R.string.status_source_whatsapp
+                                                } else {
+                                                    R.string.status_source_business
+                                                },
+                                            ),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    when {
+                        !viewModel.hasAccess -> AccessRequired(onGrantAccess)
+                        viewModel.loading && pageItems.isEmpty() -> Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { CircularProgressIndicator() }
+                        pageItems.isEmpty() -> CenteredMessage(
+                            stringResource(if (pageIsRecent) R.string.status_empty_recent else R.string.status_empty_saved),
                         )
+                        else -> LazyVerticalGrid(
+                            columns = GridCells.Adaptive(104.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            itemsIndexed(pageItems, key = { _, item -> item.path }) { index, item ->
+                                StatusTile(
+                                    item = item,
+                                    showSaveState = pageIsRecent,
+                                    isSaved = item.name in viewModel.savedNames,
+                                    selecting = selecting,
+                                    isSelected = item.path in viewModel.selected,
+                                    onClick = {
+                                        if (selecting) viewModel.toggleSelect(item.path) else previewIndex = index
+                                    },
+                                    onLongClick = { viewModel.toggleSelect(item.path) },
+                                    onSave = { viewModel.save(listOf(item)) },
+                                )
+                            }
+                        }
                     }
                 }
             }
