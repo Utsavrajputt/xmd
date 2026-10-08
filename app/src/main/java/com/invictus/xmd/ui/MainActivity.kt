@@ -106,6 +106,7 @@ import com.invictus.xmd.ui.home.HomeFragment
 import com.invictus.xmd.ui.onboarding.OnboardingScreen
 import com.invictus.xmd.ui.settings.DnsSettingsDialog
 import com.invictus.xmd.ui.settings.SettingsActivity
+import com.invictus.xmd.ui.status.StatusSaverActivity
 import com.invictus.xmd.ui.settings.hasBatteryOptimizationDisabled
 import com.invictus.xmd.ui.settings.requestDisableBatteryOptimization
 import com.invictus.xmd.utils.LinkParser
@@ -667,6 +668,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     onDestinationSelected = ::selectMainDestination,
                     onAddDownload = { showAddDownloadDialog() },
                     onOpenSettings = { openSettingsScreen() },
+                    onOpenStatusSaver = { openStatusSaver() },
                     onToggleTheme = ::toggleDarkMode,
                     onViewPagerReady = ::setupViewPager,
                     overlayActive = savedPagesDestination != null,
@@ -2078,6 +2080,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             @Suppress("DEPRECATION")
             overridePendingTransition(0, 0)
         }
+    }
+
+    /** Opens the WhatsApp Status Saver screen (status icon next to Search on the Downloads tab). */
+    private fun openStatusSaver() {
+        startActivity(Intent(this, StatusSaverActivity::class.java))
     }
 
     /**

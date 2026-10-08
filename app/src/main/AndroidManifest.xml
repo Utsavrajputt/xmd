@@ -145,6 +145,11 @@
             android:exported="false"
             android:label="@string/settings_title" />
 
+        <activity
+            android:name=".ui.status.StatusSaverActivity"
+            android:exported="false"
+            android:label="@string/status_saver_title" />
+
         <!-- Chrome-less standalone window for "Add to Home screen" pinned
              shortcuts (see BrowserFragment.addCurrentPageAsApp()). exported
              is required here: the pinned icon is launched by the system

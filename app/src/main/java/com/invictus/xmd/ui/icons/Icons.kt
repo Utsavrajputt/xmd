@@ -7,6 +7,8 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
+import kotlin.math.cos
+import kotlin.math.sin
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.roundedfilled.*
 import com.invictus.xmd.database.entities.Bookmark
@@ -37,6 +39,42 @@ private fun magnetIcon(): ImageVector = ImageVector.Builder(
     strokeLineCap = StrokeCap.Round,
     strokeLineJoin = StrokeJoin.Round,
 ).build()
+
+/**
+ * WhatsApp-status style glyph: a ring broken into three arcs around a solid
+ * dot. Built as an ImageVector (same approach as magnetIcon above) so it
+ * takes Icon()'s tint like every other entry in [Icons].
+ */
+private fun statusRingIcon(): ImageVector {
+    val radius = 9.0
+    val arcs = (0 until 3).joinToString(" ") { i ->
+        val start = Math.toRadians(-90.0 + i * 120.0 + 12.0)
+        val end = Math.toRadians(-90.0 + i * 120.0 + 108.0)
+        String.format(
+            java.util.Locale.US,
+            "M%.2f,%.2f A9,9 0 0 1 %.2f,%.2f",
+            12.0 + radius * cos(start), 12.0 + radius * sin(start),
+            12.0 + radius * cos(end), 12.0 + radius * sin(end),
+        )
+    }
+    return ImageVector.Builder(
+        name = "StatusRing",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f,
+    ).addPath(
+        pathData = PathParser().parsePathString(arcs).toNodes(),
+        fill = null,
+        stroke = SolidColor(Color.Black),
+        strokeLineWidth = 2.2f,
+        strokeLineCap = StrokeCap.Round,
+        strokeLineJoin = StrokeJoin.Round,
+    ).addPath(
+        pathData = PathParser().parsePathString("M12,8 A4,4 0 1 1 12,16 A4,4 0 1 1 12,8 Z").toNodes(),
+        fill = SolidColor(Color.Black),
+    ).build()
+}
 
 @Suppress("MemberVisibilityCanBePrivate")
 object Icons {
@@ -101,6 +139,7 @@ object Icons {
     val Search by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Search) }
     val Settings by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Settings) }
     val Share by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Share) }
+    val StatusSaver by lazy(LazyThreadSafetyMode.NONE) { AppIcon(statusRingIcon()) }
     val Shield by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Shield) }
     val Sort by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Sort) }
     val Star by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Star) }

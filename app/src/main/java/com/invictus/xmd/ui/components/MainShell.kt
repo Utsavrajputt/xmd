@@ -128,6 +128,7 @@ internal fun MainShell(
     onDestinationSelected: (MainDestination) -> Unit,
     onAddDownload: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenStatusSaver: () -> Unit = {},
     onToggleTheme: () -> Unit,
     onViewPagerReady: (androidx.viewpager2.widget.ViewPager2) -> Unit,
     onBottomBarDragStart: () -> Unit = {},
@@ -168,6 +169,7 @@ internal fun MainShell(
                     onSearchActiveChange = onSearchActiveChange,
                     onSearchQueryChange = onSearchQueryChange,
                     onOpenSettings = onOpenSettings,
+                    onOpenStatusSaver = onOpenStatusSaver,
                     onToggleTheme = onToggleTheme,
                 )
             }
@@ -248,6 +250,7 @@ private fun DownloadsTopBar(
     onSearchActiveChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenStatusSaver: () -> Unit,
     onToggleTheme: () -> Unit,
 ) {
     if (downloadsSelectionState != null) {
@@ -436,6 +439,12 @@ private fun DownloadsTopBar(
         },
         actions = {
             if (destination == MainDestination.Downloads) {
+                IconButton(onClick = onOpenStatusSaver) {
+                    Icon(
+                        imageVector = Icons.StatusSaver,
+                        contentDescription = stringResource(R.string.status_saver_title),
+                    )
+                }
                 IconButton(onClick = { onSearchActiveChange(true) }) {
                     Icon(
                         imageVector = Icons.Search,

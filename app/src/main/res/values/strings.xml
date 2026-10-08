@@ -688,4 +688,27 @@
     <string name="conn_custom_speed">Custom</string>
     <string name="conn_concurrent_title">Simultaneous downloads</string>
     <string name="conn_concurrent_hint">How many downloads run at the same time (1–5).</string>
+    <!-- Status Saver -->
+    <string name="status_saver_title">Status Saver</string>
+    <string name="status_tab_recent">Recent</string>
+    <string name="status_tab_saved">Saved</string>
+    <string name="status_source_whatsapp">WhatsApp</string>
+    <string name="status_source_business">WhatsApp Business</string>
+    <string name="status_empty_recent">No statuses found. Watch a status in WhatsApp first, then come back and refresh.</string>
+    <string name="status_empty_saved">Nothing saved yet. Statuses you save will appear here.</string>
+    <string name="status_permission_title">All-files access required</string>
+    <string name="status_permission_message">Status Saver needs all-files access to read WhatsApp statuses and save them to your device.</string>
+    <string name="status_permission_button">Grant access</string>
+    <string name="status_saved_n">Saved %1$d</string>
+    <string name="status_already_saved">Already saved</string>
+    <string name="status_save_failed">Couldn\'t save the status</string>
+    <string name="status_deleted_n">Deleted %1$d</string>
+    <string name="status_delete_title">Delete saved status?</string>
+    <string name="status_delete_message">%1$d saved status will be deleted from your device.</string>
+    <string name="status_action_save">Save</string>
+    <string name="status_action_delete">Delete</string>
+    <string name="status_select_all">Select all</string>
+    <string name="status_selected_count">%1$d selected</string>
+    <string name="status_close">Close</string>
+    <string name="status_refresh">Refresh</string>
 </resources>
