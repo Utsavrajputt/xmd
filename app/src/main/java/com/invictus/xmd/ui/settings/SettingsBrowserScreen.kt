@@ -61,6 +61,8 @@ fun SettingsBrowserScreen(
     onRemoveAllowlistedSite: (String) -> Unit,
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
+    bottomBarEnabled: Boolean,
+    onBottomBarChanged: (Boolean) -> Unit,
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
@@ -253,6 +255,18 @@ fun SettingsBrowserScreen(
                 subtitle = stringResource(R.string.settings_background_playback_hint),
                 checked = backgroundPlaybackEnabled,
                 onCheckedChange = onBackgroundPlaybackChanged,
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        SettingsSectionHeader(title = stringResource(R.string.settings_bottom_bar_header))
+
+        SettingsSectionCard {
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_bottom_bar),
+                subtitle = stringResource(R.string.settings_bottom_bar_hint),
+                checked = bottomBarEnabled,
+                onCheckedChange = onBottomBarChanged,
             )
         }
 

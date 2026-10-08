@@ -101,6 +101,7 @@ internal fun BrowserScreen(
     floatingActions: @Composable BoxScope.() -> Unit,
     dialogs: @Composable BoxScope.() -> Unit,
     tabsOverlay: @Composable BoxScope.() -> Unit,
+    bottomBar: @Composable () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -155,6 +156,7 @@ internal fun BrowserScreen(
                 }
                 loadingVeil()
             }
+            bottomBar()
         }
         floatingActions()
         dialogs()

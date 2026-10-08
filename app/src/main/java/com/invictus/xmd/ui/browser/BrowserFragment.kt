@@ -110,6 +110,8 @@ class BrowserFragment : Fragment() {
             if (pageUrl != null) triggerPrepareFromPage(url, pageUrl) else triggerPrepare(listOf(url))
         }
         fun onBrowserMenuAction(action: BrowserMenuAction)
+        /** Bottom-bar Downloads button: jump to the Downloads tab. */
+        fun onBrowserOpenDownloads() {}
         /** A stream MediaSniffer picked up was tapped in the "videos found"
          *  sheet. HLS/DASH ([needsPicker] true) routes through the same
          *  quality-picker flow as a YouTube link (resolveYoutube reused
@@ -275,6 +277,13 @@ class BrowserFragment : Fragment() {
     private var toolbarProgress: Int by mutableStateOf(0)
     private var toolbarProgressVisible: Boolean by mutableStateOf(false)
     private var tabsCountValue: Int by mutableStateOf(1)
+    // Bottom nav bar (Back/Forward/Home/Bookmarks/Downloads). bottomBarEnabled
+    // mirrors the user setting (refreshed in onResume); bottomBarScrollVisible
+    // is flipped by WebView scrolling so the bar hides on scroll-down.
+    private var bottomBarEnabled: Boolean by mutableStateOf(true)
+    private var bottomBarScrollVisible: Boolean by mutableStateOf(true)
+    private var navCanGoForward: Boolean by mutableStateOf(false)
+    private var lastBottomBarToggleMs: Long = 0L
 
     private val browserViewModel: BrowserViewModel by viewModels()
 
@@ -429,6 +438,28 @@ class BrowserFragment : Fragment() {
                             progress = toolbarProgress,
                             progressVisible = toolbarProgressVisible,
                         )
+                    },
+                    bottomBar = {
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = bottomBarEnabled && !speedDialVisible && !addressBarFocused && bottomBarScrollVisible,
+                            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+                        ) {
+                            BrowserBottomBar(
+                                canGoForward = navCanGoForward,
+                                onBack = { onBackPressed() },
+                                onForward = {
+                                    val v = webViewFor(tabs.getOrNull(currentTabIndex))
+                                    if (v != null && v.canGoForward()) {
+                                        showNavLoadingVeil()
+                                        v.goForward()
+                                    }
+                                },
+                                onHome = ::goHome,
+                                onBookmarks = { (activity as? Callbacks)?.onBrowserMenuAction(BrowserMenuAction.Bookmarks) },
+                                onDownloads = { (activity as? Callbacks)?.onBrowserOpenDownloads() },
+                            )
+                        }
                     },
                     onWebViewHostReady = { swipeRefresh, containerView ->
                         webViewSwipeRefresh = swipeRefresh
@@ -828,6 +859,23 @@ class BrowserFragment : Fragment() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView(webView: WebView, tab: BrowserTab) {
+        webView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            if (!isCurrentTab(tab)) return@setOnScrollChangeListener
+            val dy = scrollY - oldScrollY
+            val now = android.os.SystemClock.uptimeMillis()
+            // The bar resizes the WebView when it toggles, which can echo back
+            // as a small scroll -- ignore scroll events right after a toggle.
+            if (now - lastBottomBarToggleMs < 350L) return@setOnScrollChangeListener
+            val wantVisible = when {
+                scrollY <= 0 || dy < -24 -> true
+                dy > 24 -> false
+                else -> bottomBarScrollVisible
+            }
+            if (wantVisible != bottomBarScrollVisible) {
+                bottomBarScrollVisible = wantVisible
+                lastBottomBarToggleMs = now
+            }
+        }
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
@@ -954,6 +1002,8 @@ class BrowserFragment : Fragment() {
                     view.evaluateJavascript(BackgroundPlaybackScript.script(), null)
                 }
                 if (isCurrentTab(tab)) {
+                    navCanGoForward = view.canGoForward()
+                    bottomBarScrollVisible = true
                     toolbarProgress = 0
                     toolbarProgressVisible = true
                     addressBarText = url.orEmpty()
@@ -985,6 +1035,7 @@ class BrowserFragment : Fragment() {
                     view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level, pageHost), null)
                 }
                 if (isCurrentTab(tab)) {
+                    navCanGoForward = view.canGoForward()
                     toolbarProgressVisible = false
                     webViewSwipeRefresh.isRefreshing = false
                     hideNavLoadingVeil()
@@ -1698,6 +1749,8 @@ class BrowserFragment : Fragment() {
         updateBookmarkStar(tab)
         toolbarProgress = tab.progress
         toolbarProgressVisible = tab.isLoading
+        navCanGoForward = webViewFor(tab)?.canGoForward() == true
+        bottomBarScrollVisible = true
         webViewSwipeRefresh.isRefreshing = false
         val url = tab.url
         if (url != null) checkPageForLinks(url) else clearDetectedLink()
@@ -1793,6 +1846,7 @@ class BrowserFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        bottomBarEnabled = Settings.browserBottomBarEnabled()
         updateHeaderInteractionState()
         (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(!speedDialVisible)
     }

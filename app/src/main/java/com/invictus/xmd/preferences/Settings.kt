@@ -68,6 +68,7 @@ object Settings {
     private const val KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK = "data_usage_mobile_baseline_last_tick"
     private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
+    private const val KEY_BROWSER_BOTTOM_BAR_ENABLED = "browser_bottom_bar_enabled"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
     private const val KEY_AUTO_CHECK_UPDATES = "about_auto_check_for_updates"
     private const val KEY_UPDATE_CHANNEL = "about_update_channel"
@@ -446,6 +447,13 @@ object Settings {
         prefs.getBoolean(KEY_BACKGROUND_PLAYBACK_ENABLED, false)
     fun setBackgroundPlaybackEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_BACKGROUND_PLAYBACK_ENABLED, value).apply()
+    }
+
+    // ── Browser: Bottom navigation bar (Back/Forward/Home/Bookmarks/Downloads) ──
+    fun browserBottomBarEnabled(): Boolean =
+        prefs.getBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, true)
+    fun setBrowserBottomBarEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, value).apply()
     }
 
     // ── Browser: Tab switcher layout mode ──────────────────────────────

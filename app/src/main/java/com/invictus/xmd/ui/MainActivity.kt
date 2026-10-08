@@ -1653,6 +1653,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         showAddDownloadDialog(link = url, initialName = suggestedName, pageUrl = pageUrl, allowPickTorrentFile = false)
     }
 
+    override fun onBrowserOpenDownloads() {
+        selectMainDestination(MainDestination.Downloads)
+    }
+
     override fun onBrowserMenuAction(action: BrowserMenuAction) {
         when (action) {
             BrowserMenuAction.PrivateDns -> showDnsSettingsDialog()

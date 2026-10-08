@@ -869,6 +869,9 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
     }
+    var bottomBarEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.browserBottomBarEnabled())
+    }
     var blockedDomainCount by remember {
         mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount())
     }
@@ -979,6 +982,11 @@ private fun BrowserRoute(onImportWebsites: () -> Unit, onExportWebsites: () -> U
         onBackgroundPlaybackChanged = { checked ->
             backgroundPlaybackEnabled = checked
             com.invictus.xmd.preferences.Settings.setBackgroundPlaybackEnabled(checked)
+        },
+        bottomBarEnabled = bottomBarEnabled,
+        onBottomBarChanged = { checked ->
+            bottomBarEnabled = checked
+            com.invictus.xmd.preferences.Settings.setBrowserBottomBarEnabled(checked)
         },
         onImportWebsites = onImportWebsites,
         onExportWebsites = onExportWebsites,
