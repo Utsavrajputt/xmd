@@ -90,8 +90,8 @@ fun WebsiteSourcesSection(onImport: () -> Unit, onExport: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ActionTile(Icons.FileOpen, stringResource(R.string.ws_import), onImport, Modifier.weight(1f))
-            ActionTile(Icons.Share, stringResource(R.string.ws_export), onExport, Modifier.weight(1f))
+            ActionButton(Icons.FileOpen, stringResource(R.string.ws_import), onImport, Modifier.weight(1f))
+            ActionButton(Icons.Share, stringResource(R.string.ws_export), onExport, Modifier.weight(1f))
         }
     }
 
@@ -99,31 +99,31 @@ fun WebsiteSourcesSection(onImport: () -> Unit, onExport: () -> Unit) {
 
     // ── FMHY sync ────────────────────────────────────────────────────
     SettingsSectionCard {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconTile(Icons.Sync)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.fmhy_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = statusText(sync.running),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Sync)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.fmhy_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = statusText(sync.running),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
-            Spacer(Modifier.width(10.dp))
-            if (sync.running) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
-            } else {
-                FilledTonalButton(onClick = {
+            ActionButton(
+                icon = Icons.Sync,
+                label = stringResource(if (sync.running) R.string.fmhy_syncing else R.string.fmhy_refresh),
+                enabled = !sync.running,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                onClick = {
                     FmhySync.refreshNow { result ->
                         val msg = when (result) {
                             is FmhySync.Result.Done ->
@@ -133,10 +133,8 @@ fun WebsiteSourcesSection(onImport: () -> Unit, onExport: () -> Unit) {
                         }
                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     }
-                }) {
-                    Text(stringResource(R.string.fmhy_refresh))
-                }
-            }
+                },
+            )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
         SwitchSettingRow(
@@ -175,31 +173,22 @@ private fun IconTile(icon: com.invictus.xmd.ui.icons.AppIcon) {
     }
 }
 
+/** One button style for every action in this section: same height, same shape, icon + label on one line. */
 @Composable
-private fun ActionTile(
+private fun ActionButton(
     icon: com.invictus.xmd.ui.icons.AppIcon,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
-    Surface(
+    FilledTonalButton(
         onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-        }
+        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(text = label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }

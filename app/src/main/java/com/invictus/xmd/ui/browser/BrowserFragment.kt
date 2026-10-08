@@ -756,6 +756,10 @@ class BrowserFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
+        // Keep the process alive so page audio/video continues in background.
+        if (Settings.backgroundPlaybackEnabled() && !speedDialVisible && activity?.isChangingConfigurations != true) {
+            com.invictus.xmd.service.BackgroundPlaybackService.start(requireContext().applicationContext)
+        }
     }
 
     override fun onDestroyView() {
@@ -856,7 +860,14 @@ class BrowserFragment : Fragment() {
     private fun ensureWebView(tab: BrowserTab): WebView {
         webViews[tab.id]?.let { touchLru(tab.id); return it }
 
-        val wv = WebView(requireContext()).apply {
+        val wv = object : WebView(requireContext()) {
+            // With Background playback on, never tell Chromium the window was
+            // hidden -- that is what pauses media when the app is minimized.
+            override fun onWindowVisibilityChanged(visibility: Int) {
+                if (visibility != View.VISIBLE && Settings.backgroundPlaybackEnabled()) return
+                super.onWindowVisibilityChanged(visibility)
+            }
+        }.apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
@@ -1926,6 +1937,7 @@ class BrowserFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         bottomBarEnabled = Settings.browserBottomBarEnabled()
+        com.invictus.xmd.service.BackgroundPlaybackService.stop(requireContext().applicationContext)
         updateHeaderInteractionState()
         (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(!speedDialVisible)
     }

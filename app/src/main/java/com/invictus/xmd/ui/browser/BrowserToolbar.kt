@@ -137,11 +137,18 @@ fun BrowserToolbarRow(
                         contentDescription = stringResource(R.string.action_home),
                         onClick = onHomeTap,
                     )
+                } else if (!addressBarFocused) {
+                    // Bottom bar has Home, so New tab takes the leftmost slot.
+                    ToolbarIconButton(
+                        icon = Icons.Add,
+                        contentDescription = stringResource(R.string.action_new_tab),
+                        onClick = onNewTabTap,
+                    )
                 }
                 AddressPill(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = if (homeVisible) 6.dp else 0.dp),
+                        .padding(start = if (homeVisible || !addressBarFocused) 6.dp else 0.dp),
                     text = addressText,
                     onTextChange = onAddressTextChange,
                     onFocusChange = onAddressFocusChange,
@@ -154,12 +161,14 @@ fun BrowserToolbarRow(
                     onBookmarkTap = onBookmarkTap,
                 )
                 if (!addressBarFocused) {
-                    ToolbarIconButton(
-                        icon = Icons.Add,
-                        contentDescription = stringResource(R.string.action_new_tab),
-                        onClick = onNewTabTap,
-                        modifier = Modifier.padding(start = 2.dp),
-                    )
+                    if (homeVisible) {
+                        ToolbarIconButton(
+                            icon = Icons.Add,
+                            contentDescription = stringResource(R.string.action_new_tab),
+                            onClick = onNewTabTap,
+                            modifier = Modifier.padding(start = 2.dp),
+                        )
+                    }
                     TabsButton(
                         count = tabsCount,
                         contentDescription = stringResource(R.string.action_tabs),

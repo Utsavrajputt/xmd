@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -49,7 +50,7 @@ internal fun BrowserBottomBar(
             BarButton(Icons.ArrowBack, R.string.browser_bottom_back, onBack)
             BarButton(Icons.ArrowForward, R.string.browser_bottom_forward, onForward, enabled = canGoForward)
             BarButton(Icons.Home, R.string.browser_bottom_home, onHome)
-            BarButton(Icons.Bookmarks, R.string.browser_bottom_bookmarks, onBookmarks)
+            BarButton(Icons.Bookmarks, R.string.browser_bottom_bookmarks, onBookmarks, iconSize = 20.dp)
             BarButton(Icons.Download, R.string.browser_bottom_downloads, onDownloads)
         }
     }
@@ -61,12 +62,13 @@ private fun BarButton(
     label: Int,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    iconSize: androidx.compose.ui.unit.Dp = 24.dp,
 ) {
     IconButton(onClick = onClick, enabled = enabled) {
         Icon(
             imageVector = icon,
             contentDescription = stringResource(label),
-            modifier = Modifier.alpha(if (enabled) 1f else 0.38f),
+            modifier = Modifier.size(iconSize).alpha(if (enabled) 1f else 0.38f),
         )
     }
 }

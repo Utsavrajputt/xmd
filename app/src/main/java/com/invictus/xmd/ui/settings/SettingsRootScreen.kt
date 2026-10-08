@@ -170,7 +170,7 @@ fun SettingsRootScreen(
                 CategoryRow(
                     icon = Icons.Downloads,
                     title = stringResource(R.string.settings_category_downloads),
-                    subtitle = stringResource(R.string.settings_category_downloads_desc),
+                    subtitle = "",
                     isSelected = selectedRoute == Route.DOWNLOADS,
                     isLast = !showYoutubeRow,
                     onClick = onOpenDownloads,
@@ -219,7 +219,7 @@ private fun StorageMeter(modifier: Modifier = Modifier) {
     }
     if (storageInfo.totalBytes <= 0L) return
 
-    Column(modifier = modifier.fillMaxWidth().padding(top = 10.dp)) {
+    Column(modifier = modifier.fillMaxWidth().padding(top = 6.dp)) {
         LinearProgressIndicator(
             progress = { storageInfo.usedFraction },
             modifier = Modifier

@@ -317,6 +317,9 @@
     <string name="settings_general_header">General</string>
     <string name="settings_playback_header">Playback</string>
     <string name="settings_adblock_title">Ad blocking</string>
+    <string name="bg_playback_channel_name">Background playback</string>
+    <string name="bg_playback_notification_title">Playing in background</string>
+    <string name="bg_playback_notification_text">Tap to return to the browser</string>
     <string name="inapp_player_error">This video can\'t be played here.</string>
     <string name="inapp_player_open_external">Open in another player</string>
     <string name="settings_bottom_bar">Bottom navigation bar</string>
