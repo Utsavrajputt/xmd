@@ -82,7 +82,7 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
-                <data android:mimeType="*/*" />
+                <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
 
             <!-- Lets browsers (Firefox, Vivaldi, etc.) offer xmd as an
@@ -113,20 +113,29 @@
                 <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
 
-            <!-- Lets xmd show up in the system "Open with" chooser and Firefox app picker
-                 for download hand-offs and files (content:// for Android 7+ and Firefox,
-                 file:// for file managers). -->
+            <!-- "Open with" for .torrent files only (content:// for Android 7+
+                 and Firefox, file:// for file managers). These used to accept
+                 any mime type, which made xmd show up for every image, video
+                 and document in the system chooser. ShareReceiverActivity only
+                 accepts .torrent files anyway, so match them by mime type or
+                 file extension. -->
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
-                <data android:mimeType="*/*" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
                 <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.torrent" />
+                <data android:pathPattern=".*\\..*\\.torrent" />
+                <data android:pathPattern=".*\\..*\\..*\\.torrent" />
             </intent-filter>
         </activity>
 
