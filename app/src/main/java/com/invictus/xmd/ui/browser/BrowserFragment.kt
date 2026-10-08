@@ -1997,10 +1997,24 @@ class BrowserFragment : Fragment() {
      *  that branch's onConfirm lambda -- this function now only computes
      *  the prefill. */
     private fun showAddBookmarkDialog(prefillUrl: String?, prefillTitle: String? = null) {
-        addBookmarkDialogState = AddBookmarkDialogState(
-            prefillUrl = prefillUrl ?: tabs.getOrNull(currentTabIndex)?.url,
-            prefillTitle = prefillTitle,
-        )
+        val tab = tabs.getOrNull(currentTabIndex)
+        val url = prefillUrl ?: tab?.url
+        // Page titles are usually SEO-long ("Site - Bollywood, Hollywood & ...");
+        // default to just the short title. Explicit prefills (e.g. link text) stay as-is.
+        val title = if (prefillTitle == null || prefillTitle == tab?.title) {
+            shortBookmarkTitle(prefillTitle ?: tab?.title, url)
+        } else {
+            prefillTitle
+        }
+        addBookmarkDialogState = AddBookmarkDialogState(prefillUrl = url, prefillTitle = title)
+    }
+
+    private fun shortBookmarkTitle(raw: String?, url: String?): String? {
+        val full = raw?.trim().orEmpty()
+        val first = full.split(Regex("\\s+[-\u2013\u2014|:\u2022]\\s+"), limit = 2).first().trim()
+        val short = first.ifBlank { full }.take(40).trim()
+        if (short.isNotBlank()) return short
+        return url?.let { runCatching { android.net.Uri.parse(it).host?.removePrefix("www.") }.getOrNull() }
     }
 
     // ── Tabs ─────────────────────────────────────────────────────────────

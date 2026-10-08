@@ -182,7 +182,7 @@ fun TabsListOverlay(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(bottom = 12.dp),
+                .padding(bottom = 4.dp),
         ) {
             Row(
                 modifier = Modifier
@@ -220,16 +220,18 @@ fun TabsListOverlay(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(
-                    onClick = {
-                        closeWith { onAddNew() }
+                if (isGridMode) {
+                    IconButton(
+                        onClick = {
+                            closeWith { onAddNew() }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Add,
+                            contentDescription = stringResource(R.string.action_new_tab),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Add,
-                        contentDescription = stringResource(R.string.action_new_tab),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
 
@@ -254,6 +256,7 @@ fun TabsListOverlay(
                         currentTabId = currentTabId,
                         onSwitch = { id -> closeWith { onSwitch(id) } },
                         onClose = onClose,
+                        onAddNew = { closeWith { onAddNew() } },
                     )
                 }
             }
@@ -323,7 +326,7 @@ private fun TabsGridView(
             modifier = Modifier
                 .widthIn(max = if (isTablet && !isLandscape) 640.dp else 740.dp)
                 .fillMaxWidth()
-                .heightIn(min = 160.dp, max = maxGridHeight),
+                .heightIn(max = maxGridHeight),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -461,21 +464,22 @@ private fun TabsListView(
     currentTabId: Long?,
     onSwitch: (Long) -> Unit,
     onClose: (Long) -> Unit,
+    onAddNew: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val maxListHeight = maxTabsContentHeight(configuration)
 
-    Box(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.TopCenter,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         LazyColumn(
             modifier = Modifier
                 .widthIn(max = 680.dp)
                 .fillMaxWidth()
-                .heightIn(min = 160.dp, max = maxListHeight),
+                .heightIn(max = maxListHeight),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -491,6 +495,14 @@ private fun TabsListView(
                     onCloseClick = { onClose(tab.id) },
                 )
             }
+        }
+        // Via-style: one centered "+" right under the last tab.
+        IconButton(onClick = onAddNew) {
+            Icon(
+                imageVector = Icons.Add,
+                contentDescription = stringResource(R.string.action_new_tab),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
