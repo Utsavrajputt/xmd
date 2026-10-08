@@ -1135,20 +1135,23 @@ class BrowserFragment : Fragment() {
                     val pageHost = tab.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
                     val accept = request.requestHeaders?.entries
                         ?.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
-                    val blocked = if (request.isForMainFrame) {
+                    if (request.isForMainFrame) {
                         // Only ever refuse a popup tab's landing page; normal
                         // top-level navigations are never blocked here.
-                        tab.openedBy != null && isBlockedPopupTarget(tab, request.url.toString())
+                        if (tab.openedBy != null && isBlockedPopupTarget(tab, request.url.toString())) {
+                            Settings.incrementAdblockLifetimeBlockedCount()
+                            return android.webkit.WebResourceResponse(
+                                "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
+                            )
+                        }
                     } else {
-                        com.invictus.xmd.domain.browser.AdblockFilter.isBlockedRequest(
+                        val stub = com.invictus.xmd.domain.browser.AdblockFilter.interceptResponse(
                             request.url, pageHost, false, accept, adblockLevel
                         )
-                    }
-                    if (blocked) {
-                        Settings.incrementAdblockLifetimeBlockedCount()
-                        return android.webkit.WebResourceResponse(
-                            "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
-                        )
+                        if (stub != null) {
+                            Settings.incrementAdblockLifetimeBlockedCount()
+                            return stub
+                        }
                     }
                 }
 
@@ -1369,6 +1372,28 @@ class BrowserFragment : Fragment() {
         fun popupBlocked() {
             Settings.incrementAdblockLifetimeBlockedCount()
         }
+
+        /** JSON array of uBlock scriptlet calls for [host] (see AdblockScripts). */
+        @android.webkit.JavascriptInterface
+        fun scriptlets(host: String?): String =
+            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.scriptletsJson(host) else "[]"
+
+        /** Host-specific + always-on cosmetic CSS. */
+        @android.webkit.JavascriptInterface
+        fun cosmetic(host: String?): String =
+            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.cosmeticCssFor(host) else ""
+
+        /** Generic cosmetic CSS for the ids/classes (JSON arrays) present on the page. */
+        @android.webkit.JavascriptInterface
+        fun genericCss(host: String?, idsJson: String?, classesJson: String?): String =
+            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.genericCssFor(host, idsJson, classesJson) else ""
+
+        /** True if tapping a link to [url] on a page at [host] should be swallowed. */
+        @android.webkit.JavascriptInterface
+        fun isAdUrl(url: String?, host: String?): Boolean =
+            url != null && com.invictus.xmd.domain.browser.AdblockFilter.isPopupBlocked(
+                url, host, Settings.adblockLevel()
+            )
     }
 
     /** True if [url] is an ad/redirect target that a popup tab (or a gesture-less

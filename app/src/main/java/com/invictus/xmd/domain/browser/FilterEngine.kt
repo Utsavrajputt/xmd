@@ -14,9 +14,15 @@ package com.invictus.xmd.domain.browser
  *    plus `#@#` exceptions.
  *
  * Deliberately skipped (rule is ignored, never half-applied): regex rules,
- * `redirect`, `removeparam`, `csp`, `replace`, `:has-text()`, `:xpath()`,
- * `#?#`/`#$#`/`#%#` procedural rules and `##+js()` scriptlets. Skipping is
- * safer than guessing -- a mis-parsed rule becomes a false-positive block.
+ * `removeparam`, `csp`, `replace`, `:has-text()`, `:xpath()` and the
+ * `#?#`/`#$#`/`#%#` procedural rules. Skipping is safer than guessing -- a
+ * mis-parsed rule becomes a false-positive block.
+ *
+ * Also handled: `$redirect=` (serve a neutral stub instead of a bare block, so
+ * players don't hang), `##+js(...)` scriptlets (exposed via [scriptletsFor]
+ * and executed by [AdblockScripts]), and generic cosmetic rules indexed by the
+ * `#id`/`.class` they target ([genericCssFor]) so only rules relevant to the
+ * page's actual DOM are ever injected.
  *
  * Lookup is indexed: host-anchored rules by domain (walking the request
  * host's label suffixes) and everything else by the longest safe token in the
@@ -31,9 +37,13 @@ class FilterEngine private constructor(
     private val allowToken: HashMap<String, ArrayList<NetRule>>,
     private val allowLoose: ArrayList<NetRule>,
     private val pageAllowHosts: HashSet<String>,
-    private val genericCssText: String,
+    private val complexGenericCss: String,
+    private val genericIndex: HashMap<String, ArrayList<String>>,
+    private val genericExceptions: HashSet<String>,
     private val domainCss: HashMap<String, ArrayList<String>>,
     private val domainCssExceptions: HashMap<String, HashSet<String>>,
+    private val scriptlets: HashMap<String, ArrayList<String>>,
+    private val scriptletExceptions: HashMap<String, HashSet<String>>,
     val networkRuleCount: Int,
     val cosmeticRuleCount: Int,
 ) {
@@ -47,6 +57,7 @@ class FilterEngine private constructor(
         val includeDomains: Array<String>?,
         val excludeDomains: Array<String>?,
         val important: Boolean,
+        val redirect: String? = null,
     )
 
     /** True if the page itself is exempted by an `@@||site^$document` rule. */
@@ -60,19 +71,61 @@ class FilterEngine private constructor(
      * @param host request host (lowercase)
      * @param pageHost host of the page that made the request, if known
      * @param type bitmask of TYPE_* describing the request
+     * @return null = allow, "" = block, anything else = block and serve that
+     *         redirect resource (uBlock `$redirect=name`).
      */
-    fun shouldBlock(url: String, host: String, pageHost: String?, type: Int): Boolean {
-        if (host.isEmpty()) return false
+    fun check(url: String, host: String, pageHost: String?, type: Int): String? {
+        if (host.isEmpty()) return null
         val lowerUrl = url.lowercase()
         val page = pageHost?.lowercase()
-        if (isPageAllowed(page)) return false
+        if (isPageAllowed(page)) return null
         val thirdParty = page != null && registrableDomain(host) != registrableDomain(page)
         val hostEnd = hostEndIndex(lowerUrl)
 
         val block = find(blockDomain, blockToken, blockLoose, lowerUrl, host, hostEnd, page, type, thirdParty)
-            ?: return false
-        if (block.important) return true
-        return find(allowDomain, allowToken, allowLoose, lowerUrl, host, hostEnd, page, type, thirdParty) == null
+            ?: return null
+        if (!block.important &&
+            find(allowDomain, allowToken, allowLoose, lowerUrl, host, hostEnd, page, type, thirdParty) != null
+        ) return null
+        return block.redirect ?: ""
+    }
+
+    fun shouldBlock(url: String, host: String, pageHost: String?, type: Int): Boolean =
+        check(url, host, pageHost, type) != null
+
+    /** Scriptlet invocations ("name, arg1, arg2") that apply to [pageHost]. */
+    fun scriptletsFor(pageHost: String?): List<String> {
+        val host = pageHost?.lowercase().orEmpty()
+        if (host.isEmpty() || isPageAllowed(host) || scriptlets.isEmpty()) return emptyList()
+        val suffixes = hostSuffixes(host)
+        val excepted = HashSet<String>()
+        for (s in suffixes) scriptletExceptions[s]?.let { excepted.addAll(it) }
+        scriptletExceptions["*"]?.let { excepted.addAll(it) }
+        if ("*" in excepted) return emptyList()
+        val out = ArrayList<String>()
+        for (s in suffixes) scriptlets[s]?.forEach { if (it !in excepted) out.add(it) }
+        scriptlets["*"]?.forEach { if (it !in excepted) out.add(it) }
+        return out
+    }
+
+    /** Generic cosmetic rules whose key `#id` / `.class` is present on the page. */
+    fun genericCssFor(pageHost: String?, ids: List<String>, classes: List<String>): String {
+        if (genericIndex.isEmpty()) return ""
+        val host = pageHost?.lowercase().orEmpty()
+        if (host.isNotEmpty() && isPageAllowed(host)) return ""
+        val excepted = HashSet<String>()
+        if (host.isNotEmpty()) for (s in hostSuffixes(host)) domainCssExceptions[s]?.let { excepted.addAll(it) }
+        val sb = StringBuilder()
+        fun emit(key: String) {
+            val list = genericIndex[key] ?: return
+            for (sel in list) {
+                if (sel in genericExceptions || sel in excepted) continue
+                sb.append(sel).append("{display:none!important}")
+            }
+        }
+        for (id in ids) emit("#$id")
+        for (c in classes) emit(".$c")
+        return sb.toString()
     }
 
     /** CSS (one `display:none` rule per selector, so one bad selector can't
@@ -80,12 +133,12 @@ class FilterEngine private constructor(
      *  rules scoped to that host or its parent domains. */
     fun cosmeticCss(pageHost: String?): String {
         val host = pageHost?.lowercase().orEmpty()
-        if (host.isEmpty()) return genericCssText
+        if (host.isEmpty()) return complexGenericCss
         if (isPageAllowed(host)) return ""
         val suffixes = hostSuffixes(host)
         val excepted = HashSet<String>()
         for (s in suffixes) domainCssExceptions[s]?.let { excepted.addAll(it) }
-        val sb = StringBuilder(genericCssText)
+        val sb = StringBuilder(complexGenericCss)
         for (s in suffixes) {
             val list = domainCss[s] ?: continue
             for (sel in list) {
@@ -236,8 +289,11 @@ class FilterEngine private constructor(
         private val allowToken = HashMap<String, ArrayList<NetRule>>()
         private val allowLoose = ArrayList<NetRule>()
         private val pageAllow = HashSet<String>()
-        private val genericSelectors = LinkedHashSet<String>()
+        private val complexGeneric = LinkedHashSet<String>()
+        private val genericIndex = HashMap<String, ArrayList<String>>()
         private val genericExceptions = HashSet<String>()
+        private val scriptlets = HashMap<String, ArrayList<String>>()
+        private val scriptletExceptions = HashMap<String, HashSet<String>>()
         private val domainCss = HashMap<String, ArrayList<String>>()
         private val domainCssExceptions = HashMap<String, HashSet<String>>()
         private var networkCount = 0
@@ -274,13 +330,27 @@ class FilterEngine private constructor(
                 else -> return false
             }
             val selector = line.substring(selectorStart).trim()
-            if (selector.isEmpty() || selector.length > 220) return true
-            if (selector.startsWith("+js(") || selector.contains('{') || selector.contains('}')) return true
-            for (bad in UNSUPPORTED_PSEUDO) if (selector.contains(bad)) return true
+            if (selector.isEmpty() || selector.length > 400) return true
 
             val domains = if (idx == 0) emptyList() else line.substring(0, idx).lowercase().split(',')
             val positive = domains.filter { it.isNotEmpty() && !it.startsWith("~") && !it.contains('*') }
             if (domains.isNotEmpty() && positive.isEmpty()) return true
+
+            // uBlock scriptlet: domain##+js(name, arg, ...)
+            if (selector.startsWith("+js(") && selector.endsWith(")")) {
+                val inner = selector.substring(4, selector.length - 1).trim()
+                if (inner.startsWith("trusted-")) return true
+                val keys = if (positive.isEmpty()) listOf("*") else positive
+                if (isException) {
+                    for (k in keys) scriptletExceptions.getOrPut(k) { HashSet() }.add(if (inner.isEmpty()) "*" else inner)
+                } else if (inner.isNotEmpty()) {
+                    for (k in keys) scriptlets.getOrPut(k) { ArrayList(2) }.add(inner)
+                }
+                return true
+            }
+
+            if (selector.contains('{') || selector.contains('}')) return true
+            for (bad in UNSUPPORTED_PSEUDO) if (selector.contains(bad)) return true
 
             if (isException) {
                 if (positive.isEmpty()) genericExceptions.add(selector)
@@ -289,11 +359,52 @@ class FilterEngine private constructor(
             }
             cosmeticCount++
             if (positive.isEmpty()) {
-                if (genericSelectors.size < MAX_GENERIC_SELECTORS) genericSelectors.add(selector)
+                val key = indexKey(selector)
+                if (key == null) {
+                    if (complexGeneric.size < MAX_COMPLEX_GENERIC) complexGeneric.add(selector)
+                } else {
+                    genericIndex.getOrPut(key) { ArrayList(1) }.add(selector)
+                }
             } else {
                 for (d in positive) domainCss.getOrPut(d) { ArrayList() }.add(selector)
             }
             return true
+        }
+
+        /** `#id` / `.class` token from the selector's rightmost compound -- the
+         *  element it hides must carry it, so the rule only matters on pages
+         *  that contain such an element. Null = no safe key (always emitted). */
+        private fun indexKey(selector: String): String? {
+            var depth = 0
+            var lastComb = -1
+            for (i in selector.indices) {
+                when (selector[i]) {
+                    '[', '(' -> depth++
+                    ']', ')' -> if (depth > 0) depth--
+                    ',' -> if (depth == 0) return null
+                    ' ', '>', '+', '~' -> if (depth == 0) lastComb = i
+                }
+            }
+            val last = selector.substring(lastComb + 1)
+            val flat = StringBuilder()
+            var d = 0
+            for (c in last) {
+                if (c == '[' || c == '(') d++
+                else if ((c == ']' || c == ')') && d > 0) d--
+                else if (d == 0) flat.append(c)
+            }
+            val f = flat.toString()
+            var i = 0
+            while (i < f.length) {
+                val c = f[i]
+                if (c == '.' || c == '#') {
+                    var j = i + 1
+                    while (j < f.length && (f[j].isLetterOrDigit() || f[j] == '_' || f[j] == '-')) j++
+                    if (j > i + 1) return f.substring(i, j)
+                    i = j
+                } else i++
+            }
+            return null
         }
 
         // ── network ──
@@ -306,6 +417,7 @@ class FilterEngine private constructor(
             var typeExc = 0
             var thirdParty = 0
             var important = false
+            var redirect: String? = null
             var include: ArrayList<String>? = null
             var exclude: ArrayList<String>? = null
 
@@ -322,6 +434,9 @@ class FilterEngine private constructor(
                             name == "first-party" || name == "1p" -> thirdParty = if (neg) 1 else 2
                             name == "important" -> important = true
                             name == "match-case" -> {}
+                            name.startsWith("redirect=") || name.startsWith("redirect-rule=") -> {
+                                redirect = name.substringAfter('=').trim().ifEmpty { null }
+                            }
                             name.startsWith("domain=") -> {
                                 for (d in name.substring(7).split('|')) {
                                     if (d.isEmpty() || d.contains('*')) continue
@@ -370,7 +485,7 @@ class FilterEngine private constructor(
             if (line.isEmpty() || line == "*") {
                 // Option-only rule: only worth keeping when scoped to specific pages.
                 if (inc == null) return
-                add(NetRule("", false, false, mask, thirdParty, inc, exc, important), exception, null, null)
+                add(NetRule("", false, false, mask, thirdParty, inc, exc, important, redirect), exception, null, null)
                 return
             }
 
@@ -380,12 +495,12 @@ class FilterEngine private constructor(
                 var rest = line.substring(host.length)
                 // "||host^" == plain domain rule; strip the trailing caret so it matches trivially.
                 if (rest == "^") rest = ""
-                val rule = NetRule(rest, true, endAnchor, mask, thirdParty, inc, exc, important)
+                val rule = NetRule(rest, true, endAnchor, mask, thirdParty, inc, exc, important, redirect)
                 add(rule, exception, host, null)
                 return
             }
 
-            val rule = NetRule(line, startAnchor, endAnchor, mask, thirdParty, inc, exc, important)
+            val rule = NetRule(line, startAnchor, endAnchor, mask, thirdParty, inc, exc, important, redirect)
             add(rule, exception, null, bestToken(line, startAnchor, endAnchor))
         }
 
@@ -403,14 +518,15 @@ class FilterEngine private constructor(
 
         fun build(): FilterEngine {
             val sb = StringBuilder()
-            for (sel in genericSelectors) {
+            for (sel in complexGeneric) {
                 if (sel in genericExceptions) continue
                 sb.append(sel).append("{display:none!important}")
             }
             return FilterEngine(
                 blockDomain, blockToken, blockLoose,
                 allowDomain, allowToken, allowLoose,
-                pageAllow, sb.toString(), domainCss, domainCssExceptions,
+                pageAllow, sb.toString(), genericIndex, genericExceptions,
+                domainCss, domainCssExceptions, scriptlets, scriptletExceptions,
                 networkCount, cosmeticCount,
             )
         }
@@ -474,7 +590,7 @@ class FilterEngine private constructor(
             TYPE_SUBDOC or TYPE_MEDIA or TYPE_FONT or TYPE_PING or TYPE_OTHER
         const val ALL_TYPES = DEFAULT_TYPES or TYPE_DOCUMENT or TYPE_POPUP
 
-        private const val MAX_GENERIC_SELECTORS = 6000
+        private const val MAX_COMPLEX_GENERIC = 3000
 
         private val UNSUPPORTED_PSEUDO = listOf(
             ":has-text(", ":xpath(", ":matches-css", ":-abp-", ":contains(", ":upward(",

@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit
  * Downloads, caches and parses the filter lists behind [FilterEngine].
  *
  * The user picks a list set in Settings ([Settings.AdblockFilterSet]):
- *  - EASYLIST: EasyList + EasyPrivacy + uBlock filters + uBlock unbreak
- *  - ADGUARD:  AdGuard Base + Mobile + Tracking Protection
+ *  - EASYLIST: EasyList + EasyPrivacy + uBlock filters/unbreak/quick-fixes/badware + Peter Lowe
+ *  - ADGUARD:  AdGuard Base + Mobile + Tracking Protection + Popups
  *  - BOTH:     the union of the two
  * Every list is cached under filesDir, refreshed at most weekly, and a failed
  * download never discards a working cached copy.
@@ -26,12 +26,18 @@ object FilterListManager {
         ListDef("easyprivacy", "https://easylist.to/easylist/easyprivacy.txt"),
         ListDef("ublock-filters", "https://ublockorigin.github.io/uAssets/filters/filters.txt"),
         ListDef("ublock-unbreak", "https://ublockorigin.github.io/uAssets/filters/unbreak.txt"),
+        // quick-fixes carries the scriptlet rules uBlock ships for sites whose ads
+        // can't be stopped at the network level; badware blocks malicious ad hosts.
+        ListDef("ublock-quick-fixes", "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt"),
+        ListDef("ublock-badware", "https://ublockorigin.github.io/uAssets/filters/badware.txt"),
+        ListDef("peter-lowe", "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=0&mimetype=plaintext"),
     )
 
     private val ADGUARD_SET = listOf(
         ListDef("adguard-base", "https://filters.adtidy.org/extension/ublock/filters/2.txt"),
         ListDef("adguard-mobile", "https://filters.adtidy.org/extension/ublock/filters/11.txt"),
         ListDef("adguard-tracking", "https://filters.adtidy.org/extension/ublock/filters/3.txt"),
+        ListDef("adguard-popups", "https://filters.adtidy.org/extension/ublock/filters/19.txt"),
     )
 
     private val REFRESH_INTERVAL_MS = TimeUnit.DAYS.toMillis(7)
