@@ -232,5 +232,5 @@ Only download content you are authorized to access.
 ---
 
 <div align="center">
-  <sub>Built with ⚡ by <a href="https://github.com/Utsavrajputt">Utsav</a></sub>
+  <sub>Built with ❤️ by <a href="https://github.com/Utsavrajputt">Invictus</a></sub>
 </div>

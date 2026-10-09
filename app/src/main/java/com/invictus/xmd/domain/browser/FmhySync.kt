@@ -130,7 +130,8 @@ object FmhySync {
             val key = normName(s.title)
             if (key.length < 3) return@forEach
             val match = byName[key]?.singleOrNull() ?: return@forEach
-            updates += s.copy(url = match.primary, faviconUrl = null)
+            // Only the URL changes; icon (faviconUrl / customIconPath) stays untouched.
+            updates += s.copy(url = match.primary)
         }
         if (updates.isNotEmpty()) ShortcutRepository.updateAll(updates)
 

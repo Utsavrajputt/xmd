@@ -666,7 +666,7 @@ class BrowserFragment : Fragment() {
                                     val normalized = normalizeToUrl(url.trim())
                                     val trimmedTitle = title.trim()
                                     BookmarkRepository.add(trimmedTitle, normalized)
-                                    if (alsoAddShortcut) ShortcutRepository.add(trimmedTitle, normalized)
+                                    if (alsoAddShortcut) ShortcutRepository.add(shortcutSiteName(normalized, trimmedTitle), normalized)
                                     Toast.makeText(
                                         requireContext(),
                                         R.string.bookmark_added_toast,
@@ -2007,6 +2007,29 @@ class BrowserFragment : Fragment() {
             prefillTitle
         }
         addBookmarkDialogState = AddBookmarkDialogState(prefillUrl = url, prefillTitle = title)
+    }
+
+    /**
+     * Name for a speed-dial shortcut created from the bookmark dialog: the
+     * website's own name, not the (long, SEO-heavy) page title. GitHub-style
+     * repo hosts use the repo name, so opening github.com/user/xmd gives "xmd".
+     * Everything else uses the main host label ("www.youtube.com" -> "Youtube").
+     */
+    private fun shortcutSiteName(url: String, fallback: String): String {
+        val uri = runCatching { android.net.Uri.parse(url) }.getOrNull()
+        val host = uri?.host?.lowercase()?.removePrefix("www.")?.removePrefix("m.").orEmpty()
+        if (host.isBlank()) return fallback
+        val repoHosts = setOf("github.com", "gitlab.com", "codeberg.org", "bitbucket.org")
+        if (host in repoHosts) {
+            val segs = uri?.pathSegments.orEmpty().filter { it.isNotBlank() }
+            val name = segs.getOrNull(1)?.removeSuffix(".git") ?: segs.getOrNull(0)
+            if (!name.isNullOrBlank()) return name
+        }
+        val labels = host.split('.').filter { it.isNotBlank() }
+        val secondLevel = setOf("co", "com", "org", "net", "gov", "edu", "ac")
+        val drop = if (labels.size >= 3 && labels.last().length == 2 && labels[labels.size - 2] in secondLevel) 2 else 1
+        val main = labels.getOrNull(labels.size - drop - 1) ?: labels.first()
+        return main.replaceFirstChar { it.uppercase() }.ifBlank { fallback }
     }
 
     private fun shortBookmarkTitle(raw: String?, url: String?): String? {
