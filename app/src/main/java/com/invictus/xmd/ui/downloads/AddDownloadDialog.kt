@@ -847,6 +847,29 @@ fun AddDownloadDialog(
                         wrapLongLabels = true,
                         disabledOptions = if (advancedFormats.isEmpty()) setOf(streamsLabel) else emptySet(),
                     )
+                    // Tells the user whether the chips above are the video's real
+                    // qualities (probed) or just the default ladder, plus the
+                    // selected quality's details (fps/codec/approx. size).
+                    val qualityHint: String? = when {
+                        advancedLoading -> stringResource(R.string.download_dialog_quality_checking)
+                        advancedFormats.isEmpty() -> stringResource(R.string.download_dialog_quality_unverified)
+                        else -> {
+                            val count = videoOptions.size
+                            val detail = qualityDetailText(
+                                selectedQualityOption?.height, advancedFormats, advancedDurationSeconds,
+                            )
+                            val base = stringResource(R.string.download_dialog_quality_available, count)
+                            if (detail != null) stringResource(R.string.download_dialog_quality_size, base, detail) else base
+                        }
+                    }
+                    if (qualityHint != null && needsYtDlp) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            qualityHint,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (selectedQualityLabel == "Audio") {
                         val audioFormatChoices = listOf(
                             "MP3" to Settings.AudioFormatPreset.MP3,
@@ -1308,6 +1331,40 @@ private fun advancedStreamLabel(format: YtDlpManager.ProbedFormat, durationSecon
     if (format.acodec != null && format.isAudioOnly) append(" \u00b7 ${format.acodec.substringBefore('.')}")
     val sizeText = YtDlpManager.formatSize(format, durationSeconds)
     if (sizeText != null) append(" \u00b7 $sizeText")
+}
+
+/**
+ * "1080p60 · MP4 · ~85.3 MB" for the chosen ladder height, built from the
+ * probed streams: best-bitrate video at that height (+ best audio when that
+ * video stream is video-only). Null if nothing usable is known.
+ */
+private fun qualityDetailText(
+    height: Int?,
+    formats: List<YtDlpManager.ProbedFormat>,
+    durationSeconds: Int?,
+): String? {
+    if (height == null) return null
+    val video = formats.filter { !it.isAudioOnly && it.height == height }
+        .maxWithOrNull(compareBy<YtDlpManager.ProbedFormat> { it.fps ?: 0 }.thenBy { it.tbr ?: 0.0 })
+        ?: return null
+    fun bytesOf(f: YtDlpManager.ProbedFormat): Long? = f.sizeBytes
+        ?: f.tbr?.takeIf { durationSeconds != null && durationSeconds > 0 }
+            ?.let { (it * 1000 / 8 * durationSeconds!!).toLong() }
+    val audio = if (video.isVideoOnly) {
+        formats.filter { it.isAudioOnly }.maxByOrNull { it.tbr ?: 0.0 }
+    } else null
+    val vBytes = bytesOf(video)
+    val total = if (vBytes == null) null else vBytes + (audio?.let(::bytesOf) ?: 0L)
+    return buildString {
+        append("${height}p")
+        if ((video.fps ?: 0) > 30) append(video.fps)
+        append(" \u00b7 ${video.ext.uppercase()}")
+        if (total != null) {
+            val mb = total / (1024.0 * 1024.0)
+            append(" \u00b7 ~")
+            append(if (mb >= 1024) "%.2f GB".format(mb / 1024.0) else "%.1f MB".format(mb))
+        }
+    }
 }
 
 private const val STREAMS_CHIP_LABEL = "Streams"

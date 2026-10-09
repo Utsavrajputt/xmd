@@ -109,10 +109,95 @@ object MediaSniffer {
     /** True for [Kind]s that need yt-dlp (manifest, not a single file). */
     fun Kind.needsQualityPicker(): Boolean = this == Kind.HLS || this == Kind.DASH
 
+    /** What could be learned about a sniffed stream without downloading it. */
+    data class MediaInfo(val heights: List<Int>, val sizeBytes: Long?) {
+        val isEmpty: Boolean get() = heights.isEmpty() && sizeBytes == null
+    }
+
+    private val URL_HEIGHT = Regex("""(?<![0-9])(2160|1440|1080|720|576|480|360|240|144)(?:p|(?=[_./-]))""", RegexOption.IGNORE_CASE)
+    private val URL_RES = Regex("""(?<![0-9])\d{3,4}x(\d{3,4})(?![0-9])""")
+
+    /** Best-effort height ("720" from ".../720p/..." or "..._1280x720.mp4") read from the URL alone. */
+    fun qualityFromUrl(url: String): Int? {
+        URL_RES.find(url)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        return URL_HEIGHT.find(url)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    /**
+     * Light network probe for the "videos found" sheet: HLS master playlists
+     * (RESOLUTION=), DASH manifests (height=) and direct files (Content-Length
+     * via HEAD). Blocking -- call from Dispatchers.IO. Never throws.
+     */
+    fun probeInfo(s: Sniffed): MediaInfo = runCatching {
+        when (s.kind) {
+            Kind.HLS -> {
+                val text = fetchText(s.url, 65536)
+                val heights = Regex("""RESOLUTION=\d+x(\d+)""").findAll(text)
+                    .mapNotNull { it.groupValues[1].toIntOrNull() }.distinct().sortedDescending().toList()
+                MediaInfo(heights.ifEmpty { listOfNotNull(qualityFromUrl(s.url)) }, null)
+            }
+            Kind.DASH -> {
+                val text = fetchText(s.url, 131072)
+                val heights = Regex("""height="(\d+)"""").findAll(text)
+                    .mapNotNull { it.groupValues[1].toIntOrNull() }.distinct().sortedDescending().toList()
+                MediaInfo(heights.ifEmpty { listOfNotNull(qualityFromUrl(s.url)) }, null)
+            }
+            Kind.DIRECT_VIDEO, Kind.DIRECT_AUDIO -> {
+                val conn = java.net.URL(s.url).openConnection() as java.net.HttpURLConnection
+                try {
+                    conn.requestMethod = "HEAD"
+                    conn.connectTimeout = 8000
+                    conn.readTimeout = 8000
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    val len = conn.contentLengthLong.takeIf { it > 0 }
+                    MediaInfo(if (s.kind == Kind.DIRECT_VIDEO) listOfNotNull(qualityFromUrl(s.url)) else emptyList(), len)
+                } finally {
+                    conn.disconnect()
+                }
+            }
+        }
+    }.getOrDefault(MediaInfo(emptyList(), null))
+
+    private fun fetchText(url: String, maxBytes: Int): String {
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        return try {
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            conn.inputStream.use { input ->
+                val buf = ByteArray(maxBytes)
+                var read = 0
+                while (read < maxBytes) {
+                    val n = input.read(buf, read, maxBytes - read)
+                    if (n < 0) break
+                    read += n
+                }
+                String(buf, 0, read, Charsets.UTF_8)
+            }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /** "1080p · 720p · 480p · ~45.2 MB" for a [MediaInfo], or null when nothing is known. */
+    fun describe(info: MediaInfo): String? {
+        val parts = ArrayList<String>()
+        if (info.heights.isNotEmpty()) parts += info.heights.joinToString(" \u00b7 ") { "${it}p" }
+        info.sizeBytes?.let {
+            val mb = it / (1024.0 * 1024.0)
+            parts += if (mb >= 1024) "%.2f GB".format(mb / 1024.0) else "%.1f MB".format(mb)
+        }
+        return parts.joinToString(" \u00b7 ").ifBlank { null }
+    }
+
     /** Best-effort display name from the URL's last path segment, falling
      *  back to the host when the path is empty/opaque (e.g. a bare "/"). */
     fun guessLabel(url: String): String {
         val uri = com.invictus.xmd.utils.UrlUtils.lenientUri(url)
+        if (com.invictus.xmd.utils.LinkParser.isYoutubeVideoPage(url)) {
+            val id = Regex("[?&]v=([^&#]+)").find(url)?.groupValues?.get(1)
+            return if (id.isNullOrBlank()) "YouTube video" else "YouTube video ($id)"
+        }
         val last = uri?.path?.trimEnd('/')?.substringAfterLast('/')
         return last?.takeIf { it.isNotBlank() } ?: uri?.host ?: url
     }

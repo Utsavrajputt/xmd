@@ -660,6 +660,10 @@
     <string name="download_dialog_open_in_browser">Open in Browser</string>
     <string name="download_dialog_download_anyway">Download anyway</string>
     <string name="download_dialog_advanced_streams_title">Available Streams</string>
+    <string name="download_dialog_quality_checking">Checking which qualities this video really has…</string>
+    <string name="download_dialog_quality_unverified">Couldn\'t check this video\'s qualities — showing the default list.</string>
+    <string name="download_dialog_quality_available">%1$d qualities available</string>
+    <string name="download_dialog_quality_size">%1$s · %2$s</string>
     <string name="download_dialog_advanced_streams_probing">Probing available streams…</string>
     <string name="download_dialog_advanced_streams_empty">No extra streams found</string>
 

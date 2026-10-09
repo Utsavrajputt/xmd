@@ -236,6 +236,24 @@ object LinkParser {
         return path == "/watch" || path.startsWith("/shorts/")
     }
 
+    /**
+     * For a YouTube *embed* iframe request (youtube.com/embed/<id>, also the
+     * youtube-nocookie.com variant) returns the regular watch URL of that
+     * video, else null. Lets the browser offer a download for videos that
+     * are embedded inside other sites (blogs etc.), where the page URL
+     * itself isn't a YouTube page.
+     */
+    fun youtubeEmbedWatchUrl(link: String): String? {
+        val uri = UrlUtils.lenientUri(link) ?: return null
+        val host = uri.host?.lowercase()?.removePrefix("www.") ?: return null
+        if (host != "youtube.com" && host != "youtube-nocookie.com") return null
+        val segs = uri.path.orEmpty().split('/').filter { it.isNotBlank() }
+        if (segs.size < 2 || segs[0] != "embed") return null
+        val id = segs[1]
+        if (!Regex("[A-Za-z0-9_-]{11}").matches(id)) return null
+        return "https://www.youtube.com/watch?v=$id"
+    }
+
     /** True for an instagram.com link (reel/post/story) -- routed to the yt-dlp quality-picker flow instead of a normal resolve. */
     fun isInstagramLink(link: String): Boolean {
         val uri = UrlUtils.lenientUri(link) ?: return false

@@ -19,6 +19,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +30,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
 import com.invictus.xmd.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.invictus.xmd.domain.browser.MediaSniffer
 
 /**
@@ -117,21 +121,36 @@ private fun SniffedMediaRow(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
         )
-        Text(
-            text = MediaSniffer.guessLabel(stream.url),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            // Compose's TextOverflow has no MIDDLE equivalent to the old
-            // View version's TextUtils.TruncateAt.MIDDLE (MiddleEllipsis
-            // only landed in a Compose UI version newer than this app's
-            // BOM -- see Phase 0's "do not bump" note) -- end-ellipsis
-            // instead, same tradeoff every other Phase 1-4 screen made.
-            overflow = TextOverflow.Ellipsis,
+        // Quality/size are read off the stream itself (HLS/DASH manifest or
+        // HEAD) once the row appears; YouTube links have no cheap probe, so
+        // their quality list shows up in the picker that opens on tap.
+        val info by produceState<MediaSniffer.MediaInfo?>(null, stream.url) {
+            value = if (com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url)) null
+            else withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
+        }
+        val detail = info?.let { MediaSniffer.describe(it) }
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp, top = 14.dp, bottom = 14.dp, end = 8.dp),
-        )
+                .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
+        ) {
+            Text(
+                text = MediaSniffer.guessLabel(stream.url),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (detail != null) {
+                Text(
+                    text = detail,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         if (onPlayClick != null) {
             IconButton(onClick = onPlayClick) {
                 Icon(

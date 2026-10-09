@@ -1198,10 +1198,23 @@ class BrowserFragment : Fragment() {
              * completely untouched -- this must never be the thing that
              * decides how a request is actually served.
              */
+            /** A YouTube video embedded in a non-YouTube page (blog, forum...):
+             *  recorded as a DASH-kind entry holding the watch URL, so the
+             *  "video found" chip opens the same yt-dlp quality picker. */
+            private fun youtubeEmbedSniffed(url: String): com.invictus.xmd.domain.browser.MediaSniffer.Sniffed? {
+                if (!com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT) return null
+                val watch = LinkParser.youtubeEmbedWatchUrl(url) ?: return null
+                return com.invictus.xmd.domain.browser.MediaSniffer.Sniffed(
+                    watch, com.invictus.xmd.domain.browser.MediaSniffer.Kind.DASH
+                )
+            }
+
             private fun sniffRequest(view: WebView, request: android.webkit.WebResourceRequest) {
                 if (request.method != "GET") return
                 val url = request.url.toString()
-                val sniffed = com.invictus.xmd.domain.browser.MediaSniffer.classifyUrl(url) ?: return
+                val sniffed = com.invictus.xmd.domain.browser.MediaSniffer.classifyUrl(url)
+                    ?: youtubeEmbedSniffed(url)
+                    ?: return
                 val isNew = tab.sniffedMedia.put(url, sniffed) == null
                 if (isNew && isCurrentTab(tab)) {
                     view.post { updateSniffedMediaFab(tab) }
@@ -1800,6 +1813,16 @@ class BrowserFragment : Fragment() {
         siteIsSecure = url.startsWith("https")
     }
 
+    /** Comparison key for "is this page already bookmarked": ignores scheme,
+     *  "www.", fragment and trailing slash, so "https://github.com/" matches a
+     *  bookmark saved as "https://github.com" (normalizeToUrl strips/adds these). */
+    private fun bookmarkKey(url: String): String =
+        url.trim().lowercase()
+            .substringBefore('#')
+            .removePrefix("https://").removePrefix("http://")
+            .removePrefix("www.")
+            .trimEnd('/')
+
     /** Filled star when the loaded page's URL is already saved as a
      *  bookmark, outline otherwise; hidden entirely on the speed dial (no
      *  page yet). */
@@ -1810,7 +1833,7 @@ class BrowserFragment : Fragment() {
             return
         }
         bookmarkStarVisible = true
-        bookmarkStarFilled = url in bookmarkedUrls
+        bookmarkStarFilled = bookmarkKey(url) in bookmarkedUrls
     }
 
     /** Star tapped: adds the current page as a bookmark (via the Add
@@ -1821,7 +1844,7 @@ class BrowserFragment : Fragment() {
     private fun onBookmarkStarTapped() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return
         val url = tab.url ?: return
-        val existing = BookmarkRepository.bookmarks.value.firstOrNull { it.url == url }
+        val existing = BookmarkRepository.bookmarks.value.firstOrNull { bookmarkKey(it.url) == bookmarkKey(url) }
         if (existing != null) {
             BookmarkRepository.remove(existing)
             Toast.makeText(requireContext(), R.string.bookmark_removed_toast, Toast.LENGTH_SHORT).show()
@@ -1920,7 +1943,7 @@ class BrowserFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 BookmarkRepository.bookmarks.collect { list ->
-                    bookmarkedUrls = list.map { it.url }.toSet()
+                    bookmarkedUrls = list.map { bookmarkKey(it.url) }.toSet()
                     tabs.getOrNull(currentTabIndex)?.let { updateBookmarkStar(it) }
                 }
             }
@@ -2294,7 +2317,9 @@ class BrowserFragment : Fragment() {
             return
         }
         sniffedMediaFabText = if (count == 1) {
-            getString(R.string.sniffed_media_chip_one)
+            val only = synchronized(tab.sniffedMedia) { tab.sniffedMedia.values.firstOrNull() }
+            val height = only?.let { com.invictus.xmd.domain.browser.MediaSniffer.qualityFromUrl(it.url) }
+            getString(R.string.sniffed_media_chip_one) + (height?.let { " \u00b7 ${it}p" } ?: "")
         } else {
             getString(R.string.sniffed_media_chip_many, count)
         }
