@@ -881,6 +881,9 @@ private fun BrowserRoute(
     var bottomBarEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.browserBottomBarEnabled())
     }
+    var navButtonsEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.browserNavButtonsEnabled())
+    }
     if (showSearchEngineDialog) {
         SearchEngineDialog(
             currentEngine = searchEngine,
@@ -946,6 +949,11 @@ private fun BrowserRoute(
         onBottomBarChanged = { checked ->
             bottomBarEnabled = checked
             com.invictus.xmd.preferences.Settings.setBrowserBottomBarEnabled(checked)
+        },
+        navButtonsEnabled = navButtonsEnabled,
+        onNavButtonsChanged = { checked ->
+            navButtonsEnabled = checked
+            com.invictus.xmd.preferences.Settings.setBrowserNavButtonsEnabled(checked)
         },
         onImportWebsites = onImportWebsites,
         onExportWebsites = onExportWebsites,

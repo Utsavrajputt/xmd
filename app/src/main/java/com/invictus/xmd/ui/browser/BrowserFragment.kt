@@ -312,6 +312,7 @@ class BrowserFragment : Fragment() {
     private var inAppPlayerRequest: InAppPlayRequest? by mutableStateOf(null)
     private var bottomBarEnabled: Boolean by mutableStateOf(true)
     private var toolbarBottom: Boolean by mutableStateOf(false)
+    private var navButtonsEnabled: Boolean by mutableStateOf(false)
     private var bottomBarScrollVisible: Boolean by mutableStateOf(true)
     private var navCanGoBack: Boolean by mutableStateOf(false)
     private var navCanGoForward: Boolean by mutableStateOf(false)
@@ -506,6 +507,7 @@ class BrowserFragment : Fragment() {
                                 Modifier
                             },
                             isBottomBar = toolbarBottom,
+                            navButtonsVisible = navButtonsEnabled,
                         )
                     },
                     bottomBar = {
@@ -2011,6 +2013,7 @@ class BrowserFragment : Fragment() {
         super.onResume()
         toolbarBottom = Settings.browserToolbarBottom()
         bottomBarEnabled = Settings.browserBottomBarEnabled()
+        navButtonsEnabled = Settings.browserNavButtonsEnabled()
         val currentTab = tabs.getOrNull(currentTabIndex)
         val currentWebView = if (currentTab != null) webViewFor(currentTab) else null
         navCanGoBack = !speedDialVisible && currentWebView?.canGoBack() == true

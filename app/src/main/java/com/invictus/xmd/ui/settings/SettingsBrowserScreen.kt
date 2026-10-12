@@ -56,6 +56,8 @@ fun SettingsBrowserScreen(
     onToolbarBottomChanged: (Boolean) -> Unit,
     bottomBarEnabled: Boolean,
     onBottomBarChanged: (Boolean) -> Unit,
+    navButtonsEnabled: Boolean,
+    onNavButtonsChanged: (Boolean) -> Unit,
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
@@ -112,6 +114,13 @@ fun SettingsBrowserScreen(
                 subtitle = stringResource(R.string.settings_bottom_bar_hint),
                 checked = bottomBarEnabled,
                 onCheckedChange = onBottomBarChanged,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_nav_buttons),
+                subtitle = stringResource(R.string.settings_nav_buttons_hint),
+                checked = navButtonsEnabled,
+                onCheckedChange = onNavButtonsChanged,
             )
             SettingsDivider()
             SwitchSettingRow(

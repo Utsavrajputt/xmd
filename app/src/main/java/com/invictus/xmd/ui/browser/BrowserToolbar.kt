@@ -122,6 +122,7 @@ fun BrowserToolbarRow(
     onDownloadsTap: () -> Unit = {},
     downloadsVisible: Boolean = true,
     isBottomBar: Boolean = false,
+    navButtonsVisible: Boolean = false,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         Surface(
@@ -139,7 +140,7 @@ fun BrowserToolbarRow(
                     .padding(horizontal = 4.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (!addressBarFocused) {
+                if (!addressBarFocused && navButtonsVisible) {
                     ToolbarIconButton(
                         icon = Icons.ArrowBack,
                         contentDescription = stringResource(R.string.browser_bottom_back),
