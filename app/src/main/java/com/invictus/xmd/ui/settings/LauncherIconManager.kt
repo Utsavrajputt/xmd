@@ -1,12 +1,15 @@
 package com.invictus.xmd.ui.settings
 
+import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.annotation.StyleRes
 import com.invictus.xmd.R
 
 /** Backdrop of a launcher icon. Each one needs a color in colors_app_icon.xml. */
@@ -45,11 +48,12 @@ internal enum class IconMark(
  * One launcher icon: a background with a logo over it. Only pairs that read well together exist
  * (a white logo on a white background does not), so this catalog is both the list of icons and
  * the rule for which logos suit which backgrounds. A new pair needs a row here, a mipmap in
- * mipmap-anydpi-v26 and an activity-alias named [aliasName] in the manifest.
+ * mipmap-anydpi-v26, a splash style and an activity-alias named [aliasName] in the manifest.
  */
 internal class LauncherIcon(
     val background: IconBackground,
     val mark: IconMark,
+    @StyleRes val splashTheme: Int,
 ) {
     /** Class name of the manifest alias. Alias names resolve against the namespace, not the applicationId. */
     val aliasName: String get() = "com.invictus.xmd.Icon${background.key}${mark.key}"
@@ -61,26 +65,26 @@ internal class LauncherIcon(
 
     companion object {
         val entries: List<LauncherIcon> = listOf(
-            LauncherIcon(IconBackground.Black, IconMark.Color),
-            LauncherIcon(IconBackground.Black, IconMark.White),
-            LauncherIcon(IconBackground.White, IconMark.Blue),
-            LauncherIcon(IconBackground.White, IconMark.Black),
-            LauncherIcon(IconBackground.Charcoal, IconMark.Color),
-            LauncherIcon(IconBackground.Charcoal, IconMark.White),
-            LauncherIcon(IconBackground.Indigo, IconMark.Color),
-            LauncherIcon(IconBackground.Indigo, IconMark.White),
-            LauncherIcon(IconBackground.Violet, IconMark.Color),
-            LauncherIcon(IconBackground.Violet, IconMark.White),
-            LauncherIcon(IconBackground.Lagoon, IconMark.White),
-            LauncherIcon(IconBackground.Lagoon, IconMark.Black),
-            LauncherIcon(IconBackground.Azure, IconMark.Blue),
-            LauncherIcon(IconBackground.Azure, IconMark.Black),
-            LauncherIcon(IconBackground.Lilac, IconMark.Blue),
-            LauncherIcon(IconBackground.Lilac, IconMark.Black),
-            LauncherIcon(IconBackground.Mint, IconMark.Blue),
-            LauncherIcon(IconBackground.Mint, IconMark.Black),
-            LauncherIcon(IconBackground.Ember, IconMark.White),
-            LauncherIcon(IconBackground.Ember, IconMark.Black),
+            LauncherIcon(IconBackground.Black, IconMark.Color, R.style.Theme_Xmd_Splash_BlackColor),
+            LauncherIcon(IconBackground.Black, IconMark.White, R.style.Theme_Xmd_Splash_BlackWhite),
+            LauncherIcon(IconBackground.White, IconMark.Blue, R.style.Theme_Xmd_Splash_WhiteBlue),
+            LauncherIcon(IconBackground.White, IconMark.Black, R.style.Theme_Xmd_Splash_WhiteBlack),
+            LauncherIcon(IconBackground.Charcoal, IconMark.Color, R.style.Theme_Xmd_Splash_CharcoalColor),
+            LauncherIcon(IconBackground.Charcoal, IconMark.White, R.style.Theme_Xmd_Splash_CharcoalWhite),
+            LauncherIcon(IconBackground.Indigo, IconMark.Color, R.style.Theme_Xmd_Splash_IndigoColor),
+            LauncherIcon(IconBackground.Indigo, IconMark.White, R.style.Theme_Xmd_Splash_IndigoWhite),
+            LauncherIcon(IconBackground.Violet, IconMark.Color, R.style.Theme_Xmd_Splash_VioletColor),
+            LauncherIcon(IconBackground.Violet, IconMark.White, R.style.Theme_Xmd_Splash_VioletWhite),
+            LauncherIcon(IconBackground.Lagoon, IconMark.White, R.style.Theme_Xmd_Splash_LagoonWhite),
+            LauncherIcon(IconBackground.Lagoon, IconMark.Black, R.style.Theme_Xmd_Splash_LagoonBlack),
+            LauncherIcon(IconBackground.Azure, IconMark.Blue, R.style.Theme_Xmd_Splash_AzureBlue),
+            LauncherIcon(IconBackground.Azure, IconMark.Black, R.style.Theme_Xmd_Splash_AzureBlack),
+            LauncherIcon(IconBackground.Lilac, IconMark.Blue, R.style.Theme_Xmd_Splash_LilacBlue),
+            LauncherIcon(IconBackground.Lilac, IconMark.Black, R.style.Theme_Xmd_Splash_LilacBlack),
+            LauncherIcon(IconBackground.Mint, IconMark.Blue, R.style.Theme_Xmd_Splash_MintBlue),
+            LauncherIcon(IconBackground.Mint, IconMark.Black, R.style.Theme_Xmd_Splash_MintBlack),
+            LauncherIcon(IconBackground.Ember, IconMark.White, R.style.Theme_Xmd_Splash_EmberWhite),
+            LauncherIcon(IconBackground.Ember, IconMark.Black, R.style.Theme_Xmd_Splash_EmberBlack),
         )
 
         /** The original xmd icon, and the alias that is enabled in the manifest. */
@@ -122,6 +126,26 @@ internal object LauncherIconManager {
         }
     }
 
+    /**
+     * Android 13+ keeps the splash theme chosen here for the next cold start, so the system splash
+     * matches the launcher icon. Older versions cannot switch it and keep the default splash.
+     */
+    private fun applySplashTheme(activity: Activity, icon: LauncherIcon) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        runCatching { activity.splashScreen.setSplashScreenTheme(icon.splashTheme) }
+    }
+
+    private fun findActivity(context: Context): Activity? {
+        var current = context
+        while (current is ContextWrapper) {
+            if (current is Activity) return current
+            val base = current.baseContext
+            if (base === current) break
+            current = base
+        }
+        return current as? Activity
+    }
+
     /** Makes exactly [icon] show on the launcher; rolls back if the change did not stick. */
     @Synchronized
     @Suppress("DEPRECATION")
@@ -143,5 +167,7 @@ internal object LauncherIconManager {
             runCatching { applyStates(context, previous) }.exceptionOrNull()?.let(failure::addSuppressed)
             throw failure
         }
+        // A failed splash change must not turn a successful launcher change into an error.
+        findActivity(context)?.let { applySplashTheme(it, icon) }
     }
 }
