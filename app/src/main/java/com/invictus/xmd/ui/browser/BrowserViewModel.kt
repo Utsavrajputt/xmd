@@ -65,6 +65,11 @@ class BrowserViewModel : ViewModel() {
         // long-press or pop-up. Back with no page history closes this tab
         // and returns to the parent. Separate from openedBy (ad-popup logic).
         var parentTabId: Long? = null,
+        // Speed-dial tile this tab was just opened from (id + when). While set,
+        // onPageFinished checks whether the tile's site redirected to a new
+        // domain and re-points the tile. Cleared on any other navigation.
+        var pendingShortcutId: String? = null,
+        var pendingShortcutAtMs: Long = 0L,
     )
 
     val tabs = mutableListOf(BrowserTabState(id = 0L))

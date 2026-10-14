@@ -546,6 +546,11 @@ class BrowserFragment : Fragment() {
                             onOpenUrl = { shortcut ->
                                 addressBarText = shortcut.url
                                 loadUrl(shortcut.url)
+                                // After loadUrl (which clears it): watch this load for a domain redirect.
+                                tabs.getOrNull(currentTabIndex)?.let {
+                                    it.pendingShortcutId = shortcut.id
+                                    it.pendingShortcutAtMs = System.currentTimeMillis()
+                                }
                             },
                             onPickIcon = { pickIconLauncher.launch("image/*") },
                             bottomPadding = if (toolbarBottom) 16.dp else 96.dp,
@@ -1131,6 +1136,7 @@ class BrowserFragment : Fragment() {
                 val title = view.title?.takeIf { t -> t.isNotBlank() } ?: url.orEmpty()
                 tab.url = url
                 tab.title = title
+                maybeUpdateShortcutAfterRedirect(tab, url)
                 if (!tab.isPrivate && !url.isNullOrBlank() && url.startsWith("http")) {
                     HistoryRepository.record(url, title)
                 }
@@ -1193,6 +1199,7 @@ class BrowserFragment : Fragment() {
                 val uri = request.url
                 val scheme = uri.scheme?.lowercase()
                 if (scheme == "http" || scheme == "https") {
+                    if (request.isForMainFrame && request.hasGesture()) tab.pendingShortcutId = null
                     // Popup tabs opened onto ad pages, and script-driven redirects
                     // (no user gesture) into ad hosts, are refused here.
                     if (request.isForMainFrame && (tab.openedBy != null || !request.hasGesture())) {
@@ -1939,11 +1946,39 @@ class BrowserFragment : Fragment() {
         openTabFor(url, childOfCurrent = false)
     }
 
+    /**
+     * Tile opened from the speed dial whose old domain now redirects to a new
+     * one (hdhub4u-style moves): re-point the tile at the new URL. Watches for
+     * up to 20s (JS redirects land after the first page finishes) and stops at
+     * the first different host or on any user-initiated navigation.
+     */
+    private fun maybeUpdateShortcutAfterRedirect(tab: BrowserTab, finalUrl: String?) {
+        val id = tab.pendingShortcutId ?: return
+        if (tab.isPrivate || finalUrl.isNullOrBlank() || !finalUrl.startsWith("http")) return
+        if (System.currentTimeMillis() - tab.pendingShortcutAtMs > 20_000L) {
+            tab.pendingShortcutId = null
+            return
+        }
+        val title = tab.title
+        viewLifecycleOwner.lifecycleScope.launch {
+            val saved = ShortcutRepository.allShortcuts().firstOrNull { it.id == id } ?: return@launch
+            val newUrl = com.invictus.xmd.domain.browser.ShortcutRedirectUpdater
+                .newUrlFor(saved.url, saved.title.ifBlank { title }, finalUrl) ?: return@launch
+            tab.pendingShortcutId = null
+            ShortcutRepository.updateAll(listOf(saved.copy(url = newUrl)))
+            Settings.markShortcutRedirected(id)
+            android.widget.Toast.makeText(
+                requireContext(), "${saved.title}: link updated", android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     private fun loadUrl(raw: String) {
         val input = raw.trim()
         if (input.isEmpty()) return
         val url = normalizeToUrl(input)
         val tab = tabs.getOrNull(currentTabIndex) ?: return
+        tab.pendingShortcutId = null
 
         hideSuggestions()
         showWebView()

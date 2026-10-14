@@ -1,6 +1,7 @@
 package com.invictus.xmd.domain.browser
 
 import android.content.Context
+import com.invictus.xmd.network.DnsOverHttpsResolver
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.ShortcutRepository
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +27,8 @@ import java.util.concurrent.TimeUnit
  *     nothing else happens when it matches the SHA from the last sync.
  *  2. Downloads the wiki pages and parses the `* [Name](url), [2](mirror) - note` lines.
  *  3. UPDATE: a saved shortcut whose domain FMHY no longer lists, but whose
- *     name matches exactly one FMHY entry, is pointed at that entry's current URL.
+ *     name matches exactly one FMHY entry, is pointed at that entry's current URL
+ *     -- but only if the saved URL is dead (a working direct link is never replaced).
  *  4. Nothing is ever added: FMHY entries that aren't already saved are ignored.
  *
  * Android has no push channel from GitHub, so "when FMHY updates" is
@@ -46,6 +48,7 @@ object FmhySync {
     private const val REPO_SHA_URL = "https://api.github.com/repos/fmhy/edit/commits/main"
     private const val RAW_BASE = "https://raw.githubusercontent.com/fmhy/edit/main/docs/"
     private const val CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000
+    private const val REDIRECT_GRACE_MS = 14L * 24 * 60 * 60 * 1000
     
     /** FMHY docs pages: video, torrents, downloads/software + the rest. A missing page is skipped. */
     private val PAGES = listOf(
@@ -127,9 +130,15 @@ object FmhySync {
         saved.forEach { s ->
             val hit = byHost[hostKey(s.url)]
             if (hit != null) return@forEach
+            // Tile was just re-pointed by a real redirect -- don't revert it to FMHY's older link.
+            if (Settings.shortcutRedirectedRecently(s.id, REDIRECT_GRACE_MS)) return@forEach
             val key = normName(s.title)
             if (key.length < 3) return@forEach
             val match = byName[key]?.singleOrNull() ?: return@forEach
+            // The user may deliberately use the site's direct link while FMHY lists a
+            // generic/landing link for it (click-through page). Only replace the tile
+            // when its current URL is actually dead, never while it still opens.
+            if (isAlive(s.url)) return@forEach
             // Only the URL changes; icon (faviconUrl / customIconPath) stays untouched.
             updates += s.copy(url = match.primary)
         }
@@ -141,6 +150,35 @@ object FmhySync {
     }
 
     // ── network ─────────────────────────────────────────────────────
+
+    /** True if [url] answers with any HTTP response (even 403/503 challenge pages). Only a connect/DNS/timeout failure counts as dead. */
+    private fun isAlive(url: String): Boolean {
+        val c = aliveClient()
+        return runCatching {
+            val req = Request.Builder().url(url).head().header("User-Agent", "Mozilla/5.0 (Linux; Android 14)").build()
+            c.newCall(req).execute().use { true }
+        }.getOrElse {
+            runCatching {
+                val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0 (Linux; Android 14)").build()
+                c.newCall(req).execute().use { true }
+            }.getOrDefault(false)
+        }
+    }
+
+    /** Same resolver the Browser tab uses, so ISP DNS blocks don't make a working link look dead. */
+    private fun aliveClient(): OkHttpClient {
+        val dohUrl = when (Settings.dnsMode()) {
+            Settings.DnsMode.OFF -> null
+            Settings.DnsMode.CUSTOM -> Settings.dnsCustomUrl().ifBlank { DnsOverHttpsResolver.ADGUARD_DOH_URL }
+            Settings.DnsMode.GOOGLE -> DnsOverHttpsResolver.GOOGLE_DOH_URL
+            Settings.DnsMode.CLOUDFLARE -> DnsOverHttpsResolver.CLOUDFLARE_DOH_URL
+            Settings.DnsMode.CLOUDFLARE_ADBLOCK -> DnsOverHttpsResolver.CLOUDFLARE_ADBLOCK_DOH_URL
+            else -> DnsOverHttpsResolver.ADGUARD_DOH_URL
+        }
+        val b = client.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS)
+        if (dohUrl != null) b.dns(DnsOverHttpsResolver(dohUrl))
+        return b.build()
+    }
 
     private fun fetchLatestSha(): String? = runCatching {
         val req = Request.Builder().url(REPO_SHA_URL)

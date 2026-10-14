@@ -509,6 +509,19 @@ object Settings {
             .apply()
     }
 
+    // Shortcuts re-pointed by a detected redirect (id -> time). FMHY sync leaves
+    // these alone for a while so it can't undo a fresher, real redirect target.
+    private const val KEY_SHORTCUT_REDIRECTED_PREFIX = "shortcut_redirected_"
+
+    fun markShortcutRedirected(id: String) {
+        prefs.edit().putLong(KEY_SHORTCUT_REDIRECTED_PREFIX + id, System.currentTimeMillis()).apply()
+    }
+
+    fun shortcutRedirectedRecently(id: String, windowMs: Long): Boolean {
+        val at = prefs.getLong(KEY_SHORTCUT_REDIRECTED_PREFIX + id, 0L)
+        return at > 0L && System.currentTimeMillis() - at < windowMs
+    }
+
     fun autoCheckForUpdatesEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_CHECK_UPDATES, false)
     fun setAutoCheckForUpdatesEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_CHECK_UPDATES, value).apply()
