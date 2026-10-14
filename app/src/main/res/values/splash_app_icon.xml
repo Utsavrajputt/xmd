@@ -1,85 +1,105 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- One system splash per launcher icon pair: the icon's background behind its logo. Android 13+ applies the
-         one for the chosen icon through LauncherIconManager; older versions keep the default splash. -->
+         one for the chosen icon through LauncherIconManager; older versions keep the default splash. The icon is animated, see drawable/ic_splash_*.xml. -->
     <style name="Theme.Xmd.Splash.BlackColor" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_black</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_color</item>
     </style>
     <style name="Theme.Xmd.Splash.BlackWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_black</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.WhiteBlue" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_white</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_blue</item>
     </style>
     <style name="Theme.Xmd.Splash.WhiteBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_white</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
     <style name="Theme.Xmd.Splash.CharcoalColor" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_charcoal</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_color</item>
     </style>
     <style name="Theme.Xmd.Splash.CharcoalWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_charcoal</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.IndigoColor" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_indigo</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_color</item>
     </style>
     <style name="Theme.Xmd.Splash.IndigoWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_indigo</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.VioletColor" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_violet</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_color</item>
     </style>
     <style name="Theme.Xmd.Splash.VioletWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_violet</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.LagoonWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_lagoon</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.LagoonBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_lagoon</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
     <style name="Theme.Xmd.Splash.AzureBlue" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_azure</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_blue</item>
     </style>
     <style name="Theme.Xmd.Splash.AzureBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_azure</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
     <style name="Theme.Xmd.Splash.LilacBlue" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_lilac</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_blue</item>
     </style>
     <style name="Theme.Xmd.Splash.LilacBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_lilac</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
     <style name="Theme.Xmd.Splash.MintBlue" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_mint</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_blue</item>
     </style>
     <style name="Theme.Xmd.Splash.MintBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_mint</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
     <style name="Theme.Xmd.Splash.EmberWhite" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_ember</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_white</item>
     </style>
     <style name="Theme.Xmd.Splash.EmberBlack" parent="Theme.Xmd">
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/icon_bg_ember</item>
+        <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="31">800</item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash_black</item>
     </style>
 </resources>

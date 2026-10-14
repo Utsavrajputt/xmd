@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="288dp"
-    android:height="288dp"
-    android:viewportWidth="432"
-    android:viewportHeight="432">
-    <!-- Splash rendition: 288dp, logo inside the 192dp circle the Android 12+ system splash shows. -->
-    <path android:pathData="M123.25,145.25 L122.00,148.00 L122.00,150.00 L123.25,152.75 L182.50,221.50 L182.25,222.75 L164.50,240.00 L164.25,241.00 L164.75,241.75 L175.75,247.00 L186.00,250.75 L200.50,254.75 L216.00,257.75 L235.00,259.75 L253.25,259.75 L269.00,257.75 L270.50,256.50 L269.75,254.25 L262.75,244.00 L252.00,229.75 L239.75,214.50 L179.50,144.50 L177.75,143.00 L174.00,141.50 L130.25,141.50 L127.50,142.00 L126.00,142.75 Z">
+<!-- Splash rendition of the blue xmd logo: 288dp, logo inside the 192dp circle the Android 12+ system
+     splash shows. The whole logo pops in, the swirl turns into place and the arrow drops in. Under the system's 1s limit. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="288dp"
+            android:height="288dp"
+            android:viewportWidth="432"
+            android:viewportHeight="432">
+            <group android:name="logo_main" android:pivotX="216" android:pivotY="216">
+                <path android:pathData="M123.25,145.25 L122.00,148.00 L122.00,150.00 L123.25,152.75 L182.50,221.50 L182.25,222.75 L164.50,240.00 L164.25,241.00 L164.75,241.75 L175.75,247.00 L186.00,250.75 L200.50,254.75 L216.00,257.75 L235.00,259.75 L253.25,259.75 L269.00,257.75 L270.50,256.50 L269.75,254.25 L262.75,244.00 L252.00,229.75 L239.75,214.50 L179.50,144.50 L177.75,143.00 L174.00,141.50 L130.25,141.50 L127.50,142.00 L126.00,142.75 Z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear" android:startX="0" android:startY="142" android:endX="0" android:endY="260">
                 <item android:offset="0" android:color="#FF4D97FF"/>
@@ -14,7 +18,9 @@
             </gradient>
         </aapt:attr>
     </path>
-    <path android:pathData="M120.25,214.50 L119.25,218.75 L119.25,223.00 L121.00,230.00 L124.25,236.00 L127.50,240.00 L134.75,246.50 L139.50,249.75 L147.50,254.00 L148.25,254.75 L148.25,255.50 L120.75,284.00 L120.00,285.75 L120.00,288.00 L121.00,290.25 L122.50,291.75 L125.50,293.00 L159.00,293.25 L161.75,292.75 L164.75,291.00 L187.75,268.00 L202.75,270.50 L210.25,271.00 L212.25,271.50 L222.75,272.00 L231.25,271.75 L243.25,270.75 L252.25,269.50 L265.75,266.50 L274.50,263.75 L274.50,263.25 L273.50,263.00 L264.50,265.00 L249.25,266.25 L233.50,266.00 L216.25,264.00 L196.50,260.00 L182.75,256.00 L167.75,250.00 L157.50,244.75 L147.25,237.50 L142.25,232.25 L139.25,228.00 L136.50,221.75 L135.75,218.25 L135.75,213.00 L136.50,209.75 L138.25,205.50 L141.75,200.25 L148.25,193.75 L148.25,192.75 L147.50,192.25 L143.50,193.50 L137.50,196.50 L129.00,202.25 L123.25,208.50 Z">
+                <path android:fillColor="#FF1E5BD6" android:pathData="M296.25,141.75 L293.00,140.75 L245.75,141.00 L243.00,141.75 L240.00,143.50 L215.00,169.50 L214.50,171.25 L215.00,174.50 L237.75,201.50 L239.75,202.75 L242.25,203.50 L245.50,203.50 L248.00,202.75 L251.50,200.25 L261.75,190.00 L297.25,153.25 L299.00,150.25 L299.25,146.75 L298.00,143.50 Z"/>
+                <group android:name="logo_swirl" android:pivotX="200" android:pivotY="240">
+                    <path android:pathData="M120.25,214.50 L119.25,218.75 L119.25,223.00 L121.00,230.00 L124.25,236.00 L127.50,240.00 L134.75,246.50 L139.50,249.75 L147.50,254.00 L148.25,254.75 L148.25,255.50 L120.75,284.00 L120.00,285.75 L120.00,288.00 L121.00,290.25 L122.50,291.75 L125.50,293.00 L159.00,293.25 L161.75,292.75 L164.75,291.00 L187.75,268.00 L202.75,270.50 L210.25,271.00 L212.25,271.50 L222.75,272.00 L231.25,271.75 L243.25,270.75 L252.25,269.50 L265.75,266.50 L274.50,263.75 L274.50,263.25 L273.50,263.00 L264.50,265.00 L249.25,266.25 L233.50,266.00 L216.25,264.00 L196.50,260.00 L182.75,256.00 L167.75,250.00 L157.50,244.75 L147.25,237.50 L142.25,232.25 L139.25,228.00 L136.50,221.75 L135.75,218.25 L135.75,213.00 L136.50,209.75 L138.25,205.50 L141.75,200.25 L148.25,193.75 L148.25,192.75 L147.50,192.25 L143.50,193.50 L137.50,196.50 L129.00,202.25 L123.25,208.50 Z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear" android:startX="160" android:startY="0" android:endX="235" android:endY="0">
                 <item android:offset="0" android:color="#FF4690FA"/>
@@ -22,6 +28,14 @@
             </gradient>
         </aapt:attr>
     </path>
-    <path android:fillColor="#FF1E5BD6" android:pathData="M296.25,141.75 L293.00,140.75 L245.75,141.00 L243.00,141.75 L240.00,143.50 L215.00,169.50 L214.50,171.25 L215.00,174.50 L237.75,201.50 L239.75,202.75 L242.25,203.50 L245.50,203.50 L248.00,202.75 L251.50,200.25 L261.75,190.00 L297.25,153.25 L299.00,150.25 L299.25,146.75 L298.00,143.50 Z"/>
-    <path android:fillColor="#FF1E5BD6" android:pathData="M265.50,191.25 L264.25,192.25 L264.50,193.25 L271.25,198.25 L277.00,203.25 L284.75,212.00 L289.25,220.00 L292.25,229.25 L293.25,236.50 L293.25,252.00 L292.25,253.00 L281.00,253.25 L278.75,255.50 L278.75,258.00 L300.25,287.75 L302.50,289.50 L304.75,289.50 L307.25,287.25 L327.75,260.00 L329.00,257.75 L329.00,255.75 L327.75,253.75 L326.00,253.00 L316.00,253.00 L315.25,252.50 L314.75,235.50 L313.50,229.00 L311.75,223.75 L308.75,217.50 L303.50,210.00 L298.75,205.25 L293.50,201.25 L285.25,196.75 L277.25,193.75 L268.00,191.50 Z"/>
-</vector>
+                </group>
+                <group android:name="logo_arrow" android:pivotX="296" android:pivotY="240">
+                    <path android:fillColor="#FF1E5BD6" android:pathData="M265.50,191.25 L264.25,192.25 L264.50,193.25 L271.25,198.25 L277.00,203.25 L284.75,212.00 L289.25,220.00 L292.25,229.25 L293.25,236.50 L293.25,252.00 L292.25,253.00 L281.00,253.25 L278.75,255.50 L278.75,258.00 L300.25,287.75 L302.50,289.50 L304.75,289.50 L307.25,287.25 L327.75,260.00 L329.00,257.75 L329.00,255.75 L327.75,253.75 L326.00,253.00 L316.00,253.00 L315.25,252.50 L314.75,235.50 L313.50,229.00 L311.75,223.75 L308.75,217.50 L303.50,210.00 L298.75,205.25 L293.50,201.25 L285.25,196.75 L277.25,193.75 L268.00,191.50 Z"/>
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="logo_main" android:animation="@animator/xmd_splash_main"/>
+    <target android:name="logo_swirl" android:animation="@animator/xmd_splash_swirl"/>
+    <target android:name="logo_arrow" android:animation="@animator/xmd_splash_arrow"/>
+</animated-vector>
