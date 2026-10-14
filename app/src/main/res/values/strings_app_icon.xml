@@ -7,15 +7,23 @@
     <string name="app_icon_section_logo">Logo</string>
     <string name="app_icon_apply">Apply</string>
     <string name="app_icon_close">Close</string>
-    <string name="app_icon_change_failed">Couldn\'t change the app icon</string>
+    <string name="app_icon_change_failed">Couldn't change the app icon</string>
     <string name="app_icon_default_name">Default</string>
     <string name="app_icon_name_combined" translatable="false">%1$s · %2$s</string>
 
+    <string name="app_icon_bg_black">Black</string>
     <string name="app_icon_bg_white">White</string>
-    <string name="app_icon_bg_bluegrey">Blue grey</string>
-    <string name="app_icon_bg_brown">Brown</string>
+    <string name="app_icon_bg_charcoal">Charcoal</string>
+    <string name="app_icon_bg_indigo">Indigo</string>
+    <string name="app_icon_bg_violet">Violet</string>
+    <string name="app_icon_bg_lagoon">Lagoon</string>
+    <string name="app_icon_bg_azure">Azure</string>
+    <string name="app_icon_bg_lilac">Lilac</string>
+    <string name="app_icon_bg_mint">Mint</string>
+    <string name="app_icon_bg_ember">Ember</string>
 
     <string name="app_icon_logo_color">Color</string>
+    <string name="app_icon_logo_blue">Blue</string>
     <string name="app_icon_logo_white">White</string>
     <string name="app_icon_logo_black">Black</string>
 </resources>

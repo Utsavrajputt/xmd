@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.settings
 
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -11,7 +12,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,16 +56,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.invictus.xmd.R
@@ -316,8 +315,7 @@ private fun MarkTile(
 
 /**
  * An icon drawn from its two layers, so a new background fades in under the logo and a new logo
- * pops in over the background. A layer is 108dp with the visible icon in its middle 72dp, so it is
- * drawn 1.5 times [size] and cropped by the parent, as a launcher does.
+ * pops in over the background. The corners match what a launcher gives the icon.
  */
 @Composable
 private fun IconPreview(
@@ -342,12 +340,26 @@ private fun IconPreview(
             },
             label = "iconMark",
         ) { shown ->
-            Image(
-                painter = painterResource(shown.layer),
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.requiredSize(size * 1.5f),
-            )
+            MarkLayer(shown, size)
         }
     }
+}
+
+/**
+ * One adaptive foreground layer. A layer is 108dp with the visible icon in its middle 72dp, so it is
+ * drawn 1.5 times [size] and cropped by the parent, as a launcher does. The platform ImageView
+ * renders the vector, since the logo uses gradient fills that Compose's painter may not handle.
+ */
+@Composable
+private fun MarkLayer(mark: IconMark, size: Dp) {
+    AndroidView(
+        modifier = Modifier.requiredSize(size * 1.5f),
+        factory = { context ->
+            ImageView(context).apply {
+                scaleType = ImageView.ScaleType.FIT_XY
+                setImageResource(mark.layer)
+            }
+        },
+        update = { it.setImageResource(mark.layer) },
+    )
 }

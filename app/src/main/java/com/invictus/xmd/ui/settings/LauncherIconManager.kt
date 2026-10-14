@@ -15,25 +15,35 @@ internal enum class IconBackground(
     @ColorRes val color: Int,
     @StringRes val label: Int,
 ) {
+    Black("Black", R.color.icon_bg_black, R.string.app_icon_bg_black),
     White("White", R.color.icon_bg_white, R.string.app_icon_bg_white),
-    BlueGrey("BlueGrey", R.color.icon_bg_bluegrey, R.string.app_icon_bg_bluegrey),
-    Brown("Brown", R.color.icon_bg_brown, R.string.app_icon_bg_brown),
+    Charcoal("Charcoal", R.color.icon_bg_charcoal, R.string.app_icon_bg_charcoal),
+    Indigo("Indigo", R.color.icon_bg_indigo, R.string.app_icon_bg_indigo),
+    Violet("Violet", R.color.icon_bg_violet, R.string.app_icon_bg_violet),
+    Lagoon("Lagoon", R.color.icon_bg_lagoon, R.string.app_icon_bg_lagoon),
+    Azure("Azure", R.color.icon_bg_azure, R.string.app_icon_bg_azure),
+    Lilac("Lilac", R.color.icon_bg_lilac, R.string.app_icon_bg_lilac),
+    Mint("Mint", R.color.icon_bg_mint, R.string.app_icon_bg_mint),
+    Ember("Ember", R.color.icon_bg_ember, R.string.app_icon_bg_ember),
 }
 
-/** The xmd logo drawn over a background, as a 108dp adaptive foreground layer (raster mipmap). */
+/** The xmd logo drawn over a background, as a 108dp adaptive foreground vector layer. */
 internal enum class IconMark(
     val key: String,
     @DrawableRes val layer: Int,
     @StringRes val label: Int,
 ) {
-    Color("Color", R.mipmap.ic_launcher_fg_color, R.string.app_icon_logo_color),
-    White("White", R.mipmap.ic_launcher_fg_white, R.string.app_icon_logo_white),
-    Black("Black", R.mipmap.ic_launcher_fg_black, R.string.app_icon_logo_black),
+    /** The original logo, pale body with blue arrow: reads on dark and saturated backgrounds. */
+    Color("Color", R.drawable.ic_launcher_fg_color, R.string.app_icon_logo_color),
+    /** Same logo in deeper blues, for the light backgrounds the original does not read on. */
+    Blue("Blue", R.drawable.ic_launcher_fg_blue, R.string.app_icon_logo_blue),
+    White("White", R.drawable.ic_launcher_fg_white, R.string.app_icon_logo_white),
+    Black("Black", R.drawable.ic_launcher_fg_black, R.string.app_icon_logo_black),
 }
 
 /**
  * One launcher icon: a background with a logo over it. Only pairs that read well together exist
- * (a white logo on the white background does not), so this catalog is both the list of icons and
+ * (a white logo on a white background does not), so this catalog is both the list of icons and
  * the rule for which logos suit which backgrounds. A new pair needs a row here, a mipmap in
  * mipmap-anydpi-v26 and an activity-alias named [aliasName] in the manifest.
  */
@@ -51,18 +61,30 @@ internal class LauncherIcon(
 
     companion object {
         val entries: List<LauncherIcon> = listOf(
-            LauncherIcon(IconBackground.White, IconMark.Color),
+            LauncherIcon(IconBackground.Black, IconMark.Color),
+            LauncherIcon(IconBackground.Black, IconMark.White),
+            LauncherIcon(IconBackground.White, IconMark.Blue),
             LauncherIcon(IconBackground.White, IconMark.Black),
-            LauncherIcon(IconBackground.BlueGrey, IconMark.Color),
-            LauncherIcon(IconBackground.BlueGrey, IconMark.White),
-            LauncherIcon(IconBackground.BlueGrey, IconMark.Black),
-            LauncherIcon(IconBackground.Brown, IconMark.Color),
-            LauncherIcon(IconBackground.Brown, IconMark.White),
-            LauncherIcon(IconBackground.Brown, IconMark.Black),
+            LauncherIcon(IconBackground.Charcoal, IconMark.Color),
+            LauncherIcon(IconBackground.Charcoal, IconMark.White),
+            LauncherIcon(IconBackground.Indigo, IconMark.Color),
+            LauncherIcon(IconBackground.Indigo, IconMark.White),
+            LauncherIcon(IconBackground.Violet, IconMark.Color),
+            LauncherIcon(IconBackground.Violet, IconMark.White),
+            LauncherIcon(IconBackground.Lagoon, IconMark.White),
+            LauncherIcon(IconBackground.Lagoon, IconMark.Black),
+            LauncherIcon(IconBackground.Azure, IconMark.Blue),
+            LauncherIcon(IconBackground.Azure, IconMark.Black),
+            LauncherIcon(IconBackground.Lilac, IconMark.Blue),
+            LauncherIcon(IconBackground.Lilac, IconMark.Black),
+            LauncherIcon(IconBackground.Mint, IconMark.Blue),
+            LauncherIcon(IconBackground.Mint, IconMark.Black),
+            LauncherIcon(IconBackground.Ember, IconMark.White),
+            LauncherIcon(IconBackground.Ember, IconMark.Black),
         )
 
-        /** The alias that is enabled in the manifest: white background, colored logo. */
-        val Default: LauncherIcon = of(IconBackground.White, IconMark.Color)!!
+        /** The original xmd icon, and the alias that is enabled in the manifest. */
+        val Default: LauncherIcon = of(IconBackground.Black, IconMark.Color)!!
 
         fun of(background: IconBackground, mark: IconMark): LauncherIcon? =
             entries.firstOrNull { it.background == background && it.mark == mark }

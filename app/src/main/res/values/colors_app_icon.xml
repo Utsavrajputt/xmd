@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="icon_bg_white">#FFEEEEEE</color>
-    <color name="icon_bg_bluegrey">#FF85ACBD</color>
-    <color name="icon_bg_brown">#FF7F6B53</color>
+    <!-- black is the original xmd launcher background, so the default icon is unchanged. -->
+    <color name="icon_bg_black">#FF27272F</color>
+    <color name="icon_bg_white">#FFFFFFFF</color>
+    <color name="icon_bg_charcoal">#FF1E2026</color>
+    <color name="icon_bg_indigo">#FF1F2A6B</color>
+    <color name="icon_bg_violet">#FF2E1065</color>
+    <color name="icon_bg_lagoon">#FF0F8B8D</color>
+    <color name="icon_bg_azure">#FFB3E5FC</color>
+    <color name="icon_bg_lilac">#FFDCCBFF</color>
+    <color name="icon_bg_mint">#FFCDF5E1</color>
+    <color name="icon_bg_ember">#FFFF6B35</color>
 </resources>
