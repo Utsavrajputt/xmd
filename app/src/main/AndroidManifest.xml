@@ -47,8 +47,8 @@
     <application
         android:name=".FfApp"
         android:allowBackup="true"
-        android:icon="@mipmap/xmd"
-        android:roundIcon="@mipmap/xmd"
+        android:icon="@mipmap/ic_launcher_white_color"
+        android:roundIcon="@mipmap/ic_launcher_white_color"
         android:label="@string/app_name"
         android:theme="@style/Theme.Xmd"
         android:usesCleartextTraffic="true"
@@ -59,12 +59,123 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Launcher icon builder (Settings > Appearance > App icon). The LAUNCHER
+             entry lives on these aliases, not on MainActivity: exactly one is
+             enabled at a time, switched by LauncherIconManager. Names must match
+             LauncherIcon.aliasName. White + Color is the default. -->
+        <activity-alias
+            android:name=".IconWhiteColor"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_white_color"
+            android:roundIcon="@mipmap/ic_launcher_white_color"
+            android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconWhiteBlack"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_white_black"
+            android:roundIcon="@mipmap/ic_launcher_white_black"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBlueGreyColor"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_bluegrey_color"
+            android:roundIcon="@mipmap/ic_launcher_bluegrey_color"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBlueGreyWhite"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_bluegrey_white"
+            android:roundIcon="@mipmap/ic_launcher_bluegrey_white"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBlueGreyBlack"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_bluegrey_black"
+            android:roundIcon="@mipmap/ic_launcher_bluegrey_black"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBrownColor"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_brown_color"
+            android:roundIcon="@mipmap/ic_launcher_brown_color"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBrownWhite"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_brown_white"
+            android:roundIcon="@mipmap/ic_launcher_brown_white"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconBrownBlack"
+            android:targetActivity=".ui.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_brown_black"
+            android:roundIcon="@mipmap/ic_launcher_brown_black"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Handles "Share" -> xmd for a copied/shared link (e.g. YouTube,
              Chrome, etc.), external download manager requests from browsers

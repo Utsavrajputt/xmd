@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_app_icon_title">App icon</string>
+    <string name="settings_app_icon_hint">Change how xmd looks on your home screen</string>
+    <string name="app_icon_picker_description">How xmd looks on your home screen and in the app drawer</string>
+    <string name="app_icon_section_background">Background</string>
+    <string name="app_icon_section_logo">Logo</string>
+    <string name="app_icon_apply">Apply</string>
+    <string name="app_icon_close">Close</string>
+    <string name="app_icon_change_failed">Couldn\'t change the app icon</string>
+    <string name="app_icon_default_name">Default</string>
+    <string name="app_icon_name_combined" translatable="false">%1$s · %2$s</string>
+
+    <string name="app_icon_bg_white">White</string>
+    <string name="app_icon_bg_bluegrey">Blue grey</string>
+    <string name="app_icon_bg_brown">Brown</string>
+
+    <string name="app_icon_logo_color">Color</string>
+    <string name="app_icon_logo_white">White</string>
+    <string name="app_icon_logo_black">Black</string>
+</resources>

@@ -121,6 +121,18 @@ fun SettingsAppearanceScreen(
                 )
             }
 
+            var showAppIconDialog by remember { mutableStateOf(false) }
+            SettingsSectionCard(modifier = Modifier.padding(top = 16.dp)) {
+                ClickableSettingRow(
+                    title = stringResource(R.string.settings_app_icon_title),
+                    subtitle = stringResource(R.string.settings_app_icon_hint),
+                    onClick = { showAppIconDialog = true },
+                )
+            }
+            if (showAppIconDialog) {
+                AppIconDialog(onDismiss = { showAppIconDialog = false })
+            }
+
             SettingsSectionCard(
                 modifier = Modifier.padding(top = 16.dp),
                 contentPadding = PaddingValues(16.dp),
