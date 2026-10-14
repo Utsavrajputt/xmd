@@ -7,7 +7,7 @@
     <string name="app_icon_section_logo">Logo</string>
     <string name="app_icon_apply">Apply</string>
     <string name="app_icon_close">Close</string>
-    <string name="app_icon_change_failed">Couldn't change the app icon</string>
+    <string name="app_icon_change_failed">Could not change the app icon</string>
     <string name="app_icon_default_name">Default</string>
     <string name="app_icon_name_combined" translatable="false">%1$s · %2$s</string>
 
