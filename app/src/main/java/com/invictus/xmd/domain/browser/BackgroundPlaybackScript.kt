@@ -17,6 +17,9 @@ import com.invictus.xmd.preferences.Settings
  * before the page's own scripts run and read document.hidden or attach
  * their own visibilitychange listener, not after.
  *
+ * The script also reports audible playback through the `XmdMedia` bridge so the
+ * BackgroundPlaybackService notification only appears while media is really playing.
+ *
  * Only a same-document override: doesn't grant a wake lock or start any
  * foreground service, so the WebView (and its audio) still only keeps
  * running as long as Android itself doesn't kill/suspend the app process
@@ -43,6 +46,35 @@ object BackgroundPlaybackScript {
           };
           document.addEventListener('visibilitychange', swallow, true);
           document.addEventListener('webkitvisibilitychange', swallow, true);
+
+          // Reports audible playback to the app (BrowserFragment.MediaBridge), so it can show the
+          // background-playback notification only while something is really playing -- no polling.
+          // Muted autoplay (ad loops, preview clips) does not count.
+          if (window.__xmd_media_report__) return;
+          window.__xmd_media_report__ = true;
+          var last = null;
+          var audible = function() {
+            var m = document.querySelectorAll('video,audio');
+            for (var i = 0; i < m.length; i++) {
+              var e = m[i];
+              if (!e.paused && !e.ended && e.readyState > 2 && !e.muted && e.volume > 0) return true;
+            }
+            return false;
+          };
+          var report = function() {
+            var p = audible();
+            if (p === last) return;
+            last = p;
+            try { XmdMedia.setPlaying(p); } catch (e) {}
+          };
+          ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange'].forEach(function(n) {
+            document.addEventListener(n, report, true);
+          });
+          window.addEventListener('pagehide', function() {
+            last = false;
+            try { XmdMedia.setPlaying(false); } catch (e) {}
+          });
+          report();
         })();
     """.trimIndent()
 }
