@@ -893,25 +893,24 @@ object Settings {
     }
 
     // ── Bottom nav: tab order / hidden tabs / default tab ──────────────────
-    // Four slots total: three real page tabs (home/downloads/browser) plus
+    // Three slots total: two real page tabs (downloads/browser) plus
     // "add" (the center FAB -- not a page, just an action, so it's never a
     // valid default tab). Order and hidden-set are stored as CSV of these
     // ids; unknown/missing ids are healed on read so a future app update
     // that adds/removes a tab id doesn't leave a stale or incomplete list.
     object TabId {
-        const val HOME = "home"
         const val DOWNLOADS = "downloads"
         const val ADD = "add"
         const val BROWSER = "browser"
-        val ALL = listOf(HOME, DOWNLOADS, ADD, BROWSER)
-        val PAGES = listOf(HOME, DOWNLOADS, BROWSER)
+        val ALL = listOf(DOWNLOADS, ADD, BROWSER)
+        val PAGES = listOf(DOWNLOADS, BROWSER)
     }
 
     private const val KEY_TAB_ORDER = "nav_tab_order"
     private const val KEY_HIDDEN_TABS = "nav_hidden_tabs"
     private const val KEY_DEFAULT_TAB = "nav_default_tab"
 
-    /** Left-to-right order of all four tab slots. Any id missing from a
+    /** Left-to-right order of all three tab slots. Any id missing from a
      *  stored (older/corrupted) list is appended at the end; any unknown
      *  stored id is dropped -- keeps this always a valid permutation of
      *  [TabId.ALL]. */
@@ -937,7 +936,7 @@ object Settings {
      *  but as a last-resort guard, a stored set that would hide every page
      *  tab has that constraint dropped on read. */
     fun hiddenTabs(): Set<String> {
-        val stored = prefs.getString(KEY_HIDDEN_TABS, TabId.HOME)
+        val stored = prefs.getString(KEY_HIDDEN_TABS, "")
             ?.split(",")
             ?.filter { it.isNotBlank() && it in TabId.ALL }
             ?.toSet()

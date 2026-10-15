@@ -56,7 +56,6 @@ import com.invictus.xmd.repository.HistoryRepository
 import com.invictus.xmd.repository.ShortcutRepository
 import com.invictus.xmd.ui.MainActivity
 import com.invictus.xmd.ui.bookmarks.AddBookmarkDialog
-import com.invictus.xmd.ui.home.HomeFragment
 import com.invictus.xmd.ui.shortcuts.ShortcutsScreen
 import com.invictus.xmd.ui.shortcuts.ShortcutsViewModel
 import com.invictus.xmd.utils.LinkParser
@@ -89,7 +88,7 @@ import com.invictus.xmd.utils.LinkParser
 class BrowserFragment : Fragment() {
 
     interface Callbacks {
-        /** Same handoff HomeFragment uses for pasted links -- expands + queues + resolves. */
+        /** Handoff for a link: expands + queues + resolves. */
         fun triggerPrepare(lines: List<String>)
         /**
          * Same as [triggerPrepare] for a single link, but also records the

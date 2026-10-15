@@ -10,7 +10,6 @@ import com.invictus.xmd.domain.download.ResolutionError
 import com.invictus.xmd.service.DownloadService
 import com.invictus.xmd.ui.MainActivity
 import com.invictus.xmd.ui.ShareReceiverActivity
-import com.invictus.xmd.ui.home.HomeFragment
 
 /**
  * Parses/validates FuckingFast links and expands fitgirl-repacks source
@@ -71,7 +70,7 @@ object LinkParser {
     /**
      * True for an http(s) link that points straight at a .torrent file, or
      * a content:// URI for a .torrent file picked from local storage via
-     * the system file picker (HomeFragment's "Pick .torrent file" button --
+     * the system file picker ("Pick .torrent file" button --
      * the picker's mime filter already restricts choices to .torrent, so
      * any content:// URI reaching here is trusted to be one).
      */
@@ -328,8 +327,8 @@ object LinkParser {
         isYoutubeLink(link) || isInstagramLink(link) || isFacebookLink(link) || isHlsOrDashLink(link)
 
     /**
-     * True for anything the "direct download" fast-path (HomeFragment's
-     * plain Download button, skipping Prepare) can actually act on --
+     * True for anything the "direct download" fast-path (the plain
+     * Download button, skipping Prepare) can actually act on --
      * a generic downloadable URL/magnet/.torrent, or a link that needs
      * yt-dlp. False for share/fitgirl links (those need Prepare first,
      * handled separately) and for plain garbage text like "uu", which

@@ -101,13 +101,11 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.ui.downloads.DownloadsSelectionUiState
 
 internal enum class MainDestination {
-    Home,
     Downloads,
     Browser,
 }
 
 internal enum class MainNavigationItem(val destination: MainDestination?) {
-    Home(MainDestination.Home),
     Downloads(MainDestination.Downloads),
     Add(null),
     Browser(MainDestination.Browser),
@@ -679,7 +677,6 @@ private fun ExpressivePillNavigationBar(
     val haptics = LocalHapticFeedback.current
 
     fun activeTabWidth(item: MainNavigationItem): Dp = when (item) {
-        MainNavigationItem.Home -> 96.dp
         MainNavigationItem.Downloads -> 126.dp
         MainNavigationItem.Browser -> 106.dp
         MainNavigationItem.Add -> 92.dp
@@ -855,14 +852,12 @@ private fun AddDownloadButton(onClick: () -> Unit) {
 }
 
 private fun MainNavigationItem.appIcon(): AppIcon = when (this) {
-    MainNavigationItem.Home -> Icons.Home
     MainNavigationItem.Downloads -> Icons.Downloads
     MainNavigationItem.Browser -> Icons.Public
     MainNavigationItem.Add -> Icons.Add
 }
 
 private fun MainNavigationItem.labelRes(): Int = when (this) {
-    MainNavigationItem.Home -> R.string.tab_home
     MainNavigationItem.Downloads -> R.string.tab_downloads
     MainNavigationItem.Browser -> R.string.tab_browser
     MainNavigationItem.Add -> R.string.tab_add

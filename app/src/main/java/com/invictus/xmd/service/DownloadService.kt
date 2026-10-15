@@ -48,7 +48,6 @@ import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
 import com.invictus.xmd.ui.downloads.DownloadsScreen
 import com.invictus.xmd.ui.downloads.QueueItemRow
-import com.invictus.xmd.ui.home.HomeFragment
 import com.invictus.xmd.utils.ErrorUtils
 import com.invictus.xmd.utils.LinkParser
 import com.invictus.xmd.utils.formatRemainingTimeChrome
@@ -947,7 +946,7 @@ class DownloadService : LifecycleService() {
         try {
             val defaultBaseDir = if (!customSaveDirPath.isNullOrBlank()) {
                 // Picked via the Editor dialog's Advanced -> Change (see
-                // HomeFragment/MainActivity) -- overrides both the settings
+                // MainActivity) -- overrides both the settings
                 // default and the Torrents-subfolder convention below.
                 File(customSaveDirPath)
             } else {
@@ -986,7 +985,7 @@ class DownloadService : LifecycleService() {
                     engine.downloadMagnet(sourceUrl, baseDir, selectedFileIndices)
                 } else if (sourceUrl.startsWith("content://")) {
                     // A .torrent file picked from local storage via the system file
-                    // picker (HomeFragment's "Pick .torrent file" button) -- read its
+                    // picker ("Pick .torrent file") -- read its
                     // bytes through the ContentResolver rather than fetching over HTTP.
                     val bytes = applicationContext.contentResolver
                         .openInputStream(Uri.parse(sourceUrl))

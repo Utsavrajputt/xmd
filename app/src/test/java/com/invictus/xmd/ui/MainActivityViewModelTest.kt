@@ -30,12 +30,12 @@ class MainActivityViewModelTest {
 
     @Test
     fun configuredDefaultDoesNotReplaceRestoredDestination() {
-        val handle = SavedStateHandle(mapOf("main_destination" to MainDestination.Home.name))
+        val handle = SavedStateHandle(mapOf("main_destination" to MainDestination.Browser.name))
         val viewModel = MainActivityViewModel(handle)
 
         viewModel.initializeMainDestination(MainDestination.Downloads)
 
-        assertEquals(MainDestination.Home, viewModel.mainDestination)
+        assertEquals(MainDestination.Browser, viewModel.mainDestination)
         assertFalse(viewModel.headerSearchActive)
     }
 }

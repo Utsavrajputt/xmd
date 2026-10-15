@@ -327,7 +327,6 @@ fun ThemePreviewCard(
 private data class TabMeta(val icon: AppIcon, val labelRes: Int)
 
 private val TAB_META = mapOf(
-    Settings.TabId.HOME to TabMeta(Icons.Home, R.string.tab_home),
     Settings.TabId.DOWNLOADS to TabMeta(Icons.Downloads, R.string.tab_downloads),
     Settings.TabId.ADD to TabMeta(Icons.Add, R.string.tab_add),
     Settings.TabId.BROWSER to TabMeta(Icons.Public, R.string.tab_browser),

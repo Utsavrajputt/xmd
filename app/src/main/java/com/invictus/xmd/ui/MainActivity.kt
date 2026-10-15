@@ -102,7 +102,6 @@ import com.invictus.xmd.ui.downloads.TorrentFileRow
 import com.invictus.xmd.ui.downloads.TorrentFilesUiState
 import com.invictus.xmd.ui.downloads.YtDlpInstallPromptDialog
 import com.invictus.xmd.ui.downloads.YtDlpInstallProgressDialog
-import com.invictus.xmd.ui.home.HomeFragment
 import com.invictus.xmd.ui.onboarding.OnboardingScreen
 import com.invictus.xmd.ui.settings.DnsSettingsDialog
 import com.invictus.xmd.ui.settings.SettingsActivity
@@ -115,8 +114,7 @@ import com.invictus.xmd.utils.storage.StorageUtils
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
-class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks,
-    HomeFragment.Callbacks {
+class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFragment.Callbacks {
     private val activityState: MainActivityViewModel by viewModels()
     private var mainDestination: MainDestination
         get() = activityState.mainDestination
@@ -215,7 +213,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     /**
      * Removes the transient RESOLVING placeholder QueueItem that
-     * triggerDownloadDirect() leaves behind for a yt-dlp link while its
+     * the direct-download path leaves behind for a yt-dlp link while its
      * AddDownloadDialog is open (setLinks() creates the item up front, and
      * without a saved default quality the dialog is shown instead of
      * auto-resolving it). Called from both Cancel and Start on that dialog
@@ -301,7 +299,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun navigationItemFor(tabId: String): MainNavigationItem? = when (tabId) {
-        Settings.TabId.HOME -> MainNavigationItem.Home
         Settings.TabId.DOWNLOADS -> MainNavigationItem.Downloads
         Settings.TabId.ADD -> MainNavigationItem.Add
         Settings.TabId.BROWSER -> MainNavigationItem.Browser
@@ -309,7 +306,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun destinationFor(tabId: String): MainDestination? = when (tabId) {
-        Settings.TabId.HOME -> MainDestination.Home
         Settings.TabId.DOWNLOADS -> MainDestination.Downloads
         Settings.TabId.BROWSER -> MainDestination.Browser
         else -> null
@@ -326,7 +322,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         destinationFor(Settings.defaultTab()) ?: MainDestination.Downloads
 
     private fun tagFor(destination: MainDestination): String = when (destination) {
-        MainDestination.Home -> TAG_HOME
         MainDestination.Downloads -> TAG_DOWNLOADS
         MainDestination.Browser -> TAG_BROWSER
     }
@@ -359,9 +354,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         updateViewPagerUserInputEnabled()
     }
 
-    private fun homeFragment(): HomeFragment? =
-        supportFragmentManager.fragments.filterIsInstance<HomeFragment>().firstOrNull()
-
     private fun browserFragment(): BrowserFragment? =
         supportFragmentManager.fragments.filterIsInstance<BrowserFragment>().firstOrNull()
 
@@ -374,7 +366,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         viewPager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = destinations.size
             override fun createFragment(position: Int): Fragment = when (destinations[position]) {
-                MainDestination.Home -> HomeFragment()
                 MainDestination.Downloads -> DownloadsFragment()
                 MainDestination.Browser -> BrowserFragment()
             }
@@ -1345,57 +1336,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         }
     }
 
-    override fun triggerDownloadReady() {
-        DownloadService.start(this)
-        showDownloadStartedSnackbar()
-    }
-
-    override fun openDownloadsTab() {
-        selectMainDestination(MainDestination.Downloads)
-    }
-
-    override fun triggerDownloadDirect(lines: List<String>) {
-        QueueRepository.setLinks(lines)
-        val (ytDlpLines, otherLines) = lines.partition { LinkParser.needsYtDlp(it) }
-
-        otherLines.forEach { link ->
-            val item = QueueRepository.current().firstOrNull { it.sourceUrl == link }
-            if (item != null) {
-                QueueRepository.markReady(item.id, directUrl = link)
-            }
-        }
-        if (otherLines.isNotEmpty()) {
-            DownloadService.start(this)
-            showDownloadStartedSnackbar()
-        }
-
-        if (ytDlpLines.isNotEmpty()) {
-            val savedLabel = Settings.ytDlpDefaultQualityLabel()
-            if (savedLabel.isNotBlank()) {
-                lifecycleScope.launch {
-                    for (link in ytDlpLines) {
-                        val item = QueueRepository.current().firstOrNull { it.sourceUrl == link } ?: continue
-                        QueueRepository.markResolving(item.id)
-                        resolveOne(item)
-                    }
-                }
-            } else {
-                // No saved default quality -- the AddDownloadDialog decides
-                // quality/format instead of auto-resolving. Mark the
-                // setLinks() placeholder RESOLVING (matching the sibling
-                // branch above) so removeYtDlpDialogPlaceholder() actually
-                // finds and clears it once that dialog is dismissed or
-                // started, instead of leaving it stuck at PENDING forever.
-                val firstLink = ytDlpLines.first()
-                val item = QueueRepository.current().firstOrNull { it.sourceUrl == firstLink }
-                if (item != null) {
-                    QueueRepository.markResolving(item.id)
-                }
-                showAddDownloadDialog(firstLink)
-            }
-        }
-    }
-
     private fun enqueueDownload(item: QueueItem, duplicateStrategy: OnDuplicateStrategy?): Boolean {
         return when (DownloadEnqueueCoordinator.enqueueAndStart(this, item, duplicateStrategy)) {
             is QueueRepository.EnqueueResult.Success -> true
@@ -2139,7 +2079,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     companion object {
         private const val SYSTEM_BAR_THEME_SWITCH_PROGRESS = 0.55f
-        private const val TAG_HOME      = "home"
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
     }
