@@ -474,7 +474,8 @@ class BrowserFragment : Fragment() {
                             onTabsTap = ::showTabsOverlay,
                             tabsCount = tabsCountValue,
                             onDownloadsTap = { (activity as? Callbacks)?.onBrowserOpenDownloads() },
-                            downloadsVisible = !speedDialVisible,
+                            // The bottom bar already has Downloads, so drop the duplicate up here (same rule as Home).
+                            downloadsVisible = !speedDialVisible && (toolbarBottom || !bottomBarEnabled),
                             onOverflowTap = { browserMenuExpanded = true },
                             overflowMenu = {
                                 BrowserOverflowMenu(
