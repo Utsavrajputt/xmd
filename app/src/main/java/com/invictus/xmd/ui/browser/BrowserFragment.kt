@@ -128,6 +128,11 @@ class BrowserFragment : Fragment() {
     }
 
     companion object {
+        private const val MEDIA_POLL_INTERVAL_MS = 2_000L
+        private const val MEDIA_WATCH_INTERVAL_MS = 4_000L
+        private const val MEDIA_PLAYING_JS =
+            "(function(){var m=document.querySelectorAll('video,audio');" +
+                "for(var i=0;i<m.length;i++){if(!m[i].paused&&!m[i].ended&&m[i].readyState>2)return true}return false})()"
         /** Max WebView instances kept alive across all tabs at once. Beyond
          *  this, the least-recently-used *non-current* tab's WebView is
          *  torn down (state saved first) to keep memory bounded, same
@@ -808,13 +813,78 @@ class BrowserFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
-        // Keep the process alive so page audio/video continues in background.
-        if (Settings.backgroundPlaybackEnabled() && !speedDialVisible && activity?.isChangingConfigurations != true) {
-            com.invictus.xmd.service.BackgroundPlaybackService.start(requireContext().applicationContext)
+        // Keep the process alive so page audio/video continues in background -- but only when
+        // something is actually playing, so an idle browser leaves no "background play" notification.
+        mediaPollJob?.cancel()
+        mediaPollJob = null
+        if (Settings.backgroundPlaybackEnabled() && !speedDialVisible &&
+            activity?.isChangingConfigurations != true && mediaPlayingCached
+        ) {
+            val appContext = requireContext().applicationContext
+            com.invictus.xmd.service.BackgroundPlaybackService.start(appContext)
+            watchBackgroundPlayback(appContext)
         }
     }
 
+    // ── Background playback: only while media is really playing ──────────────
+
+    /** Last poll result, read synchronously in onPause (a foreground service must start while the app is still visible). */
+    @Volatile private var mediaPlayingCached = false
+    private var mediaPollJob: Job? = null
+    private var bgPlaybackWatchJob: Job? = null
+
+    /** True when any loaded tab has a <video>/<audio> that is playing. */
+    private suspend fun anyTabPlayingMedia(): Boolean = webViews.values.toList().any { isMediaPlaying(it) }
+
+    private suspend fun isMediaPlaying(webView: WebView): Boolean =
+        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            webView.evaluateJavascript(MEDIA_PLAYING_JS) { result ->
+                if (cont.isActive) cont.resumeWith(Result.success(result == "true"))
+            }
+        }
+
+    /** While the browser is visible, keeps [mediaPlayingCached] fresh so onPause can decide without waiting. */
+    private fun startMediaPoll() {
+        mediaPollJob?.cancel()
+        if (!Settings.backgroundPlaybackEnabled()) {
+            mediaPlayingCached = false
+            return
+        }
+        mediaPollJob = viewLifecycleOwner.lifecycleScope.launch {
+            while (true) {
+                mediaPlayingCached = anyTabPlayingMedia()
+                delay(MEDIA_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Once in the background, drops the notification as soon as playback has ended. */
+    private fun watchBackgroundPlayback(appContext: android.content.Context) {
+        bgPlaybackWatchJob?.cancel()
+        bgPlaybackWatchJob = viewLifecycleOwner.lifecycleScope.launch {
+            var quietChecks = 0
+            while (true) {
+                delay(MEDIA_WATCH_INTERVAL_MS)
+                if (anyTabPlayingMedia()) {
+                    quietChecks = 0
+                } else if (++quietChecks >= 2) {
+                    com.invictus.xmd.service.BackgroundPlaybackService.stop(appContext)
+                    return@launch
+                }
+            }
+        }
+    }
+
+    private fun stopBackgroundPlaybackWatch() {
+        mediaPollJob?.cancel()
+        mediaPollJob = null
+        bgPlaybackWatchJob?.cancel()
+        bgPlaybackWatchJob = null
+    }
+
     override fun onDestroyView() {
+        stopBackgroundPlaybackWatch()
+        com.invictus.xmd.service.BackgroundPlaybackService.stop(requireContext().applicationContext)
         suggestJob?.cancel()
         tabs.toList().forEach(::destroyTabWebView)
         tabThumbnails.values.forEach { it.recycle() }
@@ -2053,7 +2123,10 @@ class BrowserFragment : Fragment() {
         val currentWebView = if (currentTab != null) webViewFor(currentTab) else null
         navCanGoBack = !speedDialVisible && currentWebView?.canGoBack() == true
         navCanGoForward = !speedDialVisible && currentWebView?.canGoForward() == true
+        bgPlaybackWatchJob?.cancel()
+        bgPlaybackWatchJob = null
         com.invictus.xmd.service.BackgroundPlaybackService.stop(requireContext().applicationContext)
+        startMediaPoll()
         updateHeaderInteractionState()
         (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(!speedDialVisible)
     }

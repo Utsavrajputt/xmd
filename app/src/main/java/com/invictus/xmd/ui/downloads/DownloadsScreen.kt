@@ -191,8 +191,10 @@ fun DownloadsScreen(
     }
     var selectedFilterName by rememberSaveable { mutableStateOf(DownloadFilter.All.name) }
     val selectedFilter = DownloadFilter.valueOf(selectedFilterName)
+    // In-flight downloads (the Active set) stay on top of the list while they run; the rest keep their order.
     val list = remember(queryMatches, selectedFilter) {
-        queryMatches.filter(selectedFilter::matches)
+        val (inFlight, others) = queryMatches.filter(selectedFilter::matches).partition(DownloadFilter.Active::matches)
+        inFlight + others
     }
 
     // If the currently selected chip (e.g. "Active") loses its last item to

@@ -582,6 +582,32 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedEdgeToEdgeDarkMode = isDarkMode
     }
 
+    // ── Exit from the Idle download notification ───────────────────────────
+
+    private var exitReceiver: android.content.BroadcastReceiver? = null
+
+    /** DownloadService sends ACTION_EXIT_APP when "Exit" is tapped on its Idle notification. */
+    private fun registerExitReceiver() {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context, intent: Intent) {
+                finishAndRemoveTask()
+            }
+        }
+        exitReceiver = receiver
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            receiver,
+            android.content.IntentFilter(com.invictus.xmd.service.DownloadService.ACTION_EXIT_APP),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+    }
+
+    override fun onDestroy() {
+        exitReceiver?.let { runCatching { unregisterReceiver(it) } }
+        exitReceiver = null
+        super.onDestroy()
+    }
+
     // ── onCreate ──────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -592,6 +618,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         appliedIsAmoled = Settings.isAmoledMode()
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
+        registerExitReceiver()
         applyEdgeToEdge(isDarkMode = Settings.isDarkMode())
         navigationItems = configuredNavigationItems()
         activityState.initializeMainDestination(configuredDefaultDestination())

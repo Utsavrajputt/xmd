@@ -69,6 +69,10 @@ class DownloadService : LifecycleService() {
         const val ACTION_CANCEL_ITEM = "com.invictus.xmd.action.CANCEL_ITEM"
         const val ACTION_CANCEL_ALL = "com.invictus.xmd.action.CANCEL_ALL"
         const val ACTION_WIFI_ONLY_ENABLED = "com.invictus.xmd.action.WIFI_ONLY_ENABLED"
+        /** "Exit" on the Idle notification: stop the service and close the app. */
+        const val ACTION_EXIT = "com.invictus.xmd.action.EXIT"
+        /** Broadcast (package-restricted) telling MainActivity to close itself after [ACTION_EXIT]. */
+        const val ACTION_EXIT_APP = "com.invictus.xmd.action.EXIT_APP"
         /** Fired by ScheduleReceiver (our own alarm, or BOOT_COMPLETED) --
          *  see [onScheduleCheck]. */
         const val ACTION_SCHEDULE_CHECK = "com.invictus.xmd.action.SCHEDULE_CHECK"
@@ -568,6 +572,7 @@ class DownloadService : LifecycleService() {
                 startForeground(NOTIFICATION_ID, buildNotification())
                 onScheduleCheck()
             }
+            ACTION_EXIT -> exitApp()
             ACTION_CANCEL_ALL -> {
                 engines.values.forEach { it.cancel() }
                 torrentEngines.values.forEach { it.cancel() }
@@ -584,6 +589,19 @@ class DownloadService : LifecycleService() {
             }
         }
         return START_NOT_STICKY
+    }
+
+    /**
+     * "Exit" on the Idle notification. Only offered when nothing is downloading, so there is no
+     * transfer to cancel: drop the foreground notification, stop any background-playback service,
+     * ask the activity to close (and leave recents), then stop.
+     */
+    private fun exitApp() {
+        releaseLocks()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        BackgroundPlaybackService.stop(applicationContext)
+        sendBroadcast(Intent(ACTION_EXIT_APP).setPackage(packageName))
+        stopSelf()
     }
 
     /** Pauses one item by id -- shared by [ACTION_PAUSE_ITEM] and [ACTION_PAUSE_ALL]. */
@@ -1444,6 +1462,15 @@ class DownloadService : LifecycleService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(0, getString(R.string.action_cancel), cancelIntent)
+        }
+        if (relevant.isEmpty() && !resolving) {
+            // Idle: nothing to cancel, so offer a way out instead of a notification that cannot be dismissed.
+            val exitIntent = PendingIntent.getService(
+                this, 3,
+                Intent(this, DownloadService::class.java).setAction(ACTION_EXIT),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(0, getString(R.string.action_exit), exitIntent)
         }
 
         return builder.build()
