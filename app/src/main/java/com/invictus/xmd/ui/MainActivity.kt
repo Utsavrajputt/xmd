@@ -968,6 +968,8 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     )
                 }
             }
+            // Android 11 and older have no system splash; this plays the chosen icon's one in-app.
+            com.invictus.xmd.ui.components.AppLaunchSplash()
         }
 
         // Back handling, gesture or button:

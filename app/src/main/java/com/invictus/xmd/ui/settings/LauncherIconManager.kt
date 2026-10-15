@@ -34,14 +34,16 @@ internal enum class IconBackground(
 internal enum class IconMark(
     val key: String,
     @DrawableRes val layer: Int,
+    /** Animated 288dp rendition used by the system splash and the in-app splash. */
+    @DrawableRes val splash: Int,
     @StringRes val label: Int,
 ) {
     /** The original logo, pale body with blue arrow: reads on dark and saturated backgrounds. */
-    Color("Color", R.drawable.ic_launcher_fg_color, R.string.app_icon_logo_color),
+    Color("Color", R.drawable.ic_launcher_fg_color, R.drawable.ic_splash_color, R.string.app_icon_logo_color),
     /** Same logo in deeper blues, for the light backgrounds the original does not read on. */
-    Blue("Blue", R.drawable.ic_launcher_fg_blue, R.string.app_icon_logo_blue),
-    White("White", R.drawable.ic_launcher_fg_white, R.string.app_icon_logo_white),
-    Black("Black", R.drawable.ic_launcher_fg_black, R.string.app_icon_logo_black),
+    Blue("Blue", R.drawable.ic_launcher_fg_blue, R.drawable.ic_splash_blue, R.string.app_icon_logo_blue),
+    White("White", R.drawable.ic_launcher_fg_white, R.drawable.ic_splash_white, R.string.app_icon_logo_white),
+    Black("Black", R.drawable.ic_launcher_fg_black, R.drawable.ic_splash_black, R.string.app_icon_logo_black),
 }
 
 /**
