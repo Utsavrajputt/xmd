@@ -152,7 +152,7 @@ internal fun MainShell(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor(),
         topBar = {
             // Hidden while the History/Bookmarks overlay is showing --
             // SavedPagesScreen draws its own full-width header, and this bar

@@ -670,6 +670,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             }
 
             com.invictus.xmd.ui.theme.XmdTheme(transitionState = themeTransitionState) {
+              com.invictus.xmd.ui.theme.AppWallpaperHost {
                 MainShell(
                     destination = mainDestination,
                     navigationItems = navigationItems,
@@ -720,6 +721,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         }
                     },
                 )
+              }
 
                 // Global in-app updater sheet (Bunko-style), above every
                 // destination. Also runs the deferred startup auto-check.

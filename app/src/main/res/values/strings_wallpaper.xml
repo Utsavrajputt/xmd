@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_wallpaper_title">Wallpaper</string>
+    <string name="settings_wallpaper_hint">Show an image behind the main screens</string>
+    <string name="wallpaper_editor_title">Adjust wallpaper</string>
+    <string name="wallpaper_save">Save</string>
+    <string name="wallpaper_cancel">Cancel</string>
+    <string name="wallpaper_reset">Reset</string>
+    <string name="wallpaper_aspect_device">Device</string>
+    <string name="wallpaper_presets_label">Wallpapers</string>
+    <string name="wallpaper_preset_none">None</string>
+    <string name="wallpaper_preset_custom">Custom</string>
+    <string name="wallpaper_preset_aurora">Aurora</string>
+    <string name="wallpaper_preset_sunset">Sunset</string>
+    <string name="wallpaper_preset_ocean">Ocean</string>
+    <string name="wallpaper_preset_midnight">Midnight</string>
+    <string name="wallpaper_preset_mist">Mist</string>
+    <string name="wallpaper_preset_blossom">Blossom</string>
+    <string name="wallpaper_none_hint">No wallpaper</string>
+    <string name="wallpaper_gesture_hint">Drag to reposition. Pinch to zoom.</string>
+    <string name="wallpaper_fit">Fit</string>
+    <string name="wallpaper_fill">Fill</string>
+    <string name="wallpaper_replace">Replace</string>
+    <string name="wallpaper_zoom">Zoom</string>
+    <string name="wallpaper_horizontal">Horizontal position</string>
+    <string name="wallpaper_vertical">Vertical position</string>
+    <string name="wallpaper_blur">Blur</string>
+    <string name="wallpaper_transparency">Transparency</string>
+    <string name="wallpaper_preview_locked">Preview locked</string>
+    <string name="wallpaper_preview_unlocked">Preview unlocked</string>
+    <string name="wallpaper_save_failed">Could not save the wallpaper. Please choose the image again.</string>
+</resources>

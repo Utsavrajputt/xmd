@@ -171,7 +171,7 @@ fun <T> SavedPagesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor()),
     ) {
         TopAppBar(
             title = { Text(text = title) },

@@ -43,6 +43,13 @@ object Settings {
     private const val KEY_APP_THEME = "app_theme"
     private const val KEY_DARK_MODE = "app_dark_mode"
     private const val KEY_AMOLED_MODE = "app_amoled_mode"
+    private const val KEY_WALLPAPER_URI = "wallpaper_uri"
+    private const val KEY_WALLPAPER_ZOOM = "wallpaper_zoom"
+    private const val KEY_WALLPAPER_OFFSET_X = "wallpaper_offset_x"
+    private const val KEY_WALLPAPER_OFFSET_Y = "wallpaper_offset_y"
+    private const val KEY_WALLPAPER_SCALE_MODE = "wallpaper_scale_mode"
+    private const val KEY_WALLPAPER_BLUR = "wallpaper_blur"
+    private const val KEY_WALLPAPER_ALPHA = "wallpaper_alpha"
     private const val KEY_SPEED_LIMIT_KBPS = "speed_limit_kbps"
     private const val KEY_SPEED_LIMIT_UNIT_MB = "speed_limit_unit_mb"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
@@ -96,12 +103,16 @@ object Settings {
     private val _amoledModeFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
     val amoledModeFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _amoledModeFlow
 
+    private val _wallpaperFlow = kotlinx.coroutines.flow.MutableStateFlow(com.invictus.xmd.ui.theme.WallpaperConfig())
+    val wallpaperFlow: kotlinx.coroutines.flow.StateFlow<com.invictus.xmd.ui.theme.WallpaperConfig> = _wallpaperFlow
+
     fun init(context: Context) {
         appContext = context.applicationContext
         prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         _themeFlow.value = appTheme()
         _darkModeFlow.value = isDarkMode()
         _amoledModeFlow.value = isAmoledMode()
+        _wallpaperFlow.value = wallpaper()
     }
 
     /** The active app color theme. */
@@ -123,6 +134,34 @@ object Settings {
     fun setAmoledMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AMOLED_MODE, enabled).apply()
         _amoledModeFlow.value = enabled
+    }
+
+    /** Main-screen wallpaper: "" = none, "preset:<id>" or "file:<path>" plus its position/blur/alpha. */
+    fun wallpaper(): com.invictus.xmd.ui.theme.WallpaperConfig = com.invictus.xmd.ui.theme.WallpaperConfig(
+        uri = prefs.getString(KEY_WALLPAPER_URI, "") ?: "",
+        zoom = prefs.getFloat(KEY_WALLPAPER_ZOOM, 1f).coerceIn(1f, 3f),
+        offsetX = prefs.getFloat(KEY_WALLPAPER_OFFSET_X, 0f).coerceIn(-1f, 1f),
+        offsetY = prefs.getFloat(KEY_WALLPAPER_OFFSET_Y, 0f).coerceIn(-1f, 1f),
+        scaleMode = runCatching {
+            com.invictus.xmd.ui.theme.WallpaperScaleMode.valueOf(
+                prefs.getString(KEY_WALLPAPER_SCALE_MODE, null) ?: com.invictus.xmd.ui.theme.WallpaperScaleMode.Fit.name
+            )
+        }.getOrDefault(com.invictus.xmd.ui.theme.WallpaperScaleMode.Fit),
+        blur = prefs.getFloat(KEY_WALLPAPER_BLUR, 0f).coerceIn(0f, 40f),
+        alpha = prefs.getFloat(KEY_WALLPAPER_ALPHA, 1f).coerceIn(0f, 1f),
+    )
+
+    fun setWallpaper(config: com.invictus.xmd.ui.theme.WallpaperConfig) {
+        prefs.edit()
+            .putString(KEY_WALLPAPER_URI, config.uri)
+            .putFloat(KEY_WALLPAPER_ZOOM, config.zoom)
+            .putFloat(KEY_WALLPAPER_OFFSET_X, config.offsetX)
+            .putFloat(KEY_WALLPAPER_OFFSET_Y, config.offsetY)
+            .putString(KEY_WALLPAPER_SCALE_MODE, config.scaleMode.name)
+            .putFloat(KEY_WALLPAPER_BLUR, config.blur)
+            .putFloat(KEY_WALLPAPER_ALPHA, config.alpha)
+            .apply()
+        _wallpaperFlow.value = config
     }
 
     fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 6).coerceIn(1, 24)

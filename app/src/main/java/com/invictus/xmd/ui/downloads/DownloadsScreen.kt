@@ -352,13 +352,13 @@ fun DownloadsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor()),
     ) {
         if (items.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor())
                     .padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -133,6 +133,18 @@ fun SettingsAppearanceScreen(
                 AppIconDialog(onDismiss = { showAppIconDialog = false })
             }
 
+            var showWallpaperDialog by remember { mutableStateOf(false) }
+            SettingsSectionCard(modifier = Modifier.padding(top = 16.dp)) {
+                ClickableSettingRow(
+                    title = stringResource(R.string.settings_wallpaper_title),
+                    subtitle = stringResource(R.string.settings_wallpaper_hint),
+                    onClick = { showWallpaperDialog = true },
+                )
+            }
+            if (showWallpaperDialog) {
+                WallpaperDialog(onDismiss = { showWallpaperDialog = false })
+            }
+
             SettingsSectionCard(
                 modifier = Modifier.padding(top = 16.dp),
                 contentPadding = PaddingValues(16.dp),
