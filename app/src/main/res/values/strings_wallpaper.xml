@@ -16,6 +16,8 @@
     <string name="wallpaper_preset_midnight">Midnight</string>
     <string name="wallpaper_preset_mist">Mist</string>
     <string name="wallpaper_preset_blossom">Blossom</string>
+    <string name="wallpaper_preset_galaxy">Galaxy</string>
+    <string name="wallpaper_preset_neon">Neon City</string>
     <string name="wallpaper_none_hint">No wallpaper</string>
     <string name="wallpaper_gesture_hint">Drag to reposition. Pinch to zoom.</string>
     <string name="wallpaper_fit">Fit</string>
