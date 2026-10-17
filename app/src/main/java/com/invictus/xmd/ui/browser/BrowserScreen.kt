@@ -4,6 +4,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,7 +109,11 @@ internal fun BrowserScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // With a website open, everything around it (status bar, toolbar, address pill) must be opaque so
+    // the app wallpaper never shows through. Decided locally from [speedDialVisible] -- no dependency
+    // on the Activity-level web-opaque flag -- so it can't go stale. The speed dial keeps the wallpaper.
+    val rootBackground = if (speedDialVisible) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
+    Box(modifier = Modifier.fillMaxSize().then(rootBackground)) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (!toolbarBottom) {
                 toolbar()

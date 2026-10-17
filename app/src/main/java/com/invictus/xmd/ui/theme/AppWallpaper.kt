@@ -54,13 +54,32 @@ object WallpaperState {
     private val _rendered = MutableStateFlow(false)
     val rendered: StateFlow<Boolean> = _rendered
     fun setRendered(value: Boolean) { _rendered.value = value }
+
+    private val _webOpaque = MutableStateFlow(false)
+    val webOpaque: StateFlow<Boolean> = _webOpaque
+
+    /** True while a website is open in the Browser tab: chrome around it stays opaque. */
+    fun setWebOpaque(value: Boolean) { _webOpaque.value = value }
 }
 
 /** Use instead of `colorScheme.background` on main-tab screens so the wallpaper shows through. */
 @Composable
 fun wallpaperAwareBackgroundColor(): Color {
-    val active by WallpaperState.rendered.collectAsState()
-    return if (active) Color.Transparent else MaterialTheme.colorScheme.background
+    val rendered by WallpaperState.rendered.collectAsState()
+    val webOpaque by WallpaperState.webOpaque.collectAsState()
+    return if (rendered && !webOpaque) Color.Transparent else MaterialTheme.colorScheme.background
+}
+
+/**
+ * Top/bottom bar colour: a glassy translucent surface while a wallpaper is showing (so the image
+ * reads through the bar and the status-bar area), the normal opaque surface otherwise.
+ */
+@Composable
+fun wallpaperAwareBarColor(): Color {
+    val rendered by WallpaperState.rendered.collectAsState()
+    val webOpaque by WallpaperState.webOpaque.collectAsState()
+    val base = MaterialTheme.colorScheme.surfaceContainerLow
+    return if (rendered && !webOpaque) base.copy(alpha = 0.40f) else base
 }
 
 private const val MAX_WALLPAPER_BLUR_DP = 40f

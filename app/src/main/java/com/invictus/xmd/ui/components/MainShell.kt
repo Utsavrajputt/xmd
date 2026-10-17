@@ -139,6 +139,13 @@ internal fun MainShell(
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
 
+    // With a website open, everything around it (status bar, address bar, bottom bar) stays opaque.
+    androidx.compose.runtime.SideEffect {
+        com.invictus.xmd.ui.theme.WallpaperState.setWebOpaque(
+            destination == MainDestination.Browser && isBrowserWebpageOpen,
+        )
+    }
+
     val bottomBarSwipeModifier = Modifier.pointerInput(Unit) {
         detectHorizontalDragGestures(
             onDragStart = { onBottomBarDragStart() },
@@ -339,7 +346,7 @@ private fun DownloadsTopBar(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
             ),
         )
         return
@@ -393,7 +400,7 @@ private fun DownloadsTopBar(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
             ),
         )
         return
@@ -458,7 +465,7 @@ private fun DownloadsTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
         ),
     )
 }
