@@ -49,12 +49,14 @@ object AdblockScripts {
 
   /* ---------------- 1. cosmetic filtering ---------------- */
   var pendingCss = [], waiting = false;
+  /* Always appended last so no list rule can hide the "Sign in with Google" button iframe. */
+  var GIS_SAFE = 'iframe[src*="accounts.google.com/gsi/button"],.g_id_signin,.g_id_signin>div{display:block!important;visibility:visible!important;opacity:1!important}';
   function flushCss() {
     var t = document.head || document.documentElement;
     if (!t) return false;
     if (!pendingCss.length) return true;
     var s = document.createElement('style');
-    s.textContent = pendingCss.join('');
+    s.textContent = pendingCss.join('') + GIS_SAFE;
     pendingCss = [];
     t.appendChild(s);
     return true;

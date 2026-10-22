@@ -28,6 +28,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.abs
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -341,6 +348,7 @@ private fun TabsGridView(
                     aspectRatio = cardAspectRatio,
                     onClick = { onSwitch(tab.id) },
                     onCloseClick = { onClose(tab.id) },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
@@ -362,10 +370,46 @@ private fun TabGridCard(
         item.url?.let { extractDomain(it) }.orEmpty()
     }
 
+    // Chrome-style swipe-to-dismiss: card follows the finger horizontally,
+    // fades out, and is closed once dragged past ~40% of its width or flung.
+    val haptics = LocalHapticFeedback.current
+    val swipeScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    var cardWidth by remember { mutableStateOf(1f) }
+    val flingPx = with(LocalDensity.current) { 900.dp.toPx() }
+    val dragState = rememberDraggableState { delta ->
+        swipeScope.launch { offsetX.snapTo(offsetX.value + delta) }
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
+            .onSizeChanged { cardWidth = it.width.toFloat().coerceAtLeast(1f) }
+            .graphicsLayer {
+                translationX = offsetX.value
+                alpha = (1f - abs(offsetX.value) / (cardWidth * 1.1f)).coerceIn(0f, 1f)
+            }
+            .draggable(
+                state = dragState,
+                orientation = Orientation.Horizontal,
+                onDragStopped = { velocity ->
+                    val shouldDismiss =
+                        abs(offsetX.value) > cardWidth * 0.4f || abs(velocity) > flingPx
+                    if (shouldDismiss) {
+                        val dir = if (offsetX.value != 0f) {
+                            if (offsetX.value > 0f) 1f else -1f
+                        } else {
+                            if (velocity > 0f) 1f else -1f
+                        }
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        offsetX.animateTo(dir * cardWidth * 1.2f, tween(160))
+                        onCloseClick()
+                    } else {
+                        offsetX.animateTo(0f, tween(180))
+                    }
+                },
+            )
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
         color = colors.container,

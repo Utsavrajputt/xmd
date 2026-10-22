@@ -266,6 +266,7 @@ object AdblockFilter {
     fun isBlocked(uri: Uri?, pageHost: String?, level: Settings.AdblockLevel): Boolean {
         if (uri == null || level == Settings.AdblockLevel.OFF) return false
         if (Settings.isAdblockAllowlisted(pageHost)) return false
+        if (isAuthHost(uri.host)) return false
         if (isHostBlocked(uri.host, blockedHosts)) return true
         if (level == Settings.AdblockLevel.AGGRESSIVE && isHostBlocked(uri.host, aggressiveHosts)) {
             return true
@@ -302,6 +303,7 @@ object AdblockFilter {
     ): android.webkit.WebResourceResponse? {
         if (uri == null || isMainFrame || level == Settings.AdblockLevel.OFF) return null
         if (Settings.isAdblockAllowlisted(pageHost)) return null
+        if (isAuthHost(uri.host)) return null
         val path = uri.path.orEmpty()
         if (isBlocked(uri, pageHost, level)) return AdblockResources.blank(path)
         val eng = engine ?: return null
@@ -315,6 +317,7 @@ object AdblockFilter {
 
     /** JSON `[["name","arg1",...], ...]` of scriptlets to run on [host]. */
     fun scriptletsJson(host: String?): String {
+        if (isAuthHost(host)) return "[]"
         val list = engine?.scriptletsFor(host).orEmpty()
         val out = org.json.JSONArray()
         for (raw in list) {
@@ -328,10 +331,12 @@ object AdblockFilter {
     }
 
     /** Domain-specific cosmetic CSS plus the always-on generic rules for [host]. */
-    fun cosmeticCssFor(host: String?): String = engine?.cosmeticCss(host).orEmpty()
+    fun cosmeticCssFor(host: String?): String =
+        if (isAuthHost(host)) "" else engine?.cosmeticCss(host).orEmpty()
 
     /** Generic rules keyed by the ids/classes (JSON string arrays) found on the page. */
     fun genericCssFor(host: String?, idsJson: String?, classesJson: String?): String {
+        if (isAuthHost(host)) return ""
         val eng = engine ?: return ""
         fun parse(j: String?): List<String> = runCatching {
             val a = org.json.JSONArray(j ?: "[]")
@@ -366,6 +371,7 @@ object AdblockFilter {
     ): Boolean {
         if (uri == null || isMainFrame || level == Settings.AdblockLevel.OFF) return false
         if (Settings.isAdblockAllowlisted(pageHost)) return false
+        if (isAuthHost(uri.host)) return false
         if (isBlocked(uri, pageHost, level)) return true
         val eng = engine ?: return false
         val host = uri.host?.lowercase() ?: return false
@@ -378,10 +384,36 @@ object AdblockFilter {
     fun isPopupBlocked(url: String, openerHost: String?, level: Settings.AdblockLevel): Boolean {
         if (level == Settings.AdblockLevel.OFF || Settings.isAdblockAllowlisted(openerHost)) return false
         val host = runCatching { Uri.parse(url).host }.getOrNull()?.lowercase() ?: return false
+        if (isAuthHost(host)) return false
         if (isHostBlocked(host, blockedHosts)) return true
         if (level == Settings.AdblockLevel.AGGRESSIVE && isHostBlocked(host, aggressiveHosts)) return true
         val eng = engine ?: return false
         return eng.shouldBlock(url, host, openerHost, FilterEngine.TYPE_DOCUMENT or FilterEngine.TYPE_POPUP)
+    }
+
+    // Sign-in infrastructure that must never be filtered. Third-party filter
+    // lists (EasyList/uBlock/AdGuard annoyances & popups) carry rules against
+    // Google Identity Services (accounts.google.com/gsi/*) and its helper
+    // hosts, which silently removes "Continue with Google" buttons on sites
+    // like GitHub, or kills the OAuth hop to accounts.google.com. These are
+    // login endpoints, not ad hosts, so they bypass every blocking layer.
+    private val authHosts = setOf(
+        "accounts.google.com", "accounts.youtube.com", "apis.google.com",
+        "ssl.gstatic.com", "www.gstatic.com", "oauth2.googleapis.com",
+        "appleid.apple.com", "login.microsoftonline.com", "login.live.com",
+        "github.com", "githubassets.com", "api.github.com",
+    )
+
+    fun isAuthHost(host: String?): Boolean {
+        if (host.isNullOrBlank()) return false
+        val lower = host.lowercase()
+        if (authHosts.contains(lower)) return true
+        var i = lower.indexOf('.')
+        while (i >= 0) {
+            if (authHosts.contains(lower.substring(i + 1))) return true
+            i = lower.indexOf('.', i + 1)
+        }
+        return false
     }
 
     private fun isHostBlocked(host: String?, hosts: Set<String>?): Boolean {

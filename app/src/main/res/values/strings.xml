@@ -539,6 +539,7 @@
     <string name="remove_from_home_screen_failed">Couldn\'t remove from Home screen</string>
     <string name="browser_menu_history">History</string>
     <string name="browser_menu_translate">Translate</string>
+    <string name="browser_menu_copy_debug_log">Copy debug log</string>
     <string name="translate_dialog_title">Translate page to</string>
     <string name="browser_menu_refresh">Refresh</string>
     <string name="browser_menu_desktop_site">Desktop site</string>

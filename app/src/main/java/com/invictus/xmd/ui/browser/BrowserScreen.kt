@@ -235,6 +235,7 @@ internal fun BrowserOverflowMenu(
     onAddAsApp: () -> Unit,
     onClearBrowsingData: () -> Unit,
     onTranslatePage: () -> Unit,
+    onCopyDebugLog: () -> Unit,
     onAction: (BrowserMenuAction) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
@@ -300,6 +301,11 @@ internal fun BrowserOverflowMenu(
             icon = Icons.Language,
             enabled = currentPageAvailable,
             onClick = { onDismiss(); onTranslatePage() },
+        )
+        BrowserMenuItem(
+            label = stringResource(R.string.browser_menu_copy_debug_log),
+            icon = Icons.Dns,
+            onClick = { onDismiss(); onCopyDebugLog() },
         )
         HorizontalDivider()
         BrowserMenuItem(

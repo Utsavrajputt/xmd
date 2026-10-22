@@ -180,6 +180,18 @@ class BrowserFragment : Fragment() {
         private const val MOBILE_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/120.0.0.0 Mobile Safari/537.36"
+
+        @Volatile private var cachedMobileUa: String? = null
+
+        /** The device's real WebView UA minus the "; wv" and "Version/4.0" markers, so the
+         *  claimed Chrome version matches the engine and its Sec-CH-UA client hints (a
+         *  hard-coded Chrome/120 mismatched them, which sites like GitHub treat as suspicious
+         *  and respond to by dropping Google/Apple/passkey sign-in). Falls back to the constant. */
+        private fun mobileUserAgent(ctx: android.content.Context): String =
+            cachedMobileUa ?: runCatching {
+                WebSettings.getDefaultUserAgent(ctx).replace("; wv", "").replace("Version/4.0 ", "")
+            }.getOrNull()?.takeIf { it.contains("Chrome/") }?.also { cachedMobileUa = it }
+                ?: MOBILE_USER_AGENT
     }
 
     // Tab metadata now lives in BrowserViewModel (see BrowserViewModel.kt --
@@ -491,6 +503,7 @@ class BrowserFragment : Fragment() {
                                     onAddAsApp = ::toggleCurrentPageAsApp,
                                     onClearBrowsingData = { clearBrowsingDataDialogOpen = true },
                                     onTranslatePage = { showTranslateLanguageDialog = true },
+                                    onCopyDebugLog = ::copyDebugLog,
                                     onAction = { action ->
                                         (activity as? Callbacks)?.onBrowserMenuAction(action)
                                     },
@@ -1093,6 +1106,25 @@ class BrowserFragment : Fragment() {
                 true
             } else false
         }.getOrDefault(false)
+        // WebView adds X-Requested-With: <package> to every request, which Google's
+        // sign-in treats as an embedded-app signal. Send it to no origin.
+        runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.REQUESTED_WITH_HEADER_ALLOW_LIST)) {
+                androidx.webkit.WebSettingsCompat.setRequestedWithHeaderOriginAllowList(webView.settings, emptySet())
+            }
+        }
+        // Expose WebAuthn (window.PublicKeyCredential). It is undefined in a plain WebView,
+        // and GitHub then hides its whole "Continue with Google / Apple / passkey" block.
+        // Via enables the same WEB_AUTHENTICATION feature. Reflection keeps this compiling
+        // regardless of the androidx.webkit opt-in annotations on the API.
+        runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported("WEB_AUTHENTICATION")) {
+                val cls = androidx.webkit.WebSettingsCompat::class.java
+                val forBrowser = cls.getField("WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER").getInt(null)
+                cls.getMethod("setWebAuthenticationSupport", WebSettings::class.java, Int::class.javaPrimitiveType)
+                    .invoke(null, webView.settings, forBrowser)
+            }
+        }
         applyDesktopMode(webView, tab.isDesktopMode)
 
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
@@ -1224,11 +1256,20 @@ class BrowserFragment : Fragment() {
             // host, etc.) onPageFinished still fires afterwards for the failed
             // load in practice, but hiding here too means the veil can never
             // get stuck up on an error path.
+            override fun onReceivedHttpError(
+                view: WebView,
+                request: android.webkit.WebResourceRequest,
+                errorResponse: android.webkit.WebResourceResponse
+            ) {
+                com.invictus.xmd.domain.browser.WebDebugLog.add("HTTP ${errorResponse.statusCode} main=${request.isForMainFrame} ${request.url}")
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: android.webkit.WebResourceRequest,
                 error: android.webkit.WebResourceError
             ) {
+                com.invictus.xmd.domain.browser.WebDebugLog.add("ERR ${error.errorCode} ${error.description} main=${request.isForMainFrame} ${request.url}")
                 tab.isLoading = false
                 if (request.isForMainFrame && isCurrentTab(tab)) {
                     hideNavLoadingVeil()
@@ -1425,6 +1466,10 @@ class BrowserFragment : Fragment() {
                 if (request.isForMainFrame) return null
 
                 if (request.method != "GET") return null
+                // Sign-in hosts (Google/GitHub/etc.) always use WebView's own
+                // network stack: this proxy can't replicate its cookie, client-hint
+                // and Sec-Fetch handling, which breaks "Sign in with Google".
+                if (com.invictus.xmd.domain.browser.AdblockFilter.isAuthHost(request.url.host)) return null
                 val client = browserViewModel.currentDohClient() ?: return null
                 val url = request.url.toString()
                 if (!url.startsWith("http")) return null
@@ -1446,6 +1491,12 @@ class BrowserFragment : Fragment() {
 
                 return try {
                     val reqBuilder = Request.Builder().url(url)
+                    // WebView never includes Cookie in requestHeaders, so without this
+                    // every proxied sub-resource/iframe went out logged-out.
+                    if (!tab.isPrivate) {
+                        CookieManager.getInstance().getCookie(url)?.takeIf { it.isNotBlank() }
+                            ?.let { reqBuilder.header("Cookie", it) }
+                    }
                     request.requestHeaders.forEach { (name, value) ->
                         // Chromium/WebView sends its own "Accept-Encoding"
                         // (typically including "br" -- Brotli -- which
@@ -1510,6 +1561,14 @@ class BrowserFragment : Fragment() {
             }
         }
         webView.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR ||
+                    m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.WARNING) {
+                    com.invictus.xmd.domain.browser.WebDebugLog.add("JS ${m.messageLevel()} ${m.message()} (${m.sourceId()}:${m.lineNumber()})")
+                }
+                return false
+            }
+
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 tab.progress = newProgress
                 if (isCurrentTab(tab)) {
@@ -1637,7 +1696,13 @@ class BrowserFragment : Fragment() {
     private inner class AdblockBridge {
         @android.webkit.JavascriptInterface
         fun enabled(host: String?): Boolean =
-            Settings.adblockLevel() != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(host)
+            Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
+                !Settings.isAdblockAllowlisted(host) &&
+                // Sign-in frames (e.g. the accounts.google.com iframe behind a
+                // site's "Continue with Google" button) run this script too;
+                // the popup/click guard there breaks the login button even
+                // when the embedding site itself is allowlisted.
+                !com.invictus.xmd.domain.browser.AdblockFilter.isAuthHost(host)
 
         @android.webkit.JavascriptInterface
         fun popupBlocked() {
@@ -2519,9 +2584,35 @@ class BrowserFragment : Fragment() {
      *  menu toggle) are responsible for reloading afterwards so the new UA
      *  actually takes effect. */
     private fun applyDesktopMode(webView: WebView, desktop: Boolean) {
-        webView.settings.userAgentString = if (desktop) DESKTOP_USER_AGENT else MOBILE_USER_AGENT
+        webView.settings.userAgentString = if (desktop) DESKTOP_USER_AGENT else mobileUserAgent(webView.context)
         webView.settings.useWideViewPort = desktop
         webView.settings.loadWithOverviewMode = desktop
+    }
+
+    /** Copies UA/settings, a few in-page feature probes and the recent JS/network errors. */
+    private fun copyDebugLog() {
+        val wv = webViewFor(tabs.getOrNull(currentTabIndex))
+        val probe = "(function(){try{return JSON.stringify({ua:navigator.userAgent," +
+            "brands:(navigator.userAgentData&&navigator.userAgentData.brands)||null," +
+            "pkc:typeof PublicKeyCredential,cookies:navigator.cookieEnabled," +
+            "google:/continue with google/i.test(document.body.innerText)," +
+            "apple:/continue with apple/i.test(document.body.innerText)," +
+            "passkey:/passkey/i.test(document.body.innerText)});}catch(e){return 'probe failed '+e;}})()"
+        fun finish(probeResult: String?) {
+            val ctx = context ?: return
+            val text = buildString {
+                appendLine("url=${wv?.url}")
+                appendLine("dns=${Settings.dnsMode()} shields=${Settings.adblockLevel()} desktop=${isCurrentTabDesktopMode()}")
+                appendLine("settingsUA=${wv?.settings?.userAgentString}")
+                appendLine("probe=$probeResult")
+                appendLine("---")
+                append(com.invictus.xmd.domain.browser.WebDebugLog.dump())
+            }
+            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("XMD debug log", text))
+            android.widget.Toast.makeText(ctx, "Debug log copied", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        if (wv != null) wv.evaluateJavascript(probe) { finish(it) } else finish(null)
     }
 
     /** Overflow menu's "Desktop site" checkbox -- flips the current tab
