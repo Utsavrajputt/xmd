@@ -483,6 +483,10 @@ class BrowserFragment : Fragment() {
                             homeVisible = toolbarBottom || !bottomBarEnabled,
                             onNewTabTap = ::addNewTab,
                             onTabsTap = ::showTabsOverlay,
+                            mediaActionVisible = sniffedMediaFabVisible,
+                            onMediaActionTap = ::onSniffedMediaFabTapped,
+                            linkActionVisible = detectedLinkVisible,
+                            onLinkActionTap = ::onAddLinkClicked,
                             tabsCount = tabsCountValue,
                             onDownloadsTap = { (activity as? Callbacks)?.onBrowserOpenDownloads() },
                             // The bottom bar already has Downloads, so drop the duplicate up here (same rule as Home).
@@ -625,15 +629,7 @@ class BrowserFragment : Fragment() {
                         )
                     },
                     loadingVeil = { NavLoadingVeil(visible = navLoadingVeilVisible) },
-                    floatingActions = {
-                        BrowserFabs(
-                            detectedLinkVisible = detectedLinkVisible,
-                            onDetectedLinkTap = ::onAddLinkClicked,
-                            sniffedMediaVisible = sniffedMediaFabVisible,
-                            sniffedMediaText = sniffedMediaFabText,
-                            onSniffedMediaTap = ::onSniffedMediaFabTapped,
-                        )
-                    },
+                    floatingActions = {},
                     dialogs = {
                         inAppPlayerRequest?.let { request ->
                             InAppVideoPlayerDialog(

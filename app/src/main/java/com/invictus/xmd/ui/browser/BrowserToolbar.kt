@@ -123,6 +123,10 @@ fun BrowserToolbarRow(
     downloadsVisible: Boolean = true,
     isBottomBar: Boolean = false,
     navButtonsVisible: Boolean = false,
+    mediaActionVisible: Boolean = false,
+    onMediaActionTap: () -> Unit = {},
+    linkActionVisible: Boolean = false,
+    onLinkActionTap: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         Surface(
@@ -197,6 +201,22 @@ fun BrowserToolbarRow(
                         contentDescription = stringResource(R.string.action_tabs),
                         onClick = onTabsTap,
                     )
+                    // Replaces the old floating buttons: only present while the page has a
+                    // detected video / downloadable link.
+                    if (mediaActionVisible) {
+                        ToolbarIconButton(
+                            icon = Icons.Video,
+                            contentDescription = stringResource(R.string.sniffed_media_chip_one),
+                            onClick = onMediaActionTap,
+                        )
+                    }
+                    if (linkActionVisible) {
+                        ToolbarIconButton(
+                            icon = Icons.Link,
+                            contentDescription = stringResource(R.string.action_add_to_downloads),
+                            onClick = onLinkActionTap,
+                        )
+                    }
                     if (downloadsVisible) {
                         ToolbarIconButton(
                             icon = Icons.Download,

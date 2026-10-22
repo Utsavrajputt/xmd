@@ -30,7 +30,17 @@ object MediaSniffer {
     // extension (signed/tokenized query strings, path-based routing) --
     // matched against the path only, not query params, to avoid false
     // positives from unrelated tracking params containing these words.
-    private val HLS_PATH_HINT = Regex("""(^|/)(hls|playlist|master|index)(/|\.m3u8|$)""", RegexOption.IGNORE_CASE)
+    // Only "hls"/"playlist" -- bare "master"/"index" segments are everywhere (GitHub
+    // ".../raw/master/icon.svg", "/index/...") and made ordinary images show up as videos.
+    // "master.m3u8"/"index.m3u8" are already caught by HLS_EXT.
+    private val HLS_PATH_HINT = Regex("""(^|/)(hls|playlist)(/|$)""", RegexOption.IGNORE_CASE)
+
+    // Anything ending in one of these is a plain static asset, never a stream, even when
+    // a path segment looks like a streaming hint.
+    private val STATIC_ASSET_EXT = Regex(
+        """\.(jpe?g|png|gif|webp|avif|svg|ico|bmp|js|mjs|css|json|html?|txt|xml|woff2?|ttf|otf|map|pdf|zip)$""",
+        RegexOption.IGNORE_CASE,
+    )
 
     /**
      * Classifies purely from the URL -- used on every request since headers
@@ -48,7 +58,7 @@ object MediaSniffer {
             DASH_EXT.containsMatchIn(url) -> Sniffed(url, Kind.DASH)
             VIDEO_EXT.containsMatchIn(url) -> Sniffed(url, Kind.DIRECT_VIDEO)
             AUDIO_EXT.containsMatchIn(url) -> Sniffed(url, Kind.DIRECT_AUDIO)
-            HLS_PATH_HINT.containsMatchIn(path) -> Sniffed(url, Kind.HLS)
+            HLS_PATH_HINT.containsMatchIn(path) && !STATIC_ASSET_EXT.containsMatchIn(path) -> Sniffed(url, Kind.HLS)
             else -> null
         }
     }
