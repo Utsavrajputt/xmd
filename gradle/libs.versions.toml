@@ -1,6 +1,8 @@
 [versions]
-agp = "8.9.3"
+agp = "9.4.0"
 kotlin = "2.2.21"
+# KSP 2.3.x versions independently of Kotlin and supports AGP 9 built-in Kotlin.
+ksp = "2.3.11"
 composeBom = "2025.10.01"
 # Material 3 Expressive pre-release; overrides the version the BOM maps to.
 material3 = "1.5.0-beta02"
@@ -56,5 +58,5 @@ junit = { module = "junit:junit", version = "4.13.2" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

@@ -164,7 +164,7 @@ Each flavor is additionally split per-ABI (`armeabi-v7a`, `arm64-v8a`), so a rel
 
 ## 🛠️ Building
 
-Requires JDK 17 and the Android SDK (compileSdk 34, minSdk 26).
+Requires JDK 17 and the Android SDK (compileSdk 37, minSdk 26).
 
 ```bash
 ./gradlew assembleLiteDebug      # lite debug APK

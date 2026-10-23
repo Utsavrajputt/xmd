@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("kotlin-kapt")
+    alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.invictus.xmd"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.invictus.xmd"
@@ -169,7 +168,7 @@ dependencies {
     // core/db/AppDatabase.kt).
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;
