@@ -43,3 +43,9 @@
 # name (e.g. "V4.f") the moment Commons Compress tries to instantiate one.
 -keep class org.apache.commons.compress.archivers.zip.** { *; }
 -dontwarn org.apache.commons.compress.**
+
+# AGP 9 turns on R8 strict full mode for keep rules: a bare `-keep class X`
+# no longer keeps X's constructors. Room instantiates the generated
+# AppDatabase_Impl reflectively through its no-arg constructor, so pin it
+# explicitly instead of relying on the library's consumer rules.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
