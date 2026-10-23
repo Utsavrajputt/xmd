@@ -1,7 +1,19 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
+)
 package com.invictus.xmd.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -60,6 +72,21 @@ import com.invictus.xmd.ui.icons.Icons
  */
 internal val WideDialogProperties = DialogProperties(usePlatformDefaultWidth = false)
 
+/**
+ * Content-sized variant of [wideDialogWidth]: the dialog hugs its content and
+ * only grows up to the same max width. Pair with `compact = true` on
+ * [XmdAlertDialog]. Use for small confirm / message dialogs.
+ */
+@Composable
+internal fun Modifier.compactDialogWidth(): Modifier {
+    val configuration = LocalConfiguration.current
+    val targetWidth = minOf(configuration.screenWidthDp.dp * 0.88f, 400.dp)
+    val maxHeight = (configuration.screenHeightDp.dp - 40.dp).coerceAtLeast(240.dp)
+    return this
+        .widthIn(max = targetWidth)
+        .heightIn(max = maxHeight)
+}
+
 @Composable
 internal fun Modifier.wideDialogWidth(): Modifier {
     val configuration = LocalConfiguration.current
@@ -73,12 +100,23 @@ internal fun Modifier.wideDialogWidth(): Modifier {
 }
 
 
+/** Corner radii of one section in the dialog's vertical stack: big outside, small where sections touch. */
+private fun dialogSectionShape(index: Int, count: Int): RoundedCornerShape {
+    val outer = 24.dp
+    val inner = 6.dp
+    val top = if (index == 0) outer else inner
+    val bottom = if (index == count - 1) outer else inner
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
 /**
- * App-wide dialog container with the Material 3 Expressive treatment: extra-large
- * 32dp corners, tonal surface-container-high surface (no elevation tint), centered
- * icon/title support and a springy scale-in. Every dialog in the app goes through this
- * so they all look and feel the same; callers just pass the usual AlertDialog slots.
+ * App-wide dialog container, Material 3 Expressive "connected sections" style:
+ * a tinted header (icon + title), the body, and an action tray are three separate
+ * rounded tiles separated by a thin gap, inside one outlined extra-large surface.
+ * Every dialog in the app goes through this so they all look and feel the same;
+ * callers just pass the usual AlertDialog slots.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun XmdAlertDialog(
     onDismissRequest: () -> Unit,
@@ -89,6 +127,7 @@ internal fun XmdAlertDialog(
     title: @Composable (() -> Unit)? = null,
     text: @Composable (() -> Unit)? = null,
     properties: DialogProperties = DialogProperties(),
+    compact: Boolean = false,
 ) {
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
@@ -102,26 +141,95 @@ internal fun XmdAlertDialog(
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "dialogAlpha",
     )
-    AlertDialog(
+    val colors = MaterialTheme.colorScheme
+    val maxHeight = (LocalConfiguration.current.screenHeightDp.dp - 48.dp).coerceAtLeast(120.dp)
+    val hasHeader = title != null || icon != null
+    val sections = (if (hasHeader) 1 else 0) + (if (text != null) 1 else 0) + 1
+    val bodyIndex = if (hasHeader) 1 else 0
+
+    BasicAlertDialog(
         onDismissRequest = onDismissRequest,
-        confirmButton = confirmButton,
         modifier = modifier.graphicsLayer {
             scaleX = scale
             scaleY = scale
             this.alpha = alpha
         },
-        dismissButton = dismissButton,
-        icon = icon,
-        title = title,
-        text = text,
-        shape = RoundedCornerShape(32.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        iconContentColor = MaterialTheme.colorScheme.primary,
-        titleContentColor = MaterialTheme.colorScheme.onSurface,
-        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        tonalElevation = 0.dp,
         properties = properties,
-    )
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.45f)),
+            tonalElevation = 0.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(min = 280.dp, max = 560.dp)
+                    .then(if (compact) Modifier.width(IntrinsicSize.Max) else Modifier)
+                    .heightIn(max = maxHeight)
+                    .padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (hasHeader) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = dialogSectionShape(0, sections),
+                        color = colors.primaryContainer.copy(alpha = 0.55f),
+                        contentColor = colors.onSurface,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (icon != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = colors.primaryContainer,
+                                    contentColor = colors.primary,
+                                ) {
+                                    Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { icon() }
+                                }
+                            }
+                            if (title != null) {
+                                Box(Modifier.weight(1f).semantics { heading() }) {
+                                    ProvideTextStyle(
+                                        MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    ) { title() }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (text != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                        shape = dialogSectionShape(bodyIndex, sections),
+                        color = colors.surfaceContainerHigh,
+                        contentColor = colors.onSurfaceVariant,
+                    ) {
+                        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                            ProvideTextStyle(MaterialTheme.typography.bodyLarge) { text() }
+                        }
+                    }
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = dialogSectionShape(sections - 1, sections),
+                    color = colors.surfaceContainerHigh,
+                ) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                    ) {
+                        if (dismissButton != null) dismissButton()
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**

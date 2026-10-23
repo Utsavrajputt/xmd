@@ -241,7 +241,15 @@ internal fun MainShell(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
-            overlay()
+            // Keep the overlay (History/Bookmarks) clear of the floating bottom bar
+            // so the list never slides underneath it.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = contentPadding.calculateBottomPadding()),
+            ) {
+                overlay()
+            }
         }
     }
 }
@@ -262,7 +270,7 @@ private fun DownloadsTopBar(
     if (downloadsSelectionState != null) {
         var showDropdown by remember { mutableStateOf(false) }
 
-        TopAppBar(
+        XmdTopBar(
             navigationIcon = {
                 IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = downloadsSelectionState.onClose) {
                     Icon(
@@ -347,9 +355,6 @@ private fun DownloadsTopBar(
                     }
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
-            ),
         )
         return
     }
@@ -364,7 +369,7 @@ private fun DownloadsTopBar(
     }
 
     if (searchActive) {
-        TopAppBar(
+        XmdTopBar(
             navigationIcon = {
                 IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onSearchActiveChange(false) }) {
                     Icon(
@@ -382,6 +387,7 @@ private fun DownloadsTopBar(
                         .focusRequester(focusRequester),
                     placeholder = { Text(stringResource(R.string.queue_search_hint)) },
                     singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -401,9 +407,6 @@ private fun DownloadsTopBar(
                     }
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
-            ),
         )
         return
     }
@@ -412,7 +415,7 @@ private fun DownloadsTopBar(
     val themeTransition = LocalThemeTransitionState.current
     val coroutineScope = rememberCoroutineScope()
 
-    TopAppBar(
+    XmdTopBar(
         title = {
             Text(
                 text = if (destination == MainDestination.Downloads) {
@@ -420,7 +423,6 @@ private fun DownloadsTopBar(
                 } else {
                     stringResource(R.string.app_header_title)
                 },
-                fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .onGloballyPositioned { coordinates ->
                         titleBounds.value = coordinates.boundsInWindow()
@@ -466,9 +468,6 @@ private fun DownloadsTopBar(
                 )
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = com.invictus.xmd.ui.theme.wallpaperAwareBarColor(),
-        ),
     )
 }
 

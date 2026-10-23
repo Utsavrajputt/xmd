@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui
 
+import com.invictus.xmd.ui.components.XmdTopBar
 import androidx.compose.ui.draw.clip
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -174,8 +175,7 @@ class ChallengeActivity : ComponentActivity() {
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                XmdTopBar(
                     title = { Text(stringResource(R.string.challenge_title)) },
                     navigationIcon = {
                         IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onNavigateBack) {
@@ -185,9 +185,6 @@ class ChallengeActivity : ComponentActivity() {
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
                 )
             },
         ) { innerPadding ->

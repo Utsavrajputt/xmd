@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.components.XmdTopBar
 import androidx.compose.ui.draw.clip
 import android.content.Context
 import android.content.Intent
@@ -246,13 +247,10 @@ class SettingsActivity : ComponentActivity() {
                             .weight(0.38f)
                             .fillMaxHeight(),
                     ) {
-                        TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                        XmdTopBar(
                             title = {
                                 Text(
                                     text = stringResource(R.string.settings_title),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
                                 )
                             },
                             navigationIcon = {
@@ -263,9 +261,6 @@ class SettingsActivity : ComponentActivity() {
                                     )
                                 }
                             },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            ),
                         )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             SettingsRootScreen(
@@ -298,18 +293,12 @@ class SettingsActivity : ComponentActivity() {
                             .fillMaxHeight(),
                     ) {
                         val detailTitleRes = routeTitles[selectedRoute] ?: R.string.settings_title
-                        TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                        XmdTopBar(
                             title = {
                                 Text(
                                     text = stringResource(detailTitleRes),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
                                 )
                             },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            ),
                         )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             when (selectedRoute) {
@@ -347,8 +336,7 @@ class SettingsActivity : ComponentActivity() {
                         .fillMaxSize()
                         .navigationBarsPadding(),
                 ) {
-                    TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                    XmdTopBar(
                         title = { Text(stringResource(titleRes)) },
                         navigationIcon = {
                             IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
@@ -358,9 +346,6 @@ class SettingsActivity : ComponentActivity() {
                                 )
                             }
                         },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        ),
                     )
 
                     NavHost(

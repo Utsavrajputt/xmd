@@ -605,16 +605,24 @@ private fun TabRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .background(
+                        if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) {
+                            androidx.compose.ui.graphics.Color.Transparent
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                    )
                     .padding(horizontal = 20.dp),
                 contentAlignment = alignment,
             ) {
-                Icon(
-                    imageVector = Icons.Close,
-                    contentDescription = stringResource(R.string.action_dismiss),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(22.dp),
-                )
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    Icon(
+                        imageVector = Icons.Close,
+                        contentDescription = stringResource(R.string.action_dismiss),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         },
     ) {

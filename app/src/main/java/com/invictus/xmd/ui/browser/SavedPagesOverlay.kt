@@ -22,7 +22,7 @@ import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.HistoryRepository
 import com.invictus.xmd.ui.bookmarks.BookmarkScreen
 import com.invictus.xmd.ui.components.WideDialogProperties
-import com.invictus.xmd.ui.components.wideDialogWidth
+import com.invictus.xmd.ui.components.compactDialogWidth
 import com.invictus.xmd.ui.history.HistoryScreen
 
 internal enum class SavedPagesDestination {
@@ -120,8 +120,9 @@ private fun <T> SavedPagesListOverlay(
     if (confirmingClearAll) {
         XmdAlertDialog(
             onDismissRequest = { confirmingClearAll = false },
-            modifier = Modifier.wideDialogWidth(),
+            modifier = Modifier.compactDialogWidth(),
             properties = WideDialogProperties,
+            compact = true,
             title = { Text(stringResource(titleRes)) },
             confirmButton = {
                 TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 

@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.status
 
+import com.invictus.xmd.ui.components.XmdTopBar
 import android.graphics.Bitmap
 import android.view.Gravity
 import android.view.ViewGroup
@@ -99,17 +100,38 @@ internal fun StatusSaverScreen(
 
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
+    val statusTabs: @Composable () -> Unit = {
+                PrimaryTabRow(
+                    selectedTabIndex = viewModel.tab.ordinal,
+                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    divider = {},
+                ) {
+                    StatusTab.entries.forEach { tab ->
+                        Tab(
+                            selected = viewModel.tab == tab,
+                            onClick = { viewModel.selectTab(tab) },
+                            text = {
+                                Text(
+                                    stringResource(
+                                        if (tab == StatusTab.Recent) R.string.status_tab_recent else R.string.status_tab_saved,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (selecting) {
-                TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                XmdTopBar(bottomContent = statusTabs,
+                    
                     title = {
                         Text(
                             text = stringResource(R.string.status_selected_count, viewModel.selected.size),
-                            fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
@@ -138,17 +160,13 @@ internal fun StatusSaverScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
                 )
             } else {
-                TopAppBar(
- modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+                XmdTopBar(bottomContent = statusTabs,
+                    
                     title = {
                         Text(
                             text = stringResource(R.string.status_saver_title),
-                            fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
@@ -167,9 +185,6 @@ internal fun StatusSaverScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
                 )
             }
         },
@@ -179,24 +194,7 @@ internal fun StatusSaverScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            PrimaryTabRow(
-                selectedTabIndex = viewModel.tab.ordinal,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ) {
-                StatusTab.entries.forEach { tab ->
-                    Tab(
-                        selected = viewModel.tab == tab,
-                        onClick = { viewModel.selectTab(tab) },
-                        text = {
-                            Text(
-                                stringResource(
-                                    if (tab == StatusTab.Recent) R.string.status_tab_recent else R.string.status_tab_saved,
-                                ),
-                            )
-                        },
-                    )
-                }
-            }
+
 
             val pagerState = rememberPagerState(initialPage = viewModel.tab.ordinal) { StatusTab.entries.size }
 

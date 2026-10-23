@@ -852,8 +852,9 @@ fun QueueItemRow(
     Box(
         modifier = modifier.fillMaxWidth(),
     ) {
-        // Delete action revealed behind the card.
-        if (!isSelectionMode) {
+        // Delete action revealed behind the card -- drawn only while the card
+        // is actually swiped, so its red never peeks out past the card's corners.
+        if (!isSelectionMode && offsetX < 0f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -889,7 +890,7 @@ fun QueueItemRow(
                             modifier = Modifier.size(24.dp),
                         )
                         Text(
-                            text = stringResource(R.string.action_delete),
+                            text = stringResource(R.string.action_clear),
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,

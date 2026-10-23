@@ -85,8 +85,9 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.browser.BrowserFragment
 import com.invictus.xmd.ui.browser.BrowserMenuAction
-import com.invictus.xmd.ui.browser.SavedPagesDestination
-import com.invictus.xmd.ui.browser.SavedPagesOverlay
+import com.invictus.xmd.ui.browser.SavedPagesActivity
+import com.invictus.xmd.ui.bookmarks.BookmarksActivity
+import com.invictus.xmd.ui.history.HistoryActivity
 import com.invictus.xmd.ui.components.MainShell
 import com.invictus.xmd.ui.components.MainDestination
 import com.invictus.xmd.ui.components.MainNavigationItem
@@ -127,9 +128,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private var headerSearchQuery: String
         get() = activityState.headerSearchQuery
         set(value) = activityState.updateHeaderSearchQuery(value)
-    private var savedPagesDestination: SavedPagesDestination?
-        get() = activityState.savedPagesDestination
-        set(value) = activityState.updateSavedPagesDestination(value)
     private val snackbarHostState = SnackbarHostState()
     private var messageDialogState: AppMessageDialogState? by mutableStateOf(null)
     private var expiredLinkDialogState: ExpiredLinkDialogState? by mutableStateOf(null)
@@ -342,7 +340,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if (destination != MainDestination.Downloads) {
             downloadsSelectionState?.onClose?.invoke()
         }
-        savedPagesDestination = null
         closeHeaderSearch()
         mainDestination = destination
         currentTabTag = tagFor(destination)
@@ -389,7 +386,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     // only runs for bottom-nav taps) skipped this cleanup,
                     // so swiping off History/Bookmarks left the overlay
                     // stuck on top of the newly-selected tab underneath.
-                    savedPagesDestination = null
                     mainDestination = dest
                     currentTabTag = tagFor(dest)
                     closeHeaderSearch()
@@ -448,6 +444,18 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     // ── ChallengeActivity launcher (must be in Activity, not Fragment) ────
     private var pendingChallengeContinuation: ((directUrl: String?, error: String?) -> Unit)? = null
+
+    // History / Bookmarks run as their own full-screen activities; a tapped
+    // entry comes back here as a URL to open in the browser tab.
+    private val savedPagesLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) return@registerForActivityResult
+        val url = result.data?.getStringExtra(SavedPagesActivity.EXTRA_URL)
+            ?: return@registerForActivityResult
+        browserFragment()?.openUrl(url)
+        selectMainDestination(MainDestination.Browser)
+    }
 
     private val challengeLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -690,7 +698,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     onOpenStatusSaver = { openStatusSaver() },
                     onToggleTheme = ::toggleDarkMode,
                     onViewPagerReady = ::setupViewPager,
-                    overlayActive = savedPagesDestination != null,
                     isBrowserWebpageOpen = isBrowserWebpageOpen,
                     onBottomBarDragStart = {
                         if (mainViewPager?.isFakeDragging == false) {
@@ -707,19 +714,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                             mainViewPager?.endFakeDrag()
                         }
                     },
-                    overlay = {
-                        savedPagesDestination?.let { destination ->
-                            SavedPagesOverlay(
-                                destination = destination,
-                                onBack = { savedPagesDestination = null },
-                                onOpenUrl = { url ->
-                                    savedPagesDestination = null
-                                    browserFragment()?.openUrl(url)
-                                    selectMainDestination(MainDestination.Browser)
-                                },
-                            )
-                        }
-                    },
+                    overlay = {},
                 )
               }
 
@@ -1000,10 +995,6 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         onBackPressedDispatcher.addCallback(this) {
             if (headerSearchActive) {
                 closeHeaderSearch()
-                return@addCallback
-            }
-            if (savedPagesDestination != null) {
-                savedPagesDestination = null
                 return@addCallback
             }
             if (supportFragmentManager.backStackEntryCount > 0) {
@@ -1658,11 +1649,11 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun openHistoryScreen() {
-        savedPagesDestination = SavedPagesDestination.History
+        savedPagesLauncher.launch(Intent(this, HistoryActivity::class.java))
     }
 
     private fun openBookmarksScreen() {
-        savedPagesDestination = SavedPagesDestination.Bookmarks
+        savedPagesLauncher.launch(Intent(this, BookmarksActivity::class.java))
     }
 
     override fun onBrowserHeaderInteractionChanged(locked: Boolean) {

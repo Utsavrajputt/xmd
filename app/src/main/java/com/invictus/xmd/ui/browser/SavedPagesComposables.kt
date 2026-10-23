@@ -1,6 +1,13 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import com.invictus.xmd.ui.components.xmdTopBarColors
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import com.invictus.xmd.ui.components.XmdTopBar
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +20,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -62,8 +71,8 @@ import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 
-private val GroupOuterCorner = 24.dp
-private val GroupInnerCorner = 6.dp
+private val GroupOuterCorner = 20.dp
+private val GroupInnerCorner = 4.dp
 
 /** Expressive "grouped list" shape: big radius on the outer edges of the first/last row, tight radius between rows. */
 private fun groupedRowShape(index: Int, count: Int): RoundedCornerShape {
@@ -116,18 +125,26 @@ fun <T> SavedPageRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .background(
+                        if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) {
+                            Color.Transparent
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        },
+                    )
                     .padding(horizontal = 24.dp),
                 contentAlignment = when (dismissState.dismissDirection) {
                     SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
                     else -> Alignment.CenterEnd
                 },
             ) {
-                Icon(
-                    imageVector = Icons.Delete,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    Icon(
+                        imageVector = Icons.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
             }
         },
     ) {
@@ -138,10 +155,11 @@ fun <T> SavedPageRow(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
             leadingContent = {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(32.dp)
                         .background(MaterialTheme.colorScheme.primaryContainer, badgeShape),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -149,32 +167,42 @@ fun <T> SavedPageRow(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             },
-            supportingContent = {
-                Text(
-                    text = hostOf(url),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
             trailingContent = {
-                IconButton(onClick = { onDelete(entry) }) {
+                IconButton(modifier = Modifier.size(40.dp), onClick = { onDelete(entry) }) {
                     Icon(
                         imageVector = Icons.Delete,
                         contentDescription = stringResource(R.string.action_delete),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             },
         ) {
-            Text(
-                text = title.ifBlank { hostOf(url) },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val host = hostOf(url)
+            val shownTitle = title.ifBlank { host }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = shownTitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (shownTitle != host) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = host,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 96.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -215,83 +243,75 @@ fun <T> SavedPagesScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor()),
+            // Opaque + touch-blocking: the browser / speed dial underneath must not
+            // show through (or receive taps) behind the History/Bookmarks header.
+            .background(MaterialTheme.colorScheme.background)
+            .pointerInput(Unit) { detectTapGestures { } },
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
-        ) {
-            TopAppBar(
-                title = {
-                    AnimatedContent(
-                        targetState = searching,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "savedPagesTitle",
-                    ) { isSearching ->
-                        if (isSearching) {
-                            TextField(
-                                value = query,
-                                onValueChange = onQueryChange,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focusRequester),
-                                placeholder = { Text(searchHint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                singleLine = true,
-                                shape = CircleShape,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    disabledIndicatorColor = Color.Transparent,
-                                ),
-                            )
+        XmdTopBar(
+            colors = xmdTopBarColors(MaterialTheme.colorScheme.surfaceContainerLow),
+            title = {
+                AnimatedContent(
+                    targetState = searching,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "savedPagesTitle",
+                ) { isSearching ->
+                    if (isSearching) {
+                        TextField(
+                            value = query,
+                            onValueChange = onQueryChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            placeholder = { Text(searchHint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            shape = CircleShape,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                            ),
+                        )
+                    } else {
+                        Text(text = title)
+                    }
+                }
+            },
+            navigationIcon = {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            actions = {
+                // Search sits immediately to the LEFT of Clear all.
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                    onClick = {
+                        if (searching) {
+                            onQueryChange("")
+                            searching = false
                         } else {
-                            Text(text = title, style = MaterialTheme.typography.titleLarge)
+                            searching = true
                         }
-                    }
-                },
-                // This screen already sits inside MainShell's Scaffold content,
-                // which reserves the status-bar inset for us.
-                windowInsets = WindowInsets(0, 0, 0, 0),
-                navigationIcon = {
-                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                actions = {
-                    // Search sits immediately to the LEFT of Clear all.
-                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
-                        onClick = {
-                            if (searching) {
-                                onQueryChange("")
-                                searching = false
-                            } else {
-                                searching = true
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (searching) Icons.Close else Icons.Search,
-                            contentDescription = searchHint,
-                        )
-                    }
-                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onClearAll) {
-                        Text(clearAllLabel)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            )
-        }
+                    },
+                ) {
+                    Icon(
+                        imageVector = if (searching) Icons.Close else Icons.Search,
+                        contentDescription = searchHint,
+                    )
+                }
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onClearAll) {
+                    Text(clearAllLabel)
+                }
+            },
+        )
+
 
         if (entries.isEmpty()) {
             val emptyShape = MaterialShapes.Cookie12Sided.toShape()
@@ -323,8 +343,13 @@ fun <T> SavedPagesScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                contentPadding = PaddingValues(
+                    start = 12.dp,
+                    end = 12.dp,
+                    top = 8.dp,
+                    bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+                ),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 itemsIndexed(entries, key = { _, e -> entryKey(e) }) { index, entry ->
                     SavedPageRow(

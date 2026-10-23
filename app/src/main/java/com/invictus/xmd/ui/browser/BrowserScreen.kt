@@ -45,6 +45,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.invictus.xmd.R
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.ui.components.WideDialogProperties
+import com.invictus.xmd.ui.components.compactDialogWidth
 import com.invictus.xmd.ui.components.wideDialogWidth
 
 enum class BrowserMenuAction {
@@ -344,8 +345,9 @@ internal fun ClearBrowsingDataDialog(
 
     XmdAlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.wideDialogWidth(),
+        modifier = Modifier.compactDialogWidth(),
         properties = WideDialogProperties,
+        compact = true,
         title = { Text(stringResource(R.string.clear_data_title)) },
         text = {
             Column {

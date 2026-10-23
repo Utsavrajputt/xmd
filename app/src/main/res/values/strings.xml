@@ -559,6 +559,10 @@
     <string name="dns_mode_cloudflare_adblock">Cloudflare (Ad Block)</string>
     <string name="dns_mode_off">Off (Default)</string>
     <string name="dns_mode_custom">Custom</string>
+    <string name="dns_mode_off_desc">Use your network\'s default DNS</string>
+    <string name="dns_mode_custom_desc">Enter your own DNS provider</string>
+    <string name="dns_custom_url_label">DoH URL</string>
+    <string name="dns_custom_url_example">https://dns.example.com/dns-query</string>
     <string name="dns_custom_url_hint">DNS-over-HTTPS URL (e.g. https://dns.example.com/dns-query)</string>
     <string name="dns_custom_url_needed">Enter a valid DNS-over-HTTPS URL.</string>
 
