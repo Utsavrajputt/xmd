@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.invictus.xmd"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.invictus.xmd"
@@ -198,7 +198,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    // Material 3 Expressive pre-release (1.5.0-beta02 -- newer than the last 1.5.0-alpha29). Overrides the
+    // 1.4.0 the BOM maps to; Gradle also lifts compose ui/foundation to what this release needs.
+    implementation("androidx.compose.material3:material3:1.5.0-beta02")
     implementation("com.composables:icons-material-symbols-cmp:2.2.1")
     implementation("com.composables:icons-material-symbols-rounded-filled-cmp:2.2.1")
 
