@@ -18,6 +18,9 @@ import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.invictus.xmd.R
 import com.invictus.xmd.service.DownloadService
 import com.invictus.xmd.ui.theme.XmdTheme
@@ -47,6 +50,24 @@ class DownloadsFragment : Fragment() {
     }
 
     private val activityState: MainActivityViewModel by activityViewModels()
+
+    override fun onResume() {
+        super.onResume()
+        pruneExternallyDeletedFiles()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) pruneExternallyDeletedFiles()
+    }
+
+    /** Files deleted outside the app (file manager etc.) should disappear from history too. */
+    private fun pruneExternallyDeletedFiles() {
+        viewLifecycleOwnerLiveData.value ?: return
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { QueueRepository.removeItemsWithMissingFiles() }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?

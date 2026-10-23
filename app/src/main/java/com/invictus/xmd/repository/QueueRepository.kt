@@ -482,6 +482,29 @@ object QueueRepository {
         }
     }
 
+    /**
+     * Drops DONE items whose file no longer exists on disk (deleted externally,
+     * e.g. from a file manager). Only completed items with a known path are
+     * checked -- active/paused/failed rows are never touched. Does blocking
+     * file I/O, so call from a background dispatcher.
+     */
+    fun removeItemsWithMissingFiles(): Int {
+        val missingIds = current()
+            .filter { it.status == ItemStatus.DONE && !it.filePath.isNullOrBlank() }
+            .filter { !java.io.File(it.filePath!!).exists() }
+            .map { it.id }
+        if (missingIds.isEmpty()) return 0
+        val idSet = missingIds.toHashSet()
+        synchronized(lock) {
+            master = master.filter { it.id !in idSet }
+            _items.value = master
+        }
+        if (::dao.isInitialized) {
+            scope.launch { runCatching { dao.deleteByIds(missingIds) } }
+        }
+        return missingIds.size
+    }
+
     fun clearFinishedAndFailed() {
         val removedIds: List<String>
         synchronized(lock) {

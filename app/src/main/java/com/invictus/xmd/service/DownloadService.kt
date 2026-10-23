@@ -1375,6 +1375,12 @@ class DownloadService : LifecycleService() {
                 it.status == ItemStatus.RETRYING
         }
         val resolving = queue.any { it.status == ItemStatus.RESOLVING }
+        // Items the notification is "about": the live downloads when there are any,
+        // otherwise everything paused/retrying. Paused items next to a running one
+        // must not inflate the count or skew the progress bar -- they only get a
+        // trailing "N paused" note.
+        val focus = if (active.isNotEmpty()) active else relevant
+        val extraPaused = relevant.size - focus.size
 
         // Drop held ETA entries for items no longer in-flight so the cache
         // doesn't grow unboundedly across a long-lived service instance.
@@ -1408,10 +1414,10 @@ class DownloadService : LifecycleService() {
                 title = getString(R.string.app_name)
                 text = "Idle"
             }
-            relevant.size == 1 -> {
-                val item = relevant.first()
+            focus.size == 1 -> {
+                val item = focus.first()
                 title = item.fileName ?: item.sourceUrl
-                text = when {
+                val baseText = when {
                     item.status == ItemStatus.PAUSED -> "Paused — " + buildDetailLine(item.bytesDone, item.bytesTotal, 0.0)
                     item.status == ItemStatus.RETRYING -> "${item.error ?: "Retrying…"}"
                     item.platform == MediaPlatform.YOUTUBE && item.mediaStatusText.isNullOrBlank() && item.bytesTotal > 0 ->
@@ -1421,6 +1427,7 @@ class DownloadService : LifecycleService() {
                             "  •  " + (item.mediaStatusText ?: "YouTube")
                     else -> buildDetailLine(item.bytesDone, item.bytesTotal, item.speedBps, etaHoldKey = item.id)
                 }
+                text = if (extraPaused > 0) "$baseText  •  $extraPaused paused" else baseText
                 barPercent = when {
                     item.platform == MediaPlatform.YOUTUBE -> item.progressPercent.coerceAtLeast(0)
                     item.bytesTotal > 0 -> ((item.bytesDone * 100) / item.bytesTotal).toInt()
@@ -1429,15 +1436,22 @@ class DownloadService : LifecycleService() {
             }
             else -> {
                 val pausedCount = relevant.count { it.status == ItemStatus.PAUSED }
-                val ytCount = relevant.count { it.platform == MediaPlatform.YOUTUBE }
-                title = "${relevant.size} files" +
-                    if (active.isNotEmpty()) " downloading" else " in queue"
+                val ytCount = focus.count { it.platform == MediaPlatform.YOUTUBE }
+                title = if (active.isNotEmpty()) "${focus.size} files downloading"
+                else if (pausedCount == relevant.size) "${relevant.size} files paused"
+                else "${relevant.size} files in queue"
+                // When nothing is actively downloading, totals come from the paused/retrying set.
+                val sumItems = focus.filter { it.platform != MediaPlatform.YOUTUBE || it.bytesTotal > 0 }
                 text = buildString {
-                    append(buildDetailLine(totalDone, totalSize, totalSpeed, etaHoldKey = "__aggregate__"))
-                    if (pausedCount > 0) append("  •  $pausedCount paused")
+                    if (active.isNotEmpty()) {
+                        append(buildDetailLine(totalDone, totalSize, totalSpeed, etaHoldKey = "__aggregate__"))
+                        if (extraPaused > 0) append("  •  $extraPaused paused")
+                    } else {
+                        append(buildDetailLine(sumItems.sumOf { it.bytesDone }, sumItems.sumOf { it.bytesTotal }, 0.0))
+                    }
                     if (ytCount > 0) append("  •  $ytCount YouTube")
                 }
-                val relevantByte = relevant.filter { it.platform != MediaPlatform.YOUTUBE || it.bytesTotal > 0 }
+                val relevantByte = sumItems
                 val relevantTotal = relevantByte.sumOf { it.bytesTotal }
                 val relevantDone = relevantByte.sumOf { it.bytesDone }
                 barPercent = if (relevantTotal > 0) ((relevantDone * 100) / relevantTotal).toInt() else 0
@@ -1466,8 +1480,8 @@ class DownloadService : LifecycleService() {
         // Per-item pause/resume + a single cancel-all action -- shown whenever
         // there's a live or paused item to act on (Via-style controls right in
         // the notification).
-        if (relevant.size == 1) {
-            val item = relevant.first()
+        if (focus.size == 1) {
+            val item = focus.first()
             if (item.status == ItemStatus.PAUSED) {
                 val resumeIntent = PendingIntent.getService(
                     this, 1,

@@ -139,6 +139,7 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.MainActivity
 import com.invictus.xmd.ui.components.WideDialogProperties
+import com.invictus.xmd.ui.components.compactDialogWidth
 import com.invictus.xmd.ui.components.wideDialogWidth
 import com.invictus.xmd.utils.ErrorUtils
 import com.invictus.xmd.utils.formatRemainingTimeChrome
@@ -546,15 +547,16 @@ fun DownloadsScreen(
     deleteTargets?.let { targets ->
         val isSingle = targets.size == 1
         val firstItem = targets.first()
-        var deleteFilesFromDevice by remember(targets) { mutableStateOf(false) }
+        var deleteFilesFromDevice by remember(targets) { mutableStateOf(true) }
         val hasAnyFiles = remember(targets) {
             targets.any { !it.filePath.isNullOrBlank() }
         }
 
         XmdAlertDialog(
             onDismissRequest = { deleteTargets = null },
-            modifier = Modifier.wideDialogWidth(),
+            modifier = Modifier.compactDialogWidth(),
             properties = WideDialogProperties,
+            compact = true,
             title = {
                 Text(
                     if (isSingle) stringResource(R.string.delete_download_title)
@@ -623,8 +625,9 @@ fun DownloadsScreen(
     pendingCancelItem?.let { item ->
         XmdAlertDialog(
             onDismissRequest = { pendingCancelItem = null },
-            modifier = Modifier.wideDialogWidth(),
+            modifier = Modifier.compactDialogWidth(),
             properties = WideDialogProperties,
+            compact = true,
             title = { Text(stringResource(R.string.cancel_download_title)) },
             text = {
                 Column(
@@ -674,8 +677,9 @@ fun DownloadsScreen(
         }
         XmdAlertDialog(
             onDismissRequest = { showCancelAllDialog = false },
-            modifier = Modifier.wideDialogWidth(),
+            modifier = Modifier.compactDialogWidth(),
             properties = WideDialogProperties,
+            compact = true,
             title = { Text(stringResource(R.string.cancel_downloads_title)) },
             text = {
                 Text(

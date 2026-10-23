@@ -322,8 +322,9 @@ internal fun AppMessageDialog(
 ) {
     XmdAlertDialog(
         onDismissRequest = onDismissRequest,
-        modifier = Modifier.wideDialogWidth(),
+        modifier = Modifier.compactDialogWidth(),
         properties = WideDialogProperties,
+        compact = true,
         title = { Text(state.title) },
         text = { Text(state.message) },
         confirmButton = {
@@ -370,8 +371,9 @@ internal fun ExpiredLinkDialog(
 ) {
     XmdAlertDialog(
         onDismissRequest = onCancel,
-        modifier = Modifier.wideDialogWidth(),
+        modifier = Modifier.compactDialogWidth(),
         properties = WideDialogProperties,
+        compact = true,
         title = { Text(state.title) },
         text = { Text(state.message) },
         confirmButton = {
