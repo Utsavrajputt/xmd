@@ -256,7 +256,8 @@ private fun DataLimitScopeRow(
             ) {
                 Text(dataLimitScopeLabel(scope), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenu(
+ shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 Settings.DataLimitScope.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(dataLimitScopeLabel(option)) },

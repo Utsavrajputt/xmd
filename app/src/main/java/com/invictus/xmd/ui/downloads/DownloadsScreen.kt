@@ -420,6 +420,7 @@ fun DownloadsScreen(
                             )
                         }
                         DropdownMenu(
+ shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                             expanded = overflowMenuExpanded,
                             onDismissRequest = { overflowMenuExpanded = false },
                         ) {
@@ -913,7 +914,7 @@ fun QueueItemRow(
                 )
                 .defaultMinSize(minHeight = 72.dp),
             colors = CardDefaults.cardColors(containerColor = cardContainerColor),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             border = cardBorder,
         ) {

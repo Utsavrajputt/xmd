@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.ui.draw.clip
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -246,6 +247,7 @@ class SettingsActivity : ComponentActivity() {
                             .fillMaxHeight(),
                     ) {
                         TopAppBar(
+ modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
                             title = {
                                 Text(
                                     text = stringResource(R.string.settings_title),
@@ -297,6 +299,7 @@ class SettingsActivity : ComponentActivity() {
                     ) {
                         val detailTitleRes = routeTitles[selectedRoute] ?: R.string.settings_title
                         TopAppBar(
+ modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
                             title = {
                                 Text(
                                     text = stringResource(detailTitleRes),
@@ -345,6 +348,7 @@ class SettingsActivity : ComponentActivity() {
                         .navigationBarsPadding(),
                 ) {
                     TopAppBar(
+ modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
                         title = { Text(stringResource(titleRes)) },
                         navigationIcon = {
                             IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {

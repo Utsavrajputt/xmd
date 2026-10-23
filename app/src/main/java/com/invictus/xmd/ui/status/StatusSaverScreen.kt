@@ -105,6 +105,7 @@ internal fun StatusSaverScreen(
         topBar = {
             if (selecting) {
                 TopAppBar(
+ modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
                     title = {
                         Text(
                             text = stringResource(R.string.status_selected_count, viewModel.selected.size),
@@ -143,6 +144,7 @@ internal fun StatusSaverScreen(
                 )
             } else {
                 TopAppBar(
+ modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
                     title = {
                         Text(
                             text = stringResource(R.string.status_saver_title),

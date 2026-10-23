@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.BorderStroke
@@ -24,7 +25,10 @@ import androidx.compose.material3.HorizontalDivider
 import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,9 +64,9 @@ fun SettingsSectionCard(
     val isAmoled = MaterialTheme.colorScheme.background == Color.Black
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         border = if (isAmoled) BorderStroke(1.dp, Color(0xFF1F1F1F)) else null,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(28.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
@@ -78,8 +82,8 @@ fun SettingsSectionCard(
 @Composable
 fun SettingsDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
-        modifier = modifier.padding(horizontal = 16.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        modifier = modifier.padding(horizontal = 20.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
     )
 }
 
@@ -92,37 +96,15 @@ fun SettingsSectionHeader(
     title: String,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Row(
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                modifier = Modifier
-                    .width(42.dp)
-                    .height(4.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(2.dp),
-            ) {}
-            Spacer(modifier = Modifier.width(8.dp))
-            HorizontalDivider(
-                modifier = Modifier.weight(1f),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-            )
-        }
-    }
+            .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 10.dp),
+    )
 }
 
 /**
@@ -169,6 +151,17 @@ fun SwitchSettingRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
+            thumbContent = if (checked) {
+                {
+                    Icon(
+                        imageVector = Icons.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                    )
+                }
+            } else {
+                null
+            },
         )
     }
 }
@@ -275,11 +268,12 @@ fun CategoryRow(
     extraContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val rowShape = when {
-        isFirst && isLast -> RoundedCornerShape(20.dp)
-        isFirst -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-        isLast -> RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+        isFirst && isLast -> RoundedCornerShape(28.dp)
+        isFirst -> RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        isLast -> RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
         else -> androidx.compose.ui.graphics.RectangleShape
     }
+    val badgeShape = MaterialShapes.Cookie9Sided.toShape()
     val rowBgColor = if (isSelected) {
         MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
     } else {
@@ -300,7 +294,7 @@ fun CategoryRow(
                 .background(
                     if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
                     else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    RoundedCornerShape(14.dp),
+                    badgeShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {

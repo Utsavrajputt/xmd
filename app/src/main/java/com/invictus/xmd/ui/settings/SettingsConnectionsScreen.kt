@@ -236,6 +236,7 @@ fun SettingsConnectionsScreen(
                             )
                         }
                         DropdownMenu(
+ shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                             expanded = unitMenuOpen,
                             onDismissRequest = { unitMenuOpen = false },
                         ) {

@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.toShape
@@ -78,7 +80,7 @@ private fun hostOf(url: String): String =
 
 /**
  * One row in a saved-pages list (Bookmarks or History): a rounded tonal card
- * (shape depends on its position in the group), icon badge, title + host,
+ (Material 3 Expressive SegmentedListItem, shape depends on its position in the group), icon badge, title + host,
  * delete button, and swipe-to-delete.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,9 +92,11 @@ fun <T> SavedPageRow(
     icon: AppIcon,
     onTap: (T) -> Unit,
     onDelete: (T) -> Unit,
-    shape: RoundedCornerShape = RoundedCornerShape(GroupOuterCorner),
+    index: Int = 0,
+    count: Int = 1,
     modifier: Modifier = Modifier,
 ) {
+    val shape = groupedRowShape(index, count)
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) {
@@ -127,16 +131,14 @@ fun <T> SavedPageRow(
             }
         },
     ) {
-        Surface(
+        SegmentedListItem(
             onClick = { onTap(entry) },
-            shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+            colors = ListItemDefaults.segmentedColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-            ) {
+            leadingContent = {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -150,36 +152,29 @@ fun <T> SavedPageRow(
                         modifier = Modifier.size(22.dp),
                     )
                 }
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 14.dp, end = 4.dp),
-                ) {
-                    Text(
-                        text = title.ifBlank { hostOf(url) },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = hostOf(url),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onDelete(entry) }) {
+            },
+            supportingContent = {
+                Text(
+                    text = hostOf(url),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            trailingContent = {
+                IconButton(onClick = { onDelete(entry) }) {
                     Icon(
                         imageVector = Icons.Delete,
                         contentDescription = stringResource(R.string.action_delete),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
+            },
+        ) {
+            Text(
+                text = title.ifBlank { hostOf(url) },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -339,7 +334,8 @@ fun <T> SavedPagesScreen(
                         icon = rowIcon,
                         onTap = onTap,
                         onDelete = onDelete,
-                        shape = groupedRowShape(index, entries.size),
+                        index = index,
+                        count = entries.size,
                         modifier = Modifier.animateItem(),
                     )
                 }

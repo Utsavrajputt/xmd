@@ -239,7 +239,8 @@ internal fun BrowserOverflowMenu(
     onCopyDebugLog: () -> Unit,
     onAction: (BrowserMenuAction) -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    DropdownMenu(
+ shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = expanded, onDismissRequest = onDismiss) {
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_refresh),
             icon = Icons.Refresh,

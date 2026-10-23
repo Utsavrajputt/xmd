@@ -1,7 +1,7 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
 }
 
@@ -151,79 +151,78 @@ kotlin {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("androidx.lifecycle:lifecycle-service:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    implementation(libs.okhttp)
     // Document-start JS injection (popup guard + YouTube ad pruning in the in-app browser).
-    implementation("androidx.webkit:webkit:1.12.1")
-    implementation("org.jsoup:jsoup:1.17.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation(libs.androidx.webkit)
+    implementation(libs.jsoup)
+    implementation(libs.kotlinx.coroutines.android)
 
     // Room: persists the download queue to disk so it survives app/process
     // restart (previously QueueRepository was in-memory only -- see
     // core/db/AppDatabase.kt).
-    val roomVersion = "2.8.4"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;
     // both native .so variants are declared here -- the splits.abi block
     // above (not ndk.abiFilters, which can't coexist with it) prunes
     // whichever ABI a given output doesn't need.
-    implementation("org.libtorrent4j:libtorrent4j:2.1.0-38")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-38")
-    implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-38")
+    implementation(libs.libtorrent4j)
+    implementation(libs.libtorrent4j.android.arm64)
+    implementation(libs.libtorrent4j.android.arm)
 
     // YouTube (and future yt-dlp-supported sites) downloading -- Android
     // wrapper around the actual yt-dlp + ffmpeg binaries, on Maven Central.
     // "full"-flavor only: see the flavor comment above for why this can't
     // be a runtime download and has to be an opt-in separate APK instead.
-    "fullImplementation"("io.github.junkfood02.youtubedl-android:library:0.18.1")
-    "fullImplementation"("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+    "fullImplementation"(libs.youtubedl.library)
+    "fullImplementation"(libs.youtubedl.ffmpeg)
 
     // Jetpack Compose -- BOM pins every androidx.compose.* artifact below to
     // mutually-compatible versions, so only the BOM line needs bumping later.
     // The app UI is Compose-first; AndroidView remains only for WebView.
-    val composeBom = platform("androidx.compose:compose-bom:2025.10.01")
+    val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    // Material 3 Expressive pre-release (1.5.0-beta02 -- newer than the last 1.5.0-alpha29). Overrides the
-    // 1.4.0 the BOM maps to; Gradle also lifts compose ui/foundation to what this release needs.
-    implementation("androidx.compose.material3:material3:1.5.0-beta02")
-    implementation("com.composables:icons-material-symbols-cmp:2.2.1")
-    implementation("com.composables:icons-material-symbols-rounded-filled-cmp:2.2.1")
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    // Material 3 Expressive pre-release (see libs.versions.toml) -- overrides the 1.4.0 the BOM maps to;
+    // Gradle also lifts compose ui/foundation to what it needs.
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.icons.material.symbols)
+    implementation(libs.icons.material.symbols.rounded.filled)
 
     // Activity/Fragment <-> Compose interop (setContent {}, ComposeView) and
     // typed navigation between Compose screens, replacing the Fragment-based
     // nav graph as each screen migrates.
-    implementation("androidx.activity:activity-compose:1.9.2")
-    implementation("androidx.fragment:fragment-ktx:1.8.3")
-    implementation("androidx.navigation:navigation-compose:2.8.0")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.navigation.compose)
 
     // Lets ViewModels expose StateFlow/collectAsStateWithLifecycle() straight
     // into composables -- QueueRepository, BookmarkRepository etc. already
     // expose Flow, so this is the natural consumption point on the UI side.
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.4")
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Preview/inspection tooling for Android Studio's Compose preview pane
     // (debug builds only -- adds nothing to release APK size).
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.leakcanary)
 
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
 }
 
 // ---------------- Git helpers ----------------

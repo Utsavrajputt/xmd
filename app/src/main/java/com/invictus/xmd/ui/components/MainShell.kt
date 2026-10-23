@@ -304,6 +304,7 @@ private fun DownloadsTopBar(
                     }
 
                     DropdownMenu(
+ shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                         expanded = showDropdown,
                         onDismissRequest = { showDropdown = false },
                     ) {
