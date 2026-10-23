@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.components
 
 import androidx.compose.animation.AnimatedContent
@@ -263,7 +264,7 @@ private fun DownloadsTopBar(
 
         TopAppBar(
             navigationIcon = {
-                IconButton(onClick = downloadsSelectionState.onClose) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = downloadsSelectionState.onClose) {
                     Icon(
                         imageVector = Icons.Close,
                         contentDescription = stringResource(R.string.action_cancel),
@@ -327,7 +328,7 @@ private fun DownloadsTopBar(
             },
             actions = {
                 if (downloadsSelectionState.canPause) {
-                    IconButton(onClick = downloadsSelectionState.onPause) {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = downloadsSelectionState.onPause) {
                         Icon(
                             imageVector = Icons.Pause,
                             contentDescription = stringResource(R.string.action_pause),
@@ -336,7 +337,7 @@ private fun DownloadsTopBar(
                     }
                 }
                 if (downloadsSelectionState.canStart) {
-                    IconButton(onClick = downloadsSelectionState.onStart) {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = downloadsSelectionState.onStart) {
                         Icon(
                             imageVector = Icons.Play,
                             contentDescription = stringResource(R.string.action_resume),
@@ -364,7 +365,7 @@ private fun DownloadsTopBar(
     if (searchActive) {
         TopAppBar(
             navigationIcon = {
-                IconButton(onClick = { onSearchActiveChange(false) }) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onSearchActiveChange(false) }) {
                     Icon(
                         imageVector = Icons.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
@@ -391,7 +392,7 @@ private fun DownloadsTopBar(
             },
             actions = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onSearchQueryChange("") }) {
                         Icon(
                             imageVector = Icons.Close,
                             contentDescription = stringResource(R.string.action_clear),
@@ -444,20 +445,20 @@ private fun DownloadsTopBar(
         },
         actions = {
             if (destination == MainDestination.Downloads) {
-                IconButton(onClick = onOpenStatusSaver) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onOpenStatusSaver) {
                     Icon(
                         imageVector = Icons.StatusSaver,
                         contentDescription = stringResource(R.string.status_saver_title),
                     )
                 }
-                IconButton(onClick = { onSearchActiveChange(true) }) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onSearchActiveChange(true) }) {
                     Icon(
                         imageVector = Icons.Search,
                         contentDescription = stringResource(R.string.action_search),
                     )
                 }
             }
-            IconButton(onClick = onOpenSettings) {
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onOpenSettings) {
                 Icon(
                     imageVector = Icons.Settings,
                     contentDescription = stringResource(R.string.menu_settings),
@@ -615,7 +616,7 @@ private fun PillActionButton(
     size: Dp = 38.dp,
     iconSize: Dp = 20.dp,
 ) {
-    IconButton(
+    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
         onClick = onClick,
         modifier = modifier.size(size),
     ) {

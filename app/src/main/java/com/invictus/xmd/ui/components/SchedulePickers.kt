@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.components
 
 import android.icu.text.DateFormatSymbols
@@ -156,7 +157,7 @@ fun TimeRangePickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -194,12 +195,12 @@ fun TimeRangePickerDialog(
 
             Spacer(modifier = Modifier.size(20.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
                 Spacer(modifier = Modifier.weight(1f))
                 if (!showingEnd) {
-                    Button(onClick = { showingEnd = true }) { Text(stringResource(R.string.action_next)) }
+                    Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { showingEnd = true }) { Text(stringResource(R.string.action_next)) }
                 } else {
-                    Button(
+                    Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                         onClick = {
                             val start = startState.hour * 60 + startState.minute
                             val end = endState.hour * 60 + endState.minute
@@ -240,7 +241,7 @@ fun OneTimeStartPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(32.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -267,9 +268,9 @@ fun OneTimeStartPickerDialog(
 
             Spacer(modifier = Modifier.size(20.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
                 Spacer(modifier = Modifier.weight(1f))
-                Button(onClick = {
+                Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = {
                     val cal = Calendar.getInstance().apply {
                         set(Calendar.HOUR_OF_DAY, state.hour)
                         set(Calendar.MINUTE, state.minute)

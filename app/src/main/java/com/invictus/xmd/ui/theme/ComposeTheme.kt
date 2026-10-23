@@ -1,6 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.theme
 
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
@@ -74,8 +76,9 @@ fun XmdTheme(
         LocalThemeTransitionState provides transitionState,
     ) {
         ThemeTransitionOverlay(state = transitionState) {
-            MaterialTheme(
+            MaterialExpressiveTheme(
                 colorScheme = colorScheme,
+                motionScheme = MotionScheme.expressive(),
                 typography = ExpressiveTypography,
                 shapes = ExpressiveShapes,
                 content = content,

@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import android.net.Uri
@@ -108,7 +109,7 @@ internal fun InAppVideoPlayerDialog(
                         color = Color.White,
                         textAlign = TextAlign.Center,
                     )
-                    Button(
+                    Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                         onClick = { onOpenExternal(); onDismiss() },
                         modifier = Modifier.padding(top = 16.dp),
                     ) {
@@ -117,7 +118,7 @@ internal fun InAppVideoPlayerDialog(
                 }
             }
 
-            IconButton(
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopStart)

@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.foundation.layout.Arrangement
@@ -65,7 +66,7 @@ private fun BarButton(
     enabled: Boolean = true,
     iconSize: androidx.compose.ui.unit.Dp = 24.dp,
 ) {
-    IconButton(onClick = onClick, enabled = enabled) {
+    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onClick, enabled = enabled) {
         Icon(
             imageVector = icon,
             contentDescription = stringResource(label),

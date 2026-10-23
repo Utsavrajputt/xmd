@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.shortcuts
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,7 +24,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.invictus.xmd.ui.icons.Icon
@@ -487,7 +488,7 @@ private fun AddEditShortcutDialog(
         }
     }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -545,7 +546,7 @@ private fun AddEditShortcutDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = {
                 if (url.trim().isEmpty()) return@TextButton
                 onSave(title.trim(), url.trim())
             }) {
@@ -553,7 +554,7 @@ private fun AddEditShortcutDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
     )
 }
@@ -568,12 +569,10 @@ private fun ShortcutOptionsDialog(
     val host = remember(shortcut.url) {
         (runCatching { java.net.URI(shortcut.url).host }.getOrNull() ?: shortcut.url).removePrefix("www.")
     }
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -625,7 +624,7 @@ private fun ShortcutOptionsDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
     )
 }

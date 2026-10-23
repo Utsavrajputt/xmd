@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import android.graphics.Bitmap
@@ -42,7 +43,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -204,7 +205,7 @@ fun TabsListOverlay(
                     modifier = Modifier.weight(1f),
                 )
                 if (tabs.size > 1 || (tabs.size == 1 && tabs[0].url != null)) {
-                    IconButton(
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                         onClick = { showConfirmCloseAll = true }
                     ) {
                         Icon(
@@ -214,7 +215,7 @@ fun TabsListOverlay(
                         )
                     }
                 }
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = {
                         val newMode = !isGridMode
                         isGridMode = newMode
@@ -228,7 +229,7 @@ fun TabsListOverlay(
                     )
                 }
                 if (isGridMode) {
-                    IconButton(
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                         onClick = {
                             closeWith { onAddNew() }
                         }
@@ -271,7 +272,7 @@ fun TabsListOverlay(
     }
 
     if (showConfirmCloseAll) {
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { showConfirmCloseAll = false },
             title = {
                 Text(
@@ -286,7 +287,7 @@ fun TabsListOverlay(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         showConfirmCloseAll = false
                         closeWith { onCloseAll() }
@@ -300,7 +301,7 @@ fun TabsListOverlay(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmCloseAll = false }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { showConfirmCloseAll = false }) {
                     Text(text = stringResource(R.string.action_cancel))
                 }
             },
@@ -444,7 +445,7 @@ private fun TabGridCard(
                         .weight(1f)
                         .padding(horizontal = 6.dp),
                 )
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = onCloseClick,
                     modifier = Modifier.size(28.dp),
                 ) {
@@ -541,7 +542,7 @@ private fun TabsListView(
             }
         }
         // Via-style: one centered "+" right under the last tab.
-        IconButton(onClick = onAddNew) {
+        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onAddNew) {
             Icon(
                 imageVector = Icons.Add,
                 contentDescription = stringResource(R.string.action_new_tab),
@@ -640,7 +641,7 @@ private fun TabRow(
                         .weight(1f)
                         .padding(start = 12.dp),
                 )
-                IconButton(onClick = onCloseClick) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCloseClick) {
                     Icon(
                         imageVector = Icons.Close,
                         contentDescription = stringResource(R.string.action_dismiss),

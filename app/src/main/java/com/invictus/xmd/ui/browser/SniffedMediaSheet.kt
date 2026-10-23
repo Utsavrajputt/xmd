@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.foundation.layout.Arrangement
@@ -152,7 +153,7 @@ private fun SniffedMediaRow(
             }
         }
         if (onPlayClick != null) {
-            IconButton(onClick = onPlayClick) {
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onPlayClick) {
                 Icon(
                     imageVector = Icons.Play,
                     contentDescription = stringResource(R.string.download_dialog_play_external),
@@ -161,7 +162,7 @@ private fun SniffedMediaRow(
                 )
             }
         }
-        IconButton(onClick = onCopyClick) {
+        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCopyClick) {
             Icon(
                 imageVector = Icons.Link,
                 contentDescription = stringResource(R.string.torrent_dialog_copy_link),

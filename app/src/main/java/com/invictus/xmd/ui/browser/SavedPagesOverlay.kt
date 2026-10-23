@@ -1,7 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import android.widget.Toast
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -117,13 +118,13 @@ private fun <T> SavedPagesListOverlay(
     )
 
     if (confirmingClearAll) {
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { confirmingClearAll = false },
             modifier = Modifier.wideDialogWidth(),
             properties = WideDialogProperties,
             title = { Text(stringResource(titleRes)) },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         confirmingClearAll = false
                         onClearAll()
@@ -134,7 +135,7 @@ private fun <T> SavedPagesListOverlay(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmingClearAll = false }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { confirmingClearAll = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             },

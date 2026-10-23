@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.clickable
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -46,7 +47,7 @@ fun SearchEngineDialog(
     var customUrl by remember { mutableStateOf(currentCustomUrl) }
     var customName by remember { mutableStateOf(currentCustomName) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -134,7 +135,7 @@ fun SearchEngineDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                 onClick = {
                     if (selectedEngine == Settings.SearchEngine.CUSTOM) {
                         val trimmedUrl = customUrl.trim()
@@ -152,7 +153,7 @@ fun SearchEngineDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

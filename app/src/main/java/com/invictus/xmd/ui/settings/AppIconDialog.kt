@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import android.widget.ImageView
@@ -129,10 +130,10 @@ internal fun AppIconDialog(onDismiss: () -> Unit, onApplied: () -> Unit = {}) {
                         .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.app_icon_close))
                     }
-                    Button(
+                    Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                         onClick = {
                             try {
                                 LauncherIconManager.select(context, pending)

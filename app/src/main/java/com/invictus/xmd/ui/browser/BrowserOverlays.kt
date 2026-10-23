@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.foundation.background
@@ -11,7 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
@@ -140,7 +141,7 @@ fun FindInPageBar(
                 fontSize = 13.sp,
                 modifier = Modifier.padding(end = 4.dp),
             )
-            IconButton(onClick = onPrev, modifier = Modifier.size(40.dp)) {
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onPrev, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.ArrowUp,
                     contentDescription = stringResource(R.string.find_in_page_prev),
@@ -148,7 +149,7 @@ fun FindInPageBar(
                     modifier = Modifier.size(22.dp),
                 )
             }
-            IconButton(onClick = onNext, modifier = Modifier.size(40.dp)) {
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onNext, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.ArrowDown,
                     contentDescription = stringResource(R.string.find_in_page_next),
@@ -156,7 +157,7 @@ fun FindInPageBar(
                     modifier = Modifier.size(22.dp),
                 )
             }
-            IconButton(onClick = onClose, modifier = Modifier.size(40.dp)) {
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onClose, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Close,
                     contentDescription = stringResource(R.string.action_dismiss),
@@ -197,6 +198,6 @@ fun NavLoadingVeil(visible: Boolean) {
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        LoadingIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }

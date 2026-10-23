@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.layout.Column
@@ -103,7 +104,7 @@ fun SettingsRootScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
-                            IconButton(
+                            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                                 onClick = onDismissBatteryWarning,
                                 modifier = Modifier.size(24.dp),
                             ) {

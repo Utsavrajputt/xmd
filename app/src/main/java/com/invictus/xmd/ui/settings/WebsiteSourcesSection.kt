@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import android.text.format.DateUtils
@@ -182,7 +183,7 @@ private fun ActionButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    FilledTonalButton(
+    FilledTonalButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.height(48.dp),

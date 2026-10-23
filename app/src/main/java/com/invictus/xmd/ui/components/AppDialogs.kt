@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.components
 
 import androidx.compose.foundation.BorderStroke
@@ -16,6 +17,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +70,58 @@ internal fun Modifier.wideDialogWidth(): Modifier {
     return this
         .width(targetWidth)
         .heightIn(max = maxHeight)
+}
+
+
+/**
+ * App-wide dialog container with the Material 3 Expressive treatment: extra-large
+ * 32dp corners, tonal surface-container-high surface (no elevation tint), centered
+ * icon/title support and a springy scale-in. Every dialog in the app goes through this
+ * so they all look and feel the same; callers just pass the usual AlertDialog slots.
+ */
+@Composable
+internal fun XmdAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: @Composable (() -> Unit)? = null,
+    icon: @Composable (() -> Unit)? = null,
+    title: @Composable (() -> Unit)? = null,
+    text: @Composable (() -> Unit)? = null,
+    properties: DialogProperties = DialogProperties(),
+) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val scale by animateFloatAsState(
+        targetValue = if (shown) 1f else 0.86f,
+        animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMediumLow),
+        label = "dialogScale",
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "dialogAlpha",
+    )
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = confirmButton,
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            this.alpha = alpha
+        },
+        dismissButton = dismissButton,
+        icon = icon,
+        title = title,
+        text = text,
+        shape = RoundedCornerShape(32.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        iconContentColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = 0.dp,
+        properties = properties,
+    )
 }
 
 /**
@@ -149,20 +212,20 @@ internal fun AppMessageDialog(
     onDismissRequest: () -> Unit,
     onDismissAction: () -> Unit,
 ) {
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismissRequest,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
         title = { Text(state.title) },
         text = { Text(state.message) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onConfirm) {
                 Text(state.confirmLabel)
             }
         },
         dismissButton = state.dismissLabel?.let { label ->
             {
-                TextButton(onClick = onDismissAction) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismissAction) {
                     Text(label)
                 }
             }
@@ -197,26 +260,26 @@ internal fun ExpiredLinkDialog(
     onFetchFromBrowser: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onCancel,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
         title = { Text(state.title) },
         text = { Text(state.message) },
         confirmButton = {
-            Row {
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                 if (state.fetchFromBrowserLabel != null) {
-                    TextButton(onClick = onFetchFromBrowser) {
+                    FilledTonalButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onFetchFromBrowser) {
                         Text(state.fetchFromBrowserLabel)
                     }
                 }
-                TextButton(onClick = onRetry) {
+                Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onRetry) {
                     Text(state.retryLabel)
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onCancel) {
                 Text(state.cancelLabel)
             }
         },
@@ -231,7 +294,7 @@ internal fun AppChoiceDialog(
     onChoice: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -244,18 +307,34 @@ internal fun AppChoiceDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 choices.forEachIndexed { index, choice ->
-                    TextButton(
+                    val rowShape = RoundedCornerShape(
+                        topStart = if (index == 0) 20.dp else 6.dp,
+                        topEnd = if (index == 0) 20.dp else 6.dp,
+                        bottomStart = if (index == choices.lastIndex) 20.dp else 6.dp,
+                        bottomEnd = if (index == choices.lastIndex) 20.dp else 6.dp,
+                    )
+                    Surface(
                         onClick = { onChoice(index) },
-                        modifier = Modifier.fillMaxWidth(),
+                        shape = rowShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = if (index == choices.lastIndex) 0.dp else 3.dp),
                     ) {
-                        Text(choice, modifier = Modifier.fillMaxWidth())
+                        Text(
+                            text = choice,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                        )
                     }
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(dismissLabel)
             }
         },

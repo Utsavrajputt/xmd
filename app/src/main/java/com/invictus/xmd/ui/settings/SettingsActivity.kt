@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import android.content.Context
@@ -253,7 +254,7 @@ class SettingsActivity : ComponentActivity() {
                                 )
                             },
                             navigationIcon = {
-                                IconButton(onClick = onBack) {
+                                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
                                     Icon(
                                         imageVector = Icons.ArrowBack,
                                         contentDescription = stringResource(R.string.action_back),
@@ -346,7 +347,7 @@ class SettingsActivity : ComponentActivity() {
                     TopAppBar(
                         title = { Text(stringResource(titleRes)) },
                         navigationIcon = {
-                            IconButton(onClick = onBack) {
+                            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
                                 Icon(
                                     imageVector = Icons.ArrowBack,
                                     contentDescription = stringResource(R.string.action_back),

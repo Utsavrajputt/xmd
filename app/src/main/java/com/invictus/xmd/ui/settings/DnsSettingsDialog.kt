@@ -1,10 +1,11 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -59,7 +60,7 @@ fun DnsSettingsDialog(
         Settings.DnsMode.CUSTOM to Pair(stringResource(R.string.dns_mode_custom), null),
     )
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -113,7 +114,7 @@ fun DnsSettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = {
                 if (selectedMode == Settings.DnsMode.CUSTOM) {
                     val url = customUrl.trim()
                     if (url.isEmpty() || !(url.startsWith("http://") || url.startsWith("https://"))) {
@@ -129,7 +130,7 @@ fun DnsSettingsDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

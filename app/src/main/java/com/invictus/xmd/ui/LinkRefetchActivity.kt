@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui
 
 import android.annotation.SuppressLint
@@ -135,7 +136,7 @@ class LinkRefetchActivity : ComponentActivity() {
                 TopAppBar(
                     title = { Text(stringResource(R.string.link_refetch_title)) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.ArrowBack,
                                 contentDescription = stringResource(android.R.string.cancel),

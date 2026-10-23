@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,9 +49,9 @@ fun YtDlpInstallPromptDialog(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.wideDialogWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 0.dp,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -71,20 +72,20 @@ fun YtDlpInstallPromptDialog(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    TextButton(onClick = onConfigure) {
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onConfigure) {
                         Text(
                             stringResource(R.string.generic_configure),
                             fontWeight = FontWeight.Medium,
                         )
                     }
                     Row {
-                        TextButton(onClick = onDismiss) {
+                        TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                             Text(
                                 stringResource(android.R.string.cancel),
                                 fontWeight = FontWeight.Medium,
                             )
                         }
-                        TextButton(onClick = onInstall) {
+                        TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onInstall) {
                             Text(
                                 stringResource(R.string.settings_ytdlp_install),
                                 fontWeight = FontWeight.Bold,
@@ -128,9 +129,9 @@ fun YtDlpInstallProgressDialog(
     ) {
         Surface(
             modifier = Modifier.wideDialogWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = AlertDialogDefaults.containerColor,
-            tonalElevation = AlertDialogDefaults.TonalElevation,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 0.dp,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -144,7 +145,7 @@ fun YtDlpInstallProgressDialog(
                 )
 
                 if (error == null) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
                     Text(
                         stringResource(R.string.ytdlp_install_progress_message),
                         style = MaterialTheme.typography.bodySmall,
@@ -158,7 +159,7 @@ fun YtDlpInstallProgressDialog(
                     )
                 }
 
-                TextButton(onClick = onCancel) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onCancel) {
                     Text(
                         stringResource(android.R.string.cancel),
                         fontWeight = FontWeight.Medium,

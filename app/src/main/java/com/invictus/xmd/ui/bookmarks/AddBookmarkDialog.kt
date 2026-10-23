@@ -1,10 +1,11 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.bookmarks
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -50,7 +51,7 @@ fun AddBookmarkDialog(
     var urlText by remember { mutableStateOf(initialUrl.orEmpty()) }
     var alsoAddShortcut by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -88,12 +89,12 @@ fun AddBookmarkDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(urlText, titleText, alsoAddShortcut) }) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { onConfirm(urlText, titleText, alsoAddShortcut) }) {
                 Text(stringResource(R.string.action_add))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

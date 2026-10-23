@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.update
 
 import androidx.compose.foundation.background
@@ -19,7 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -125,16 +126,16 @@ fun UpdateSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (!isDownloading && !isInstallReady) {
-                    TextButton(onClick = onIgnore) {
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onIgnore) {
                         Text(stringResource(R.string.update_sheet_ignore))
                     }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 if (!isDownloading) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                         Text(stringResource(R.string.update_sheet_cancel))
                     }
-                    Button(onClick = onAction) {
+                    Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onAction) {
                         Text(
                             stringResource(
                                 when {
@@ -295,7 +296,7 @@ private fun DownloadProgressSection(progress: Float, errorMessage: String? = nul
         }
         Spacer(modifier = Modifier.height(8.dp))
         if (progress >= 0f) {
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { progress / 100f },
                 modifier = Modifier.fillMaxWidth(),
                 color = accent,
@@ -303,7 +304,7 @@ private fun DownloadProgressSection(progress: Float, errorMessage: String? = nul
             )
         } else {
             // Server sent no Content-Length: indeterminate instead of a stuck bar.
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 modifier = Modifier.fillMaxWidth(),
                 color = accent,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,

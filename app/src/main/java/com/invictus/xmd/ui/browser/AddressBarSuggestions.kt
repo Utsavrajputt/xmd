@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.foundation.background
@@ -174,7 +175,7 @@ private fun SuggestionRow(
         }
         when (item) {
             is Suggestion.Search -> {
-                IconButton(onClick = { onAddTap(item.text) }) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onAddTap(item.text) }) {
                     Icon(
                         imageVector = Icons.Add,
                         contentDescription = stringResource(R.string.action_add_shortcut),
@@ -183,7 +184,7 @@ private fun SuggestionRow(
                 }
             }
             is Suggestion.CurrentPage -> {
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = { onCopyTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {
@@ -194,7 +195,7 @@ private fun SuggestionRow(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = { onShareTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {
@@ -205,7 +206,7 @@ private fun SuggestionRow(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = { onEditTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {

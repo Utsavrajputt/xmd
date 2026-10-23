@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import android.graphics.Bitmap
@@ -114,7 +115,7 @@ internal fun AboutContributorsSection(
                         }
                     }
                     SettingsDivider()
-                    TextButton(
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                         onClick = { runCatching { uriHandler.openUri(viewAllUrl) } },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -232,8 +233,8 @@ private fun ContributorsError(onRetry: () -> Unit, onViewAll: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row {
-            TextButton(onClick = onRetry) { Text(stringResource(R.string.about_contributors_retry)) }
-            TextButton(onClick = onViewAll) { Text(stringResource(R.string.about_contributors_view_all)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onRetry) { Text(stringResource(R.string.about_contributors_retry)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onViewAll) { Text(stringResource(R.string.about_contributors_view_all)) }
         }
     }
 }

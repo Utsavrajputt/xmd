@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.status
 
 import android.graphics.Bitmap
@@ -29,7 +30,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -111,7 +112,7 @@ internal fun StatusSaverScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = viewModel::clearSelection) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = viewModel::clearSelection) {
                             Icon(
                                 imageVector = Icons.Close,
                                 contentDescription = stringResource(R.string.status_close),
@@ -119,10 +120,10 @@ internal fun StatusSaverScreen(
                         }
                     },
                     actions = {
-                        TextButton(onClick = viewModel::selectAll) {
+                        TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = viewModel::selectAll) {
                             Text(stringResource(R.string.status_select_all))
                         }
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = {
                                 val picked = items.filter { it.path in viewModel.selected }
                                 if (isRecentTab) viewModel.save(picked) else deleteTargets = picked
@@ -149,7 +150,7 @@ internal fun StatusSaverScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
                             Icon(
                                 imageVector = Icons.ArrowBack,
                                 contentDescription = stringResource(R.string.action_back),
@@ -157,7 +158,7 @@ internal fun StatusSaverScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = viewModel::refresh) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = viewModel::refresh) {
                             Icon(
                                 imageVector = Icons.Refresh,
                                 contentDescription = stringResource(R.string.status_refresh),
@@ -293,12 +294,12 @@ internal fun StatusSaverScreen(
     }
 
     deleteTargets?.let { targets ->
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { deleteTargets = null },
             title = { Text(stringResource(R.string.status_delete_title)) },
             text = { Text(stringResource(R.string.status_delete_message, targets.size)) },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         viewModel.delete(targets)
                         deleteTargets = null
@@ -307,7 +308,7 @@ internal fun StatusSaverScreen(
                 ) { Text(stringResource(R.string.status_action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTargets = null }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { deleteTargets = null }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             },
@@ -469,7 +470,7 @@ private fun StatusPreviewDialog(
                 }
             }
 
-            IconButton(
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -492,7 +493,7 @@ private fun StatusPreviewDialog(
                         .padding(bottom = 24.dp),
                 ) {
                     if (!isRecentTab) {
-                        Button(onClick = { onDelete(current) }) {
+                        Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { onDelete(current) }) {
                             Icon(
                                 imageVector = Icons.Delete,
                                 contentDescription = null,
@@ -504,7 +505,7 @@ private fun StatusPreviewDialog(
                             )
                         }
                     } else if (current.name in savedNames) {
-                        FilledTonalButton(onClick = {}, enabled = false) {
+                        FilledTonalButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = {}, enabled = false) {
                             Icon(
                                 imageVector = Icons.Check,
                                 contentDescription = null,
@@ -516,7 +517,7 @@ private fun StatusPreviewDialog(
                             )
                         }
                     } else {
-                        Button(onClick = { onSave(current) }) {
+                        Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { onSave(current) }) {
                             Icon(
                                 imageVector = Icons.Download,
                                 contentDescription = null,
@@ -609,7 +610,7 @@ private fun AccessRequired(onGrant: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(vertical = 12.dp),
         )
-        Button(onClick = onGrant) {
+        Button(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onGrant) {
             Text(stringResource(R.string.status_permission_button))
         }
     }

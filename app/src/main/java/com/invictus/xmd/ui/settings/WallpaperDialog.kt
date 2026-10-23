@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import android.graphics.Bitmap
@@ -170,7 +171,7 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(enabled = !isSaving, onClick = onDismiss) {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), enabled = !isSaving, onClick = onDismiss) {
                         Icon(Icons.Close, contentDescription = stringResource(R.string.wallpaper_cancel))
                     }
                     Text(
@@ -179,7 +180,7 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f).padding(start = 4.dp),
                     )
-                    TextButton(
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                         enabled = (bitmap != null || isNoneSelected) && !isSaving,
                         onClick = ::save,
                     ) { Text(stringResource(R.string.wallpaper_save)) }
@@ -206,7 +207,7 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = { previewLocked = !previewLocked },
                             modifier = Modifier.background(
                                 if (previewLocked) MaterialTheme.colorScheme.primaryContainer
@@ -401,7 +402,7 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(
+                        OutlinedButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                             onClick = {
                                 resetPosition()
                                 scaleMode = WallpaperScaleMode.Fit

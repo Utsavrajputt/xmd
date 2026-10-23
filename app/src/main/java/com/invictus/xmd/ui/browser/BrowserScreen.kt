@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import android.view.ViewGroup
@@ -15,7 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -340,7 +341,7 @@ internal fun ClearBrowsingDataDialog(
     var clearCookies by remember { mutableStateOf(true) }
     var clearCache by remember { mutableStateOf(true) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -365,7 +366,7 @@ internal fun ClearBrowsingDataDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                 enabled = clearHistory || clearCookies || clearCache,
                 onClick = {
                     onClear(clearHistory, clearCookies, clearCache)
@@ -376,7 +377,7 @@ internal fun ClearBrowsingDataDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

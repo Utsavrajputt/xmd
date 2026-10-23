@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
 import androidx.compose.foundation.background
@@ -12,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -267,7 +268,7 @@ fun SettingsAdblockScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { showAddSiteDialog = true }) {
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { showAddSiteDialog = true }) {
                         Text(stringResource(R.string.settings_shields_allowlist_add))
                     }
                 }
@@ -293,7 +294,7 @@ fun SettingsAdblockScreen(
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f),
                             )
-                            IconButton(onClick = { onRemoveAllowlistedSite(site) }) {
+                            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onRemoveAllowlistedSite(site) }) {
                                 Icon(imageVector = Icons.Delete, contentDescription = null)
                             }
                         }
@@ -330,7 +331,7 @@ private fun AddWhitelistedSiteDialog(
     var input by remember { mutableStateOf("") }
     var showInvalid by remember { mutableStateOf(false) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -356,7 +357,7 @@ private fun AddWhitelistedSiteDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                 onClick = {
                     val host = extractHostForAllowlist(input)
                     if (host == null) {
@@ -370,7 +371,7 @@ private fun AddWhitelistedSiteDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) {
                 Text(stringResource(android.R.string.cancel))
             }
         },

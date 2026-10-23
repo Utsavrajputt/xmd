@@ -81,6 +81,7 @@ class DownloadsFragment : Fragment() {
                         }
                     },
                     onStartAll = { items ->
+                        if (items.any { it.status == ItemStatus.PAUSED || it.status == ItemStatus.READY || it.status == ItemStatus.PENDING } && isOfflineWithToast()) return@DownloadsScreen
                         val paused = items.filter { it.status == ItemStatus.PAUSED }
                         if (paused.isNotEmpty()) {
                             DownloadService.resumeAll(requireContext(), paused.map { it.id })
@@ -91,6 +92,7 @@ class DownloadsFragment : Fragment() {
                         }
                     },
                     onResumeAll = { items ->
+                        if (items.any { it.status == ItemStatus.PAUSED || it.status == ItemStatus.READY || it.status == ItemStatus.PENDING } && isOfflineWithToast()) return@DownloadsScreen
                         val paused = items.filter { it.status == ItemStatus.PAUSED }
                         if (paused.isNotEmpty()) {
                             DownloadService.resumeAll(requireContext(), paused.map { it.id })
@@ -111,7 +113,16 @@ class DownloadsFragment : Fragment() {
         }
     }
 
+    /** True (and shows a toast) when there is no internet, so resume/start actions can bail out early. */
+    private fun isOfflineWithToast(): Boolean {
+        val ctx = context ?: return false
+        if (com.invictus.xmd.network.NetworkMonitor.hasInternet(ctx)) return false
+        Toast.makeText(ctx, R.string.toast_no_network, Toast.LENGTH_SHORT).show()
+        return true
+    }
+
     private fun onItemPauseResume(item: QueueItem) {
+        if ((item.status == ItemStatus.READY || item.status == ItemStatus.PAUSED) && isOfflineWithToast()) return
         when (item.status) {
             ItemStatus.READY -> DownloadService.start(requireContext())
             ItemStatus.PAUSED -> DownloadService.resumeItem(requireContext(), item.id)

@@ -293,6 +293,23 @@ class DownloadService : LifecycleService() {
         }
     }
 
+    /** True only while this service is actually in the foreground. Gates [updateNotification] so a late
+     *  progress/cancel callback can never re-post the ongoing "Idle" notification after we stopped. */
+    @Volatile private var foregroundActive = false
+
+    private fun enterForeground() {
+        foregroundActive = true
+        startForeground(NOTIFICATION_ID, buildNotification())
+    }
+
+    /** Drops the foreground notification and stops the service. */
+    private fun leaveForeground() {
+        foregroundActive = false
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        (getSystemService(android.app.NotificationManager::class.java))?.cancel(NOTIFICATION_ID)
+        stopSelf()
+    }
+
     private fun releaseLocks() {
         try { if (wakeLock?.isHeld == true) wakeLock?.release() } catch (_: Exception) {}
         try { if (wifiLock?.isHeld == true) wifiLock?.release() } catch (_: Exception) {}
@@ -365,7 +382,7 @@ class DownloadService : LifecycleService() {
             }
         }
         if (autoPaused.isNotEmpty()) {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            enterForeground()
             topUpWorkers()
             updateNotification()
         }
@@ -502,7 +519,7 @@ class DownloadService : LifecycleService() {
             }
         }
         if (autoPaused.isNotEmpty()) {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            enterForeground()
             topUpWorkers()
             updateNotification()
         }
@@ -512,7 +529,7 @@ class DownloadService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, buildNotification())
+                enterForeground()
                 topUpWorkers()
                 ScheduleAlarmManager.rearm(this)
             }
@@ -521,8 +538,9 @@ class DownloadService : LifecycleService() {
                 updateNotification()
             }
             ACTION_RESUME_ITEM -> intent.getStringExtra(EXTRA_ITEM_ID)?.let { id ->
+                if (toastIfOffline()) return@let
                 if (resumeSingleItem(id)) {
-                    startForeground(NOTIFICATION_ID, buildNotification())
+                    enterForeground()
                     topUpWorkers()
                 }
                 updateNotification()
@@ -531,13 +549,13 @@ class DownloadService : LifecycleService() {
                 intent.getStringArrayListExtra(EXTRA_ITEM_IDS)?.forEach { id -> pauseSingleItem(id) }
                 updateNotification()
             }
-            ACTION_RESUME_ALL -> {
+            ACTION_RESUME_ALL -> if (!toastIfOffline()) {
                 val ids = intent.getStringArrayListExtra(EXTRA_ITEM_IDS).orEmpty()
                 // Only call startForeground/topUpWorkers once for the whole
                 // batch, not per id -- same effect, no redundant churn.
                 val needsTopUp = ids.fold(false) { acc, id -> resumeSingleItem(id) || acc }
                 if (needsTopUp) {
-                    startForeground(NOTIFICATION_ID, buildNotification())
+                    enterForeground()
                     topUpWorkers()
                 }
                 updateNotification()
@@ -568,8 +586,14 @@ class DownloadService : LifecycleService() {
             }
             ACTION_WIFI_ONLY_ENABLED -> onWifiLost()
             ACTION_SCHEDULE_CHECK -> {
-                startForeground(NOTIFICATION_ID, buildNotification())
+                enterForeground()
                 onScheduleCheck()
+                // Boot / alarm wakeups with nothing to resume used to leave the service parked in
+                // the foreground showing "Idle" forever -- shut it down when no worker is running.
+                if (activeWorkers.get() == 0) {
+                    releaseLocks()
+                    leaveForeground()
+                }
             }
             ACTION_EXIT -> exitApp()
             ACTION_CANCEL_ALL -> {
@@ -587,6 +611,8 @@ class DownloadService : LifecycleService() {
                 updateNotification()
             }
         }
+        // Control actions (pause/cancel/...) delivered while nothing runs must not leave an idle service behind.
+        if (!foregroundActive && activeWorkers.get() == 0) stopSelf()
         return START_NOT_STICKY
     }
 
@@ -597,10 +623,16 @@ class DownloadService : LifecycleService() {
      */
     private fun exitApp() {
         releaseLocks()
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         BackgroundPlaybackService.stop(applicationContext)
         sendBroadcast(Intent(ACTION_EXIT_APP).setPackage(packageName))
-        stopSelf()
+        leaveForeground()
+    }
+
+    /** Notification/service-side resume while fully offline: tell the user instead of silently doing nothing. */
+    private fun toastIfOffline(): Boolean {
+        if (NetworkMonitor.hasInternet(this)) return false
+        android.widget.Toast.makeText(this, R.string.toast_no_network, android.widget.Toast.LENGTH_SHORT).show()
+        return true
     }
 
     /** Pauses one item by id -- shared by [ACTION_PAUSE_ITEM] and [ACTION_PAUSE_ALL]. */
@@ -690,7 +722,7 @@ class DownloadService : LifecycleService() {
         }
 
         if (toResume.isNotEmpty()) {
-            startForeground(NOTIFICATION_ID, buildNotification())
+            enterForeground()
             topUpWorkers()
         }
         ScheduleAlarmManager.rearm(this)
@@ -709,9 +741,12 @@ class DownloadService : LifecycleService() {
                 worker()
                 if (activeWorkers.decrementAndGet() == 0) {
                     withContext(Dispatchers.Main) {
-                        releaseLocks()
-                        ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                        stopSelf()
+                        // A new ACTION_START may have launched a worker after the decrement above;
+                        // only shut down if the pool is still really empty.
+                        if (activeWorkers.get() == 0) {
+                            releaseLocks()
+                            leaveForeground()
+                        }
                     }
                 }
             }
@@ -1276,6 +1311,7 @@ class DownloadService : LifecycleService() {
     }
 
     private fun updateNotification() {
+        if (!foregroundActive) return
         val manager = getSystemService(android.app.NotificationManager::class.java)
         manager?.notify(NOTIFICATION_ID, buildNotification())
     }

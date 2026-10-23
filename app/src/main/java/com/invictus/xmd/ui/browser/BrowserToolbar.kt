@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -366,7 +367,7 @@ private fun AddressPill(
             // non-empty address. Focus stays in the field so the keyboard
             // remains open for typing the next URL.
             if (fieldFocused && fieldValue.text.isNotEmpty()) {
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = {
                         fieldValue = TextFieldValue("")
                         onTextChange("")
@@ -382,7 +383,7 @@ private fun AddressPill(
                 }
             }
             if (bookmarkVisible) {
-                IconButton(
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = onBookmarkTap,
                     modifier = Modifier
                         .padding(end = 2.dp)
@@ -408,7 +409,7 @@ private fun ToolbarIconButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    IconButton(
+    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.size(36.dp),
@@ -429,7 +430,7 @@ private fun ToolbarIconButton(
  *  count, inside a 36dp tap target matching every other toolbar button. */
 @Composable
 private fun TabsButton(count: Int, contentDescription: String, onClick: () -> Unit) {
-    IconButton(
+    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
         onClick = onClick,
         modifier = Modifier
             .size(36.dp)

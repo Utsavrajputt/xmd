@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
 import android.net.Uri
@@ -19,7 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -126,7 +127,7 @@ fun AddTorrentDialog(
     val selectedBytes = filesState.files.filter { it.isSelected }.sumOf { it.sizeBytes }
     val allSelected = filesState.files.isNotEmpty() && filesState.files.all { it.isSelected }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -154,7 +155,7 @@ fun AddTorrentDialog(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = { onCopyLink(link) },
                             modifier = Modifier.size(32.dp),
                         ) {
@@ -165,7 +166,7 @@ fun AddTorrentDialog(
                             )
                         }
                         if (!linkLocked) {
-                            IconButton(
+                            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                                 onClick = {
                                     val pasted = onPasteRequest()
                                     if (!pasted.isNullOrBlank()) {
@@ -250,7 +251,7 @@ fun AddTorrentDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f).padding(start = 8.dp),
                         )
-                        TextButton(
+                        TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                             onClick = onToggleSelectAll,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
@@ -400,7 +401,7 @@ fun AddTorrentDialog(
             }) { Text(stringResource(R.string.torrent_dialog_start)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.torrent_dialog_cancel)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.torrent_dialog_cancel)) }
         },
     )
 }

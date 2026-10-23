@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -41,7 +42,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import android.widget.Toast
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.BottomSheetDefaults
@@ -412,7 +413,7 @@ fun DownloadsScreen(
                 // short list).
                 if (list.isNotEmpty()) {
                     Box(modifier = Modifier.padding(end = 4.dp)) {
-                        IconButton(onClick = { overflowMenuExpanded = true }) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { overflowMenuExpanded = true }) {
                             Icon(
                                 imageVector = Icons.More,
                                 contentDescription = stringResource(R.string.action_more),
@@ -549,11 +550,10 @@ fun DownloadsScreen(
             targets.any { !it.filePath.isNullOrBlank() }
         }
 
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { deleteTargets = null },
             modifier = Modifier.wideDialogWidth(),
             properties = WideDialogProperties,
-            shape = RoundedCornerShape(20.dp),
             title = {
                 Text(
                     if (isSingle) stringResource(R.string.delete_download_title)
@@ -601,7 +601,7 @@ fun DownloadsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         onDeleteItems(targets, deleteFilesFromDevice)
                         deleteTargets = null
@@ -611,7 +611,7 @@ fun DownloadsScreen(
                 ) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTargets = null }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { deleteTargets = null }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             },
@@ -620,11 +620,10 @@ fun DownloadsScreen(
 
     // ── Cancel confirm dialog (single download) ───────────────────────────
     pendingCancelItem?.let { item ->
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { pendingCancelItem = null },
             modifier = Modifier.wideDialogWidth(),
             properties = WideDialogProperties,
-            shape = RoundedCornerShape(20.dp),
             title = { Text(stringResource(R.string.cancel_download_title)) },
             text = {
                 Column(
@@ -646,7 +645,7 @@ fun DownloadsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         onCancel(item)
                         pendingCancelItem = null
@@ -655,7 +654,7 @@ fun DownloadsScreen(
                 ) { Text(stringResource(R.string.action_cancel)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingCancelItem = null }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { pendingCancelItem = null }) {
                     Text(stringResource(R.string.action_keep_downloading))
                 }
             },
@@ -672,11 +671,10 @@ fun DownloadsScreen(
                     it.status == ItemStatus.READY || it.status == ItemStatus.NEEDS_CHALLENGE
             }
         }
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { showCancelAllDialog = false },
             modifier = Modifier.wideDialogWidth(),
             properties = WideDialogProperties,
-            shape = RoundedCornerShape(20.dp),
             title = { Text(stringResource(R.string.cancel_downloads_title)) },
             text = {
                 Text(
@@ -686,7 +684,7 @@ fun DownloadsScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         showCancelAllDialog = false
                         onCancelAll()
@@ -695,7 +693,7 @@ fun DownloadsScreen(
                 ) { Text(stringResource(R.string.action_cancel_all)) }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelAllDialog = false }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { showCancelAllDialog = false }) {
                     Text(stringResource(R.string.action_keep_downloading))
                 }
             },
@@ -1713,11 +1711,10 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
         stringResource(R.string.info_duration) to durationMs.takeIf { it > 500 }?.let { formatElapsedDuration(it) },
     ).filter { !it.second.isNullOrBlank() }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
-        shape = RoundedCornerShape(20.dp),
         title = { Text(stringResource(R.string.action_details)) },
         text = {
             Column(
@@ -1745,11 +1742,11 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_dismiss)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.action_dismiss)) }
         },
         dismissButton = {
             item.filePath?.takeIf { it.isNotBlank() }?.let { path ->
-                TextButton(onClick = { clipboardManager.setText(AnnotatedString(path)) }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { clipboardManager.setText(AnnotatedString(path)) }) {
                     Text(stringResource(R.string.info_copy_path))
                 }
             }
@@ -1769,11 +1766,10 @@ private fun formatMediaDuration(ms: Long): String {
 @Composable
 private fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var text by remember(currentName) { mutableStateOf(currentName) }
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
-        shape = RoundedCornerShape(20.dp),
         title = { Text(stringResource(R.string.action_rename)) },
         text = {
             OutlinedTextField(
@@ -1786,13 +1782,13 @@ private fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDis
             )
         },
         confirmButton = {
-            TextButton(onClick = {
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = {
                 val newName = text.trim()
                 if (newName.isNotEmpty() && newName != currentName) onConfirm(newName) else onDismiss()
             }) { Text(stringResource(R.string.settings_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
     )
 }
@@ -1814,11 +1810,10 @@ private fun ErrorDetailsDialog(
     val cleanedError = remember(errorText) { cleanErrorText(errorText) }
     val isWarning = remember(errorText) { isWarningText(errorText) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
-        shape = RoundedCornerShape(20.dp),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

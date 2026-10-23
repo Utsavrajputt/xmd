@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
 import java.util.UUID
@@ -29,7 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -456,7 +457,7 @@ fun AddDownloadDialog(
         }
     }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,
@@ -486,7 +487,7 @@ fun AddDownloadDialog(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (isMediaLink) {
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = {
                                 MediaPlaybackUtils.openMediaInExternalPlayer(
                                     context = context,
@@ -505,7 +506,7 @@ fun AddDownloadDialog(
                         }
                     }
                     if (!needsYtDlp && !LinkParser.isMagnetLink(link)) {
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = { showHttpSettingsDialog = true },
                             modifier = Modifier.size(32.dp),
                         ) {
@@ -532,7 +533,7 @@ fun AddDownloadDialog(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = { onCopyLink(link) },
                             modifier = Modifier.size(32.dp),
                         ) {
@@ -542,7 +543,7 @@ fun AddDownloadDialog(
                                 modifier = Modifier.size(18.dp),
                             )
                         }
-                        IconButton(
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                             onClick = {
                                 val pasted = onPasteRequest()
                                 if (!pasted.isNullOrBlank()) {
@@ -641,7 +642,7 @@ fun AddDownloadDialog(
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                         )
-                        TextButton(
+                        TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                             onClick = { showSolutionsDialog = true },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
@@ -722,7 +723,7 @@ fun AddDownloadDialog(
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.weight(1f),
                                             )
-                                            TextButton(
+                                            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                                                 onClick = {
                                                     if (selectedPlaylistIds.size == playlistEntries.size) {
                                                         selectedPlaylistIds.clear()
@@ -1196,17 +1197,17 @@ fun AddDownloadDialog(
         dismissButton = {
             Row {
                 if (looksLikeWebpage && !forceDownload) {
-                    TextButton(onClick = { forceDownload = true }) {
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { forceDownload = true }) {
                         Text(stringResource(R.string.download_dialog_download_anyway))
                     }
                 }
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.torrent_dialog_cancel)) }
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.torrent_dialog_cancel)) }
             }
         },
     )
 
     if (showSolutionsDialog) {
-        AlertDialog(
+        XmdAlertDialog(
             onDismissRequest = { showSolutionsDialog = false },
             modifier = Modifier.wideDialogWidth(),
             properties = WideDialogProperties,
@@ -1248,7 +1249,7 @@ fun AddDownloadDialog(
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showSolutionsDialog = false }) {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { showSolutionsDialog = false }) {
                     Text(stringResource(R.string.torrent_dialog_cancel))
                 }
             }
@@ -1451,7 +1452,7 @@ private fun HttpDownloadSettingsDialog(
     var maxConcurrent by remember { mutableIntStateOf(initialMaxConcurrent.coerceIn(1, 5)) }
     var speedLimitKBps by remember { mutableIntStateOf(initialSpeedLimitKBps.coerceAtLeast(0)) }
 
-    AlertDialog(
+    XmdAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.wideDialogWidth(),
         properties = WideDialogProperties,

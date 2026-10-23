@@ -1,7 +1,13 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,43 +18,68 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.invictus.xmd.ui.icons.AppIcon
-import com.invictus.xmd.ui.icons.Icon
-import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.toShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
-import com.invictus.xmd.database.entities.Bookmark
-import com.invictus.xmd.database.entities.HistoryEntry
-import com.invictus.xmd.ui.components.MainShell
+import com.invictus.xmd.ui.icons.AppIcon
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
+
+private val GroupOuterCorner = 24.dp
+private val GroupInnerCorner = 6.dp
+
+/** Expressive "grouped list" shape: big radius on the outer edges of the first/last row, tight radius between rows. */
+private fun groupedRowShape(index: Int, count: Int): RoundedCornerShape {
+    val top = if (index == 0) GroupOuterCorner else GroupInnerCorner
+    val bottom = if (index == count - 1) GroupOuterCorner else GroupInnerCorner
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
+private fun hostOf(url: String): String =
+    runCatching { android.net.Uri.parse(url).host }.getOrNull()
+        ?.removePrefix("www.")
+        ?.takeIf { it.isNotBlank() }
+        ?: url
 
 /**
- * One row in a saved-pages list (Bookmarks or History): tonal icon chip,
- * title/URL, delete button, wrapped in a [SwipeToDismissBox] for
- * swipe-to-delete. Mirrors item_bookmark_row.xml / item_history.xml, which
- * are structurally identical apart from the leading icon.
+ * One row in a saved-pages list (Bookmarks or History): a rounded tonal card
+ * (shape depends on its position in the group), icon badge, title + host,
+ * delete button, and swipe-to-delete.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +90,8 @@ fun <T> SavedPageRow(
     icon: AppIcon,
     onTap: (T) -> Unit,
     onDelete: (T) -> Unit,
+    shape: RoundedCornerShape = RoundedCornerShape(GroupOuterCorner),
+    modifier: Modifier = Modifier,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -71,14 +104,20 @@ fun <T> SavedPageRow(
         },
     )
 
+    val badgeShape = MaterialShapes.Cookie9Sided.toShape()
     SwipeToDismissBox(
         state = dismissState,
+        modifier = modifier.clip(shape),
         backgroundContent = {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer),
-                contentAlignment = Alignment.Center,
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 24.dp),
+                contentAlignment = when (dismissState.dismissDirection) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else -> Alignment.CenterEnd
+                },
             ) {
                 Icon(
                     imageVector = Icons.Delete,
@@ -88,64 +127,68 @@ fun <T> SavedPageRow(
             }
         },
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
-                .clickable { onTap(entry) }
-                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+        Surface(
+            onClick = { onTap(entry) },
+            shape = shape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(17.dp),
-                )
-            }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 14.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-            IconButton(onClick = { onDelete(entry) }) {
-                Icon(
-                    imageVector = Icons.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, badgeShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 14.dp, end = 4.dp),
+                ) {
+                    Text(
+                        text = title.ifBlank { hostOf(url) },
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = hostOf(url),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onDelete(entry) }) {
+                    Icon(
+                        imageVector = Icons.Delete,
+                        contentDescription = stringResource(R.string.action_delete),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Full screen shared by Bookmarks and History: header (back + title + Clear
- * all), search field, list, empty state. Mirrors fragment_bookmarks.xml /
- * fragment_history.xml, which are identical apart from strings and the
- * per-row icon. [T] is [com.invictus.xmd.database.entities.Bookmark] or
+ * Full screen shared by Bookmarks and History: rounded header (back + title,
+ * with Search and Clear all on the right -- Search sits to the left of Clear
+ * all and expands in place of the title), grouped list, empty state.
+ * [T] is [com.invictus.xmd.database.entities.Bookmark] or
  * [com.invictus.xmd.database.entities.HistoryEntry].
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,83 +211,127 @@ fun <T> SavedPagesScreen(
     onTap: (T) -> Unit,
     onDelete: (T) -> Unit,
 ) {
+    var searching by rememberSaveable { mutableStateOf(query.isNotEmpty()) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(searching) {
+        if (searching) runCatching { focusRequester.requestFocus() }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(com.invictus.xmd.ui.theme.wallpaperAwareBackgroundColor()),
     ) {
-        TopAppBar(
-            title = { Text(text = title) },
-            // This screen already sits inside MainShell's Scaffold content,
-            // which reserves the status-bar inset for us -- letting this bar
-            // apply its own default statusBars inset on top of that stacked
-            // a second helping of empty space above the title.
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
-                    )
-                }
-            },
-            actions = {
-                TextButton(onClick = onClearAll) {
-                    Text(clearAllLabel)
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-                navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            shape = RoundedCornerShape(20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
         ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(searchHint) },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(imageVector = Icons.Search, contentDescription = null)
-                },
-                trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(imageVector = Icons.Close, contentDescription = null)
+            TopAppBar(
+                title = {
+                    AnimatedContent(
+                        targetState = searching,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "savedPagesTitle",
+                    ) { isSearching ->
+                        if (isSearching) {
+                            TextField(
+                                value = query,
+                                onValueChange = onQueryChange,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                placeholder = { Text(searchHint, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                singleLine = true,
+                                shape = CircleShape,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
+                            )
+                        } else {
+                            Text(text = title, style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 },
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedBorderColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                // This screen already sits inside MainShell's Scaffold content,
+                // which reserves the status-bar inset for us.
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                navigationIcon = {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
+                actions = {
+                    // Search sits immediately to the LEFT of Clear all.
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                        onClick = {
+                            if (searching) {
+                                onQueryChange("")
+                                searching = false
+                            } else {
+                                searching = true
+                            }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = if (searching) Icons.Close else Icons.Search,
+                            contentDescription = searchHint,
+                        )
+                    }
+                    TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onClearAll) {
+                        Text(clearAllLabel)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             )
         }
 
         if (entries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val emptyShape = MaterialShapes.Cookie12Sided.toShape()
+            Column(
+                modifier = Modifier.fillMaxSize().padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(104.dp)
+                        .background(MaterialTheme.colorScheme.secondaryContainer, emptyShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (query.isEmpty()) rowIcon else Icons.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(44.dp),
+                    )
+                }
                 Text(
                     text = if (query.isEmpty()) emptyLabel else searchEmptyLabel,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp),
                 )
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                items(entries, key = entryKey) { entry ->
+                itemsIndexed(entries, key = { _, e -> entryKey(e) }) { index, entry ->
                     SavedPageRow(
                         entry = entry,
                         title = entryTitle(entry),
@@ -252,6 +339,8 @@ fun <T> SavedPagesScreen(
                         icon = rowIcon,
                         onTap = onTap,
                         onDelete = onDelete,
+                        shape = groupedRowShape(index, entries.size),
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="action_exit">Exit</string>
+    <string name="toast_no_network">No internet connection. Connect and try again.</string>
 </resources>
