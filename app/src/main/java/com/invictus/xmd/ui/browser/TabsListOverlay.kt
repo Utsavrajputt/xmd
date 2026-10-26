@@ -409,6 +409,13 @@ private fun TabGridCard(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         offsetX.animateTo(dir * cardWidth * 1.2f, swipeSpec)
                         onCloseClick()
+                        // Closing the only tab just resets it to a blank tab
+                        // (same id), so this card is NOT removed and would stay
+                        // stuck off-screen/invisible. If we're still composed
+                        // after the close, slide back in. When the card is
+                        // removed (normal case) this coroutine is cancelled.
+                        delay(250)
+                        offsetX.animateTo(0f, swipeSpec)
                     } else {
                         offsetX.animateTo(0f, swipeSpec)
                     }
@@ -574,17 +581,27 @@ private fun TabRow(
     val colors = tabColors(item, isActive)
 
     val haptics = LocalHapticFeedback.current
+    val rowScope = rememberCoroutineScope()
+    lateinit var rowDismissState: androidx.compose.material3.SwipeToDismissBoxState
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 onCloseClick()
+                // Only tab -> reset to blank keeps the same row; bring it back.
+                // Cancelled automatically if the row leaves composition.
+                rowScope.launch {
+                    delay(250)
+                    rowDismissState.reset()
+                }
                 true
             } else {
                 false
             }
         },
     )
+
+    rowDismissState = dismissState
 
     LaunchedEffect(item.id) {
         if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {

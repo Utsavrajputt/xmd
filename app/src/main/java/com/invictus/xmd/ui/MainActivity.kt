@@ -1080,6 +1080,19 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         val isViewAction = intent.action == Intent.ACTION_VIEW
         val isSendAction = intent.action == Intent.ACTION_SEND
 
+        // Local HTML page opened via "Open with" (content:// + text/html):
+        // show it in the Browser tab. Handled before the http(s)/magnet
+        // gate below, which would otherwise ignore a content:// URI.
+        val dataUri = intent.data
+        if (isViewAction && dataUri != null && dataUri.scheme == "content" &&
+            (intent.type == "text/html" || intent.type == "application/xhtml+xml")
+        ) {
+            intent.action = null
+            intent.data = null
+            openInBrowserTab(dataUri.toString())
+            return
+        }
+
         val url = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data?.toString()
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty().let { text ->
@@ -1117,8 +1130,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         if ((isViewAction && LinkParser.isPlainWebpageLink(url)) ||
             (isSendAction && LinkParser.isSharedWebpageForBrowser(url))
         ) {
-            browserFragment()?.openInNewTab(url)
-            selectMainDestination(MainDestination.Browser)
+            openInBrowserTab(url)
             return
         }
 
@@ -1127,6 +1139,28 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             triggerPrepare(listOf(url))
         } else {
             showAddDownloadDialog(url)
+        }
+    }
+
+    /**
+     * Opens [url] in a new Browser tab and switches to it. On a cold start
+     * (XMD set as default browser and a link tapped while the app is closed)
+     * the pager has not created BrowserFragment yet, so select the tab first
+     * and wait briefly for the fragment's view before handing the URL over.
+     */
+    private fun openInBrowserTab(url: String) {
+        selectMainDestination(MainDestination.Browser)
+        lifecycleScope.launch {
+            var attempts = 0
+            while (attempts < 60) {
+                val fragment = browserFragment()
+                if (fragment != null && fragment.isAdded && fragment.view != null) {
+                    fragment.openInNewTab(url)
+                    return@launch
+                }
+                attempts++
+                delay(50)
+            }
         }
     }
 

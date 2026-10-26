@@ -59,7 +59,32 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- Default-browser candidate. Android only lists an app under
+                 Settings > Default apps > Browser app when it has a
+                 VIEW + BROWSABLE + DEFAULT filter for http/https with NO
+                 mimeType. (The http/https filter on ShareReceiverActivity
+                 carries mimeType */*, which is the external-download-manager
+                 handoff and deliberately does not qualify.) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+
+            <!-- "Open with" for local HTML pages (content:// from file
+                 managers / mail apps) -> opened in the Browser tab. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/xhtml+xml" />
+            </intent-filter>
+        </activity>
 
         <!-- Launcher icon builder (Settings > Appearance > App icon). The LAUNCHER
              entry lives on these aliases, not on MainActivity: exactly one is
