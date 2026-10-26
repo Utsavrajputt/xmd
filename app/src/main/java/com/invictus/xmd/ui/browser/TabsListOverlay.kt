@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -381,6 +380,7 @@ private fun TabGridCard(
     val offsetX = remember { Animatable(0f) }
     var cardWidth by remember { mutableStateOf(1f) }
     val flingPx = with(LocalDensity.current) { 900.dp.toPx() }
+    val swipeSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val dragState = rememberDraggableState { delta ->
         swipeScope.launch { offsetX.snapTo(offsetX.value + delta) }
     }
@@ -407,10 +407,10 @@ private fun TabGridCard(
                             if (velocity > 0f) 1f else -1f
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        offsetX.animateTo(dir * cardWidth * 1.2f, tween(160))
+                        offsetX.animateTo(dir * cardWidth * 1.2f, swipeSpec)
                         onCloseClick()
                     } else {
-                        offsetX.animateTo(0f, tween(180))
+                        offsetX.animateTo(0f, swipeSpec)
                     }
                 },
             )
@@ -565,9 +565,10 @@ private fun TabRow(
     onCloseClick: () -> Unit,
 ) {
     val alpha = remember { Animatable(0f) }
+    val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     LaunchedEffect(item.id) {
         delay((index * 20L).coerceAtMost(160L))
-        alpha.animateTo(1f, tween(140))
+        alpha.animateTo(1f, fadeSpec)
     }
 
     val colors = tabColors(item, isActive)

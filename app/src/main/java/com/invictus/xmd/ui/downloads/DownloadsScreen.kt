@@ -818,6 +818,7 @@ fun QueueItemRow(
         revealed = false
     }
 
+    val snapSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     fun snapTo(target: Float) {
         scope.launch {
             val start = offsetX
@@ -825,7 +826,7 @@ fun QueueItemRow(
             if (diff == 0f) return@launch
             androidx.compose.animation.core.Animatable(start).animateTo(
                 target,
-                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                animationSpec = snapSpec,
             ) { offsetX = value }
             revealed = target != 0f
         }
