@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.onboarding
 
 import com.invictus.xmd.ui.theme.XmdShapes
@@ -32,6 +33,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -130,13 +132,17 @@ fun OnboardingScreen(
                     .weight(1f)
                     .fillMaxWidth(),
             ) {
+                val stepSpatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+                val stepEffects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = step,
                     transitionSpec = {
                         if (targetState > initialState) {
-                            (slideInHorizontally { it } + fadeIn()).togetherWith(slideOutHorizontally { -it } + fadeOut())
+                            (slideInHorizontally(stepSpatial) { it } + fadeIn(stepEffects))
+                                .togetherWith(slideOutHorizontally(stepSpatial) { -it } + fadeOut(stepEffects))
                         } else {
-                            (slideInHorizontally { -it } + fadeIn()).togetherWith(slideOutHorizontally { it } + fadeOut())
+                            (slideInHorizontally(stepSpatial) { -it } + fadeIn(stepEffects))
+                                .togetherWith(slideOutHorizontally(stepSpatial) { it } + fadeOut(stepEffects))
                         }
                     },
                     label = "OnboardingStepTransition",

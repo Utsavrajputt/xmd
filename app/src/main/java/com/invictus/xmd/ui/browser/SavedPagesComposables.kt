@@ -251,9 +251,10 @@ fun <T> SavedPagesScreen(
         XmdTopBar(
             colors = xmdTopBarColors(MaterialTheme.colorScheme.surfaceContainerLow),
             title = {
+                val titleFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                 AnimatedContent(
                     targetState = searching,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    transitionSpec = { fadeIn(titleFade) togetherWith fadeOut(titleFade) },
                     label = "savedPagesTitle",
                 ) { isSearching ->
                     if (isSearching) {

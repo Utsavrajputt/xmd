@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
 import android.annotation.SuppressLint
@@ -531,10 +532,12 @@ class BrowserFragment : Fragment() {
                         )
                     },
                     bottomBar = {
+                        val bbSize = androidx.compose.material3.MaterialTheme.motionScheme.fastSpatialSpec<androidx.compose.ui.unit.IntSize>()
+                        val bbFade = androidx.compose.material3.MaterialTheme.motionScheme.fastEffectsSpec<Float>()
                         androidx.compose.animation.AnimatedVisibility(
                             visible = !toolbarBottom && bottomBarEnabled && !speedDialVisible && !addressBarFocused && bottomBarScrollVisible,
-                            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+                            enter = androidx.compose.animation.expandVertically(bbSize) + androidx.compose.animation.fadeIn(bbFade),
+                            exit = androidx.compose.animation.shrinkVertically(bbSize) + androidx.compose.animation.fadeOut(bbFade),
                         ) {
                             BrowserBottomBar(
                                 canGoBack = navCanGoBack,

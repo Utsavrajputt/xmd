@@ -1,7 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
-import androidx.compose.material3.LinearWavyProgressIndicator
 import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
@@ -245,7 +244,7 @@ fun BrowserToolbarRow(
                 targetValue = (progress / 100f).coerceIn(0f, 1f),
                 label = "toolbarProgress",
             )
-            LinearWavyProgressIndicator(
+            LinearProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
                     .align(if (isBottomBar) Alignment.TopCenter else Alignment.BottomCenter)
@@ -257,6 +256,8 @@ fun BrowserToolbarRow(
                     ),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.Transparent,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
             )
         }
     }

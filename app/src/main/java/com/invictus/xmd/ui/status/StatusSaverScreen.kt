@@ -48,6 +48,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -243,35 +246,50 @@ internal fun StatusSaverScreen(
                         }
                     }
 
-                    when {
-                        !viewModel.hasAccess -> AccessRequired(onGrantAccess)
-                        viewModel.loading && pageItems.isEmpty() -> Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) { LoadingIndicator() }
-                        pageItems.isEmpty() -> CenteredMessage(
-                            stringResource(if (pageIsRecent) R.string.status_empty_recent else R.string.status_empty_saved),
-                        )
-                        else -> LazyVerticalGrid(
-                            columns = GridCells.Adaptive(104.dp),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            itemsIndexed(pageItems, key = { _, item -> item.path }) { index, item ->
-                                StatusTile(
-                                    item = item,
-                                    showSaveState = pageIsRecent,
-                                    isSaved = item.name in viewModel.savedNames,
-                                    selecting = selecting,
-                                    isSelected = item.path in viewModel.selected,
-                                    onClick = {
-                                        if (selecting) viewModel.toggleSelect(item.path) else previewIndex = index
-                                    },
-                                    onLongClick = { viewModel.toggleSelect(item.path) },
-                                    onSave = { viewModel.save(listOf(item)) },
-                                )
+                    val pullState = rememberPullToRefreshState()
+                    PullToRefreshBox(
+                        isRefreshing = viewModel.refreshing,
+                        onRefresh = viewModel::pullRefresh,
+                        state = pullState,
+                        modifier = Modifier.fillMaxSize(),
+                        indicator = {
+                            PullToRefreshDefaults.LoadingIndicator(
+                                state = pullState,
+                                isRefreshing = viewModel.refreshing,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        },
+                    ) {
+                        when {
+                            !viewModel.hasAccess -> AccessRequired(onGrantAccess)
+                            viewModel.loading && pageItems.isEmpty() -> Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) { LoadingIndicator() }
+                            pageItems.isEmpty() -> CenteredMessage(
+                                stringResource(if (pageIsRecent) R.string.status_empty_recent else R.string.status_empty_saved),
+                            )
+                            else -> LazyVerticalGrid(
+                                columns = GridCells.Adaptive(104.dp),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                itemsIndexed(pageItems, key = { _, item -> item.path }) { index, item ->
+                                    StatusTile(
+                                        item = item,
+                                        showSaveState = pageIsRecent,
+                                        isSaved = item.name in viewModel.savedNames,
+                                        selecting = selecting,
+                                        isSelected = item.path in viewModel.selected,
+                                        onClick = {
+                                            if (selecting) viewModel.toggleSelect(item.path) else previewIndex = index
+                                        },
+                                        onLongClick = { viewModel.toggleSelect(item.path) },
+                                        onSave = { viewModel.save(listOf(item)) },
+                                    )
+                                }
                             }
                         }
                     }

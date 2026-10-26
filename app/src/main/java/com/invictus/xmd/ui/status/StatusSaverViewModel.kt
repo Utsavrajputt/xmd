@@ -45,6 +45,8 @@ internal class StatusSaverViewModel(application: Application) : AndroidViewModel
         private set
     var loading by mutableStateOf(true)
         private set
+    var refreshing by mutableStateOf(false)
+        private set
     var selected by mutableStateOf<Set<String>>(emptySet())
         private set
 
@@ -54,30 +56,40 @@ internal class StatusSaverViewModel(application: Application) : AndroidViewModel
     val currentItems: List<StatusItem>
         get() = if (tab == StatusTab.Recent) recent else saved
 
+    /** Pull-to-refresh entry point: same reload as [refresh], plus the pull indicator state. */
+    fun pullRefresh() {
+        refreshing = true
+        refresh()
+    }
+
     fun refresh() {
         val context = getApplication<Application>()
         val requestedSource = source
         viewModelScope.launch {
-            val snapshot = withContext(Dispatchers.IO) {
-                if (!StatusSaverRepository.hasAccess(context)) {
-                    null
-                } else {
-                    StatusSnapshot(
-                        recent = StatusSaverRepository.listRecent(requestedSource),
-                        saved = StatusSaverRepository.listSaved(),
-                    )
+            try {
+                val snapshot = withContext(Dispatchers.IO) {
+                    if (!StatusSaverRepository.hasAccess(context)) {
+                        null
+                    } else {
+                        StatusSnapshot(
+                            recent = StatusSaverRepository.listRecent(requestedSource),
+                            saved = StatusSaverRepository.listSaved(),
+                        )
+                    }
                 }
+                if (requestedSource != source) return@launch // source changed mid-load
+                hasAccess = snapshot != null
+                if (snapshot != null) {
+                    recent = snapshot.recent
+                    saved = snapshot.saved
+                    savedNames = snapshot.saved.mapTo(HashSet()) { it.name }
+                    val live = currentItems.mapTo(HashSet()) { it.path }
+                    selected = selected.filterTo(HashSet()) { it in live }
+                }
+                loading = false
+            } finally {
+                refreshing = false
             }
-            if (requestedSource != source) return@launch // source changed mid-load
-            hasAccess = snapshot != null
-            if (snapshot != null) {
-                recent = snapshot.recent
-                saved = snapshot.saved
-                savedNames = snapshot.saved.mapTo(HashSet()) { it.name }
-                val live = currentItems.mapTo(HashSet()) { it.path }
-                selected = selected.filterTo(HashSet()) { it in live }
-            }
-            loading = false
         }
     }
 

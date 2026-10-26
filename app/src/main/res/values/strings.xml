@@ -186,7 +186,6 @@
     <string name="threads_per_download">Threads per download</string>
     <string name="max_download_speed">Max download speed</string>
     <string name="settings_storage_title">Storage</string>
-    <string name="settings_storage_free_of">%1$s free of %2$s</string>
     <string name="download_dialog_subtitles_title">Subtitles</string>
     <string name="download_dialog_playlist_file_title">Playlist file</string>
     <string name="download_dialog_playlist_file_off">Off</string>

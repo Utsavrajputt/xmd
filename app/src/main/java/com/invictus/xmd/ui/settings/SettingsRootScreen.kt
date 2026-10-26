@@ -1,7 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
-import androidx.compose.material3.LinearWavyProgressIndicator
 import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,14 +17,12 @@ import com.invictus.xmd.preferences.Settings
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -33,13 +30,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.remember
-import androidx.compose.ui.draw.clip
 import com.invictus.xmd.ui.icons.Icon
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 
 /**
  * Root of the Settings screen: category rows with dividers, styled
@@ -172,11 +165,10 @@ fun SettingsRootScreen(
                 CategoryRow(
                     icon = Icons.Downloads,
                     title = stringResource(R.string.settings_category_downloads),
-                    subtitle = "",
+                    subtitle = stringResource(R.string.settings_category_downloads_desc),
                     isSelected = selectedRoute == Route.DOWNLOADS,
                     isLast = !showYoutubeRow,
                     onClick = onOpenDownloads,
-                    extraContent = { StorageMeter() },
                 )
                 if (showYoutubeRow) {
                     CategoryRowGap()
@@ -208,63 +200,3 @@ fun SettingsRootScreen(
 
     }
 }
-
-/**
- * Compact storage meter shown under the Downloads row's subtitle: a thin
- * rounded bar plus one quiet line. It sits in the row's text column, so it
- * lines up with the title and subtitle above it.
- */
-@Composable
-private fun StorageMeter(modifier: Modifier = Modifier) {
-    val storageInfo = remember {
-        getStorageInfo(Settings.defaultSaveLocation())
-    }
-    if (storageInfo.totalBytes <= 0L) return
-
-    Column(modifier = modifier.fillMaxWidth().padding(top = 6.dp)) {
-        LinearWavyProgressIndicator(
-            progress = { storageInfo.usedFraction },
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-            gapSize = 0.dp,
-            stopSize = 0.dp,
-        )
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text = stringResource(
-                R.string.settings_storage_free_of,
-                com.invictus.xmd.utils.formatBytes(storageInfo.freeBytes),
-                com.invictus.xmd.utils.formatBytes(storageInfo.totalBytes),
-            ),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-private data class StorageInfo(
-    val freeBytes: Long,
-    val totalBytes: Long,
-    val usedFraction: Float,
-)
-
-private fun getStorageInfo(path: String): StorageInfo {
-    return runCatching {
-        val file = java.io.File(path).takeIf { it.exists() } ?: android.os.Environment.getDataDirectory()
-        val stat = android.os.StatFs(file.path)
-        val blockSize = stat.blockSizeLong
-        val totalBlocks = stat.blockCountLong
-        val availableBlocks = stat.availableBlocksLong
-        val total = totalBlocks * blockSize
-        val free = availableBlocks * blockSize
-        val used = (total - free).coerceAtLeast(0L)
-        val fraction = if (total > 0L) (used.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
-        StorageInfo(freeBytes = free, totalBytes = total, usedFraction = fraction)
-    }.getOrElse {
-        StorageInfo(freeBytes = 0L, totalBytes = 0L, usedFraction = 0f)
-    }
-}
-

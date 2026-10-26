@@ -48,6 +48,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -181,18 +185,20 @@ internal fun MainShell(
         },
         bottomBar = {
             val hideForBrowserWebpage = destination == MainDestination.Browser && isBrowserWebpageOpen
+            val barSpatial = MaterialTheme.motionScheme.fastSpatialSpec<IntOffset>()
+            val barEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
             androidx.compose.animation.AnimatedVisibility(
                 visible = !imeVisible && !hideForBrowserWebpage,
-                enter = slideInVertically { height -> height } + fadeIn(),
-                exit = slideOutVertically { height -> height } + fadeOut(),
+                enter = slideInVertically(barSpatial) { height -> height } + fadeIn(barEffects),
+                exit = slideOutVertically(barSpatial) { height -> height } + fadeOut(barEffects),
                 label = "BottomBarVisibilityTransition",
             ) {
                 val showSelectionPill = destination == MainDestination.Downloads && downloadsSelectionState != null
                 AnimatedContent(
                     targetState = showSelectionPill,
                     transitionSpec = {
-                        (slideInVertically { height -> height } + fadeIn())
-                            .togetherWith(slideOutVertically { height -> height } + fadeOut())
+                        (slideInVertically(barSpatial) { height -> height } + fadeIn(barEffects))
+                            .togetherWith(slideOutVertically(barSpatial) { height -> height } + fadeOut(barEffects))
                     },
                     label = "BottomBarSelectionTransition",
                 ) { isSelecting ->
@@ -834,27 +840,23 @@ private fun NavigationItemIcon(item: MainNavigationItem, tint: Color) {
 
 @Composable
 private fun AddDownloadButton(onClick: () -> Unit) {
-    Surface(
+    FilledIconButton(
         onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        modifier = Modifier.size(56.dp),
-        shadowElevation = 8.dp,
-        tonalElevation = 6.dp,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+        shapes = IconButtonDefaults.shapes(),
+        colors = IconButtonDefaults.filledIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
         ),
+        modifier = Modifier
+            .size(56.dp)
+            .shadow(8.dp, CircleShape),
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = Icons.Add,
-                contentDescription = stringResource(R.string.tab_add),
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(26.dp),
-            )
-        }
+        Icon(
+            imageVector = Icons.Add,
+            contentDescription = stringResource(R.string.tab_add),
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(26.dp),
+        )
     }
 }
 
