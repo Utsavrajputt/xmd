@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.material3.LoadingIndicator
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -209,7 +209,7 @@ private fun ContributorsLoading() {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+        LoadingIndicator(modifier = Modifier.size(32.dp))
         Spacer(Modifier.width(12.dp))
         Text(
             text = stringResource(R.string.about_contributors_loading),

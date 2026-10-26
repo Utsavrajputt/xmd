@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -243,16 +244,16 @@ fun ThemePreviewCard(
                 .size(width = 90.dp, height = 140.dp)
                 .shadow(
                     elevation = elevation,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = XmdShapes.S,
                     ambientColor = if (isSelected) selectionColor.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f),
                     spotColor = if (isSelected) selectionColor.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.2f),
                 )
-                .clip(RoundedCornerShape(12.dp))
+                .clip(XmdShapes.S)
                 .background(colorScheme.surface)
                 .border(
                     width = borderWidth,
                     color = borderColor,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = XmdShapes.S,
                 ),
         ) {
             Column(
@@ -557,7 +558,7 @@ private fun TabConfigRow(
                 } else {
                     Color.Transparent
                 },
-                shape = RoundedCornerShape(8.dp),
+                shape = XmdShapes.Xs,
             )
             .padding(vertical = 6.dp, horizontal = 4.dp),
     ) {

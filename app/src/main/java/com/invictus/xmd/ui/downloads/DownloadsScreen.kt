@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -114,7 +115,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -421,7 +421,7 @@ fun DownloadsScreen(
                             )
                         }
                         DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                             expanded = overflowMenuExpanded,
                             onDismissRequest = { overflowMenuExpanded = false },
                         ) {
@@ -582,7 +582,7 @@ fun DownloadsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(XmdShapes.Xs)
                                 .clickable { deleteFilesFromDevice = !deleteFilesFromDevice }
                                 .padding(vertical = 4.dp),
                         ) {
@@ -755,7 +755,7 @@ private fun EmptyState(showIcon: Boolean) {
             Box(
                 modifier = Modifier
                     .size(88.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(XmdShapes.M)
                     .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
@@ -862,7 +862,7 @@ fun QueueItemRow(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(XmdShapes.S)
                     .background(MaterialTheme.colorScheme.errorContainer)
                     .padding(end = 8.dp),
                 contentAlignment = Alignment.CenterEnd,
@@ -871,7 +871,7 @@ fun QueueItemRow(
                     modifier = Modifier
                         .width(80.dp)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(XmdShapes.Xs)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true),
@@ -919,7 +919,7 @@ fun QueueItemRow(
                 )
                 .defaultMinSize(minHeight = 72.dp),
             colors = CardDefaults.cardColors(containerColor = cardContainerColor),
-            shape = RoundedCornerShape(24.dp),
+            shape = XmdShapes.M,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             border = cardBorder,
         ) {
@@ -1783,7 +1783,7 @@ private fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDis
                 onValueChange = { text = it },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = XmdShapes.S,
                 colors = OutlinedTextFieldDefaults.colors(),
             )
         },
@@ -1855,7 +1855,7 @@ private fun ErrorDetailsDialog(
                 )
 
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = XmdShapes.S,
                     color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     modifier = Modifier
@@ -1888,7 +1888,7 @@ private fun ErrorDetailsDialog(
                         clipboardManager.setText(AnnotatedString(cleanedError))
                         Toast.makeText(context, R.string.error_copied_toast, Toast.LENGTH_SHORT).show()
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = XmdShapes.Xs,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(
@@ -1905,7 +1905,7 @@ private fun ErrorDetailsDialog(
                         onDismiss()
                         onRetry(item)
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    shape = XmdShapes.Xs,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 ) {
                     Icon(
@@ -1921,7 +1921,7 @@ private fun ErrorDetailsDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(10.dp),
+                shape = XmdShapes.Xs,
             ) {
                 Text(stringResource(android.R.string.cancel))
             }

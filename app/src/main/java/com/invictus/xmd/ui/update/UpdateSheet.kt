@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.update
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -229,7 +229,7 @@ private fun VersionTransitionRow(currentVersion: String, latestVersion: String) 
 @Composable
 private fun VersionChip(label: String, emphasized: Boolean) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = XmdShapes.Xs,
         color = if (emphasized) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Text(

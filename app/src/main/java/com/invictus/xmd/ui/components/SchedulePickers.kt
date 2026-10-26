@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.components
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.icu.text.DateFormatSymbols
 import android.text.format.DateFormat
 import androidx.compose.foundation.BorderStroke
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -157,7 +157,7 @@ fun TimeRangePickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(32.dp),
+            shape = XmdShapes.Xl,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -241,7 +241,7 @@ fun OneTimeStartPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(32.dp),
+            shape = XmdShapes.Xl,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -364,7 +364,7 @@ fun ScheduleSelectorRow(
             Surface(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
+                shape = XmdShapes.Xs,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
@@ -397,7 +397,7 @@ fun ScheduleSelectorRow(
                 }
             }
             DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.schedule_start_now)) },
                     onClick = {

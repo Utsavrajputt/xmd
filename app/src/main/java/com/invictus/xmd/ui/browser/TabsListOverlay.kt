@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
@@ -243,11 +244,13 @@ fun TabsListOverlay(
                 }
             }
 
+            val viewModeFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+            val viewModeScaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
             AnimatedContent(
                 targetState = isGridMode,
                 transitionSpec = {
-                    (fadeIn(tween(180)) + scaleIn(initialScale = 0.95f, animationSpec = tween(180)))
-                        .togetherWith(fadeOut(tween(140)))
+                    (fadeIn(viewModeFadeSpec) + scaleIn(initialScale = 0.95f, animationSpec = viewModeScaleSpec))
+                        .togetherWith(fadeOut(viewModeFadeSpec))
                 },
                 label = "TabsViewModeTransition",
             ) { gridMode ->
@@ -411,10 +414,10 @@ private fun TabGridCard(
                     }
                 },
             )
-            .clip(RoundedCornerShape(14.dp))
+            .clip(XmdShapes.S)
             .clickable(onClick = onClick),
         color = colors.container,
-        shape = RoundedCornerShape(14.dp),
+        shape = XmdShapes.S,
         border = BorderStroke(if (isActive) 2.dp else 1.dp, colors.border),
         tonalElevation = if (isActive) 4.dp else 1.dp,
     ) {
@@ -464,7 +467,7 @@ private fun TabGridCard(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(XmdShapes.S)
                     .background(
                         if (item.isPrivate) Color(0xFF1C1C1C)
                         else MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f)
@@ -604,7 +607,7 @@ private fun TabRow(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(XmdShapes.L)
                     .background(
                         if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) {
                             androidx.compose.ui.graphics.Color.Transparent
@@ -631,7 +634,7 @@ private fun TabRow(
                 .fillMaxWidth()
                 .clickable(onClick = onClick),
             color = colors.container,
-            shape = RoundedCornerShape(28.dp),
+            shape = XmdShapes.L,
             border = if (isActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
         ) {
             Row(

@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -36,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -134,7 +135,7 @@ fun BrowserToolbarRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = XmdShapes.L,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 3.dp,
             shadowElevation = 3.dp,
@@ -244,7 +245,7 @@ fun BrowserToolbarRow(
                 targetValue = (progress / 100f).coerceIn(0f, 1f),
                 label = "toolbarProgress",
             )
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
                     .align(if (isBottomBar) Alignment.TopCenter else Alignment.BottomCenter)
@@ -253,9 +254,7 @@ fun BrowserToolbarRow(
                     .padding(
                         top = if (isBottomBar) 8.dp else 0.dp,
                         bottom = if (isBottomBar) 0.dp else 8.dp,
-                    )
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp)),
+                    ),
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = Color.Transparent,
             )

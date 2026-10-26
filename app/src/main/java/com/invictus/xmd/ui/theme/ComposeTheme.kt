@@ -24,12 +24,21 @@ private val HeadingFont = FontFamily(
     Font(R.font.space_grotesk_semibold, weight = FontWeight.SemiBold),
 )
 
+/** Single source of truth for corner radii; also feeds [MaterialTheme.shapes]. */
+object XmdShapes {
+    val Xs = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    val S = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+    val M = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+    val L = androidx.compose.foundation.shape.RoundedCornerShape(28.dp)
+    val Xl = androidx.compose.foundation.shape.RoundedCornerShape(36.dp)
+}
+
 private val ExpressiveShapes = Shapes(
-    extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-    small = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
-    medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-    large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-    extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(36.dp),
+    extraSmall = XmdShapes.Xs,
+    small = XmdShapes.S,
+    medium = XmdShapes.M,
+    large = XmdShapes.L,
+    extraLarge = XmdShapes.Xl,
 )
 
 private val DefaultTypography = Typography()

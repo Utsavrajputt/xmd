@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.components
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -36,7 +37,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -81,7 +81,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -286,7 +285,7 @@ private fun DownloadsTopBar(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(XmdShapes.Xs)
                             .clickable { showDropdown = true }
                             .padding(horizontal = 6.dp, vertical = 4.dp),
                     ) {
@@ -312,7 +311,7 @@ private fun DownloadsTopBar(
                     }
 
                     DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                         expanded = showDropdown,
                         onDismissRequest = { showDropdown = false },
                     ) {

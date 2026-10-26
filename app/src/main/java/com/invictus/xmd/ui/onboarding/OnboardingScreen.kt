@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.onboarding
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -171,7 +171,7 @@ fun OnboardingScreen(
                 if (step > 0) {
                     TextButton(
                         onClick = { step -= 1 },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = XmdShapes.S,
                     ) {
                         Icon(
                             imageVector = Icons.ArrowBack,
@@ -191,7 +191,7 @@ fun OnboardingScreen(
                             Button(
                                 onClick = { step = 1 },
                                 enabled = hasStoragePermission,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = XmdShapes.S,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                 ),
@@ -226,7 +226,7 @@ fun OnboardingScreen(
                             if (!hasNotificationPermission) {
                                 OutlinedButton(
                                     onClick = { step = 2 },
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = XmdShapes.S,
                                     modifier = Modifier.height(48.dp),
                                 ) {
                                     Text(stringResource(R.string.onboarding_skip))
@@ -234,7 +234,7 @@ fun OnboardingScreen(
                             }
                             Button(
                                 onClick = { step = 2 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = XmdShapes.S,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                 ),
@@ -261,7 +261,7 @@ fun OnboardingScreen(
                             if (!batteryOptimizationDisabled) {
                                 OutlinedButton(
                                     onClick = onFinishOnboarding,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = XmdShapes.S,
                                     modifier = Modifier.height(48.dp),
                                 ) {
                                     Text(stringResource(R.string.onboarding_skip))
@@ -269,7 +269,7 @@ fun OnboardingScreen(
                             }
                             Button(
                                 onClick = onFinishOnboarding,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = XmdShapes.S,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                 ),
@@ -333,12 +333,12 @@ private fun StepHeader(
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(XmdShapes.M)
                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = XmdShapes.M,
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -392,7 +392,7 @@ private fun StorageStepContent(
         // Permission Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = XmdShapes.S,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
@@ -428,7 +428,7 @@ private fun StorageStepContent(
                     Button(
                         onClick = onGrantPermission,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = XmdShapes.Xs,
                     ) {
                         Text(stringResource(R.string.onboarding_grant_permission))
                     }
@@ -441,7 +441,7 @@ private fun StorageStepContent(
         // Default Path Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = XmdShapes.S,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
@@ -469,7 +469,7 @@ private fun StorageStepContent(
                 OutlinedButton(
                     onClick = onChangeLocation,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = XmdShapes.Xs,
                 ) {
                     Icon(
                         imageVector = Icons.Edit,
@@ -506,7 +506,7 @@ private fun NotificationStepContent(
         // Notification Permission Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = XmdShapes.S,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
@@ -548,7 +548,7 @@ private fun NotificationStepContent(
                     Button(
                         onClick = onRequestPermission,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = XmdShapes.Xs,
                     ) {
                         Text(stringResource(R.string.onboarding_grant_notification))
                     }
@@ -580,7 +580,7 @@ private fun BatteryStepContent(
         // Battery Optimization Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = XmdShapes.S,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             ),
@@ -622,7 +622,7 @@ private fun BatteryStepContent(
                     Button(
                         onClick = onDisableBattery,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = XmdShapes.Xs,
                     ) {
                         Text(stringResource(R.string.onboarding_disable_battery))
                     }

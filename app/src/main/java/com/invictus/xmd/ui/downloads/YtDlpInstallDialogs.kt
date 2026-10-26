@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,7 +50,7 @@ fun YtDlpInstallPromptDialog(
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.wideDialogWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+            shape = com.invictus.xmd.ui.theme.XmdShapes.Xl,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 0.dp,
         ) {
@@ -129,7 +130,7 @@ fun YtDlpInstallProgressDialog(
     ) {
         Surface(
             modifier = Modifier.wideDialogWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+            shape = com.invictus.xmd.ui.theme.XmdShapes.Xl,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = 0.dp,
         ) {

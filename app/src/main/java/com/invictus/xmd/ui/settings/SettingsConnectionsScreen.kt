@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
@@ -224,7 +224,7 @@ fun SettingsConnectionsScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(XmdShapes.Xs)
                                 .clickable { unitMenuOpen = true }
                                 .padding(start = 6.dp, top = 4.dp, bottom = 4.dp),
                         ) {
@@ -236,7 +236,7 @@ fun SettingsConnectionsScreen(
                             )
                         }
                         DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
                             expanded = unitMenuOpen,
                             onDismissRequest = { unitMenuOpen = false },
                         ) {
@@ -323,7 +323,7 @@ fun SettingsConnectionsScreen(
 @Composable
 private fun ValueBadge(text: String) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = XmdShapes.S,
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
         contentColor = MaterialTheme.colorScheme.primary,
     ) {

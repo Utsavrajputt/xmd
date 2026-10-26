@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +65,7 @@ fun HomePageDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(XmdShapes.S)
                             .clickable { selectedPage = page }
                             .padding(vertical = 6.dp, horizontal = 4.dp),
                     ) {

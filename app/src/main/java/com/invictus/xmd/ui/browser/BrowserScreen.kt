@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.browser
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.clickable
@@ -37,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -241,7 +241,7 @@ internal fun BrowserOverflowMenu(
     onAction: (BrowserMenuAction) -> Unit,
 ) {
     DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = expanded, onDismissRequest = onDismiss) {
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = expanded, onDismissRequest = onDismiss) {
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_refresh),
             icon = Icons.Refresh,

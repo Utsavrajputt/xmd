@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.ui.graphics.Color
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
@@ -197,9 +199,10 @@ private fun IconBuilder(pending: LauncherIcon, onPick: (LauncherIcon) -> Unit) {
             },
         )
 
+        val nameFadeSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         AnimatedContent(
             targetState = appIconName(pending),
-            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
+            transitionSpec = { fadeIn(nameFadeSpec) togetherWith fadeOut(nameFadeSpec) },
             label = "iconName",
         ) { name ->
             Text(
@@ -282,7 +285,7 @@ private fun MarkTile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = XmdShapes.S
     val border = if (selected) {
         BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
     } else {
@@ -325,7 +328,7 @@ private fun IconPreview(
     size: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val fill by animateColorAsState(colorResource(background.color), tween(350), label = "iconBackground")
+    val fill by animateColorAsState(colorResource(background.color), MaterialTheme.motionScheme.defaultEffectsSpec<Color>(), label = "iconBackground")
     Box(
         modifier = modifier
             .size(size)
@@ -333,11 +336,13 @@ private fun IconPreview(
             .background(fill),
         contentAlignment = Alignment.Center,
     ) {
+        val markScaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        val markFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
         AnimatedContent(
             targetState = mark,
             transitionSpec = {
-                (scaleIn(initialScale = 0.6f, animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f)) +
-                    fadeIn(tween(200))) togetherWith (scaleOut(targetScale = 1.2f) + fadeOut(tween(150)))
+                (scaleIn(initialScale = 0.6f, animationSpec = markScaleSpec) + fadeIn(markFadeSpec)) togetherWith
+                    (scaleOut(targetScale = 1.2f, animationSpec = markScaleSpec) + fadeOut(markFadeSpec))
             },
             label = "iconMark",
         ) { shown ->

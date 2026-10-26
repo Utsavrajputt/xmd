@@ -1,5 +1,6 @@
 package com.invictus.xmd.ui.browser
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,7 +61,7 @@ fun LinkContextMenu(
             },
         ) {
             DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = true, onDismissRequest = onDismiss) {
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = true, onDismissRequest = onDismiss) {
                 val link = state.linkUrl
                 val image = state.imageUrl
                 if (!link.isNullOrBlank()) {

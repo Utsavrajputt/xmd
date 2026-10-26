@@ -1,12 +1,12 @@
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -44,7 +44,7 @@ fun LibrariesScreen(libraries: List<Pair<String, String>>) {
 
         libraries.forEach { (name, desc) ->
             Surface(
-                shape = RoundedCornerShape(18.dp),
+                shape = XmdShapes.M,
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
             ) {

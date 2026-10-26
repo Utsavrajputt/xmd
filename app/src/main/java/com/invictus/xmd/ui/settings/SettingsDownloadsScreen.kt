@@ -1,5 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
@@ -21,9 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -252,12 +253,12 @@ private fun DataLimitScopeRow(
             OutlinedButton(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                shape = XmdShapes.Xs,
             ) {
                 Text(dataLimitScopeLabel(scope), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             }
             DropdownMenu(
- shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp), containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+ shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 Settings.DataLimitScope.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(dataLimitScopeLabel(option)) },
@@ -306,15 +307,24 @@ private fun DataLimitValueRow(
                 modifier = Modifier.weight(1f),
             )
             Spacer(modifier = Modifier.width(12.dp))
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.width(140.dp)) {
+            Row(
+                modifier = Modifier.width(140.dp),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            ) {
                 DataUnit.entries.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        selected = unit == option,
-                        onClick = {
+                    ToggleButton(
+                        checked = unit == option,
+                        onCheckedChange = {
                             unit = option
                             valueText.toLongOrNull()?.let { onBytesChanged(it * option.bytesPerUnit) }
                         },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = DataUnit.entries.size),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                        shapes = when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            DataUnit.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        },
                     ) {
                         Text(option.name)
                     }

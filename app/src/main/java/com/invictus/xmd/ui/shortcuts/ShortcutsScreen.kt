@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.shortcuts
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,7 +54,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -321,8 +320,8 @@ private fun Modifier.pointerInputDragReorder(
 
 // ── Tiles ─────────────────────────────────────────────────────────────────
 
-private val TileShape = RoundedCornerShape(20.dp)
-private val GridTileShape = RoundedCornerShape(15.dp)
+private val TileShape = XmdShapes.M
+private val GridTileShape = XmdShapes.S
 private val GridIconSize = 46.dp
 
 @Composable
@@ -578,7 +577,7 @@ private fun ShortcutOptionsDialog(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), RoundedCornerShape(14.dp)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f), XmdShapes.S),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -639,7 +638,7 @@ private fun DialogOptionRow(
     val accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = XmdShapes.S,
         color = if (destructive) MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
         modifier = Modifier.fillMaxWidth(),

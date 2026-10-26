@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -162,7 +162,7 @@ private fun IconTile(icon: com.invictus.xmd.ui.icons.AppIcon) {
     Box(
         modifier = Modifier
             .size(44.dp)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), XmdShapes.S),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

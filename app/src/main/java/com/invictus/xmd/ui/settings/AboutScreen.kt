@@ -1,5 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -28,7 +32,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,9 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.invictus.xmd.ui.icons.Icon
@@ -175,7 +175,7 @@ fun AboutScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = XmdShapes.S,
                             color = cs.primary.copy(alpha = 0.16f),
                         ) {
                             Text(
@@ -204,7 +204,7 @@ fun AboutScreen(
                     Button(
                         onClick = onLibrariesClick,
                         modifier = Modifier.weight(1f).height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = XmdShapes.S,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = btnContainer,
                             contentColor = btnContent,
@@ -228,7 +228,7 @@ fun AboutScreen(
                     Button(
                         onClick = onGithubClick,
                         modifier = Modifier.weight(1f).height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = XmdShapes.S,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = btnContainer,
                             contentColor = btnContent,
@@ -281,7 +281,7 @@ fun AboutScreen(
             )
             Spacer(Modifier.height(14.dp))
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = XmdShapes.S,
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -332,7 +332,7 @@ fun AboutScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = XmdShapes.S,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
@@ -372,24 +372,23 @@ fun AboutScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    SegmentedButton(
-                        selected = updateChannel == Settings.UpdateChannel.STABLE,
-                        onClick = { onUpdateChannelChanged(Settings.UpdateChannel.STABLE) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        icon = {
-                            SegmentedButtonDefaults.Icon(active = updateChannel == Settings.UpdateChannel.STABLE)
-                        },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                ) {
+                    ToggleButton(
+                        checked = updateChannel == Settings.UpdateChannel.STABLE,
+                        onCheckedChange = { onUpdateChannelChanged(Settings.UpdateChannel.STABLE) },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
                     ) {
                         Text(stringResource(R.string.about_update_channel_stable))
                     }
-                    SegmentedButton(
-                        selected = updateChannel == Settings.UpdateChannel.PREVIEW,
-                        onClick = { onUpdateChannelChanged(Settings.UpdateChannel.PREVIEW) },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        icon = {
-                            SegmentedButtonDefaults.Icon(active = updateChannel == Settings.UpdateChannel.PREVIEW)
-                        },
+                    ToggleButton(
+                        checked = updateChannel == Settings.UpdateChannel.PREVIEW,
+                        onCheckedChange = { onUpdateChannelChanged(Settings.UpdateChannel.PREVIEW) },
+                        modifier = Modifier.weight(1f),
+                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
                     ) {
                         Text(stringResource(R.string.about_update_channel_preview))
                     }
@@ -399,7 +398,7 @@ fun AboutScreen(
                     onClick = onCheckForUpdateClick,
                     enabled = !isCheckingForUpdate,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = XmdShapes.S,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,

@@ -1,10 +1,10 @@
 package com.invictus.xmd.ui.browser
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import com.invictus.xmd.ui.icons.Icon
@@ -14,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
@@ -54,7 +53,7 @@ fun BrowserFabs(
     sniffedMediaText: String,
     onSniffedMediaTap: () -> Unit,
 ) {
-    val fabShape = RoundedCornerShape(28.dp)
+    val fabShape = XmdShapes.L
     val containerColor = MaterialTheme.colorScheme.primaryContainer
     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
 

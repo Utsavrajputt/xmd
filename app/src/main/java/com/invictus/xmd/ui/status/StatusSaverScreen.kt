@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.status
 
+import androidx.compose.material3.LoadingIndicator
+import com.invictus.xmd.ui.theme.XmdShapes
 import com.invictus.xmd.ui.components.XmdTopBar
 import android.graphics.Bitmap
 import android.view.Gravity
@@ -30,10 +32,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.invictus.xmd.ui.components.XmdAlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -248,7 +248,7 @@ internal fun StatusSaverScreen(
                         viewModel.loading && pageItems.isEmpty() -> Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center,
-                        ) { CircularProgressIndicator() }
+                        ) { LoadingIndicator() }
                         pageItems.isEmpty() -> CenteredMessage(
                             stringResource(if (pageIsRecent) R.string.status_empty_recent else R.string.status_empty_saved),
                         )
@@ -335,7 +335,7 @@ private fun StatusTile(
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(XmdShapes.S)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {

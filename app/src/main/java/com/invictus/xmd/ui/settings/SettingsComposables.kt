@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,7 +42,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,7 +66,7 @@ fun SettingsSectionCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         border = if (isAmoled) BorderStroke(1.dp, Color(0xFF1F1F1F)) else null,
-        shape = RoundedCornerShape(28.dp),
+        shape = XmdShapes.L,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
@@ -268,7 +268,7 @@ fun CategoryRow(
     extraContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val rowShape = when {
-        isFirst && isLast -> RoundedCornerShape(28.dp)
+        isFirst && isLast -> XmdShapes.L
         isFirst -> RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         isLast -> RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
         else -> androidx.compose.ui.graphics.RectangleShape
@@ -372,12 +372,12 @@ fun ThemeSwatchItem(
                 .padding(3.dp)
                 .then(
                     if (isSelected) {
-                        Modifier.border(2.dp, primaryColor, RoundedCornerShape(13.dp))
+                        Modifier.border(2.dp, primaryColor, XmdShapes.S)
                     } else {
                         Modifier
                     },
                 )
-                .background(bgColor, RoundedCornerShape(13.dp)),
+                .background(bgColor, XmdShapes.S),
             contentAlignment = Alignment.Center,
         ) {
             Row {

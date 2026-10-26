@@ -1,6 +1,7 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -248,7 +249,7 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
                         val fitsByHeight = maxPreviewHeight * ratio <= maxWidth
                         val frameHeight = if (fitsByHeight) maxPreviewHeight else maxWidth / ratio
                         val frameWidth = if (fitsByHeight) maxPreviewHeight * ratio else maxWidth
-                        val frameShape = RoundedCornerShape(22.dp)
+                        val frameShape = XmdShapes.M
                         Box(
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -484,7 +485,7 @@ private fun PresetCard(
     onClick: () -> Unit,
     content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = XmdShapes.S
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier

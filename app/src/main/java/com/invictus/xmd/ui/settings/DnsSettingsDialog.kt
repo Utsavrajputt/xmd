@@ -4,6 +4,7 @@
 )
 package com.invictus.xmd.ui.settings
 
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BasicAlertDialog
@@ -131,7 +131,7 @@ fun DnsSettingsDialog(
         properties = WideDialogProperties,
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = XmdShapes.L,
             color = colors.surface,
             border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.45f)),
         ) {
@@ -185,7 +185,7 @@ fun DnsSettingsDialog(
                                     role = Role.RadioButton,
                                     onClick = { selectedMode = option.mode },
                                 ),
-                            shape = RoundedCornerShape(18.dp),
+                            shape = XmdShapes.M,
                             color = if (selected) colors.primaryContainer.copy(alpha = 0.35f)
                             else colors.surfaceContainerHigh.copy(alpha = 0.6f),
                             border = BorderStroke(
@@ -230,7 +230,7 @@ fun DnsSettingsDialog(
                                             )
                                         },
                                         singleLine = true,
-                                        shape = RoundedCornerShape(14.dp),
+                                        shape = XmdShapes.S,
                                         textStyle = MaterialTheme.typography.bodyMedium,
                                         keyboardOptions = KeyboardOptions(
                                             keyboardType = KeyboardType.Uri,

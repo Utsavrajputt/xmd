@@ -1,6 +1,8 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.material3.LinearWavyProgressIndicator
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -29,7 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
@@ -74,7 +75,7 @@ fun SettingsRootScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = XmdShapes.S,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
                     ),
@@ -125,7 +126,7 @@ fun SettingsRootScreen(
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = onFixBatteryOptimization,
-                            shape = RoundedCornerShape(10.dp),
+                            shape = XmdShapes.Xs,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error,
                                 contentColor = MaterialTheme.colorScheme.onError,
@@ -221,16 +222,13 @@ private fun StorageMeter(modifier: Modifier = Modifier) {
     if (storageInfo.totalBytes <= 0L) return
 
     Column(modifier = modifier.fillMaxWidth().padding(top = 6.dp)) {
-        LinearProgressIndicator(
+        LinearWavyProgressIndicator(
             progress = { storageInfo.usedFraction },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(100.dp)),
+            modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
             gapSize = 0.dp,
-            drawStopIndicator = {},
+            stopSize = 0.dp,
         )
         Spacer(Modifier.height(5.dp))
         Text(

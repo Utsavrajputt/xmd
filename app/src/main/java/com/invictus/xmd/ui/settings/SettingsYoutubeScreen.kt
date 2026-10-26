@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.settings
 
+import androidx.compose.material3.LoadingIndicator
+import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenu
@@ -161,7 +163,7 @@ fun SettingsYoutubeScreen(
                         },
                         enabled = !busy,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = XmdShapes.Xs,
                     ) {
                         Icon(
                             imageVector = if (!ytDlpInstalled) Icons.Download else Icons.Sync,
@@ -177,7 +179,7 @@ fun SettingsYoutubeScreen(
                             onClick = onNightlyToggleClick,
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = XmdShapes.Xs,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         ) {
                             Icon(Icons.Sync, null, modifier = Modifier.size(18.dp))
@@ -189,7 +191,7 @@ fun SettingsYoutubeScreen(
                             onClick = onInstallOrDeleteClick,
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = XmdShapes.Xs,
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
@@ -438,7 +440,7 @@ private fun YtdlpStatusCard(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = XmdShapes.Xs,
         color = containerColor,
         border = BorderStroke(1.dp, contentColor.copy(alpha = 0.2f)),
         tonalElevation = 2.dp,
@@ -455,9 +457,8 @@ private fun YtdlpStatusCard(
                 contentAlignment = Alignment.Center,
             ) {
                 if (isBusy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp,
+                    LoadingIndicator(
+                        modifier = Modifier.size(32.dp),
                         color = contentColor,
                     )
                 } else {
@@ -534,7 +535,7 @@ private fun PresetDropdownField(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
-            shape = RoundedCornerShape(8.dp),
+            shape = XmdShapes.Xs,
             label = label?.let { l -> { Text(l, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             textStyle = MaterialTheme.typography.bodyMedium,
