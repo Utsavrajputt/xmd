@@ -108,7 +108,7 @@ private fun WebAppScreen(
 }
 
 /** Mirrors BrowserFragment.configureWebView's core settings -- JS, DOM
- *  storage, zoom, autoplay, cache/mixed-content -- for parity with a
+ *  storage, zoom, tap-to-play media, cache/mixed-content -- for parity with a
  *  normal browser tab. Desktop-site emulation, tab lifecycle (LRU
  *  eviction, state save/restore) and the long-press link menu are
  *  tab-only concerns this single-page window doesn't need. */
@@ -120,7 +120,8 @@ private fun WebView.configureAsStandaloneApp() {
     settings.setSupportZoom(true)
     settings.builtInZoomControls = true
     settings.displayZoomControls = false
-    settings.mediaPlaybackRequiresUserGesture = false
+    // Media starts only on a real user tap -- no page-initiated autoplay.
+    settings.mediaPlaybackRequiresUserGesture = true
     settings.cacheMode = WebSettings.LOAD_DEFAULT
     settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 

@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -50,19 +51,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +86,7 @@ import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import com.invictus.xmd.utils.FaviconLoader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -373,54 +374,11 @@ private fun TabGridCard(
         item.url?.let { extractDomain(it) }.orEmpty()
     }
 
-    // Chrome-style swipe-to-dismiss: card follows the finger horizontally,
-    // fades out, and is closed once dragged past ~40% of its width or flung.
-    val haptics = LocalHapticFeedback.current
-    val swipeScope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
-    var cardWidth by remember { mutableStateOf(1f) }
-    val flingPx = with(LocalDensity.current) { 900.dp.toPx() }
-    val swipeSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val dragState = rememberDraggableState { delta ->
-        swipeScope.launch { offsetX.snapTo(offsetX.value + delta) }
-    }
-
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(aspectRatio)
-            .onSizeChanged { cardWidth = it.width.toFloat().coerceAtLeast(1f) }
-            .graphicsLayer {
-                translationX = offsetX.value
-                alpha = (1f - abs(offsetX.value) / (cardWidth * 1.1f)).coerceIn(0f, 1f)
-            }
-            .draggable(
-                state = dragState,
-                orientation = Orientation.Horizontal,
-                onDragStopped = { velocity ->
-                    val shouldDismiss =
-                        abs(offsetX.value) > cardWidth * 0.4f || abs(velocity) > flingPx
-                    if (shouldDismiss) {
-                        val dir = if (offsetX.value != 0f) {
-                            if (offsetX.value > 0f) 1f else -1f
-                        } else {
-                            if (velocity > 0f) 1f else -1f
-                        }
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        offsetX.animateTo(dir * cardWidth * 1.2f, swipeSpec)
-                        onCloseClick()
-                        // Closing the only tab just resets it to a blank tab
-                        // (same id), so this card is NOT removed and would stay
-                        // stuck off-screen/invisible. If we're still composed
-                        // after the close, slide back in. When the card is
-                        // removed (normal case) this coroutine is cancelled.
-                        delay(250)
-                        offsetX.animateTo(0f, swipeSpec)
-                    } else {
-                        offsetX.animateTo(0f, swipeSpec)
-                    }
-                },
-            )
+            .chromeSwipeToClose(onCloseClick)
             .clip(XmdShapes.S)
             .clickable(onClick = onClick),
         color = colors.container,
@@ -580,106 +538,109 @@ private fun TabRow(
 
     val colors = tabColors(item, isActive)
 
-    val haptics = LocalHapticFeedback.current
-    val rowScope = rememberCoroutineScope()
-    lateinit var rowDismissState: androidx.compose.material3.SwipeToDismissBoxState
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.StartToEnd || value == SwipeToDismissBoxValue.EndToStart) {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onCloseClick()
-                // Only tab -> reset to blank keeps the same row; bring it back.
-                // Cancelled automatically if the row leaves composition.
-                rowScope.launch {
-                    delay(250)
-                    rowDismissState.reset()
-                }
-                true
-            } else {
-                false
-            }
-        },
-    )
-
-    rowDismissState = dismissState
-
-    LaunchedEffect(item.id) {
-        if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
-            dismissState.reset()
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(alpha.value),
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val alignment = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-                Alignment.CenterStart
-            } else {
-                Alignment.CenterEnd
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(XmdShapes.L)
-                    .background(
-                        if (dismissState.dismissDirection == SwipeToDismissBoxValue.Settled) {
-                            androidx.compose.ui.graphics.Color.Transparent
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        },
-                    )
-                    .padding(horizontal = 20.dp),
-                contentAlignment = alignment,
-            ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    Icon(
-                        imageVector = Icons.Close,
-                        contentDescription = stringResource(R.string.action_dismiss),
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-            }
-        },
+            .alpha(alpha.value)
+            .chromeSwipeToClose(onCloseClick)
+            .clip(XmdShapes.L)
+            .clickable(onClick = onClick),
+        color = colors.container,
+        shape = XmdShapes.L,
+        border = if (isActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            color = colors.container,
-            shape = XmdShapes.L,
-            border = if (isActive) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 10.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 10.dp),
-            ) {
-                TabFavicon(item = item)
-                Text(
-                    text = item.title.ifBlank { item.url ?: stringResource(R.string.action_new_tab) },
-                    color = colors.onContainer,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp),
+            TabFavicon(item = item)
+            Text(
+                text = item.title.ifBlank { item.url ?: stringResource(R.string.action_new_tab) },
+                color = colors.onContainer,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            )
+            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCloseClick) {
+                Icon(
+                    imageVector = Icons.Close,
+                    contentDescription = stringResource(R.string.action_dismiss),
+                    tint = colors.onContainer,
                 )
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCloseClick) {
-                    Icon(
-                        imageVector = Icons.Close,
-                        contentDescription = stringResource(R.string.action_dismiss),
-                        tint = colors.onContainer,
-                    )
-                }
             }
         }
     }
+}
+
+/**
+ * Chrome tab-switcher swipe-to-close: the card/row tracks the finger
+ * horizontally and fades as it leaves; releasing past ~1/3 of its width (or
+ * with a decent fling) throws it off-screen in the swipe direction and closes
+ * the tab, otherwise it springs back. No red backdrop, like Chrome.
+ *
+ * Drag deltas are applied synchronously and the release animation runs in a
+ * single job that a new touch cancels -- never one coroutine per delta (those
+ * raced the settle animation and left the card stuck mid-way).
+ */
+@Composable
+private fun Modifier.chromeSwipeToClose(onClose: () -> Unit): Modifier {
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    var width by remember { mutableFloatStateOf(1f) }
+    val flingPx = with(LocalDensity.current) { 600.dp.toPx() }
+    val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val currentOnClose by rememberUpdatedState(onClose)
+    val dragState = rememberDraggableState { delta -> offsetX += delta }
+
+    return this
+        .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+        .graphicsLayer {
+            translationX = offsetX
+            alpha = (1f - abs(offsetX) / width).coerceIn(0f, 1f)
+        }
+        .draggable(
+            state = dragState,
+            orientation = Orientation.Horizontal,
+            onDragStarted = {
+                settleJob?.cancel()
+                settleJob = null
+            },
+            onDragStopped = { velocity ->
+                settleJob?.cancel()
+                settleJob = scope.launch {
+                    val dismiss = abs(offsetX) > width * 0.35f || abs(velocity) > flingPx
+                    if (dismiss) {
+                        val dir = when {
+                            offsetX > 0f -> 1f
+                            offsetX < 0f -> -1f
+                            velocity > 0f -> 1f
+                            else -> -1f
+                        }
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        animate(
+                            initialValue = offsetX,
+                            targetValue = dir * width * 1.1f,
+                            initialVelocity = if (velocity * dir > 0f) velocity else 0f,
+                            animationSpec = spec,
+                        ) { v, _ -> offsetX = v }
+                        currentOnClose()
+                        // Closing the only tab resets it to a blank tab (same
+                        // id), so this item is NOT removed and would stay
+                        // invisible. If still composed afterwards, slide back
+                        // in; when the item is removed this job is cancelled.
+                        delay(250)
+                        animate(offsetX, 0f, animationSpec = spec) { v, _ -> offsetX = v }
+                    } else {
+                        animate(offsetX, 0f, animationSpec = spec) { v, _ -> offsetX = v }
+                    }
+                }
+            },
+        )
 }
 
 /**

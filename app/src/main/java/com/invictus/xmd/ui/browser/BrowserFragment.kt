@@ -1067,12 +1067,11 @@ class BrowserFragment : Fragment() {
         webView.settings.setSupportZoom(true)
         webView.settings.builtInZoomControls = true
         webView.settings.displayZoomControls = false
-        // Android's WebView default (true) blocks any <video>/<audio> from
-        // starting until a real tap on the player itself -- a page that
-        // autoplays or auto-resumes via JS (no direct tap) silently never
-        // starts, showing a stuck loading/buffering spinner with no error.
-        // A real browser wouldn't gate this either, so match that.
-        webView.settings.mediaPlaybackRequiresUserGesture = false
+        // Android's WebView default (true): <video>/<audio> only start after a
+        // real tap on the player, so pages can't autoplay media on their own
+        // (reels, preview clips, ad videos). Keep it that way -- playback
+        // should only begin when the user asks for it.
+        webView.settings.mediaPlaybackRequiresUserGesture = true
         // LOAD_DEFAULT: serve straight from cache whenever the cached
         // response is still valid per its own headers, only hitting the
         // network for stuff that's actually stale -- cache-first without
