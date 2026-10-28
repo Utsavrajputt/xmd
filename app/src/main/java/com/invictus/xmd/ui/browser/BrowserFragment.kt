@@ -1083,6 +1083,14 @@ class BrowserFragment : Fragment() {
                 lastBottomBarToggleMs = now
             }
         }
+        // Let the system autofill service (Google, Bitwarden, Samsung Pass...)
+        // see this WebView's login fields. Incognito tabs opt out so
+        // credentials typed there are never offered for saving.
+        webView.importantForAutofill = if (tab.isPrivate) {
+            View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        } else {
+            View.IMPORTANT_FOR_AUTOFILL_YES
+        }
         webView.settings.javaScriptEnabled = true
         applyForceDark(webView)
         webView.settings.domStorageEnabled = true

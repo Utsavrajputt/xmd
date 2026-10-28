@@ -408,7 +408,6 @@ fun DownloadsScreen(
                         if (count == 0) return@forEach
                         DownloadFilterChip(
                             label = stringResource(filter.labelRes),
-                            count = count,
                             selected = selected,
                             onClick = { chosenStatusName = filter.name },
                         )
@@ -427,7 +426,6 @@ fun DownloadsScreen(
                             val selected = selectedType == type
                             DownloadFilterChip(
                                 label = stringResource(type.labelRes),
-                                count = typeCounts[type] ?: 0,
                                 selected = selected,
                                 onClick = { selectedTypeName = if (selected) null else type.name },
                             )
@@ -877,7 +875,6 @@ private fun sizeKey(item: QueueItem): Long = maxOf(item.bytesTotal, item.bytesDo
 @Composable
 private fun DownloadFilterChip(
     label: String,
-    count: Int,
     selected: Boolean,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -886,7 +883,7 @@ private fun DownloadFilterChip(
         selected = selected,
         onClick = onClick,
         enabled = enabled,
-        label = { Text(text = "$label $count", fontSize = 12.sp) },
+        label = { Text(text = label, fontSize = 12.sp) },
         leadingIcon = if (selected) {
             {
                 Icon(
