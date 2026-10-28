@@ -191,23 +191,50 @@ fun DownloadsScreen(
             }
         }
     }
-    var selectedFilterName by rememberSaveable { mutableStateOf(DownloadFilter.All.name) }
-    val selectedFilter = DownloadFilter.valueOf(selectedFilterName)
+    // No "All" chip. Exactly one status chip (Active/Waiting/Finished/Failed)
+    // is always selected -- by default Active, or Finished when nothing is
+    // active -- and an optional type chip (Video/Audio/Documents/Others, tap
+    // again to clear) combines with it.
+    var chosenStatusName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedTypeName by rememberSaveable { mutableStateOf<String?>(null) }
+    var sortName by rememberSaveable { mutableStateOf(DownloadSort.Default.name) }
+    val selectedType = DownloadTypeFilter.entries.firstOrNull { it.name == selectedTypeName }
+    val sort = DownloadSort.entries.firstOrNull { it.name == sortName } ?: DownloadSort.Default
+
+    // Chip counts respect the OTHER chip group, so a combination never lands on an empty list.
+    val statusCounts = remember(queryMatches, selectedType) {
+        val base = if (selectedType == null) queryMatches else queryMatches.filter { selectedType.matches(it) }
+        DownloadFilter.entries.associateWith { f -> base.count { f.matches(it) } }
+    }
+    // The user's pick if it still has items; otherwise Active, else Finished,
+    // else whatever is left. A chip with nothing in it is hidden, so the
+    // selection can never sit on an empty one.
+    val selectedStatus: DownloadFilter? = run {
+        val chosen = DownloadFilter.entries.firstOrNull { it.name == chosenStatusName }
+        if (chosen != null && (statusCounts[chosen] ?: 0) > 0) {
+            chosen
+        } else {
+            listOf(DownloadFilter.Active, DownloadFilter.Finished, DownloadFilter.Waiting, DownloadFilter.Failed)
+                .firstOrNull { (statusCounts[it] ?: 0) > 0 }
+        }
+    }
+    val typeCounts = remember(queryMatches, selectedStatus) {
+        val base = if (selectedStatus == null) queryMatches else queryMatches.filter { selectedStatus.matches(it) }
+        DownloadTypeFilter.entries.associateWith { t -> base.count { t.matches(it) } }
+    }
     // In-flight downloads (the Active set) stay on top of the list while they run; the rest keep their order.
-    val list = remember(queryMatches, selectedFilter) {
-        val (inFlight, others) = queryMatches.filter(selectedFilter::matches).partition(DownloadFilter.Active::matches)
-        inFlight + others
+    val list = remember(queryMatches, selectedStatus, selectedType, sort) {
+        val filtered = queryMatches.filter {
+            (selectedStatus?.matches(it) ?: true) && (selectedType?.matches(it) ?: true)
+        }
+        val (inFlight, others) = filtered.partition { DownloadFilter.Active.matches(it) }
+        sort.apply(inFlight) + sort.apply(others)
     }
 
-    // If the currently selected chip (e.g. "Active") loses its last item to
-    // a cancel/delete, its count drops to 0 and the chip itself disappears
-    // (see the `count == 0 -> return@forEach` skip below) -- leaving the
-    // user stranded on a filter with no chip and an empty list. Snap back
-    // to "All" whenever that happens.
-    LaunchedEffect(selectedFilter, list.isEmpty()) {
-        if (selectedFilter != DownloadFilter.All && list.isEmpty()) {
-            selectedFilterName = DownloadFilter.All.name
-        }
+    // A type chip whose items are all gone would strand the user on an empty
+    // list -- drop that selection instead.
+    LaunchedEffect(typeCounts, selectedType) {
+        if (selectedType != null && typeCounts[selectedType] == 0) selectedTypeName = null
     }
 
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -215,6 +242,7 @@ fun DownloadsScreen(
     var deleteTargets by remember { mutableStateOf<List<QueueItem>?>(null) }
     var errorDetailsTarget by remember { mutableStateOf<QueueItem?>(null) }
     var overflowMenuExpanded by remember { mutableStateOf(false) }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
     var pendingCancelItem by remember { mutableStateOf<QueueItem?>(null) }
     var showCancelAllDialog by remember { mutableStateOf(false) }
 
@@ -370,40 +398,40 @@ fun DownloadsScreen(
                         .horizontalScroll(rememberScrollState())
                         .padding(start = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     DownloadFilter.entries.forEach { filter ->
-                        val count = queryMatches.count(filter::matches)
-                        // All always shows (it's the reset-to-everything
-                        // chip); the rest only show once they'd actually
-                        // have something in them, so a Waiting/Completed/
-                        // Failed chip stuck at 0 doesn't just sit there.
-                        if (filter != DownloadFilter.All && count == 0) return@forEach
-                        FilterChip(
-                            selected = selectedFilter == filter,
-                            onClick = { selectedFilterName = filter.name },
-                            label = {
-                                Text(
-                                    text = "${stringResource(filter.labelRes)} $count",
-                                    fontSize = 12.sp,
-                                )
-                            },
-                            leadingIcon = if (selectedFilter == filter) {
-                                {
-                                    Icon(
-                                        imageVector = Icons.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            ),
+                        val count = statusCounts[filter] ?: 0
+                        val selected = selectedStatus == filter
+                        // Every status chip (Active included) is hidden while
+                        // it has nothing in it.
+                        if (count == 0) return@forEach
+                        DownloadFilterChip(
+                            label = stringResource(filter.labelRes),
+                            count = count,
+                            selected = selected,
+                            onClick = { chosenStatusName = filter.name },
                         )
+                    }
+                    val visibleTypes = DownloadTypeFilter.entries.filter {
+                        (typeCounts[it] ?: 0) > 0 || selectedType == it
+                    }
+                    if (visibleTypes.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(20.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant),
+                        )
+                        visibleTypes.forEach { type ->
+                            val selected = selectedType == type
+                            DownloadFilterChip(
+                                label = stringResource(type.labelRes),
+                                count = typeCounts[type] ?: 0,
+                                selected = selected,
+                                onClick = { selectedTypeName = if (selected) null else type.name },
+                            )
+                        }
                     }
                 }
 
@@ -413,6 +441,46 @@ fun DownloadsScreen(
                 // everything else and left a lot of dead space below a
                 // short list).
                 if (list.isNotEmpty()) {
+                    // Compact sort button, just left of the 3-dot menu.
+                    Box {
+                        IconButton(
+                            shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                            onClick = { sortMenuExpanded = true },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Sort,
+                                contentDescription = stringResource(R.string.action_sort),
+                                tint = if (sort != DownloadSort.Default) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        DropdownMenu(
+                            shape = com.invictus.xmd.ui.theme.XmdShapes.M,
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            expanded = sortMenuExpanded,
+                            onDismissRequest = { sortMenuExpanded = false },
+                        ) {
+                            DownloadSort.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(option.labelRes)) },
+                                    trailingIcon = if (option == sort) {
+                                        { Icon(imageVector = Icons.Check, contentDescription = null) }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        sortName = option.name
+                                        sortMenuExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
                     Box(modifier = Modifier.padding(end = 4.dp)) {
                         IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { overflowMenuExpanded = true }) {
                             Icon(
@@ -719,14 +787,12 @@ fun DownloadsScreen(
 }
 
 private enum class DownloadFilter(val labelRes: Int) {
-    All(R.string.download_filter_all),
     Active(R.string.download_filter_active),
     Waiting(R.string.download_filter_waiting),
-    Completed(R.string.download_filter_completed),
+    Finished(R.string.download_filter_completed),
     Failed(R.string.download_filter_failed);
 
     fun matches(item: QueueItem): Boolean = when (this) {
-        All -> true
         Active -> item.status in setOf(
             ItemStatus.DOWNLOADING,
             ItemStatus.PAUSED,
@@ -739,9 +805,105 @@ private enum class DownloadFilter(val labelRes: Int) {
             ItemStatus.NEEDS_CHALLENGE,
             ItemStatus.READY,
         )
-        Completed -> item.status == ItemStatus.DONE
+        Finished -> item.status == ItemStatus.DONE
         Failed -> item.status == ItemStatus.FAILED
     }
+}
+
+private enum class DownloadTypeFilter(val labelRes: Int) {
+    Video(R.string.download_type_video),
+    Audio(R.string.download_type_audio),
+    Documents(R.string.download_type_documents),
+    Others(R.string.download_type_others);
+
+    fun matches(item: QueueItem): Boolean = downloadType(item) == this
+}
+
+/** Same extension/category rules the row icon uses, folded into the four filter buckets. */
+private fun downloadType(item: QueueItem): DownloadTypeFilter {
+    if (item.sourceUrl.startsWith("magnet:", ignoreCase = true)) return DownloadTypeFilter.Others
+    if (item.platform == MediaPlatform.YOUTUBE) {
+        val format = item.mediaFormatLabel?.trim()?.lowercase()
+        val audio = format != null &&
+            (format.contains("audio") || format.contains("mp3") || format.contains("m4a") || format.contains("opus"))
+        return if (audio) DownloadTypeFilter.Audio else DownloadTypeFilter.Video
+    }
+    val name = (item.fileName ?: item.sourceUrl).substringBefore('?').substringBefore('#')
+    val ext = name.substringAfterLast('.', "").trim().lowercase()
+    return when {
+        ext in listOf("mp4", "mkv", "webm", "avi", "mov", "flv", "ts", "wmv", "m4v", "3gp", "mpg", "mpeg") -> DownloadTypeFilter.Video
+        ext in listOf("mp3", "m4a", "flac", "opus", "wav", "ogg", "aac", "wma") -> DownloadTypeFilter.Audio
+        ext in listOf(
+            "pdf", "epub", "mobi", "cbz", "cbr", "doc", "docx", "txt", "md", "rtf", "odt",
+            "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp",
+        ) -> DownloadTypeFilter.Documents
+        ext.isNotEmpty() && (ext in listOf("apk", "xapk", "apks", "zip", "rar", "7z", "tar", "gz", "iso", "torrent")) -> DownloadTypeFilter.Others
+        item.category == DownloadCategory.VIDEOS || item.category == DownloadCategory.MOVIES ||
+            item.category == DownloadCategory.SHOWS -> DownloadTypeFilter.Video
+        item.category == DownloadCategory.MUSIC -> DownloadTypeFilter.Audio
+        item.category == DownloadCategory.DOCUMENTS -> DownloadTypeFilter.Documents
+        else -> DownloadTypeFilter.Others
+    }
+}
+
+private enum class DownloadSort(val labelRes: Int) {
+    Default(R.string.download_sort_default),
+    Newest(R.string.download_sort_newest),
+    Oldest(R.string.download_sort_oldest),
+    NameAsc(R.string.download_sort_name_asc),
+    NameDesc(R.string.download_sort_name_desc),
+    SizeDesc(R.string.download_sort_size_desc),
+    SizeAsc(R.string.download_sort_size_asc);
+
+    fun apply(list: List<QueueItem>): List<QueueItem> = when (this) {
+        Default -> list
+        Newest -> list.sortedByDescending { timeKey(it) }
+        Oldest -> list.sortedBy { timeKey(it) }
+        NameAsc -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.fileName ?: it.sourceUrl })
+        NameDesc -> list.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.fileName ?: it.sourceUrl })
+        SizeDesc -> list.sortedByDescending { sizeKey(it) }
+        SizeAsc -> list.sortedBy { sizeKey(it) }
+    }
+}
+
+// Finished time, else start time; items that haven't started yet were queued most recently.
+private fun timeKey(item: QueueItem): Long {
+    val t = maxOf(item.downloadFinishedAtMs, item.downloadStartedAtMs)
+    return if (t == 0L) Long.MAX_VALUE else t
+}
+
+private fun sizeKey(item: QueueItem): Long = maxOf(item.bytesTotal, item.bytesDone)
+
+@Composable
+private fun DownloadFilterChip(
+    label: String,
+    count: Int,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(text = "$label $count", fontSize = 12.sp) },
+        leadingIcon = if (selected) {
+            {
+                Icon(
+                    imageVector = Icons.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            }
+        } else {
+            null
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
+    )
 }
 
 @Composable
