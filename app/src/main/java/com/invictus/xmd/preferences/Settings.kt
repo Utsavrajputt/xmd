@@ -78,6 +78,7 @@ object Settings {
     private const val KEY_BROWSER_BOTTOM_BAR_ENABLED = "browser_bottom_bar_enabled"
     private const val KEY_BROWSER_TOOLBAR_BOTTOM = "browser_toolbar_bottom"
     private const val KEY_BROWSER_NAV_BUTTONS_ENABLED = "browser_nav_buttons_enabled"
+    private const val KEY_BROWSER_FORCE_DARK = "browser_force_dark"
     private const val KEY_TABS_GRID_MODE = "browser_tabs_grid_mode"
     private const val KEY_AUTO_CHECK_UPDATES = "about_auto_check_for_updates"
     private const val KEY_UPDATE_CHANNEL = "about_update_channel"
@@ -504,6 +505,13 @@ object Settings {
         prefs.getBoolean(KEY_BROWSER_NAV_BUTTONS_ENABLED, false)
     fun setBrowserNavButtonsEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_BROWSER_NAV_BUTTONS_ENABLED, value).apply()
+    }
+
+    // ── Browser: Force dark mode for web pages (default OFF) ──
+    fun browserForceDark(): Boolean =
+        prefs.getBoolean(KEY_BROWSER_FORCE_DARK, false)
+    fun setBrowserForceDark(value: Boolean) {
+        prefs.edit().putBoolean(KEY_BROWSER_FORCE_DARK, value).apply()
     }
 
     // ── Browser: Bottom address bar ─────────────────────────────────────────

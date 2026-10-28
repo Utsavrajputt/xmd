@@ -778,7 +778,8 @@ class BrowserFragment : Fragment() {
                             },
                             onClose = { id ->
                                 val index = tabs.indexOfFirst { it.id == id }
-                                if (index != -1) closeTab(index, recordUndo = true)
+                                // Last tab -> tray closes right after (no snackbar to host Undo).
+                                if (index != -1) closeTab(index, recordUndo = tabs.size > 1)
                                 refreshTabsOverlaySnapshot()
                             },
                             // Chrome stays in the tab switcher after "Close all"
@@ -1040,6 +1041,29 @@ class BrowserFragment : Fragment() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    /**
+     * "Force dark mode" (Browser settings). Algorithmic darkening is the modern
+     * path (needs the app theme to be dark, which is the app default); the legacy
+     * force-dark switch is also set so it still works on the Light app theme and
+     * on older WebViews. Safe to call repeatedly / on live WebViews.
+     */
+    @Suppress("DEPRECATION")
+    private fun applyForceDark(webView: WebView) {
+        val enabled = Settings.browserForceDark()
+        runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.ALGORITHMIC_DARKENING)) {
+                androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, enabled)
+            }
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.FORCE_DARK)) {
+                androidx.webkit.WebSettingsCompat.setForceDark(
+                    webView.settings,
+                    if (enabled) androidx.webkit.WebSettingsCompat.FORCE_DARK_ON
+                    else androidx.webkit.WebSettingsCompat.FORCE_DARK_OFF,
+                )
+            }
+        }
+    }
+
     private fun configureWebView(webView: WebView, tab: BrowserTab) {
         webView.addJavascriptInterface(MediaBridge(tab.id), "XmdMedia")
         webView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
@@ -1060,6 +1084,7 @@ class BrowserFragment : Fragment() {
             }
         }
         webView.settings.javaScriptEnabled = true
+        applyForceDark(webView)
         webView.settings.domStorageEnabled = true
         webView.settings.databaseEnabled = true
         // Pinch-to-zoom: builtInZoomControls actually enables the pinch
@@ -2172,6 +2197,7 @@ class BrowserFragment : Fragment() {
         toolbarBottom = Settings.browserToolbarBottom()
         bottomBarEnabled = Settings.browserBottomBarEnabled()
         navButtonsEnabled = Settings.browserNavButtonsEnabled()
+        webViews.values.forEach(::applyForceDark) // picks up a toggle made in Settings
         val currentTab = tabs.getOrNull(currentTabIndex)
         val currentWebView = if (currentTab != null) webViewFor(currentTab) else null
         navCanGoBack = !speedDialVisible && currentWebView?.canGoBack() == true

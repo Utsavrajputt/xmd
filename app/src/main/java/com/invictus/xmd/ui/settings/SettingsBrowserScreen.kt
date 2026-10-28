@@ -59,6 +59,8 @@ fun SettingsBrowserScreen(
     onBottomBarChanged: (Boolean) -> Unit,
     navButtonsEnabled: Boolean,
     onNavButtonsChanged: (Boolean) -> Unit,
+    forceDarkEnabled: Boolean,
+    onForceDarkChanged: (Boolean) -> Unit,
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
@@ -122,6 +124,13 @@ fun SettingsBrowserScreen(
                 subtitle = stringResource(R.string.settings_nav_buttons_hint),
                 checked = navButtonsEnabled,
                 onCheckedChange = onNavButtonsChanged,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_force_dark),
+                subtitle = stringResource(R.string.settings_force_dark_hint),
+                checked = forceDarkEnabled,
+                onCheckedChange = onForceDarkChanged,
             )
             SettingsDivider()
             SwitchSettingRow(

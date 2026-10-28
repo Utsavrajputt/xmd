@@ -79,6 +79,7 @@ class DownloadService : LifecycleService() {
         const val EXTRA_ITEM_IDS = "extra_item_ids"
         private const val NOTIFICATION_ID = 42
         private const val DATA_LIMIT_NOTIFICATION_ID = 43
+        private const val COMPLETE_NOTIFICATION_BASE = 100_000
         private const val BETWEEN_CLAIM_DELAY_MS = 500L
         private const val MAX_AUTO_RETRIES = 5
         private const val MAX_AUTO_RETRY_DELAY_MS = 30_000L
@@ -471,6 +472,68 @@ class DownloadService : LifecycleService() {
         if (live.isNotEmpty()) {
             updateNotification()
             showDataLimitReachedNotification()
+        }
+    }
+
+    /**
+     * Per-file "Download complete" notification (separate from the ongoing
+     * progress notification, which is removed when the queue empties). Tapping
+     * it opens the file; if the file isn't a single openable file (multi-file
+     * torrent) or is gone, it opens the app instead.
+     */
+    private fun showDownloadCompleteNotification(itemId: String) {
+        try {
+            val item = QueueRepository.current().firstOrNull { it.id == itemId } ?: return
+            if (item.status != ItemStatus.DONE) return
+            val nm = androidx.core.app.NotificationManagerCompat.from(this)
+            if (!nm.areNotificationsEnabled()) return
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    this, android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) return
+
+            val file = item.filePath?.let { File(it) }?.takeIf { it.isFile }
+            val displayName = item.fileName?.takeIf { it.isNotBlank() }
+                ?: file?.name
+                ?: getString(R.string.download_complete_title)
+
+            val openApp = PendingIntent.getActivity(
+                this, 0, Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val contentIntent = if (file != null) {
+                runCatching {
+                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                        this, "$packageName.fileprovider", file
+                    )
+                    val mime = android.webkit.MimeTypeMap.getSingleton()
+                        .getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+                    val view = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, mime)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    PendingIntent.getActivity(
+                        this, (itemId.hashCode() and 0x7FFFFFF),
+                        Intent.createChooser(view, getString(R.string.action_open))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                }.getOrDefault(openApp)
+            } else openApp
+
+            val notification = NotificationCompat.Builder(this, FfApp.DOWNLOAD_COMPLETE_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle(getString(R.string.download_complete_title))
+                .setContentText(displayName)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(displayName))
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setAutoCancel(true)
+                .setContentIntent(contentIntent)
+                .build()
+            nm.notify(COMPLETE_NOTIFICATION_BASE + (itemId.hashCode() and 0x0FFFFFFF), notification)
+        } catch (_: Exception) {
+            // A failed notification must never turn a finished download into a failure.
         }
     }
 
@@ -870,6 +933,7 @@ class DownloadService : LifecycleService() {
                 progressPercent = 100,
                 finalBytes = file.length().takeIf { it > 0 },
             )
+            showDownloadCompleteNotification(itemId)
         } catch (e: Throwable) {
             // Throwable (not just Exception) for the same reason as
             // YtDlpManager.install() -- the underlying library's native
@@ -1049,6 +1113,7 @@ class DownloadService : LifecycleService() {
                     result.singleFilePath ?: File(result.saveDir, result.name).absolutePath
                 } else null,
             )
+            showDownloadCompleteNotification(itemId)
         } catch (e: DownloadCancelledException) {
             QueueRepository.markFailed(itemId, "Cancelled")
         } catch (e: Exception) {
@@ -1221,6 +1286,7 @@ class DownloadService : LifecycleService() {
                 destinationFile = finalFile
 
                 QueueRepository.markDone(itemId, finalFile.absolutePath)
+                showDownloadCompleteNotification(itemId)
                 return
             } catch (e: DownloadCancelledException) {
                 destinationFile?.let { DownloadEngine.deletePartialFiles(it) }

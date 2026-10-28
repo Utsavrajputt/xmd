@@ -22,6 +22,7 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
 
     companion object {
         const val DOWNLOAD_CHANNEL_ID = "ff_downloads"
+        const val DOWNLOAD_COMPLETE_CHANNEL_ID = "ff_downloads_complete"
     }
 
     override fun onCreate() {
@@ -50,6 +51,18 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+            // Separate, louder channel: the progress channel above is LOW
+            // (silent), which is right for a live bar but would make "done" easy to miss.
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    DOWNLOAD_COMPLETE_CHANNEL_ID,
+                    getString(R.string.download_complete_channel_name),
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = getString(R.string.download_complete_channel_description)
+                    setShowBadge(true)
+                }
+            )
         }
     }
 

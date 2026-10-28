@@ -108,6 +108,9 @@
     <string name="challenge_loading">Loading share page…</string>
     <string name="download_channel_name">Downloads</string>
     <string name="download_channel_description">Shows progress for active downloads.</string>
+    <string name="download_complete_channel_name">Download complete</string>
+    <string name="download_complete_channel_description">Alerts you when a download has finished.</string>
+    <string name="download_complete_title">Download complete</string>
     <string name="only_authorized">Only download content you are authorized to access.</string>
     <string name="clipboard_link_detected">Link detected in clipboard: %1$s</string>
     <string name="clipboard_link_label">Link</string>
@@ -332,6 +335,8 @@
     <string name="settings_bottom_bar_hint">Back, forward, home, bookmarks and downloads at the bottom while a page is open. Hides when you scroll down.</string>
     <string name="settings_nav_buttons">Back/Forward buttons</string>
     <string name="settings_nav_buttons_hint">Show back and forward buttons in the address bar. Off by default.</string>
+    <string name="settings_force_dark">Force dark mode</string>
+    <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own. Some pages may look off.</string>
     <string name="browser_bottom_back">Back</string>
     <string name="browser_bottom_forward">Forward</string>
     <string name="browser_bottom_home">Home</string>

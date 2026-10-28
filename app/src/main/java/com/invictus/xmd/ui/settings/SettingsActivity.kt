@@ -873,6 +873,9 @@ private fun BrowserRoute(
     var navButtonsEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.browserNavButtonsEnabled())
     }
+    var forceDarkEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.browserForceDark())
+    }
     if (showSearchEngineDialog) {
         SearchEngineDialog(
             currentEngine = searchEngine,
@@ -943,6 +946,11 @@ private fun BrowserRoute(
         onNavButtonsChanged = { checked ->
             navButtonsEnabled = checked
             com.invictus.xmd.preferences.Settings.setBrowserNavButtonsEnabled(checked)
+        },
+        forceDarkEnabled = forceDarkEnabled,
+        onForceDarkChanged = { checked ->
+            forceDarkEnabled = checked
+            com.invictus.xmd.preferences.Settings.setBrowserForceDark(checked)
         },
         onImportWebsites = onImportWebsites,
         onExportWebsites = onExportWebsites,

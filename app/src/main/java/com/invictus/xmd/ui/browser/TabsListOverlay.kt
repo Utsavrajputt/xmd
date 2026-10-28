@@ -211,6 +211,14 @@ fun TabsListOverlay(
         }
     }
 
+    // Closing the ONLY tab resets it to a fresh "New tab": leave the tray so
+    // that new-tab screen shows instead of the closed page's tray card.
+    val closeTabFromTray: (Long) -> Unit = { id ->
+        val closingLast = tabs.size <= 1
+        onClose(id)
+        if (closingLast) closeWith {}
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -291,14 +299,14 @@ fun TabsListOverlay(
                             tabs = tabs,
                             currentTabId = currentTabId,
                             onSwitch = { id -> closeWith { onSwitch(id) } },
-                            onClose = onClose,
+                            onClose = closeTabFromTray,
                         )
                     } else {
                         TabsListView(
                             tabs = tabs,
                             currentTabId = currentTabId,
                             onSwitch = { id -> closeWith { onSwitch(id) } },
-                            onClose = onClose,
+                            onClose = closeTabFromTray,
                             onAddNew = { closeWith { onAddNew() } },
                         )
                     }
