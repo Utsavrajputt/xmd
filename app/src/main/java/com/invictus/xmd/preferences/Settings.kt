@@ -54,6 +54,7 @@ object Settings {
     private const val KEY_SPEED_LIMIT_UNIT_MB = "speed_limit_unit_mb"
     private const val KEY_MAX_CONCURRENT = "max_concurrent_downloads"
     private const val KEY_AUTO_RETRY = "auto_retry_network_errors"
+    private const val KEY_AUTO_CLEAR_FINISHED = "auto_clear_finished_mode"
     private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
     private const val KEY_DEFAULT_SAVE_LOCATION = "default_save_location_path"
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
@@ -195,6 +196,24 @@ object Settings {
     fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, false)
     fun setAutoRetryEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_RETRY, value).apply()
+    }
+
+    /** When finished (DONE) downloads are dropped from the Downloads list.
+     *  Only the list entry goes -- the file on disk is never touched.
+     *  [delayMs] is measured from the item's finish time. Default OFF. */
+    enum class AutoClearMode(val delayMs: Long) {
+        OFF(-1L),
+        AFTER_DOWNLOAD(0L),
+        HOURS_24(24L * 60 * 60 * 1000),
+        DAYS_7(7L * 24 * 60 * 60 * 1000),
+        DAYS_28(28L * 24 * 60 * 60 * 1000),
+    }
+
+    fun autoClearMode(): AutoClearMode =
+        AutoClearMode.entries.firstOrNull { it.name == prefs.getString(KEY_AUTO_CLEAR_FINISHED, null) }
+            ?: AutoClearMode.OFF
+    fun setAutoClearMode(mode: AutoClearMode) {
+        prefs.edit().putString(KEY_AUTO_CLEAR_FINISHED, mode.name).apply()
     }
 
     /** Tracks whether the initial launch onboarding (storage permission & folder setup) has been finished. */

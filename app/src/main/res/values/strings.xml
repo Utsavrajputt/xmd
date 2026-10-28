@@ -279,6 +279,13 @@
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>
     <string name="settings_auto_retry">Auto Retry on Network Error</string>
+    <string name="settings_auto_clear_finished">Auto-clear finished downloads</string>
+    <string name="settings_auto_clear_finished_hint">Removes finished items from the list only. The downloaded files stay on your phone.</string>
+    <string name="settings_auto_clear_off">Off</string>
+    <string name="settings_auto_clear_after_download">After download</string>
+    <string name="settings_auto_clear_24h">After 24 hours</string>
+    <string name="settings_auto_clear_7d">After 7 days</string>
+    <string name="settings_auto_clear_28d">After 28 days</string>
     <string name="settings_auto_retry_hint">Retry timeouts and dropped connections up to 5 times, waiting a little longer each time (direct and YouTube downloads).</string>
     <string name="settings_default_location">Default Save Location</string>
     <string name="settings_default_location_hint">Where new downloads are saved unless a custom folder is picked for that download.</string>

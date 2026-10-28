@@ -113,6 +113,51 @@ object QueueRepository {
                 persisted.find { it.id == r.id }?.status != r.status
             }
             if (changed.isNotEmpty()) runCatching { dao.upsertAll(changed) }
+            purgeExpiredFinished()
+        }
+        // Timed auto-clear: re-check every few minutes while the process is alive
+        // (app start and every markDone also check, so nothing waits on this loop).
+        scope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(AUTO_CLEAR_CHECK_INTERVAL_MS)
+                purgeExpiredFinished()
+            }
+        }
+    }
+
+    private const val AUTO_CLEAR_CHECK_INTERVAL_MS = 10 * 60 * 1000L
+    // "After download" waits this long so the completion notification / UI
+    // can still read the row before it disappears.
+    private const val AUTO_CLEAR_AFTER_DOWNLOAD_GRACE_MS = 5_000L
+
+    /**
+     * Drops DONE items older than the Settings auto-clear delay (list entry
+     * only -- the downloaded file stays on disk). No-op while the mode is OFF.
+     * Rows with no finish time (finished before this existed) are left alone,
+     * and a playlist item is kept until its batch has had its .m3u8 written.
+     * Safe to call from any thread.
+     */
+    fun purgeExpiredFinished(now: Long = System.currentTimeMillis()) {
+        val mode = com.invictus.xmd.preferences.Settings.autoClearMode()
+        if (mode == com.invictus.xmd.preferences.Settings.AutoClearMode.OFF) return
+        val delay = if (mode.delayMs == 0L) AUTO_CLEAR_AFTER_DOWNLOAD_GRACE_MS else mode.delayMs
+        val removedIds: List<String>
+        synchronized(lock) {
+            val expired = master.filter {
+                it.status == ItemStatus.DONE &&
+                    it.downloadFinishedAtMs > 0L &&
+                    now - it.downloadFinishedAtMs >= delay &&
+                    !(it.generatePlaylistFile && it.playlistBatchId != null &&
+                        it.playlistBatchId !in generatedPlaylistBatches)
+            }
+            if (expired.isEmpty()) return
+            val ids = expired.map { it.id }.toHashSet()
+            master = master.filter { it.id !in ids }
+            _items.value = master
+            removedIds = ids.toList()
+        }
+        if (::dao.isInitialized) {
+            scope.launch { runCatching { dao.deleteByIds(removedIds) } }
         }
     }
 
@@ -415,7 +460,19 @@ object QueueRepository {
                 )
             }
         }
-        if (updated?.status == ItemStatus.DONE) maybeGeneratePlaylistFile(updated)
+        if (updated?.status == ItemStatus.DONE) {
+            maybeGeneratePlaylistFile(updated)
+            // "After download" clears once the grace period passes; timed modes
+            // are picked up by the periodic check.
+            if (com.invictus.xmd.preferences.Settings.autoClearMode() ==
+                com.invictus.xmd.preferences.Settings.AutoClearMode.AFTER_DOWNLOAD
+            ) {
+                scope.launch {
+                    kotlinx.coroutines.delay(AUTO_CLEAR_AFTER_DOWNLOAD_GRACE_MS)
+                    purgeExpiredFinished()
+                }
+            }
+        }
     }
 
     // Tracks which playlist batches have already had their .m3u8 written,

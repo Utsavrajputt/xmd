@@ -654,6 +654,9 @@ private fun DownloadsRoute() {
     var autoRetry by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.autoRetryEnabled())
     }
+    var autoClearMode by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.autoClearMode())
+    }
     var defaultLocationPath by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.defaultSaveLocation())
     }
@@ -726,6 +729,7 @@ private fun DownloadsRoute() {
 
     SettingsDownloadsScreen(
         autoRetry = autoRetry,
+        autoClearMode = autoClearMode,
         defaultLocationPath = defaultLocationPath,
         categorizeIntoFolders = categorizeIntoFolders,
         showNameFolders = showNameFolders,
@@ -741,6 +745,11 @@ private fun DownloadsRoute() {
         onAutoRetryChanged = { checked ->
             autoRetry = checked
             com.invictus.xmd.preferences.Settings.setAutoRetryEnabled(checked)
+        },
+        onAutoClearModeChanged = { mode ->
+            autoClearMode = mode
+            com.invictus.xmd.preferences.Settings.setAutoClearMode(mode)
+            com.invictus.xmd.repository.QueueRepository.purgeExpiredFinished()
         },
         onChangeDefaultLocation = {
             pickDefaultLocationLauncher.launch(null)

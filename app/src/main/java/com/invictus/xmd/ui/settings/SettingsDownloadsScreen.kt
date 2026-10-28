@@ -67,6 +67,7 @@ private enum class DataUnit(val bytesPerUnit: Long) { MB(1024L * 1024), GB(1024L
 @Composable
 fun SettingsDownloadsScreen(
     autoRetry: Boolean,
+    autoClearMode: Settings.AutoClearMode,
     defaultLocationPath: String,
     categorizeIntoFolders: Boolean,
     showNameFolders: Boolean,
@@ -80,6 +81,7 @@ fun SettingsDownloadsScreen(
     schedulerDaysMask: Int,
     exactAlarmPermissionGranted: Boolean,
     onAutoRetryChanged: (Boolean) -> Unit,
+    onAutoClearModeChanged: (Settings.AutoClearMode) -> Unit,
     onChangeDefaultLocation: () -> Unit,
     onCategorizeIntoFoldersChanged: (Boolean) -> Unit,
     onShowNameFoldersChanged: (Boolean) -> Unit,
@@ -103,6 +105,11 @@ fun SettingsDownloadsScreen(
                 subtitle = stringResource(R.string.settings_auto_retry_hint),
                 checked = autoRetry,
                 onCheckedChange = onAutoRetryChanged,
+            )
+            SettingsDivider()
+            AutoClearRow(
+                mode = autoClearMode,
+                onModeChanged = onAutoClearModeChanged,
             )
             SettingsDivider()
             DefaultLocationRow(
@@ -217,6 +224,64 @@ private fun SchedulerWindowRow(
             },
             onDismiss = { showDialog = false },
         )
+    }
+}
+
+@Composable
+private fun autoClearLabel(mode: Settings.AutoClearMode): String = when (mode) {
+    Settings.AutoClearMode.OFF -> stringResource(R.string.settings_auto_clear_off)
+    Settings.AutoClearMode.AFTER_DOWNLOAD -> stringResource(R.string.settings_auto_clear_after_download)
+    Settings.AutoClearMode.HOURS_24 -> stringResource(R.string.settings_auto_clear_24h)
+    Settings.AutoClearMode.DAYS_7 -> stringResource(R.string.settings_auto_clear_7d)
+    Settings.AutoClearMode.DAYS_28 -> stringResource(R.string.settings_auto_clear_28d)
+}
+
+/** Dropdown for when finished downloads are dropped from the list (same shape as [DataLimitScopeRow]). */
+@Composable
+private fun AutoClearRow(
+    mode: Settings.AutoClearMode,
+    onModeChanged: (Settings.AutoClearMode) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text(
+            text = stringResource(R.string.settings_auto_clear_finished),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(R.string.settings_auto_clear_finished_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+        )
+        Box {
+            OutlinedButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = XmdShapes.Xs,
+            ) {
+                Text(autoClearLabel(mode), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+            }
+            DropdownMenu(
+                shape = com.invictus.xmd.ui.theme.XmdShapes.M,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                Settings.AutoClearMode.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(autoClearLabel(option)) },
+                        onClick = {
+                            menuExpanded = false
+                            onModeChanged(option)
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 
