@@ -468,6 +468,9 @@
     <string name="action_tabs">Tabs</string>
     <string name="tabs_overlay_header">%1$d tabs</string>
     <string name="action_close_all_tabs">Close All Tabs</string>
+    <string name="tabs_closed_one">Tab closed</string>
+    <string name="tabs_closed_many">%1$d tabs closed</string>
+    <string name="action_undo">Undo</string>
     <string name="close_all_tabs_confirmation">Are you sure you want to close all open tabs?</string>
     <string name="action_more">More Options</string>
     <string name="action_add_to_downloads">Add to Downloads</string>

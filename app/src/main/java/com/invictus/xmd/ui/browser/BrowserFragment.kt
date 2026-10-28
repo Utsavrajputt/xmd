@@ -778,13 +778,16 @@ class BrowserFragment : Fragment() {
                             },
                             onClose = { id ->
                                 val index = tabs.indexOfFirst { it.id == id }
-                                if (index != -1) closeTab(index)
+                                if (index != -1) closeTab(index, recordUndo = true)
                                 refreshTabsOverlaySnapshot()
                             },
-                            onCloseAll = {
-                                closeAllTabs()
-                                hideTabsOverlay()
-                            },
+                            // Chrome stays in the tab switcher after "Close all"
+                            // and offers Undo, so the tray is NOT hidden here.
+                            onCloseAll = { closeAllTabs(recordUndo = true) },
+                            undoCount = closedBatchCount,
+                            undoEvent = closedBatchEvent,
+                            onUndo = ::undoClosedTabs,
+                            onUndoExpired = ::commitClosedBatch,
                             onAddNew = {
                                 addNewTab()
                                 hideTabsOverlay()
@@ -2378,17 +2381,24 @@ class BrowserFragment : Fragment() {
      * as closing the last tab in a normal browser (a new tab effectively
      * "opens" automatically since the speed dial is shown right away).
      */
-    private fun closeTab(index: Int) {
+    private fun closeTab(index: Int, recordUndo: Boolean = false) {
         if (index !in tabs.indices) return
+        val closingTab = tabs[index]
+        // Chrome's "Tab closed · Undo": only for real pages in normal tabs
+        // (never incognito -- nothing of a private tab is kept around).
+        val undoable = recordUndo && !closingTab.isPrivate && !closingTab.url.isNullOrBlank()
+        if (undoable) {
+            destroyTabWebView(closingTab) // snapshots WebView state for the undo
+            recordClosedTab(closingTab, index)
+        } else {
+            tabThumbnails.remove(closingTab.id)?.recycle()
+        }
         if (tabs.size == 1) {
-            tabThumbnails.remove(tabs[0].id)?.recycle()
             resetTabToBlank(tabs[0])
             showSpeedDial()
             updateTabsCount()
             return
         }
-        val closingTab = tabs[index]
-        tabThumbnails.remove(closingTab.id)?.recycle()
         val closingCurrent = index == currentTabIndex
         destroyTabWebView(closingTab)
         tabs.removeAt(index)
@@ -2405,7 +2415,20 @@ class BrowserFragment : Fragment() {
         updateTabsCount()
     }
 
-    private fun closeAllTabs() {
+    private fun closeAllTabs(recordUndo: Boolean = false) {
+        commitClosedBatch()
+        if (recordUndo) {
+            val prevCurrentId = tabs.getOrNull(currentTabIndex)?.id
+            tabs.toList().forEachIndexed { i, t ->
+                if (!t.isPrivate && !t.url.isNullOrBlank()) {
+                    destroyTabWebView(t)
+                    closedBatch.add(
+                        ClosedTabRecord(t.copy(), i, webViewStates[t.id], tabThumbnails.remove(t.id))
+                    )
+                }
+            }
+            closedAllPrevCurrentId = prevCurrentId
+        }
         tabs.toList().forEach(::destroyTabWebView)
         tabs.clear()
         tabThumbnails.values.forEach { it.recycle() }
@@ -2416,6 +2439,102 @@ class BrowserFragment : Fragment() {
         showSpeedDial()
         updateTabsCount()
         refreshTabsOverlaySnapshot()
+        if (recordUndo && closedBatch.isNotEmpty()) {
+            closedAllBlankId = blankTab.id
+            closedBatchCount = closedBatch.size
+            closedBatchEvent++
+        }
+    }
+
+    // ── Undo close (Chrome's "Tab closed · Undo" snackbar) ───────────────
+
+    private class ClosedTabRecord(
+        val tab: BrowserTab,
+        val index: Int,
+        val state: android.os.Bundle?,
+        val thumbnail: android.graphics.Bitmap?,
+    )
+
+    /** Tabs closed from the tray since the snackbar last started, oldest first. */
+    private val closedBatch = ArrayList<ClosedTabRecord>()
+    private var closedAllBlankId: Long? = null
+    private var closedAllPrevCurrentId: Long? = null
+    private var closedBatchCount by androidx.compose.runtime.mutableIntStateOf(0)
+    private var closedBatchEvent by androidx.compose.runtime.mutableIntStateOf(0)
+
+    private fun recordClosedTab(tab: BrowserTab, index: Int) {
+        // A "close all" batch is its own thing -- finalize it before
+        // starting to collect single closes.
+        if (closedAllBlankId != null) commitClosedBatch()
+        closedBatch.add(
+            ClosedTabRecord(tab.copy(), index, webViewStates[tab.id], tabThumbnails.remove(tab.id))
+        )
+        closedBatchCount = closedBatch.size
+        closedBatchEvent++
+    }
+
+    /** Puts one closed tab back; returns its index and whether it was an in-place reset. */
+    private fun restoreClosedTab(r: ClosedTabRecord): Pair<Int, Boolean> {
+        r.state?.let { webViewStates[r.tab.id] = it }
+        r.thumbnail?.let { tabThumbnails[r.tab.id] = it }
+        val existing = tabs.indexOfFirst { it.id == r.tab.id }
+        if (existing >= 0) {
+            // Last-tab case: the tab was reset to blank in place.
+            val t = tabs[existing]
+            t.url = r.tab.url
+            t.title = r.tab.title
+            t.isDesktopMode = r.tab.isDesktopMode
+            return existing to true
+        }
+        val at = r.index.coerceIn(0, tabs.size)
+        tabs.add(at, r.tab)
+        if (at <= currentTabIndex) currentTabIndex++
+        return at to false
+    }
+
+    private fun undoClosedTabs() {
+        if (closedBatch.isEmpty()) return
+        val records = closedBatch.toList()
+        val blankId = closedAllBlankId
+        val prevCurrentId = closedAllPrevCurrentId
+        closedBatch.clear()
+        closedAllBlankId = null
+        closedAllPrevCurrentId = null
+        closedBatchCount = 0
+
+        if (blankId != null) {
+            // Undo "close all": drop the untouched blank tab and bring every
+            // tab back in its original order, with the old current tab selected.
+            val blankIdx = tabs.indexOfFirst { it.id == blankId }
+            if (blankIdx >= 0 && tabs[blankIdx].url.isNullOrBlank()) tabs.removeAt(blankIdx)
+            currentTabIndex = 0
+            records.sortedBy { it.index }.forEach { restoreClosedTab(it) }
+            val target = tabs.indexOfFirst { it.id == prevCurrentId }.takeIf { it >= 0 } ?: 0
+            activateTab(target, previousView = null)
+        } else {
+            records.asReversed().forEach { r ->
+                val (idx, inPlace) = restoreClosedTab(r)
+                if (inPlace && idx == currentTabIndex) activateTab(idx, previousView = null)
+            }
+        }
+        updateTabsCount()
+        refreshTabsOverlaySnapshot()
+    }
+
+    /** Snackbar expired / tray closed -- the closes are final, free what undo was holding. */
+    private fun commitClosedBatch() {
+        if (closedBatch.isEmpty() && closedAllBlankId == null) {
+            closedBatchCount = 0
+            return
+        }
+        closedBatch.forEach { r ->
+            if (tabs.none { it.id == r.tab.id }) webViewStates.remove(r.tab.id)
+            r.thumbnail?.recycle()
+        }
+        closedBatch.clear()
+        closedAllBlankId = null
+        closedAllPrevCurrentId = null
+        closedBatchCount = 0
     }
 
     private fun switchToTab(index: Int) {
@@ -2438,6 +2557,7 @@ class BrowserFragment : Fragment() {
     }
 
     private fun hideTabsOverlay() {
+        commitClosedBatch()
         tabsOverlayVisible = false
         updateHeaderInteractionState()
     }

@@ -50,6 +50,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -163,6 +168,12 @@ fun TabsListOverlay(
     onCloseAll: () -> Unit,
     onAddNew: () -> Unit,
     onDismiss: () -> Unit,
+    // Chrome-style "Tab closed · Undo": undoCount > 0 while closes can still
+    // be undone; undoEvent bumps on every close so the snackbar restarts.
+    undoCount: Int = 0,
+    undoEvent: Int = 0,
+    onUndo: () -> Unit = {},
+    onUndoExpired: () -> Unit = {},
 ) {
     if (!visible) return
 
@@ -170,6 +181,26 @@ fun TabsListOverlay(
     val scope = rememberCoroutineScope()
     var isGridMode by remember { mutableStateOf(Settings.isTabsGridMode()) }
     var showConfirmCloseAll by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val undoMessage = if (undoCount > 1) {
+        stringResource(R.string.tabs_closed_many, undoCount)
+    } else {
+        stringResource(R.string.tabs_closed_one)
+    }
+    val undoLabel = stringResource(R.string.action_undo)
+    LaunchedEffect(undoEvent) {
+        if (undoCount > 0) {
+            // A newer close cancels this effect (replacing the snackbar and
+            // folding into "N tabs closed") without resolving it.
+            val result = snackbarHostState.showSnackbar(
+                message = undoMessage,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) onUndo() else onUndoExpired()
+        }
+    }
 
     fun closeWith(action: () -> Unit) {
         scope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -187,90 +218,99 @@ fun TabsListOverlay(
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = 4.dp),
-        ) {
-            Row(
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .navigationBarsPadding()
+                    .padding(bottom = 4.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.tabs_overlay_header, tabs.size),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                if (tabs.size > 1 || (tabs.size == 1 && tabs[0].url != null)) {
-                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
-                        onClick = { showConfirmCloseAll = true }
-                    ) {
-                        Icon(
-                            imageVector = Icons.DeleteSweep,
-                            contentDescription = stringResource(R.string.action_close_all_tabs),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
-                    onClick = {
-                        val newMode = !isGridMode
-                        isGridMode = newMode
-                        Settings.setTabsGridMode(newMode)
-                    }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = if (isGridMode) Icons.ViewList else Icons.GridView,
-                        contentDescription = if (isGridMode) "Switch to list view" else "Switch to grid view",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Text(
+                        text = stringResource(R.string.tabs_overlay_header, tabs.size),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
                     )
-                }
-                if (isGridMode) {
+                    if (tabs.size > 1 || (tabs.size == 1 && tabs[0].url != null)) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                            onClick = { showConfirmCloseAll = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.DeleteSweep,
+                                contentDescription = stringResource(R.string.action_close_all_tabs),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                         onClick = {
-                            closeWith { onAddNew() }
+                            val newMode = !isGridMode
+                            isGridMode = newMode
+                            Settings.setTabsGridMode(newMode)
                         }
                     ) {
                         Icon(
-                            imageVector = Icons.Add,
-                            contentDescription = stringResource(R.string.action_new_tab),
+                            imageVector = if (isGridMode) Icons.ViewList else Icons.GridView,
+                            contentDescription = if (isGridMode) "Switch to list view" else "Switch to grid view",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (isGridMode) {
+                        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                            onClick = {
+                                closeWith { onAddNew() }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Add,
+                                contentDescription = stringResource(R.string.action_new_tab),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                val viewModeFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                val viewModeScaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+                AnimatedContent(
+                    targetState = isGridMode,
+                    transitionSpec = {
+                        (fadeIn(viewModeFadeSpec) + scaleIn(initialScale = 0.95f, animationSpec = viewModeScaleSpec))
+                            .togetherWith(fadeOut(viewModeFadeSpec))
+                    },
+                    label = "TabsViewModeTransition",
+                ) { gridMode ->
+                    if (gridMode) {
+                        TabsGridView(
+                            tabs = tabs,
+                            currentTabId = currentTabId,
+                            onSwitch = { id -> closeWith { onSwitch(id) } },
+                            onClose = onClose,
+                        )
+                    } else {
+                        TabsListView(
+                            tabs = tabs,
+                            currentTabId = currentTabId,
+                            onSwitch = { id -> closeWith { onSwitch(id) } },
+                            onClose = onClose,
+                            onAddNew = { closeWith { onAddNew() } },
                         )
                     }
                 }
             }
-
-            val viewModeFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-            val viewModeScaleSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-            AnimatedContent(
-                targetState = isGridMode,
-                transitionSpec = {
-                    (fadeIn(viewModeFadeSpec) + scaleIn(initialScale = 0.95f, animationSpec = viewModeScaleSpec))
-                        .togetherWith(fadeOut(viewModeFadeSpec))
-                },
-                label = "TabsViewModeTransition",
-            ) { gridMode ->
-                if (gridMode) {
-                    TabsGridView(
-                        tabs = tabs,
-                        currentTabId = currentTabId,
-                        onSwitch = { id -> closeWith { onSwitch(id) } },
-                        onClose = onClose,
-                    )
-                } else {
-                    TabsListView(
-                        tabs = tabs,
-                        currentTabId = currentTabId,
-                        onSwitch = { id -> closeWith { onSwitch(id) } },
-                        onClose = onClose,
-                        onAddNew = { closeWith { onAddNew() } },
-                    )
-                }
-            }
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+            ) { data -> Snackbar(snackbarData = data) }
         }
     }
 
@@ -293,7 +333,7 @@ fun TabsListOverlay(
                 TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
                     onClick = {
                         showConfirmCloseAll = false
-                        closeWith { onCloseAll() }
+                        onCloseAll()
                     }
                 ) {
                     Text(
