@@ -13,7 +13,7 @@ import com.invictus.xmd.preferences.Settings
  * that by making the page believe it's always visible.
  *
  * Injected from BrowserFragment's WebViewClient.onPageStarted (not
- * onPageFinished, like AdblockFilter.cosmeticHideScript) -- it has to land
+ * onPageFinished, like the old adblock cosmetic script) -- it has to land
  * before the page's own scripts run and read document.hidden or attach
  * their own visibilitychange listener, not after.
  *

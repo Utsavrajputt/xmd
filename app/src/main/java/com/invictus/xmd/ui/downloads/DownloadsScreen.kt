@@ -191,50 +191,52 @@ fun DownloadsScreen(
             }
         }
     }
-    // No "All" chip. Exactly one status chip (Active/Waiting/Finished/Failed)
-    // is always selected -- by default Active, or Finished when nothing is
-    // active -- and an optional type chip (Video/Audio/Documents/Others, tap
-    // again to clear) combines with it.
-    var chosenStatusName by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedTypeName by rememberSaveable { mutableStateOf<String?>(null) }
+    // One flat chip row: [Active] [All] [Video] [Audio] [Documents] [Others].
+    // Active = everything not finished (downloading, paused, waiting, failed),
+    // whatever its type. All + the type chips list COMPLETED items only
+    // (All = every type together). Exactly one
+    // chip is selected at a time; empty chips are hidden.
+    var chosenChipName by rememberSaveable { mutableStateOf<String?>(null) }
     var sortName by rememberSaveable { mutableStateOf(DownloadSort.Default.name) }
-    val selectedType = DownloadTypeFilter.entries.firstOrNull { it.name == selectedTypeName }
     val sort = DownloadSort.entries.firstOrNull { it.name == sortName } ?: DownloadSort.Default
 
-    // Chip counts respect the OTHER chip group, so a combination never lands on an empty list.
-    val statusCounts = remember(queryMatches, selectedType) {
-        val base = if (selectedType == null) queryMatches else queryMatches.filter { selectedType.matches(it) }
-        DownloadFilter.entries.associateWith { f -> base.count { f.matches(it) } }
+    val activeItems = remember(queryMatches) { queryMatches.filter { it.status != ItemStatus.DONE } }
+    val finishedItems = remember(queryMatches) { queryMatches.filter { it.status == ItemStatus.DONE } }
+    val typeCounts = remember(finishedItems) {
+        DownloadTypeFilter.entries.associateWith { t -> finishedItems.count { t.matches(it) } }
     }
-    // The user's pick if it still has items; otherwise Active, else Finished,
-    // else whatever is left. A chip with nothing in it is hidden, so the
-    // selection can never sit on an empty one.
-    val selectedStatus: DownloadFilter? = run {
-        val chosen = DownloadFilter.entries.firstOrNull { it.name == chosenStatusName }
-        if (chosen != null && (statusCounts[chosen] ?: 0) > 0) {
-            chosen
-        } else {
-            listOf(DownloadFilter.Active, DownloadFilter.Finished, DownloadFilter.Waiting, DownloadFilter.Failed)
-                .firstOrNull { (statusCounts[it] ?: 0) > 0 }
-        }
-    }
-    val typeCounts = remember(queryMatches, selectedStatus) {
-        val base = if (selectedStatus == null) queryMatches else queryMatches.filter { selectedStatus.matches(it) }
-        DownloadTypeFilter.entries.associateWith { t -> base.count { t.matches(it) } }
-    }
-    // In-flight downloads (the Active set) stay on top of the list while they run; the rest keep their order.
-    val list = remember(queryMatches, selectedStatus, selectedType, sort) {
-        val filtered = queryMatches.filter {
-            (selectedStatus?.matches(it) ?: true) && (selectedType?.matches(it) ?: true)
-        }
-        val (inFlight, others) = filtered.partition { DownloadFilter.Active.matches(it) }
-        sort.apply(inFlight) + sort.apply(others)
-    }
+    val activeCount = activeItems.size
 
-    // A type chip whose items are all gone would strand the user on an empty
-    // list -- drop that selection instead.
-    LaunchedEffect(typeCounts, selectedType) {
-        if (selectedType != null && typeCounts[selectedType] == 0) selectedTypeName = null
+    // The user's pick if it still has items; otherwise Active, else All.
+    // showAll / selectedType both false/null with showActive false => nothing.
+    val chosenType = DownloadTypeFilter.entries.firstOrNull { it.name == chosenChipName }
+    val finishedCount = finishedItems.size
+    val showActive: Boolean
+    val showAll: Boolean
+    val selectedType: DownloadTypeFilter?
+    if (chosenChipName == ACTIVE_CHIP && activeCount > 0) {
+        showActive = true; showAll = false; selectedType = null
+    } else if (chosenChipName == ALL_CHIP && finishedCount > 0) {
+        showActive = false; showAll = true; selectedType = null
+    } else if (chosenType != null && (typeCounts[chosenType] ?: 0) > 0) {
+        showActive = false; showAll = false; selectedType = chosenType
+    } else if (activeCount > 0) {
+        showActive = true; showAll = false; selectedType = null
+    } else {
+        showActive = false; showAll = finishedCount > 0; selectedType = null
+    }
+    // In-flight downloads stay on top of the Active list; the rest keep their order.
+    val list = remember(activeItems, finishedItems, showActive, showAll, selectedType, sort) {
+        if (showActive) {
+            val (inFlight, others) = activeItems.partition { isInFlight(it) }
+            sort.apply(inFlight) + sort.apply(others)
+        } else if (showAll) {
+            sort.apply(finishedItems)
+        } else if (selectedType != null) {
+            sort.apply(finishedItems.filter { selectedType.matches(it) })
+        } else {
+            emptyList()
+        }
     }
 
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -400,36 +402,35 @@ fun DownloadsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    DownloadFilter.entries.forEach { filter ->
-                        val count = statusCounts[filter] ?: 0
-                        val selected = selectedStatus == filter
-                        // Every status chip (Active included) is hidden while
-                        // it has nothing in it.
-                        if (count == 0) return@forEach
+                    if (activeCount > 0) {
                         DownloadFilterChip(
-                            label = stringResource(filter.labelRes),
-                            selected = selected,
-                            onClick = { chosenStatusName = filter.name },
+                            label = stringResource(R.string.download_filter_active),
+                            selected = showActive,
+                            onClick = { chosenChipName = ACTIVE_CHIP },
                         )
                     }
-                    val visibleTypes = DownloadTypeFilter.entries.filter {
-                        (typeCounts[it] ?: 0) > 0 || selectedType == it
-                    }
-                    if (visibleTypes.isNotEmpty()) {
+                    if (activeCount > 0 && finishedCount > 0) {
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
                                 .height(20.dp)
                                 .background(MaterialTheme.colorScheme.outlineVariant),
                         )
-                        visibleTypes.forEach { type ->
-                            val selected = selectedType == type
-                            DownloadFilterChip(
-                                label = stringResource(type.labelRes),
-                                selected = selected,
-                                onClick = { selectedTypeName = if (selected) null else type.name },
-                            )
-                        }
+                    }
+                    if (finishedCount > 0) {
+                        DownloadFilterChip(
+                            label = stringResource(R.string.download_filter_all),
+                            selected = showAll,
+                            onClick = { chosenChipName = ALL_CHIP },
+                        )
+                    }
+                    DownloadTypeFilter.entries.forEach { type ->
+                        if ((typeCounts[type] ?: 0) == 0) return@forEach
+                        DownloadFilterChip(
+                            label = stringResource(type.labelRes),
+                            selected = selectedType == type,
+                            onClick = { chosenChipName = type.name },
+                        )
                     }
                 }
 
@@ -784,29 +785,16 @@ fun DownloadsScreen(
     }
 }
 
-private enum class DownloadFilter(val labelRes: Int) {
-    Active(R.string.download_filter_active),
-    Waiting(R.string.download_filter_waiting),
-    Finished(R.string.download_filter_completed),
-    Failed(R.string.download_filter_failed);
+private const val ACTIVE_CHIP = "ACTIVE"
+private const val ALL_CHIP = "ALL"
 
-    fun matches(item: QueueItem): Boolean = when (this) {
-        Active -> item.status in setOf(
-            ItemStatus.DOWNLOADING,
-            ItemStatus.PAUSED,
-            ItemStatus.RETRYING,
-            ItemStatus.SAVING,
-        )
-        Waiting -> item.status in setOf(
-            ItemStatus.PENDING,
-            ItemStatus.RESOLVING,
-            ItemStatus.NEEDS_CHALLENGE,
-            ItemStatus.READY,
-        )
-        Finished -> item.status == ItemStatus.DONE
-        Failed -> item.status == ItemStatus.FAILED
-    }
-}
+/** Currently running (not paused/waiting/failed) -- kept on top of the Active list. */
+private fun isInFlight(item: QueueItem): Boolean = item.status in setOf(
+    ItemStatus.DOWNLOADING,
+    ItemStatus.PAUSED,
+    ItemStatus.RETRYING,
+    ItemStatus.SAVING,
+)
 
 private enum class DownloadTypeFilter(val labelRes: Int) {
     Video(R.string.download_type_video),

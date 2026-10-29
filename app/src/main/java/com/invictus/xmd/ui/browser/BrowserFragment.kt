@@ -46,7 +46,7 @@ import okhttp3.Request
 import java.util.concurrent.TimeUnit
 import com.invictus.xmd.database.entities.Bookmark
 import com.invictus.xmd.database.entities.Shortcut
-import com.invictus.xmd.domain.browser.AdblockFilter
+import com.invictus.xmd.domain.browser.AdBlocker
 import com.invictus.xmd.domain.browser.MediaSniffer
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.network.DnsOverHttpsResolver
@@ -1127,19 +1127,7 @@ class BrowserFragment : Fragment() {
 
         webView.settings.setSupportMultipleWindows(true)
 
-        // Adblock: popup guard + YouTube ad pruning run in the page itself.
-        // Prefer a true document-start script (runs before any page JS, in
-        // every frame); older WebViews fall back to onPageStarted injection.
-        webView.addJavascriptInterface(AdblockBridge(), "XmdAdblock")
         webView.addJavascriptInterface(VideoBridge(tab), "XmdVideo")
-        val adblockDocStart = runCatching {
-            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                    webView, com.invictus.xmd.domain.browser.AdblockScripts.documentStart(), setOf("*")
-                )
-                true
-            } else false
-        }.getOrDefault(false)
         // WebView adds X-Requested-With: <package> to every request, which Google's
         // sign-in treats as an embedded-app signal. Send it to no origin.
         runCatching {
@@ -1222,9 +1210,6 @@ class BrowserFragment : Fragment() {
                 tab.sniffedMedia.clear()
                 view.evaluateJavascript(VIDEO_ERROR_SCRIPT, null)
                 if (tab.isDesktopMode) view.evaluateJavascript(DESKTOP_MODE_SCRIPT, null)
-                if (!adblockDocStart && Settings.adblockLevel() != Settings.AdblockLevel.OFF) {
-                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockScripts.documentStart(), null)
-                }
                 // A popup tab that was opened straight onto an ad page: close it.
                 if (tab.openedBy != null && url != null && isBlockedPopupTarget(tab, url)) {
                     view.stopLoading()
@@ -1262,19 +1247,6 @@ class BrowserFragment : Fragment() {
                 maybeUpdateShortcutAfterRedirect(tab, url)
                 if (!tab.isPrivate && !url.isNullOrBlank() && url.startsWith("http")) {
                     HistoryRepository.record(url, title)
-                }
-                // Hides leftover ad containers that shouldInterceptRequest's
-                // network-level blocking can't catch -- ad markup the page
-                // rendered itself (same-origin ad iframes, server-rendered
-                // ad slots) rather than fetched via a separately-blockable
-                // request. Cheap (a single style tag) and idempotent, so
-                // running it again on redirects/re-finishes is harmless.
-                // Skipped entirely at AdblockLevel.OFF or when this site is
-                // in the per-site allowlist (shields down for it).
-                val level = Settings.adblockLevel()
-                val pageHost = url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
-                if (level != Settings.AdblockLevel.OFF && !Settings.isAdblockAllowlisted(pageHost)) {
-                    view.evaluateJavascript(com.invictus.xmd.domain.browser.AdblockFilter.cosmeticHideScript(level, pageHost), null)
                 }
                 if (isCurrentTab(tab)) {
                     navCanGoForward = view.canGoForward()
@@ -1336,7 +1308,6 @@ class BrowserFragment : Fragment() {
                     // (no user gesture) into ad hosts, are refused here.
                     if (request.isForMainFrame && (tab.openedBy != null || !request.hasGesture())) {
                         if (isBlockedPopupTarget(tab, uri.toString())) {
-                            Settings.incrementAdblockLifetimeBlockedCount()
                             if (tab.openedBy != null && view.copyBackForwardList().currentIndex <= 0) {
                                 view.post { closeBlockedPopupTab(tab) }
                             }
@@ -1438,7 +1409,7 @@ class BrowserFragment : Fragment() {
                 // sniff -- a Set lookup on the request's host (plus a
                 // short substring scan of the full URL for path-based ad
                 // requests, and at the AGGRESSIVE level a second host-set
-                // lookup -- see AdblockFilter.isBlocked), no network, no
+                // lookup -- see AdBlocker.isBlocked), no network, no
                 // DNS. Applies regardless of method or DNS mode: an ad
                 // request is an ad request whether it's a GET for an
                 // image or a POST beacon. isBlocked itself honors the
@@ -1447,28 +1418,19 @@ class BrowserFragment : Fragment() {
                 // (rather than returning null and letting it 404/timeout
                 // naturally) is what keeps pages from stalling on a
                 // blocked request or logging it as a load failure.
-                val adblockLevel = Settings.adblockLevel()
-                if (adblockLevel != Settings.AdblockLevel.OFF) {
+                if (Settings.adblockEnabled()) {
                     val pageHost = tab.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
-                    val accept = request.requestHeaders?.entries
-                        ?.firstOrNull { it.key.equals("Accept", ignoreCase = true) }?.value
                     if (request.isForMainFrame) {
                         // Only ever refuse a popup tab's landing page; normal
                         // top-level navigations are never blocked here.
                         if (tab.openedBy != null && isBlockedPopupTarget(tab, request.url.toString())) {
-                            Settings.incrementAdblockLifetimeBlockedCount()
                             return android.webkit.WebResourceResponse(
                                 "text/plain", "UTF-8", java.io.ByteArrayInputStream(ByteArray(0))
                             )
                         }
                     } else {
-                        val stub = com.invictus.xmd.domain.browser.AdblockFilter.interceptResponse(
-                            request.url, pageHost, false, accept, adblockLevel
-                        )
-                        if (stub != null) {
-                            Settings.incrementAdblockLifetimeBlockedCount()
-                            return stub
-                        }
+                        val stub = AdBlocker.interceptResponse(request.url, pageHost, false)
+                        if (stub != null) return stub
                     }
                 }
 
@@ -1503,7 +1465,7 @@ class BrowserFragment : Fragment() {
                 // Sign-in hosts (Google/GitHub/etc.) always use WebView's own
                 // network stack: this proxy can't replicate its cookie, client-hint
                 // and Sec-Fetch handling, which breaks "Sign in with Google".
-                if (com.invictus.xmd.domain.browser.AdblockFilter.isAuthHost(request.url.host)) return null
+                if (AdBlocker.isAuthHost(request.url.host)) return null
                 val client = browserViewModel.currentDohClient() ?: return null
                 val url = request.url.toString()
                 if (!url.startsWith("http")) return null
@@ -1665,11 +1627,6 @@ class BrowserFragment : Fragment() {
                 // Chrome-style: a tap on a target="_blank" link / window.open
                 // from a real tap opens a new tab; script-only pop-ups never do.
                 if (!isUserGesture) {
-                    if (Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
-                        !Settings.isAdblockAllowlisted(openerHost)
-                    ) {
-                        Settings.incrementAdblockLifetimeBlockedCount()
-                    }
                     return false
                 }
                 val newTab = BrowserTab(
@@ -1726,54 +1683,12 @@ class BrowserFragment : Fragment() {
         inAppPlayerRequest = InAppPlayRequest(candidate, pageUrl)
     }
 
-    /** Bridge the document-start script talks to (popup guard + YouTube pruning). */
-    private inner class AdblockBridge {
-        @android.webkit.JavascriptInterface
-        fun enabled(host: String?): Boolean =
-            Settings.adblockLevel() != Settings.AdblockLevel.OFF &&
-                !Settings.isAdblockAllowlisted(host) &&
-                // Sign-in frames (e.g. the accounts.google.com iframe behind a
-                // site's "Continue with Google" button) run this script too;
-                // the popup/click guard there breaks the login button even
-                // when the embedding site itself is allowlisted.
-                !com.invictus.xmd.domain.browser.AdblockFilter.isAuthHost(host)
-
-        @android.webkit.JavascriptInterface
-        fun popupBlocked() {
-            Settings.incrementAdblockLifetimeBlockedCount()
-        }
-
-        /** JSON array of uBlock scriptlet calls for [host] (see AdblockScripts). */
-        @android.webkit.JavascriptInterface
-        fun scriptlets(host: String?): String =
-            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.scriptletsJson(host) else "[]"
-
-        /** Host-specific + always-on cosmetic CSS. */
-        @android.webkit.JavascriptInterface
-        fun cosmetic(host: String?): String =
-            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.cosmeticCssFor(host) else ""
-
-        /** Generic cosmetic CSS for the ids/classes (JSON arrays) present on the page. */
-        @android.webkit.JavascriptInterface
-        fun genericCss(host: String?, idsJson: String?, classesJson: String?): String =
-            if (enabled(host)) com.invictus.xmd.domain.browser.AdblockFilter.genericCssFor(host, idsJson, classesJson) else ""
-
-        /** True if tapping a link to [url] on a page at [host] should be swallowed. */
-        @android.webkit.JavascriptInterface
-        fun isAdUrl(url: String?, host: String?): Boolean =
-            url != null && com.invictus.xmd.domain.browser.AdblockFilter.isPopupBlocked(
-                url, host, Settings.adblockLevel()
-            )
-    }
-
     /** True if [url] is an ad/redirect target that a popup tab (or a gesture-less
      *  redirect) opened from [tab]'s page should not be allowed to load. */
     private fun isBlockedPopupTarget(tab: BrowserTab, url: String): Boolean {
-        val level = Settings.adblockLevel()
-        if (level == Settings.AdblockLevel.OFF) return false
         val openerHost = (tab.openedByUrl ?: tab.url)
             ?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
-        return com.invictus.xmd.domain.browser.AdblockFilter.isPopupBlocked(url, openerHost, level)
+        return AdBlocker.isPopupBlocked(url, openerHost)
     }
 
     private fun closeBlockedPopupTab(tab: BrowserTab) {
@@ -2754,7 +2669,7 @@ class BrowserFragment : Fragment() {
             val ctx = context ?: return
             val text = buildString {
                 appendLine("url=${wv?.url}")
-                appendLine("dns=${Settings.dnsMode()} shields=${Settings.adblockLevel()} desktop=${isCurrentTabDesktopMode()}")
+                appendLine("dns=${Settings.dnsMode()} shields=${Settings.adblockEnabled()} desktop=${isCurrentTabDesktopMode()}")
                 appendLine("settingsUA=${wv?.settings?.userAgentString}")
                 appendLine("probe=$probeResult")
                 appendLine("---")

@@ -9,7 +9,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.invictus.xmd.domain.browser.AdblockFilter
+import com.invictus.xmd.domain.browser.AdBlocker
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.HistoryRepository
@@ -29,7 +29,7 @@ class FfApp : Application(), Application.ActivityLifecycleCallbacks {
         super.onCreate()
         registerActivityLifecycleCallbacks(this)
         Settings.init(this)
-        AdblockFilter.init(this)
+        AdBlocker.init(this)
         // Loads the previously-persisted queue from disk so it survives
         // process restart (see QueueRepository's persistence docs).
         QueueRepository.init(this)

@@ -38,8 +38,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -791,19 +789,7 @@ private fun ExpressivePillNavigationBar(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (item == MainNavigationItem.Downloads && activeDownloadCount > 0) {
-                                BadgedBox(
-                                    badge = {
-                                        Badge {
-                                            Text(if (activeDownloadCount > 99) "99+" else activeDownloadCount.toString())
-                                        }
-                                    }
-                                ) {
-                                    NavigationItemIcon(item, tint = contentColor)
-                                }
-                            } else {
-                                NavigationItemIcon(item, tint = contentColor)
-                            }
+                            NavigationItemIcon(item, tint = contentColor)
 
                             if (tabFraction > 0.05f) {
                                 Spacer(modifier = Modifier.width(androidx.compose.ui.unit.lerp(0.dp, 6.dp, tabFraction)))

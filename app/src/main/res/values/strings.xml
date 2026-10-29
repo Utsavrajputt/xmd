@@ -590,7 +590,7 @@
     <string name="download_filter_waiting">Waiting</string>
     <string name="download_filter_completed">Finished</string>
     <string name="download_filter_failed">Failed</string>
-    <string name="download_type_video">Video</string>
+    <string name="download_type_video">Videos</string>
     <string name="download_type_audio">Audio</string>
     <string name="download_type_documents">Documents</string>
     <string name="download_type_others">Others</string>
