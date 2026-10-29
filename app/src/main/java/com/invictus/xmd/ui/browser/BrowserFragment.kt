@@ -499,6 +499,7 @@ class BrowserFragment : Fragment() {
                                     desktopSiteEnabled = isCurrentTabDesktopMode(),
                                     currentPageAvailable = currentPageUrl() != null,
                                     currentPagePinned = if (browserMenuExpanded) isCurrentPagePinned() else false,
+                                    showDebugLog = browserMenuExpanded && com.invictus.xmd.preferences.Settings.browserDebugLogEnabled(),
                                     onDismiss = { browserMenuExpanded = false },
                                     onRefresh = ::reloadActiveTab,
                                     onFindInPage = ::showFindInPage,

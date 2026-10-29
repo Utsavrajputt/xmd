@@ -228,6 +228,7 @@ internal fun BrowserOverflowMenu(
     desktopSiteEnabled: Boolean,
     currentPageAvailable: Boolean,
     currentPagePinned: Boolean,
+    showDebugLog: Boolean = false,
     onDismiss: () -> Unit,
     onRefresh: () -> Unit,
     onFindInPage: () -> Unit,
@@ -242,16 +243,33 @@ internal fun BrowserOverflowMenu(
 ) {
     DropdownMenu(
  shape = com.invictus.xmd.ui.theme.XmdShapes.M, containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,expanded = expanded, onDismissRequest = onDismiss) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.IconButton(onClick = { onDismiss(); onRefresh() }) {
+                Icon(imageVector = Icons.Refresh, contentDescription = stringResource(R.string.browser_menu_refresh))
+            }
+            androidx.compose.material3.IconButton(enabled = currentPageAvailable, onClick = { onDismiss(); onCopyPage() }) {
+                Icon(imageVector = Icons.Copy, contentDescription = stringResource(R.string.link_menu_copy_link_address))
+            }
+            androidx.compose.material3.IconButton(enabled = currentPageAvailable, onClick = { onDismiss(); onSharePage() }) {
+                Icon(imageVector = Icons.Share, contentDescription = stringResource(R.string.link_menu_share_link))
+            }
+        }
+        HorizontalDivider()
         BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_refresh),
-            icon = Icons.Refresh,
-            onClick = { onDismiss(); onRefresh() },
+            label = stringResource(R.string.browser_menu_bookmarks),
+            icon = Icons.Bookmarks,
+            onClick = { onDismiss(); onAction(BrowserMenuAction.Bookmarks) },
         )
         BrowserMenuItem(
-            label = stringResource(R.string.find_in_page_menu),
-            icon = Icons.FindInPage,
-            onClick = { onDismiss(); onFindInPage() },
+            label = stringResource(R.string.browser_menu_history),
+            icon = Icons.History,
+            onClick = { onDismiss(); onAction(BrowserMenuAction.History) },
         )
+        HorizontalDivider()
         DropdownMenuItem(
             text = { Text(stringResource(R.string.browser_menu_desktop_site)) },
             leadingIcon = {
@@ -263,21 +281,11 @@ internal fun BrowserOverflowMenu(
             onClick = { onDismiss(); onToggleDesktopSite() },
         )
         BrowserMenuItem(
-            label = stringResource(R.string.link_menu_share_link),
-            icon = Icons.Share,
+            label = stringResource(R.string.browser_menu_translate),
+            icon = Icons.Language,
             enabled = currentPageAvailable,
-            onClick = { onDismiss(); onSharePage() },
+            onClick = { onDismiss(); onTranslatePage() },
         )
-        BrowserMenuItem(
-            label = stringResource(
-                if (currentPagePinned) R.string.browser_menu_remove_from_home_screen
-                else R.string.browser_menu_add_to_home_screen
-            ),
-            icon = if (currentPagePinned) Icons.RemoveFromHomeScreen else Icons.AddToHomeScreen,
-            enabled = currentPageAvailable,
-            onClick = { onDismiss(); onAddAsApp() },
-        )
-        HorizontalDivider()
         BrowserMenuItem(
             label = stringResource(R.string.browser_menu_private_dns),
             icon = Icons.Dns,
@@ -290,26 +298,26 @@ internal fun BrowserOverflowMenu(
         )
         HorizontalDivider()
         BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_bookmarks),
-            icon = Icons.Bookmarks,
-            onClick = { onDismiss(); onAction(BrowserMenuAction.Bookmarks) },
+            label = stringResource(R.string.find_in_page_menu),
+            icon = Icons.FindInPage,
+            onClick = { onDismiss(); onFindInPage() },
         )
         BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_history),
-            icon = Icons.History,
-            onClick = { onDismiss(); onAction(BrowserMenuAction.History) },
-        )
-        BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_translate),
-            icon = Icons.Language,
+            label = stringResource(
+                if (currentPagePinned) R.string.browser_menu_remove_from_home_screen
+                else R.string.browser_menu_add_to_home_screen
+            ),
+            icon = if (currentPagePinned) Icons.RemoveFromHomeScreen else Icons.AddToHomeScreen,
             enabled = currentPageAvailable,
-            onClick = { onDismiss(); onTranslatePage() },
+            onClick = { onDismiss(); onAddAsApp() },
         )
-        BrowserMenuItem(
-            label = stringResource(R.string.browser_menu_copy_debug_log),
-            icon = Icons.Dns,
-            onClick = { onDismiss(); onCopyDebugLog() },
-        )
+        if (showDebugLog) {
+            BrowserMenuItem(
+                label = stringResource(R.string.browser_menu_copy_debug_log),
+                icon = Icons.Dns,
+                onClick = { onDismiss(); onCopyDebugLog() },
+            )
+        }
         HorizontalDivider()
         BrowserMenuItem(
             label = stringResource(R.string.menu_settings),

@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -1813,6 +1814,7 @@ private fun rememberThrottledSpeedEtaText(item: QueueItem): String? {
 
 // ── Dialogs ───────────────────────────────────────────────────────────────
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -1851,62 +1853,148 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
     } else null
 
     val rows = listOf(
-        stringResource(R.string.info_file_name) to fileName,
-        stringResource(R.string.info_size) to size.takeIf { it > 0 }?.let { formatBytes(it) },
-        stringResource(R.string.info_media_duration) to probe?.durationMs?.let { formatMediaDuration(it) },
-        stringResource(R.string.info_codec) to probe?.codec,
-        stringResource(R.string.info_quality) to probe?.quality,
-        stringResource(R.string.info_format) to item.mediaFormatLabel?.takeIf { it.isNotBlank() },
-        stringResource(R.string.info_platform) to platformLabel,
-        stringResource(R.string.info_category) to item.category.label,
-        stringResource(R.string.info_path) to item.filePath?.takeIf { it.isNotBlank() },
-        stringResource(R.string.info_source) to item.sourceUrl.takeIf { it.isNotBlank() },
-        stringResource(R.string.info_finished) to finishedText,
-        stringResource(R.string.info_duration) to durationMs.takeIf { it > 500 }?.let { formatElapsedDuration(it) },
-    ).filter { !it.second.isNullOrBlank() }
+        InfoRowData(stringResource(R.string.info_file_name), fileName, Icons.Description, copyable = true),
+        InfoRowData(stringResource(R.string.info_size), size.takeIf { it > 0 }?.let { formatBytes(it) }, Icons.PieChart),
+        InfoRowData(stringResource(R.string.info_media_duration), probe?.durationMs?.let { formatMediaDuration(it) }, Icons.Schedule),
+        InfoRowData(stringResource(R.string.info_codec), probe?.codec, Icons.Article),
+        InfoRowData(stringResource(R.string.info_quality), probe?.quality, Icons.Settings),
+        InfoRowData(stringResource(R.string.info_format), item.mediaFormatLabel?.takeIf { it.isNotBlank() }, Icons.Settings),
+        InfoRowData(stringResource(R.string.info_platform), platformLabel, Icons.Public),
+        InfoRowData(stringResource(R.string.info_category), item.category.label, Icons.Sell),
+        InfoRowData(stringResource(R.string.info_path), item.filePath?.takeIf { it.isNotBlank() }, Icons.Folder, copyable = true),
+        InfoRowData(stringResource(R.string.info_source), item.sourceUrl.takeIf { it.isNotBlank() }, Icons.Link, copyable = true, singleLine = true, copyValue = item.sourceUrl),
+        InfoRowData(stringResource(R.string.info_finished), finishedText, Icons.EventDone),
+        InfoRowData(stringResource(R.string.info_duration), durationMs.takeIf { it > 500 }?.let { formatElapsedDuration(it) }, Icons.Timer),
+    ).filter { !it.value.isNullOrBlank() }
 
-    XmdAlertDialog(
+    val colors = MaterialTheme.colorScheme
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val maxHeight = (configuration.screenHeightDp.dp - 96.dp).coerceAtLeast(240.dp)
+    androidx.compose.material3.BasicAlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.wideDialogWidth(),
+        modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 560.dp),
         properties = WideDialogProperties,
-        title = { Text(stringResource(R.string.action_details)) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                rows.forEach { (label, value) ->
-                    Column {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        SelectionContainer {
-                            Text(
-                                text = value.orEmpty(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.45f)),
+            tonalElevation = 0.dp,
+        ) {
+            Column(modifier = Modifier.heightIn(max = maxHeight)) {
+                // Header: title + round close button
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_details),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Surface(
+                        onClick = onDismiss,
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = colors.surfaceContainerHighest,
+                        contentColor = colors.onSurface,
+                    ) {
+                        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                            Icon(imageVector = Icons.Close, contentDescription = stringResource(R.string.action_dismiss))
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = onDismiss) { Text(stringResource(R.string.action_dismiss)) }
-        },
-        dismissButton = {
-            item.filePath?.takeIf { it.isNotBlank() }?.let { path ->
-                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { clipboardManager.setText(AnnotatedString(path)) }) {
-                    Text(stringResource(R.string.info_copy_path))
+                HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+
+                // Rows
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                ) {
+                    rows.forEachIndexed { index, row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = colors.surfaceContainerHighest,
+                                contentColor = colors.onSurface,
+                            ) {
+                                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = row.icon, contentDescription = null)
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = row.label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = row.value.orEmpty(),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = colors.onSurface,
+                                    maxLines = if (row.singleLine) 1 else Int.MAX_VALUE,
+                                    overflow = if (row.singleLine) TextOverflow.Ellipsis else TextOverflow.Clip,
+                                )
+                            }
+                            if (row.copyable) {
+                                IconButton(onClick = {
+                                    clipboardManager.setText(AnnotatedString(row.copyValue ?: row.value.orEmpty()))
+                                }) {
+                                    Icon(imageVector = Icons.Copy, contentDescription = null, tint = colors.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        if (index != rows.lastIndex) {
+                            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+                HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+
+                // Actions: Copy path (outlined) + Dismiss (filled pill)
+                val path = item.filePath?.takeIf { it.isNotBlank() }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (path != null) {
+                        OutlinedButton(
+                            onClick = { clipboardManager.setText(AnnotatedString(path)) },
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                        ) {
+                            Icon(imageVector = Icons.Copy, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.info_copy_path))
+                        }
+                    }
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                    ) {
+                        Text(stringResource(R.string.action_dismiss))
+                    }
                 }
             }
-        },
-    )
+        }
+    }
 }
+
+private data class InfoRowData(
+    val label: String,
+    val value: String?,
+    val icon: AppIcon,
+    val copyable: Boolean = false,
+    val singleLine: Boolean = false,
+    val copyValue: String? = null,
+)
 
 private fun formatMediaDuration(ms: Long): String {
     val total = ms / 1000

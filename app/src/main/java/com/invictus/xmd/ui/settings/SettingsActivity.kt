@@ -17,6 +17,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -293,9 +294,7 @@ class SettingsActivity : ComponentActivity() {
                         val detailTitleRes = routeTitles[selectedRoute] ?: R.string.settings_title
                         XmdTopBar(
                             title = {
-                                Text(
-                                    text = stringResource(detailTitleRes),
-                                )
+                                SettingsHeaderTitle(stringResource(detailTitleRes), selectedRoute == Route.BROWSER)
                             },
                         )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -335,7 +334,7 @@ class SettingsActivity : ComponentActivity() {
                         .navigationBarsPadding(),
                 ) {
                     XmdTopBar(
-                        title = { Text(stringResource(titleRes)) },
+                        title = { SettingsHeaderTitle(stringResource(titleRes), currentRoute == Route.BROWSER) },
                         navigationIcon = {
                             IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
                                 Icon(
@@ -1370,4 +1369,32 @@ private fun LibrariesRoute() {
     }
 
     LibrariesScreen(libraries = libraries)
+}
+
+
+/** Title text for the settings header. On the Browser page, 5 quick taps toggle the hidden "Copy debug log" menu entry. */
+@Composable
+private fun SettingsHeaderTitle(text: String, debugUnlockEnabled: Boolean) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var taps by remember { mutableStateOf(0) }
+    var lastTap by remember { mutableStateOf(0L) }
+    val modifier = if (!debugUnlockEnabled) Modifier else Modifier.clickable(
+        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+        indication = null,
+    ) {
+        val now = System.currentTimeMillis()
+        taps = if (now - lastTap > 1500) 1 else taps + 1
+        lastTap = now
+        if (taps >= 5) {
+            taps = 0
+            val enabled = !com.invictus.xmd.preferences.Settings.browserDebugLogEnabled()
+            com.invictus.xmd.preferences.Settings.setBrowserDebugLogEnabled(enabled)
+            Toast.makeText(
+                context,
+                if (enabled) "Debug log enabled" else "Debug log hidden",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    Text(text = text, modifier = modifier)
 }

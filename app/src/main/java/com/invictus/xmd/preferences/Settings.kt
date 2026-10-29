@@ -486,6 +486,13 @@ object Settings {
         prefs.edit().putBoolean(KEY_BROWSER_NAV_BUTTONS_ENABLED, value).apply()
     }
 
+    // ── Browser: "Copy debug log" menu entry, hidden until unlocked (5 taps on the Browser settings header) ──
+    fun browserDebugLogEnabled(): Boolean =
+        prefs.getBoolean("browser_debug_log_enabled", false)
+    fun setBrowserDebugLogEnabled(value: Boolean) {
+        prefs.edit().putBoolean("browser_debug_log_enabled", value).apply()
+    }
+
     // ── Browser: Force dark mode for web pages (default OFF) ──
     fun browserForceDark(): Boolean =
         prefs.getBoolean(KEY_BROWSER_FORCE_DARK, false)
@@ -919,7 +926,7 @@ object Settings {
         const val ADD = "add"
         const val BROWSER = "browser"
         val ALL = listOf(DOWNLOADS, ADD, BROWSER)
-        val PAGES = listOf(DOWNLOADS, BROWSER)
+        val PAGES = listOf(BROWSER, DOWNLOADS)
     }
 
     private const val KEY_TAB_ORDER = "nav_tab_order"

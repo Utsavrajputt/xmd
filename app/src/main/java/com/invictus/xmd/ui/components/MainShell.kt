@@ -108,9 +108,9 @@ internal enum class MainDestination {
 }
 
 internal enum class MainNavigationItem(val destination: MainDestination?) {
-    Downloads(MainDestination.Downloads),
-    Add(null),
     Browser(MainDestination.Browser),
+    Add(null),
+    Downloads(MainDestination.Downloads),
 }
 
 @Composable
