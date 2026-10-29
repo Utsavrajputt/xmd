@@ -38,6 +38,8 @@ object Settings {
 
     private const val PREFS = "ff_settings"
     private const val KEY_CONNECTIONS = "connections_per_download"
+    private const val KEY_MULTI_THREAD_MODE = "multi_thread_mode"
+    const val MAX_THREADS = 32
     private const val KEY_APP_THEME = "app_theme"
     private const val KEY_DARK_MODE = "app_dark_mode"
     private const val KEY_AMOLED_MODE = "app_amoled_mode"
@@ -164,9 +166,16 @@ object Settings {
         _wallpaperFlow.value = config
     }
 
-    fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 6).coerceIn(1, 24)
+    /** Max threads (parallel connections) per download. */
+    fun connectionsPerDownload(): Int = prefs.getInt(KEY_CONNECTIONS, 6).coerceIn(1, MAX_THREADS)
     fun setConnectionsPerDownload(value: Int) {
-        prefs.edit().putInt(KEY_CONNECTIONS, value.coerceIn(1, 24)).apply()
+        prefs.edit().putInt(KEY_CONNECTIONS, value.coerceIn(1, MAX_THREADS)).apply()
+    }
+
+    fun multiThreadMode(): com.invictus.xmd.domain.download.MultiThreadMode =
+        com.invictus.xmd.domain.download.MultiThreadMode.fromName(prefs.getString(KEY_MULTI_THREAD_MODE, null))
+    fun setMultiThreadMode(mode: com.invictus.xmd.domain.download.MultiThreadMode) {
+        prefs.edit().putString(KEY_MULTI_THREAD_MODE, mode.name).apply()
     }
 
     /** KB/s per individual download; 0 means unlimited. */

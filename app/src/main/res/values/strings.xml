@@ -275,7 +275,7 @@
     <string name="settings_dark_mode_hint">Use the selected theme in dark mode.</string>
     <string name="settings_amoled_mode">AMOLED Dark</string>
     <string name="settings_amoled_mode_hint">Use pure black background in dark mode while keeping theme accent colors.</string>
-    <string name="settings_connections">Connections per Download</string>
+    <string name="settings_connections">Max threads per download</string>
     <string name="settings_speed_limit">Speed Limit per Download (KB/s, 0 = Unlimited)</string>
     <string name="settings_max_concurrent">Maximum Simultaneous Downloads (1–5)</string>
     <string name="settings_auto_retry">Auto Retry on Network Error</string>
@@ -595,7 +595,6 @@
     <string name="download_type_documents">Documents</string>
     <string name="download_type_others">Others</string>
     <string name="action_sort">Sort</string>
-    <string name="download_sort_default">Default order</string>
     <string name="download_sort_newest">Newest first</string>
     <string name="download_sort_oldest">Oldest first</string>
     <string name="download_sort_name_asc">Name (A to Z)</string>
@@ -729,7 +728,12 @@
     <string name="fmhy_result_done">FMHY: %1$d links updated.</string>
     <string name="fmhy_result_up_to_date">Already up to date with FMHY.</string>
     <string name="fmhy_result_failed">Couldn\'t reach FMHY. Check your connection.</string>
-    <string name="conn_hint">More connections can speed up big files. Some servers throttle or block above 8.</string>
+    <string name="conn_hint">More threads can speed up big files. Some servers throttle or block above 8.</string>
+    <string name="conn_mode_title">Multi-threading mode</string>
+    <string name="conn_mode_classic">Classic</string>
+    <string name="conn_mode_smart">Smart</string>
+    <string name="conn_mode_classic_hint">Always splits the file into exactly the max number of threads.</string>
+    <string name="conn_mode_smart_hint">Picks the thread count from the file size (up to the max) and splits the file into smaller chunks, so fast threads pick up extra work instead of waiting for slow ones.</string>
     <string name="conn_hint_high">High value: some servers may slow down or refuse this many connections.</string>
     <string name="conn_speed_title">Speed limit</string>
     <string name="conn_speed_hint">Per download. Pick a preset or type your own.</string>

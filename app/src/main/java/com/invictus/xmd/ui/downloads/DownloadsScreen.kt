@@ -1,6 +1,21 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 package com.invictus.xmd.ui.downloads
 
+import android.os.Build
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.layer.CompositingStrategy
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.unit.Dp
 import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -198,8 +213,8 @@ fun DownloadsScreen(
     // (All = every type together). Exactly one
     // chip is selected at a time; empty chips are hidden.
     var chosenChipName by rememberSaveable { mutableStateOf<String?>(null) }
-    var sortName by rememberSaveable { mutableStateOf(DownloadSort.Default.name) }
-    val sort = DownloadSort.entries.firstOrNull { it.name == sortName } ?: DownloadSort.Default
+    var sortName by rememberSaveable { mutableStateOf(DownloadSort.Newest.name) }
+    val sort = DownloadSort.entries.firstOrNull { it.name == sortName } ?: DownloadSort.Newest
 
     val activeItems = remember(queryMatches) { queryMatches.filter { it.status != ItemStatus.DONE } }
     val finishedItems = remember(queryMatches) { queryMatches.filter { it.status == ItemStatus.DONE } }
@@ -451,7 +466,7 @@ fun DownloadsScreen(
                             Icon(
                                 imageVector = Icons.Sort,
                                 contentDescription = stringResource(R.string.action_sort),
-                                tint = if (sort != DownloadSort.Default) {
+                                tint = if (sort != DownloadSort.Newest) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
@@ -567,8 +582,20 @@ fun DownloadsScreen(
                     }
                 }
 
+                // Content scrolling under the floating navbar gets blurred
+                // (Android 12+) with a fading scrim; older devices get the scrim only.
+                val navBarInset = with(LocalDensity.current) {
+                    WindowInsets.navigationBars.getBottom(this).toDp()
+                }
+                val imeOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .bottomNavBlur(
+                            enabled = !imeOpen,
+                            stripHeight = NAV_BLUR_STRIP_HEIGHT + navBarInset,
+                            scrimColor = MaterialTheme.colorScheme.background,
+                        ),
                     contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -833,8 +860,73 @@ private fun downloadType(item: QueueItem): DownloadTypeFilter {
     }
 }
 
+
+/** Height of the blurred strip above the screen bottom, excluding the system nav-bar inset. */
+private val NAV_BLUR_STRIP_HEIGHT = 104.dp
+
+/**
+ * Progressive blur for content scrolling beneath the floating bottom navbar.
+ * The content is recorded into a layer a second time, blurred with a
+ * [BlurEffect] (Android 12+), masked with a transparent->opaque vertical
+ * gradient and drawn over the bottom [stripHeight]. A background-coloured
+ * scrim fades in on top; below Android 12 only the scrim is drawn.
+ */
+@Composable
+private fun Modifier.bottomNavBlur(
+    enabled: Boolean,
+    stripHeight: Dp,
+    scrimColor: Color,
+): Modifier {
+    val blurSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val density = LocalDensity.current
+    val stripPx = with(density) { stripHeight.toPx() }
+    val blurPx = with(density) { 18.dp.toPx() }
+    val contentLayer = rememberGraphicsLayer()
+    val maskLayer = rememberGraphicsLayer()
+    remember(contentLayer, maskLayer, blurPx, blurSupported) {
+        contentLayer.renderEffect = if (blurSupported) {
+            BlurEffect(blurPx, blurPx, TileMode.Clamp)
+        } else {
+            null
+        }
+        maskLayer.compositingStrategy = CompositingStrategy.Offscreen
+        true
+    }
+    val scrimAlpha = if (blurSupported) 0.45f else 0.85f
+    return this.drawWithContent {
+        drawContent()
+        if (!enabled || stripPx <= 0f) return@drawWithContent
+        val top = (size.height - stripPx).coerceAtLeast(0f)
+        if (blurSupported) {
+            contentLayer.record { this@drawWithContent.drawContent() }
+            maskLayer.record {
+                clipRect(top = top) { drawLayer(contentLayer) }
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black),
+                        startY = top,
+                        endY = size.height,
+                    ),
+                    topLeft = Offset(0f, top),
+                    size = Size(size.width, size.height - top),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+            drawLayer(maskLayer)
+        }
+        drawRect(
+            brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, scrimColor.copy(alpha = scrimAlpha)),
+                startY = top,
+                endY = size.height,
+            ),
+            topLeft = Offset(0f, top),
+            size = Size(size.width, size.height - top),
+        )
+    }
+}
+
 private enum class DownloadSort(val labelRes: Int) {
-    Default(R.string.download_sort_default),
     Newest(R.string.download_sort_newest),
     Oldest(R.string.download_sort_oldest),
     NameAsc(R.string.download_sort_name_asc),
@@ -843,7 +935,6 @@ private enum class DownloadSort(val labelRes: Int) {
     SizeAsc(R.string.download_sort_size_asc);
 
     fun apply(list: List<QueueItem>): List<QueueItem> = when (this) {
-        Default -> list
         Newest -> list.sortedByDescending { timeKey(it) }
         Oldest -> list.sortedBy { timeKey(it) }
         NameAsc -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.fileName ?: it.sourceUrl })

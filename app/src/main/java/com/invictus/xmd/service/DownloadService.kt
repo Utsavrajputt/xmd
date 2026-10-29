@@ -1149,6 +1149,7 @@ class DownloadService : LifecycleService() {
                 },
                 log = { },
                 connections = Settings.connectionsPerDownload(),
+                multiThreadMode = Settings.multiThreadMode(),
                 speedLimitBytesPerSec = Settings.speedLimitKBps().toLong() * 1024L,
                 extraHeaders = extraHeaders,
             )

@@ -50,12 +50,13 @@ import androidx.compose.ui.text.input.ImeAction
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import com.invictus.xmd.R
+import com.invictus.xmd.domain.download.MultiThreadMode
 import java.util.Locale
 import kotlin.math.roundToInt
 
 private const val MIN_CONNECTIONS = 1
-private const val MAX_CONNECTIONS = 24
-private const val HIGH_CONNECTIONS = 12
+private const val MAX_CONNECTIONS = 32
+private const val HIGH_CONNECTIONS = 16
 private const val MIN_CONCURRENT = 1
 private const val MAX_CONCURRENT = 5
 
@@ -102,10 +103,12 @@ private fun sanitizeSpeedInput(input: String, mb: Boolean): String {
 @Composable
 fun SettingsConnectionsScreen(
     connections: Int,
+    multiThreadMode: MultiThreadMode,
     speedLimitKBps: Int,
     speedUnitMb: Boolean,
     maxConcurrent: Int,
     onConnectionsChanged: (Int) -> Unit,
+    onMultiThreadModeChanged: (MultiThreadMode) -> Unit,
     onSpeedLimitChanged: (Int) -> Unit,
     onSpeedUnitChanged: (Boolean) -> Unit,
     onMaxConcurrentChanged: (Int) -> Unit,
@@ -175,6 +178,42 @@ fun SettingsConnectionsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = if (connections > HIGH_CONNECTIONS) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+
+        // ── Multi-threading mode ─────────────────────────────────────
+        SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+            Text(
+                text = stringResource(R.string.conn_mode_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MultiThreadMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = multiThreadMode == mode,
+                        onClick = { onMultiThreadModeChanged(mode) },
+                        label = {
+                            Text(
+                                stringResource(
+                                    if (mode == MultiThreadMode.SMART) R.string.conn_mode_smart else R.string.conn_mode_classic,
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(
+                    if (multiThreadMode == MultiThreadMode.SMART) R.string.conn_mode_smart_hint else R.string.conn_mode_classic_hint,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }

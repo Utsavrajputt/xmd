@@ -1448,7 +1448,7 @@ private fun HttpDownloadSettingsDialog(
     onDismiss: () -> Unit,
     onApply: (connections: Int, maxConcurrent: Int, speedLimitKBps: Int) -> Unit,
 ) {
-    var connections by remember { mutableIntStateOf(initialConnections.coerceIn(1, 24)) }
+    var connections by remember { mutableIntStateOf(initialConnections.coerceIn(1, 32)) }
     var maxConcurrent by remember { mutableIntStateOf(initialMaxConcurrent.coerceIn(1, 5)) }
     var speedLimitKBps by remember { mutableIntStateOf(initialSpeedLimitKBps.coerceAtLeast(0)) }
 
@@ -1546,9 +1546,9 @@ private fun HttpDownloadSettingsDialog(
                     }
                     Slider(
                         value = connections.toFloat(),
-                        onValueChange = { connections = it.toInt().coerceIn(1, 24) },
-                        valueRange = 1f..24f,
-                        steps = 22,
+                        onValueChange = { connections = it.toInt().coerceIn(1, 32) },
+                        valueRange = 1f..32f,
+                        steps = 30,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
@@ -1556,7 +1556,7 @@ private fun HttpDownloadSettingsDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text("1", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("24", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("32", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 

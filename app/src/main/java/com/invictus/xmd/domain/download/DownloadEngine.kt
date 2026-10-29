@@ -28,6 +28,12 @@ typealias LogFn = (String) -> Unit
 // layer (shared/public storage) where every syscall has extra overhead.
 private const val STREAM_BLOCK_SIZE = 1024 * 1024
 private const val MULTI_CONNECTION_MIN_BYTES = 4L * 1024 * 1024
+// Smart mode: one thread per this many bytes, and chunks of at least this size,
+// with up to CHUNKS_PER_THREAD chunks per thread (capped overall) for load balancing.
+private const val SMART_BYTES_PER_THREAD = 4L * 1024 * 1024
+private const val SMART_MIN_CHUNK_BYTES = 2L * 1024 * 1024
+private const val SMART_CHUNKS_PER_THREAD = 4
+private const val SMART_MAX_CHUNKS = 96
 private const val PROGRESS_THROTTLE_NANOS = 200_000_000L // ~5 UI updates/sec
 private val EXPIRED_LINK_CODES = setOf(401, 403, 404, 410)
 // Server-side throttling (not a dead link): too many simultaneous connections
@@ -45,6 +51,7 @@ class DownloadEngine(
     private val progress: ProgressFn = { _, _, _ -> },
     private val log: LogFn = {},
     private val connections: Int = 4,
+    private val multiThreadMode: MultiThreadMode = MultiThreadMode.CLASSIC,
     private val speedLimitBytesPerSec: Long = 0L,
     private val extraHeaders: Map<String, String> = emptyMap(),
 ) {
@@ -416,6 +423,20 @@ class DownloadEngine(
         }
     }
 
+    // ── Smart-mode planning ───────────────────────────────────────────────
+    /** One thread per [SMART_BYTES_PER_THREAD], at least 2, never above the user's max threads. */
+    private fun smartThreadCount(totalSize: Long): Int {
+        val bySize = ((totalSize + SMART_BYTES_PER_THREAD - 1) / SMART_BYTES_PER_THREAD).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val maxThreads = connections.coerceAtLeast(1)
+        return bySize.coerceIn(minOf(2, maxThreads), maxThreads)
+    }
+
+    /** More chunks than threads, so a finished thread picks up the next unstarted chunk. */
+    private fun smartChunkCount(totalSize: Long, threads: Int): Int {
+        val bySize = (totalSize / SMART_MIN_CHUNK_BYTES).coerceAtMost(SMART_MAX_CHUNKS.toLong()).toInt()
+        return (threads * SMART_CHUNKS_PER_THREAD).coerceAtMost(bySize).coerceIn(threads, SMART_MAX_CHUNKS.coerceAtLeast(threads))
+    }
+
     // ── Entry point ───────────────────────────────────────────────────────
     /**
      * Always checks for resumable multi-connection progress FIRST, before
@@ -447,7 +468,11 @@ class DownloadEngine(
         val resumable = readPersistedMultiState(destination)
         if (resumable != null) {
             log("Resuming ${destination.name}: ${resumable.segments.sumOf { it.done }}/${resumable.total} bytes across ${resumable.segments.size} connections")
-            downloadMultiWithFallback(url, destination, resumable.total, resumable.segments)
+            val resumeThreads = when (multiThreadMode) {
+                MultiThreadMode.SMART -> smartThreadCount(resumable.total).coerceAtMost(resumable.segments.size)
+                MultiThreadMode.CLASSIC -> resumable.segments.size.coerceAtMost(connections.coerceAtLeast(1))
+            }
+            downloadMultiWithFallback(url, destination, resumable.total, resumable.segments, resumeThreads)
             return
         }
         if (metaFile(destination).isFile) {
@@ -472,15 +497,21 @@ class DownloadEngine(
             // itself was in flight.
             checkpoint()
             if (probe.supportsRanges && probe.totalSize >= MULTI_CONNECTION_MIN_BYTES) {
-                val segmentSize = probe.totalSize / connections
-                val freshSegments = (0 until connections).map { i ->
+                val (threads, chunkCount) = when (multiThreadMode) {
+                    MultiThreadMode.SMART -> smartThreadCount(probe.totalSize).let { t ->
+                        t to smartChunkCount(probe.totalSize, t)
+                    }
+                    MultiThreadMode.CLASSIC -> connections to connections
+                }
+                val segmentSize = probe.totalSize / chunkCount
+                val freshSegments = (0 until chunkCount).map { i ->
                     val start = i * segmentSize
-                    val end = if (i == connections - 1) probe.totalSize - 1 else (start + segmentSize - 1)
+                    val end = if (i == chunkCount - 1) probe.totalSize - 1 else (start + segmentSize - 1)
                     SegmentState(start, end)
                 }
                 try {
-                    log("Downloading with $connections parallel connections")
-                    downloadMultiWithFallback(url, destination, probe.totalSize, freshSegments)
+                    log("Downloading with $threads parallel connections ($chunkCount chunks, ${multiThreadMode.name.lowercase()} mode)")
+                    downloadMultiWithFallback(url, destination, probe.totalSize, freshSegments, threads)
                     return
                 } catch (e: DownloadCancelledException) {
                     throw e
@@ -560,11 +591,18 @@ class DownloadEngine(
      * single connection also gets rejected, it really is expired/unavailable
      * and the caller's Link Expired handling is correct to kick in.
      */
-    private fun downloadMultiWithFallback(url: String, destination: File, totalSize: Long, segments: List<SegmentState>) {
+    private fun downloadMultiWithFallback(
+        url: String,
+        destination: File,
+        totalSize: Long,
+        segments: List<SegmentState>,
+        threads: Int = segments.size,
+    ) {
         val host = url.toHttpUrlOrNull()?.host.orEmpty()
-        val default = HostPlan(useH2 = false, maxConcurrent = segments.size)
+        val maxThreads = threads.coerceIn(1, segments.size)
+        val default = HostPlan(useH2 = false, maxConcurrent = maxThreads)
         // A plan that already worked for this host earlier this session.
-        var plan = hostPlans[host]?.let { it.copy(maxConcurrent = it.maxConcurrent.coerceIn(1, segments.size)) } ?: default
+        var plan = hostPlans[host]?.let { it.copy(maxConcurrent = it.maxConcurrent.coerceIn(1, maxThreads)) } ?: default
         while (true) {
             useH2 = plan.useH2
             try {
