@@ -78,7 +78,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.invictus.xmd.FfApp
-import com.invictus.xmd.domain.browser.AdblockFilter
 import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.network.NetworkMonitor
 import com.invictus.xmd.preferences.Settings
@@ -867,8 +866,8 @@ private fun BrowserRoute(
     }
     var showHomePageDialog by remember { mutableStateOf(false) }
 
-    var adblockLevel by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
+    var adblockEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockEnabled())
     }
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
@@ -934,7 +933,7 @@ private fun BrowserRoute(
         homePage = homePage,
         customHomeName = customHomeName,
         onHomePageClick = { showHomePageDialog = true },
-        adblockLevel = adblockLevel,
+        adblockEnabled = adblockEnabled,
         onOpenAdblock = onOpenAdblock,
         backgroundPlaybackEnabled = backgroundPlaybackEnabled,
         onBackgroundPlaybackChanged = { checked ->
@@ -968,65 +967,63 @@ private fun BrowserRoute(
 
 @Composable
 private fun AdblockRoute() {
-    var adblockLevel by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLevel())
-    }
-    var filterSet by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockFilterSet())
-    }
-    var engineRuleCount by remember {
-        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount())
-    }
-    val adblockContext = androidx.compose.ui.platform.LocalContext.current
-    var blockedDomainCount by remember {
-        mutableStateOf(com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount())
-    }
-    var lifetimeBlockedCount by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount())
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var adblockEnabled by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockEnabled())
     }
     var allowlistedSites by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted())
     }
-    // The host list loads off the main thread (AdblockFilter.init, called
-    // from FfApp.onCreate) and a background remote refresh may still be
-    // in flight -- poll briefly rather than wiring up a dedicated
-    // callback/broadcast just for this settings subtitle. Also picks up
-    // the lifetime blocked count ticking up if the user still has a
-    // Browser tab open behind this screen. Stops after a few seconds
-    // either way.
-    LaunchedEffect(filterSet) {
-        // Filter lists can take a while to download and parse, so poll longer.
-        repeat(120) {
+    var listHostCount by remember {
+        mutableStateOf(com.invictus.xmd.domain.browser.AdBlocker.listedHostCount())
+    }
+    var listUpdatedAt by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockListUpdatedAt())
+    }
+    var listUpdating by remember { mutableStateOf(false) }
+    var listUpdateResultRes by remember { mutableStateOf<Int?>(null) }
+
+    // The lists load off the main thread when the app starts, and a
+    // background refresh may still be running -- poll briefly instead of
+    // wiring a callback just for this subtitle.
+    LaunchedEffect(Unit) {
+        repeat(20) {
             kotlinx.coroutines.delay(500)
-            val rules = com.invictus.xmd.domain.browser.AdblockFilter.engineRuleCount()
-            if (rules != engineRuleCount) engineRuleCount = rules
-            val count = com.invictus.xmd.domain.browser.AdblockFilter.blockedDomainCount()
-            if (count != blockedDomainCount) blockedDomainCount = count
-            val lifetime = com.invictus.xmd.preferences.Settings.adblockLifetimeBlockedCount()
-            if (lifetime != lifetimeBlockedCount) lifetimeBlockedCount = lifetime
+            val count = com.invictus.xmd.domain.browser.AdBlocker.listedHostCount()
+            if (count != listHostCount) listHostCount = count
+            val updated = com.invictus.xmd.preferences.Settings.adblockListUpdatedAt()
+            if (updated != listUpdatedAt) listUpdatedAt = updated
         }
     }
 
     SettingsAdblockScreen(
-        adblockLevel = adblockLevel,
-        blockedDomainCount = blockedDomainCount,
-        lifetimeBlockedCount = lifetimeBlockedCount,
+        adblockEnabled = adblockEnabled,
         allowlistedSites = allowlistedSites,
-        onAdblockLevelChanged = { level ->
-            adblockLevel = level
-            com.invictus.xmd.preferences.Settings.setAdblockLevel(level)
+        onAdblockEnabledChanged = { enabled ->
+            adblockEnabled = enabled
+            com.invictus.xmd.preferences.Settings.setAdblockEnabled(enabled)
         },
-        filterSet = filterSet,
-        engineRuleCount = engineRuleCount,
-        onFilterSetChanged = { set ->
-            filterSet = set
-            engineRuleCount = 0
-            com.invictus.xmd.preferences.Settings.setAdblockFilterSet(set)
-            com.invictus.xmd.domain.browser.AdblockFilter.reloadEngine(adblockContext)
-        },
-        onUpdateFilterLists = {
-            engineRuleCount = 0
-            com.invictus.xmd.domain.browser.AdblockFilter.reloadEngine(adblockContext, force = true)
+        listHostCount = listHostCount,
+        listUpdatedText = if (listUpdatedAt > 0L) {
+            android.text.format.DateFormat.getMediumDateFormat(context).format(java.util.Date(listUpdatedAt))
+        } else null,
+        listUpdating = listUpdating,
+        listUpdateResultRes = listUpdateResultRes,
+        onUpdateList = {
+            if (!listUpdating) {
+                listUpdating = true
+                listUpdateResultRes = null
+                scope.launch {
+                    val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.invictus.xmd.domain.browser.AdBlocker.updateNowBlocking(context)
+                    }
+                    listHostCount = com.invictus.xmd.domain.browser.AdBlocker.listedHostCount()
+                    listUpdatedAt = com.invictus.xmd.preferences.Settings.adblockListUpdatedAt()
+                    listUpdateResultRes = if (ok) R.string.settings_adblock_list_update_ok else R.string.settings_adblock_list_update_failed
+                    listUpdating = false
+                }
+            }
         },
         onRemoveAllowlistedSite = { site ->
             com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = false)

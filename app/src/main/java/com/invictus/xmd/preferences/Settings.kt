@@ -7,8 +7,6 @@ import com.invictus.xmd.ui.theme.AppTheme
 import java.io.File
 import com.invictus.xmd.FfApp
 import com.invictus.xmd.database.entities.QueueItem
-import com.invictus.xmd.domain.browser.AdblockFilter
-import com.invictus.xmd.domain.browser.AdblockListUpdater
 import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.service.DownloadService
 import com.invictus.xmd.ui.browser.BrowserViewModel
@@ -394,83 +392,45 @@ object Settings {
         prefs.edit().putLong(KEY_DATA_USAGE_MOBILE_BASELINE_LAST_TICK, value).apply()
     }
 
-    // ── Browser: Adblock (Brave-style Shields: level + per-site allowlist) ─
-    // Three levels, like Brave's Standard/Aggressive/Allow-all:
-    //  - STANDARD: ad/tracker domain + URL-pattern blocking (AdblockFilter's
-    //    main host list). Safe for basically any site.
-    //  - AGGRESSIVE: STANDARD plus a second tier of borderline trackers
-    //    (comment widgets, live-chat bubbles, social embed SDKs) that can
-    //    visibly break a widget on some pages -- an intentional trade-off,
-    //    same one Brave's Aggressive mode makes.
-    //  - OFF: no blocking at all.
-    // Default STANDARD -- opt-out, not opt-in, matching how ad-blocking
-    // browsers (Brave, 1DM+) ship it.
-    enum class AdblockLevel { STANDARD, AGGRESSIVE, OFF }
-
+    // ── Browser: Ad blocker (single ON/OFF switch + per-site allowlist) ─────
+    // On by default -- opt-out, like download managers with a built-in browser.
+    // Older builds stored a Standard/Aggressive/Off level; read it once so
+    // someone who had it Off stays Off, then drop it on the next write.
     private const val KEY_ADBLOCK_LEVEL = "browser_adblock_level"
 
-    /** Which maintained filter lists feed the rule engine (see FilterListManager). */
-    enum class AdblockFilterSet { EASYLIST, ADGUARD, BOTH }
-
-    private const val KEY_ADBLOCK_FILTER_SET = "browser_adblock_filter_set"
-
-    fun adblockFilterSet(): AdblockFilterSet =
-        runCatching { AdblockFilterSet.valueOf(prefs.getString(KEY_ADBLOCK_FILTER_SET, null) ?: "") }
-            .getOrDefault(AdblockFilterSet.EASYLIST)
-
-    fun setAdblockFilterSet(set: AdblockFilterSet) {
-        prefs.edit().putString(KEY_ADBLOCK_FILTER_SET, set.name).apply()
+    fun adblockEnabled(): Boolean {
+        prefs.getString(KEY_ADBLOCK_LEVEL, null)?.let { return it != "OFF" }
+        return prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)
     }
 
-    fun adblockLevel(): AdblockLevel {
-        val stored = prefs.getString(KEY_ADBLOCK_LEVEL, null)
-        if (stored != null) {
-            return runCatching { AdblockLevel.valueOf(stored) }.getOrDefault(AdblockLevel.STANDARD)
-        }
-        // No level saved yet -- either a fresh install, or an upgrade from
-        // the old on/off-only KEY_ADBLOCK_ENABLED toggle. Read that instead
-        // of defaulting to STANDARD outright, so upgrading users keep
-        // "adblock off" if that's what they'd chosen, rather than having it
-        // silently turn back on.
-        return if (prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)) AdblockLevel.STANDARD else AdblockLevel.OFF
+    fun setAdblockEnabled(enabled: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_ADBLOCK_ENABLED, enabled)
+            .remove(KEY_ADBLOCK_LEVEL)
+            .remove("browser_adblock_filter_set")
+            .remove("browser_adblock_lifetime_blocked_count")
+            .remove("browser_adblock_list_updated_at")
+            .apply()
     }
 
-    fun setAdblockLevel(level: AdblockLevel) {
-        prefs.edit().putString(KEY_ADBLOCK_LEVEL, level.name).apply()
+    // Online block list bookkeeping (see AdBlocker): when the downloaded hosts
+    // lists were last refreshed successfully, and when a refresh was last
+    // *attempted* (so a failing source isn't retried on every app start).
+    // 0L = never.
+    private const val KEY_ADBLOCK_REMOTE_UPDATED_AT = "browser_adblock_remote_updated_at"
+    private const val KEY_ADBLOCK_REMOTE_ATTEMPT_AT = "browser_adblock_remote_attempt_at"
+
+    fun adblockListUpdatedAt(): Long = prefs.getLong(KEY_ADBLOCK_REMOTE_UPDATED_AT, 0L)
+    fun setAdblockListUpdatedAt(value: Long) {
+        prefs.edit().putLong(KEY_ADBLOCK_REMOTE_UPDATED_AT, value).apply()
+    }
+    fun adblockListAttemptAt(): Long = prefs.getLong(KEY_ADBLOCK_REMOTE_ATTEMPT_AT, 0L)
+    fun setAdblockListAttemptAt(value: Long) {
+        prefs.edit().putLong(KEY_ADBLOCK_REMOTE_ATTEMPT_AT, value).apply()
     }
 
-    // Lifetime count of individually blocked requests, shown on the
-    // Settings screen (Brave shows the same kind of running total).
-    // Incremented from WebView's own background thread(s), potentially
-    // concurrently across tabs, so reads-then-writes are serialized under
-    // [adblockCountLock] rather than risking lost increments from two
-    // threads reading the same stale value. Cached in memory after first
-    // load so every increment isn't a disk read plus a write -- just the
-    // (async) write.
-    private const val KEY_ADBLOCK_LIFETIME_BLOCKED = "browser_adblock_lifetime_blocked_count"
-    @Volatile private var adblockLifetimeCountCache: Long = -1L
-    private val adblockCountLock = Any()
-
-    fun adblockLifetimeBlockedCount(): Long {
-        adblockLifetimeCountCache.let { if (it >= 0L) return it }
-        synchronized(adblockCountLock) {
-            if (adblockLifetimeCountCache < 0L) {
-                adblockLifetimeCountCache = prefs.getLong(KEY_ADBLOCK_LIFETIME_BLOCKED, 0L)
-            }
-        }
-        return adblockLifetimeCountCache
-    }
-
-    fun incrementAdblockLifetimeBlockedCount() {
-        synchronized(adblockCountLock) {
-            val next = adblockLifetimeBlockedCount() + 1
-            adblockLifetimeCountCache = next
-            prefs.edit().putLong(KEY_ADBLOCK_LIFETIME_BLOCKED, next).apply()
-        }
-    }
-
-    // Per-site "shields down" allowlist -- sites where blocking is off
-    // regardless of the global level, toggled from the Browser's overflow
+    // Per-site allowlist -- sites where blocking is off
+    // regardless of the global switch, toggled from the Browser's overflow
     // menu and manageable (view/remove) from the Settings screen. Keyed by
     // registrable-ish host with any "www." prefix stripped, so
     // "example.com" and "www.example.com" share one entry the way a user
@@ -739,16 +699,6 @@ object Settings {
             HomePage.CUSTOM -> customHomeUrl().trim().ifBlank { null }
             else -> page.url
         }
-    }
-
-    // Epoch millis of the last successful AdblockListUpdater.refresh() --
-    // 0L means "never" (first run, or every attempted refresh has failed
-    // so far), which AdblockFilter treats as always-stale so it keeps
-    // retrying on subsequent Browser opens rather than giving up forever.
-    private const val KEY_ADBLOCK_LIST_UPDATED_AT = "browser_adblock_list_updated_at"
-    fun adblockListUpdatedAt(): Long = prefs.getLong(KEY_ADBLOCK_LIST_UPDATED_AT, 0L)
-    fun setAdblockListUpdatedAt(value: Long) {
-        prefs.edit().putLong(KEY_ADBLOCK_LIST_UPDATED_AT, value).apply()
     }
 
     // ── Browser: Private DNS (DNS-over-HTTPS for in-app browsing only) ────

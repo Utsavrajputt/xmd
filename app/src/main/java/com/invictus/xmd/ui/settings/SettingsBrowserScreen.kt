@@ -49,7 +49,7 @@ fun SettingsBrowserScreen(
     homePage: Settings.HomePage,
     customHomeName: String,
     onHomePageClick: () -> Unit,
-    adblockLevel: Settings.AdblockLevel,
+    adblockEnabled: Boolean,
     onOpenAdblock: () -> Unit,
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
@@ -97,11 +97,9 @@ fun SettingsBrowserScreen(
             SettingsDivider()
             ClickableSettingRow(
                 title = stringResource(R.string.settings_adblock_title),
-                subtitle = when (adblockLevel) {
-                    Settings.AdblockLevel.STANDARD -> stringResource(R.string.settings_shields_standard_title)
-                    Settings.AdblockLevel.AGGRESSIVE -> stringResource(R.string.settings_shields_aggressive_title)
-                    Settings.AdblockLevel.OFF -> stringResource(R.string.settings_shields_off_title)
-                },
+                subtitle = stringResource(
+                    if (adblockEnabled) R.string.settings_adblock_on else R.string.settings_adblock_off
+                ),
                 onClick = onOpenAdblock,
             )
             SettingsDivider()
@@ -147,18 +145,17 @@ fun SettingsBrowserScreen(
 }
 
 
-/** Ad blocking (Shields) page -- level, filter lists, stats and per-site allowlist, opened from one row in [SettingsBrowserScreen]. */
+/** Ad blocking page -- one ON/OFF switch plus the per-site allowlist, opened from one row in [SettingsBrowserScreen]. */
 @Composable
 fun SettingsAdblockScreen(
-    adblockLevel: Settings.AdblockLevel,
-    blockedDomainCount: Int,
-    lifetimeBlockedCount: Long,
+    adblockEnabled: Boolean,
     allowlistedSites: List<String>,
-    onAdblockLevelChanged: (Settings.AdblockLevel) -> Unit,
-    filterSet: Settings.AdblockFilterSet,
-    engineRuleCount: Int,
-    onFilterSetChanged: (Settings.AdblockFilterSet) -> Unit,
-    onUpdateFilterLists: () -> Unit,
+    onAdblockEnabledChanged: (Boolean) -> Unit,
+    listHostCount: Int,
+    listUpdatedText: String?,
+    listUpdating: Boolean,
+    listUpdateResultRes: Int?,
+    onUpdateList: () -> Unit,
     onAddAllowlistedSite: (String) -> Unit,
     onRemoveAllowlistedSite: (String) -> Unit,
 ) {
@@ -170,96 +167,55 @@ fun SettingsAdblockScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        SettingsSectionHeader(title = stringResource(R.string.settings_shields_header))
-
         SettingsSectionCard {
-            RadioSettingRow(
-                title = stringResource(R.string.settings_shields_standard_title),
-                subtitle = stringResource(R.string.settings_shields_standard_subtitle),
-                selected = adblockLevel == Settings.AdblockLevel.STANDARD,
-                onClick = { onAdblockLevelChanged(Settings.AdblockLevel.STANDARD) },
-            )
-            SettingsDivider()
-            RadioSettingRow(
-                title = stringResource(R.string.settings_shields_aggressive_title),
-                subtitle = stringResource(R.string.settings_shields_aggressive_subtitle),
-                selected = adblockLevel == Settings.AdblockLevel.AGGRESSIVE,
-                onClick = { onAdblockLevelChanged(Settings.AdblockLevel.AGGRESSIVE) },
-            )
-            SettingsDivider()
-            RadioSettingRow(
-                title = stringResource(R.string.settings_shields_off_title),
-                subtitle = stringResource(R.string.settings_shields_off_subtitle),
-                selected = adblockLevel == Settings.AdblockLevel.OFF,
-                onClick = { onAdblockLevelChanged(Settings.AdblockLevel.OFF) },
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_adblock_switch_title),
+                subtitle = stringResource(R.string.settings_adblock_switch_subtitle),
+                checked = adblockEnabled,
+                onCheckedChange = onAdblockEnabledChanged,
             )
         }
 
-        // Stats + allowlist management are only meaningful once blocking is
-        // actually doing something -- hidden at OFF rather than shown with
-        // a permanently-zero count, which would just read as broken.
-        if (adblockLevel != Settings.AdblockLevel.OFF) {
-            Spacer(Modifier.height(8.dp))
-            SettingsSectionHeader(title = stringResource(R.string.settings_filter_lists_header))
-            SettingsSectionCard {
-                RadioSettingRow(
-                    title = stringResource(R.string.settings_filter_set_easylist_title),
-                    subtitle = stringResource(R.string.settings_filter_set_easylist_subtitle),
-                    selected = filterSet == Settings.AdblockFilterSet.EASYLIST,
-                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.EASYLIST) },
-                )
-                SettingsDivider()
-                RadioSettingRow(
-                    title = stringResource(R.string.settings_filter_set_adguard_title),
-                    subtitle = stringResource(R.string.settings_filter_set_adguard_subtitle),
-                    selected = filterSet == Settings.AdblockFilterSet.ADGUARD,
-                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.ADGUARD) },
-                )
-                SettingsDivider()
-                RadioSettingRow(
-                    title = stringResource(R.string.settings_filter_set_both_title),
-                    subtitle = stringResource(R.string.settings_filter_set_both_subtitle),
-                    selected = filterSet == Settings.AdblockFilterSet.BOTH,
-                    onClick = { onFilterSetChanged(Settings.AdblockFilterSet.BOTH) },
-                )
-            }
-
+        // The list and the allowlist only matter while blocking is on.
+        if (adblockEnabled) {
             Spacer(Modifier.height(8.dp))
             SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
                 Text(
-                    text = if (engineRuleCount > 0) {
-                        stringResource(R.string.settings_filter_rules_loaded, engineRuleCount)
+                    text = if (listHostCount > 0) {
+                        stringResource(R.string.settings_adblock_list_count, listHostCount)
                     } else {
-                        stringResource(R.string.settings_filter_rules_loading)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                androidx.compose.material3.TextButton(
-                    onClick = onUpdateFilterLists,
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    Text(stringResource(R.string.settings_filter_update_now))
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
-                Text(
-                    text = if (blockedDomainCount > 0) {
-                        stringResource(R.string.settings_shields_coverage, blockedDomainCount)
-                    } else {
-                        stringResource(R.string.settings_shields_coverage_loading)
+                        stringResource(R.string.settings_adblock_list_loading)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = stringResource(R.string.settings_shields_lifetime_count, lifetimeBlockedCount),
+                    text = listUpdatedText?.let { stringResource(R.string.settings_adblock_list_updated, it) }
+                        ?: stringResource(R.string.settings_adblock_list_never),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+                listUpdateResultRes?.let {
+                    Text(
+                        text = stringResource(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                androidx.compose.material3.TextButton(
+                    onClick = onUpdateList,
+                    enabled = !listUpdating,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Text(
+                        stringResource(
+                            if (listUpdating) R.string.settings_adblock_list_updating
+                            else R.string.settings_adblock_list_update_now
+                        )
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -312,7 +268,6 @@ fun SettingsAdblockScreen(
                 }
             }
         }
-
     }
 
     if (showAddSiteDialog) {
@@ -327,7 +282,7 @@ fun SettingsAdblockScreen(
 }
 
 /**
- * Direct "Add" entry point for the Shields allowlist (was previously only
+ * Direct "Add" entry point for the ad blocker allowlist (was previously only
  * reachable via the Browser's "Block ads & trackers on this site" overflow
  * menu item, which has been removed). Accepts either a bare host
  * ("example.com") or a full URL and extracts the host from it.

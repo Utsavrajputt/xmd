@@ -219,7 +219,7 @@ internal fun StatusSaverScreen(
                 val pageItems = if (pageIsRecent) viewModel.recent else viewModel.saved
 
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if (pageIsRecent) {
+                    if (pageIsRecent && viewModel.showSourceChips) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

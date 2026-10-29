@@ -26,11 +26,20 @@ object ShowDetector {
     // more likely to be a resolution / codec than an episode number are ignored.
     private val NOT_EPISODE_NUMBERS = setOf(264, 265, 480, 576, 720, 1080, 2160)
 
+    // In "1x264" style markers the part after the x is also checked against
+    // these: x264 / x265 are codecs and 480 / 576 / 720 are video heights
+    // ("DDP5.1x264", "...x720"), never episode numbers.
+    private val NOT_CROSS_EPISODE_NUMBERS = setOf(264, 265, 480, 576, 720)
+
     /** S01E02, s1e2, S01.E02, S01E02E03. */
     private val SEASON_EPISODE = Regex("""(?i)(?<![a-z0-9])s(\d{1,2})[ ._-]?e(\d{1,3})(?:[ ._-]?e\d{1,3})*(?![a-z0-9])""")
 
-    /** 1x02, 01x02 (never 1920x1080: the lookbehind stops a match mid-number). */
-    private val CROSS_EPISODE = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![a-z0-9])""")
+    /**
+     * 1x02, 01x02. Never 1920x1080 (the lookbehind stops a match mid-number)
+     * and never an audio layout glued to a codec, as in "DDP5.1x264" or
+     * "AAC2.0x265": the `(?<!\d\.)` rejects a number that follows "digit.".
+     */
+    private val CROSS_EPISODE = Regex("""(?i)(?<![a-z0-9])(?<!\d\.)(\d{1,2})x(\d{2,3})(?![a-z0-9])""")
 
     /** Episode 5, Ep.5, Ep 05, Eps 12, E05. */
     private val EPISODE_WORD = Regex("""(?i)(?<![a-z0-9])(?:episode|eps|ep)[ ._-]*(\d{1,4})(?!\d)""")
@@ -56,7 +65,9 @@ object ShowDetector {
 
     private fun findEpisodeMarker(base: String): Marker? {
         SEASON_EPISODE.find(base)?.let { return Marker(it.range.first) }
-        CROSS_EPISODE.find(base)?.let { return Marker(it.range.first) }
+        CROSS_EPISODE.findAll(base)
+            .firstOrNull { (it.groupValues[2].toIntOrNull() ?: 0) !in NOT_CROSS_EPISODE_NUMBERS }
+            ?.let { return Marker(it.range.first) }
         EPISODE_WORD.find(base)?.let { return Marker(it.range.first) }
         EPISODE_SHORT.find(base)?.let { return Marker(it.range.first) }
         ANIME_STYLE.find(base)?.let { m ->

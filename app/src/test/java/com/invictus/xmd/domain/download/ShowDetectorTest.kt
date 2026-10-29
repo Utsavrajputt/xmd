@@ -30,6 +30,22 @@ class ShowDetectorTest {
         assertFalse(ShowDetector.isEpisode("report ep 5.pdf"))
     }
 
+    @Test fun audioChannelsPlusCodecIsNotAnEpisode() {
+        // "DDP5.1x264" is 5.1 audio + the x264 codec, not season 1 episode 264.
+        assertFalse(ShowDetector.isEpisode("Hope.2026.1080p.AMZN.WEB-DL.Hindi.LiNE.DD2.0-Korean.DDP5.1x264-1VeGAS.mkv"))
+        assertFalse(ShowDetector.isEpisode("Movie.2024.1080p.WEB-DL.DDP5.1x265-GRP.mkv"))
+        assertFalse(ShowDetector.isEpisode("Film.2023.720p.BluRay.DD7.1x264-X.mkv"))
+        assertFalse(ShowDetector.isEpisode("Film.2023.AAC2.0x264.mkv"))
+        assertFalse(ShowDetector.isEpisodeOrSeasonPack("Hope.2026.1080p.AMZN.WEB-DL.Hindi.LiNE.DD2.0-Korean.DDP5.1x264-1VeGAS"))
+        assertFalse(ShowDetector.titleLooksLikeEpisode("Movie.2024.1080p.WEB-DL.DDP5.1x265-GRP"))
+    }
+
+    @Test fun realCrossEpisodesStillDetected() {
+        assertTrue(ShowDetector.isEpisode("Show Name 01x12.mkv"))
+        assertTrue(ShowDetector.isEpisode("Show.Name.10x105.HDTV.mkv"))
+        assertEquals("Lost", ShowDetector.showFolderName("Lost 6x17 The End.mkv"))
+    }
+
     @Test fun fallbackAndUnsorted() {
         assertEquals("Unsorted", ShowDetector.showFolderName("Ep 5.mp4"))
         assertEquals("Some Show", ShowDetector.showFolderName("Ep 5.mp4", titleHint = "Some Show Episode 5"))

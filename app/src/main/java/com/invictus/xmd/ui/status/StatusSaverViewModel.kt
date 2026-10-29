@@ -25,7 +25,8 @@ internal enum class StatusTab { Recent, Saved }
 internal data class StatusMessage(@StringRes val resId: Int, val count: Int = 0)
 
 private class StatusSnapshot(
-    val recent: List<StatusItem>,
+    /** Recent statuses for every source, so the VM can tell which apps actually have any. */
+    val recentBySource: Map<StatusSource, List<StatusItem>>,
     val saved: List<StatusItem>,
 )
 
@@ -35,6 +36,12 @@ internal class StatusSaverViewModel(application: Application) : AndroidViewModel
         private set
     var source by mutableStateOf(StatusSource.WHATSAPP)
         private set
+    /** Sources that currently have at least one recent status (as of the last refresh). */
+    var availableSources by mutableStateOf<Set<StatusSource>>(emptySet())
+        private set
+    /** The WhatsApp / Business chooser only makes sense when both have statuses. */
+    val showSourceChips: Boolean
+        get() = availableSources.size > 1
     var recent by mutableStateOf<List<StatusItem>>(emptyList())
         private set
     var saved by mutableStateOf<List<StatusItem>>(emptyList())
@@ -72,15 +79,27 @@ internal class StatusSaverViewModel(application: Application) : AndroidViewModel
                         null
                     } else {
                         StatusSnapshot(
-                            recent = StatusSaverRepository.listRecent(requestedSource),
+                            recentBySource = StatusSource.entries.associateWith { StatusSaverRepository.listRecent(it) },
                             saved = StatusSaverRepository.listSaved(),
                         )
                     }
                 }
                 if (requestedSource != source) return@launch // source changed mid-load
                 hasAccess = snapshot != null
-                if (snapshot != null) {
-                    recent = snapshot.recent
+                if (snapshot == null) {
+                    availableSources = emptySet()
+                } else {
+                    val withStatuses = StatusSource.entries.filter { snapshot.recentBySource[it].orEmpty().isNotEmpty() }
+                    availableSources = withStatuses.toSet()
+                    // Both have statuses -> keep the user's pick; only one -> show that one
+                    // directly; neither -> WhatsApp (empty state).
+                    val effective = when (withStatuses.size) {
+                        1 -> withStatuses.first()
+                        0 -> StatusSource.WHATSAPP
+                        else -> requestedSource
+                    }
+                    source = effective
+                    recent = snapshot.recentBySource[effective].orEmpty()
                     saved = snapshot.saved
                     savedNames = snapshot.saved.mapTo(HashSet()) { it.name }
                     val live = currentItems.mapTo(HashSet()) { it.path }
