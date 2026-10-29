@@ -1884,12 +1884,12 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
             Column(modifier = Modifier.heightIn(max = maxHeight)) {
                 // Header: title + round close button
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = stringResource(R.string.action_details),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f),
                     )
@@ -1899,8 +1899,8 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
                         color = colors.surfaceContainerHighest,
                         contentColor = colors.onSurface,
                     ) {
-                        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                            Icon(imageVector = Icons.Close, contentDescription = stringResource(R.string.action_dismiss))
+                        Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                            Icon(imageVector = Icons.Close, contentDescription = stringResource(R.string.action_dismiss), modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -1911,42 +1911,42 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 12.dp),
                 ) {
                     rows.forEachIndexed { index, row ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             Surface(
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 color = colors.surfaceContainerHighest,
                                 contentColor = colors.onSurface,
                             ) {
-                                Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                    Icon(imageVector = row.icon, contentDescription = null)
+                                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                    Icon(imageVector = row.icon, contentDescription = null, modifier = Modifier.size(20.dp))
                                 }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = row.label,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = colors.onSurfaceVariant,
                                 )
                                 Text(
                                     text = row.value.orEmpty(),
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = colors.onSurface,
                                     maxLines = if (row.singleLine) 1 else Int.MAX_VALUE,
                                     overflow = if (row.singleLine) TextOverflow.Ellipsis else TextOverflow.Clip,
                                 )
                             }
                             if (row.copyable) {
-                                IconButton(onClick = {
+                                IconButton(modifier = Modifier.size(36.dp), onClick = {
                                     clipboardManager.setText(AnnotatedString(row.copyValue ?: row.value.orEmpty()))
                                 }) {
-                                    Icon(imageVector = Icons.Copy, contentDescription = null, tint = colors.onSurfaceVariant)
+                                    Icon(imageVector = Icons.Copy, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
                                 }
                             }
                         }
@@ -1960,23 +1960,23 @@ private fun DownloadInfoDialog(item: QueueItem, onDismiss: () -> Unit) {
                 // Actions: Copy path (outlined) + Dismiss (filled pill)
                 val path = item.filePath?.takeIf { it.isNotBlank() }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (path != null) {
                         OutlinedButton(
                             onClick = { clipboardManager.setText(AnnotatedString(path)) },
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                            modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                             shape = androidx.compose.foundation.shape.CircleShape,
                         ) {
-                            Icon(imageVector = Icons.Copy, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Icon(imageVector = Icons.Copy, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.info_copy_path))
                         }
                     }
                     Button(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                         shape = androidx.compose.foundation.shape.CircleShape,
                     ) {
                         Text(stringResource(R.string.action_dismiss))
