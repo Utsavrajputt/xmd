@@ -18,7 +18,7 @@ import com.invictus.xmd.repository.ShortcutRepository
 import com.invictus.xmd.utils.FaviconLoader
 import com.invictus.xmd.utils.GithubAvatarLoader
 
-class FfApp : Application(), Application.ActivityLifecycleCallbacks {
+class Xmd : Application(), Application.ActivityLifecycleCallbacks {
 
     companion object {
         const val DOWNLOAD_CHANNEL_ID = "ff_downloads"

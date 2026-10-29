@@ -9,7 +9,7 @@ import okhttp3.Request
 import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
-import com.invictus.xmd.FfApp
+import com.invictus.xmd.Xmd
 
 /**
  * Fetches a site's favicon for the Browser tab's speed-dial tiles.
@@ -47,7 +47,7 @@ object FaviconLoader {
         .readTimeout(4, TimeUnit.SECONDS)
         .build()
 
-    /** Call once from FfApp.onCreate; harmless if called again. */
+    /** Call once from Xmd.onCreate; harmless if called again. */
     fun init(context: Context) {
         if (diskCacheDir != null) return
         diskCacheDir = File(context.applicationContext.cacheDir, "favicons").apply { mkdirs() }

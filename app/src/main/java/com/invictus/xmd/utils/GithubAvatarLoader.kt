@@ -44,7 +44,7 @@ object GithubAvatarLoader {
         .readTimeout(4, TimeUnit.SECONDS)
         .build()
 
-    /** Call once from FfApp.onCreate; harmless if called again. */
+    /** Call once from Xmd.onCreate; harmless if called again. */
     fun init(context: Context) {
         if (diskCacheDir != null) return
         diskCacheDir = File(context.applicationContext.cacheDir, "github_avatars").apply { mkdirs() }

@@ -69,7 +69,7 @@ import java.io.File
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
-import com.invictus.xmd.FfApp
+import com.invictus.xmd.Xmd
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.CategoryDetector
 import com.invictus.xmd.domain.download.DownloadCategory
@@ -1170,7 +1170,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      * QueueRepository.init()'s recovery logic -- but nothing was actually
      * re-launching DownloadService to pick them back up, so they just sat
      * at "Ready to download" forever with no live worker claiming them.
-     * QueueRepository.init() (called from FfApp.onCreate, before this)
+     * QueueRepository.init() (called from Xmd.onCreate, before this)
      * loads persisted state asynchronously off the main thread, so give it
      * a moment to land before checking -- this only needs to happen once
      * per process, not on every config change.

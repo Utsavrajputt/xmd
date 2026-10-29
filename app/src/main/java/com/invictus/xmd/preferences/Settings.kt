@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.os.Environment
 import com.invictus.xmd.ui.theme.AppTheme
 import java.io.File
-import com.invictus.xmd.FfApp
+import com.invictus.xmd.Xmd
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.service.DownloadService
@@ -14,7 +14,7 @@ import com.invictus.xmd.ui.downloads.DownloadsScreen
 import com.invictus.xmd.ui.downloads.QueueItemRow
 
 /**
- * Simple SharedPreferences-backed settings, initialized once from FfApp.
+ * Simple SharedPreferences-backed settings, initialized once from Xmd.
  */
 object Settings {
     /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused
@@ -346,7 +346,7 @@ object Settings {
 
     /** One-time carry-forward from the old total+mobile toggle pair into
      *  the merged key set above, run lazily on first read so it doesn't
-     *  need its own spot in FfApp.onCreate. A user who had the "Total"
+     *  need its own spot in Xmd.onCreate. A user who had the "Total"
      *  toggle on keeps an equivalent TOTAL-scoped limit; one who only had
      *  "Mobile Only" on keeps an equivalent MOBILE-scoped limit; a user who
      *  had neither (or, previously, both -- no longer representable as one

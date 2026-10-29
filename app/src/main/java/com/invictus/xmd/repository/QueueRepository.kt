@@ -46,7 +46,7 @@ import java.io.File
  * so the queue survives the app process being killed and restarted -- it
  * used to be purely in-memory, so a restart silently wiped the whole list
  * even though the already-downloaded files on disk were untouched. Call
- * [init] once (from FfApp.onCreate) before anything touches the queue.
+ * [init] once (from Xmd.onCreate) before anything touches the queue.
  * Writes to Room happen off the main thread and don't block the in-memory
  * update; progress-only ticks (bytesDone/speedBps, which fire up to ~5x/sec
  * per active download) are throttled per-item so we're not hammering SQLite
@@ -76,7 +76,7 @@ object QueueRepository {
     /**
      * Loads whatever was persisted from a previous run, then starts
      * mirroring further changes back to disk. Safe to call once at app
-     * startup (FfApp.onCreate); harmless if called again.
+     * startup (Xmd.onCreate); harmless if called again.
      *
      * Items that were mid-flight when the process died (RESOLVING /
      * DOWNLOADING / SAVING) can't just resume -- there's no worker thread
@@ -91,12 +91,27 @@ object QueueRepository {
         scope.launch {
             val persisted = runCatching { dao.getAll() }.getOrDefault(emptyList())
             val recovered = persisted.map { item ->
-                when (item.status) {
+                // YouTube items never have a directUrl (yt-dlp resolves on its
+                // own), so "needs re-resolve" would strand them in Queued with
+                // no Start button. Their quality is already chosen -- restore
+                // them to READY so they can be started/resumed.
+                val isConfiguredYoutube = item.platform ==
+                    com.invictus.xmd.domain.download.MediaPlatform.YOUTUBE &&
+                    item.mediaFormatSelector != null
+                when {
+                    isConfiguredYoutube && (item.status == ItemStatus.PENDING ||
+                        item.status == ItemStatus.RESOLVING ||
+                        item.status == ItemStatus.DOWNLOADING ||
+                        item.status == ItemStatus.SAVING ||
+                        item.status == ItemStatus.RETRYING) ->
+                        item.copy(status = ItemStatus.READY)
+                    else -> when (item.status) {
                     ItemStatus.RESOLVING -> item.copy(status = ItemStatus.PENDING)
                     ItemStatus.DOWNLOADING, ItemStatus.SAVING, ItemStatus.RETRYING ->
                         if (item.directUrl != null) item.copy(status = ItemStatus.READY)
                         else item.copy(status = ItemStatus.PENDING)
                     else -> item
+                    }
                 }
             }
             synchronized(lock) {

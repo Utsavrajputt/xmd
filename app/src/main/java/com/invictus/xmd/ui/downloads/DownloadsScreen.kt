@@ -1433,6 +1433,19 @@ fun QueueItemRow(
                                     )
                                 }
                                 ItemStatus.RETRYING, ItemStatus.PENDING, ItemStatus.RESOLVING, ItemStatus.NEEDS_CHALLENGE -> {
+                                    // A configured YouTube item stuck in Queued has nothing left to
+                                    // resolve -- let the user start it.
+                                    if (item.status == ItemStatus.PENDING &&
+                                        item.platform == MediaPlatform.YOUTUBE &&
+                                        item.mediaFormatSelector != null
+                                    ) {
+                                        CompactIconButton(
+                                            icon = Icons.Play,
+                                            contentDescription = stringResource(R.string.action_start),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            onClick = { onRetry(item) },
+                                        )
+                                    }
                                     if (copyableWarningOrError != null) {
                                         CompactIconButton(
                                             icon = Icons.Copy,

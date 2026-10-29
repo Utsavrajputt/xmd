@@ -9,7 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
-import com.invictus.xmd.FfApp
+import com.invictus.xmd.Xmd
 import com.invictus.xmd.R
 import com.invictus.xmd.utils.media.MediaDurationUtils
 import com.composables.icons.materialsymbols.roundedfilled.R as MaterialSymbols
@@ -522,7 +522,7 @@ class DownloadService : LifecycleService() {
                 }.getOrDefault(openApp)
             } else openApp
 
-            val notification = NotificationCompat.Builder(this, FfApp.DOWNLOAD_COMPLETE_CHANNEL_ID)
+            val notification = NotificationCompat.Builder(this, Xmd.DOWNLOAD_COMPLETE_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 .setContentTitle(getString(R.string.download_complete_title))
                 .setContentText(displayName)
@@ -543,7 +543,7 @@ class DownloadService : LifecycleService() {
      *  pause would look like a stall/hang with no explanation. */
     private fun showDataLimitReachedNotification() {
         val manager = getSystemService(android.app.NotificationManager::class.java) ?: return
-        val notification = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, Xmd.DOWNLOAD_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_pause)
             .setContentTitle(getString(R.string.settings_data_limit_reached_title))
             .setContentText(getString(R.string.settings_data_limit_reached_body))
@@ -865,6 +865,10 @@ class DownloadService : LifecycleService() {
             return
         }
 
+        // The item just flipped to DOWNLOADING; yt-dlp can take a while to
+        // report its first progress, so refresh the notification right away.
+        updateNotification()
+
         val option = YtDlpManager.QualityOption(
             label = formatLabel,
             formatSelector = formatSelector,
@@ -1131,6 +1135,9 @@ class DownloadService : LifecycleService() {
         categoryAtClaim: DownloadCategory
     ) {
         var attempt = 0
+        // Refresh the notification now that this item is DOWNLOADING, so it
+        // doesn't keep showing "Idle" until the first progress callback.
+        updateNotification()
 
         while (true) {
             var destinationFile: File? = null
@@ -1470,7 +1477,13 @@ class DownloadService : LifecycleService() {
             focus.size == 1 -> {
                 val item = focus.first()
                 title = item.fileName ?: item.sourceUrl
+                // Nothing reported yet (yt-dlp still resolving formats / connecting):
+                // say so and show an indeterminate bar, matching the Downloads tab.
+                val starting = item.status == ItemStatus.DOWNLOADING &&
+                    item.bytesDone <= 0 && item.bytesTotal <= 0 && item.progressPercent <= 0
+                if (starting) indeterminate = true
                 val baseText = when {
+                    starting -> "Starting…"
                     item.status == ItemStatus.PAUSED -> "Paused — " + buildDetailLine(item.bytesDone, item.bytesTotal, 0.0)
                     item.status == ItemStatus.RETRYING -> "${item.error ?: "Retrying…"}"
                     item.platform == MediaPlatform.YOUTUBE && item.mediaStatusText.isNullOrBlank() && item.bytesTotal > 0 ->
@@ -1519,7 +1532,7 @@ class DownloadService : LifecycleService() {
         val showBar = indeterminate || relevant.any { it.bytesTotal > 0 }
         val isPaused = relevant.isNotEmpty() && relevant.all { it.status == ItemStatus.PAUSED }
         val smallIconRes = if (isPaused) R.drawable.ic_notification_pause else android.R.drawable.stat_sys_download
-        val builder = NotificationCompat.Builder(this, FfApp.DOWNLOAD_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, Xmd.DOWNLOAD_CHANNEL_ID)
             .setSmallIcon(smallIconRes)
             .setContentTitle(title)
             .setContentText(text)

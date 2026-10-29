@@ -78,7 +78,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.invictus.xmd.FfApp
+import com.invictus.xmd.Xmd
 import com.invictus.xmd.domain.download.YtDlpManager
 import com.invictus.xmd.network.NetworkMonitor
 import com.invictus.xmd.preferences.Settings

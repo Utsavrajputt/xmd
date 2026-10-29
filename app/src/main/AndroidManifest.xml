@@ -45,7 +45,7 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
-        android:name=".FfApp"
+        android:name=".Xmd"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher_black_color"
         android:roundIcon="@mipmap/ic_launcher_black_color"
