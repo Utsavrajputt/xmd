@@ -1175,48 +1175,43 @@ class DownloadService : LifecycleService() {
                 if (ShowDetector.isEpisode(fileName)) category = DownloadCategory.SHOWS
                 QueueRepository.updateDownloadMetadata(itemId, fileName, category)
 
-                // Download into the app's private cache first. Public/shared storage
-                // (/sdcard/...) is served through Android's FUSE emulation layer, where
-                // every read/write syscall carries extra overhead -- that overhead is
-                // what was capping speed well below Chrome's. The private cache sits on
-                // the real filesystem with none of that overhead, so the download itself
-                // runs at full network speed. The finished file is then moved to
-                // /sdcard/Xmd/ in one continuous copy, which is far faster than paying
-                // the FUSE tax on every chunk of the download.
-                //
-                // ABDM-style: bytes live in an incomplete part file
-                // (<name>.dl-<id>.xmd.part) until the download verifies complete,
-                // then it's atomically renamed -- a half-finished file never
-                // masquerades as complete. The engine's own pre-flight
+                // Download straight into the final folder. Bytes live in an
+                // incomplete part file (<name>.dl-<id>.xmd.part) next to the
+                // real target until the download verifies complete, then it is
+                // renamed in place (same folder, so instant) -- a half-finished
+                // file never masquerades as complete. The engine's own pre-flight
                 // (folder validation + EmptyFileCreator space reserve) runs
                 // inside downloadAuto.
-                val tempDir = File(cacheDir, "xmd_temp/${category.folderName}")
-                val realTemp = File(tempDir, fileName)
+                val customDir = currentItem?.customSaveDirPath
+                val targetDir = FileNameUtils.resolveDestinationFolder(customDir, category, fileName, sourceUrl)
+                val realTemp = File(targetDir, fileName)
                 val partId = (itemId.hashCode().toLong() and 0xffffffffL).let {
                     if (it == 0L) 1L else it
                 }
                 val tempFile = IncompleteFileUtil.addIncompleteIndicator(realTemp, partId)
-                // Migrate pre-incomplete-version resume state (real name +
-                // its .xmdparts sidecar) forward once so an update doesn't
-                // restart in-flight downloads from zero.
                 withContext(Dispatchers.IO) {
-                    if (!tempFile.exists() && realTemp.exists() && realTemp.length() > 0) {
-                        runCatching { realTemp.renameTo(tempFile) }
+                    targetDir.mkdirs()
+                    // Resume state left by older versions that downloaded into
+                    // the private cache: pull it into the target folder once so
+                    // an update doesn't restart in-flight downloads from zero.
+                    val legacyDir = File(cacheDir, "xmd_temp/${category.folderName}")
+                    val legacyPart = IncompleteFileUtil.addIncompleteIndicator(File(legacyDir, fileName), partId)
+                    if (!tempFile.exists() && legacyPart.exists() && legacyPart.length() > 0) {
+                        runCatching { moveToPublicStorage(legacyPart, tempFile) }
+                        val oldMeta = File(legacyPart.parentFile, legacyPart.name + ".xmdparts")
+                        val newMeta = File(tempFile.parentFile, tempFile.name + ".xmdparts")
+                        if (!newMeta.exists() && oldMeta.exists()) {
+                            runCatching { moveToPublicStorage(oldMeta, newMeta) }
+                        }
                     }
-                    val oldMeta = File(realTemp.parentFile, realTemp.name + ".xmdparts")
-                    val newMeta = File(tempFile.parentFile, tempFile.name + ".xmdparts")
-                    if (!newMeta.exists() && oldMeta.exists()) {
-                        runCatching { oldMeta.renameTo(newMeta) }
-                    }
-                    // Drop stale part files from older attempts with a different id.
-                    realTemp.parentFile?.listFiles { f ->
+                    // Drop stale part files of this exact file from older attempts
+                    // with a different id (never another download's part).
+                    targetDir.listFiles { f ->
                         f != tempFile && f.name.endsWith(".xmd.part") &&
-                            f.name.startsWith(realTemp.nameWithoutExtension.take(40))
+                            f.name.startsWith(realTemp.name + ".dl-")
                     }?.forEach { runCatching { it.delete() } }
                 }
                 destinationFile = tempFile
-
-                val customDir = currentItem?.customSaveDirPath
 
                 // Pause (engine.pause()) blocks in-place inside downloadAuto and never throws here --
                 // the engine stays registered in `engines` so Resume can call engine.resume() on the
@@ -1241,23 +1236,11 @@ class DownloadService : LifecycleService() {
                         (if (knownTotal > 0) " of ${knownTotal}B" else "") + ")")
                 }
 
-                // Part verified complete -- atomically promote to the real temp
-                // name (ABDM's assemble step) so downstream probing/moving
-                // never sees a ".part" path.
-                val completeTemp = withContext(Dispatchers.IO) {
-                    realTemp.parentFile?.mkdirs()
+                // Part verified complete -- rename in place to the real name
+                // (ABDM's assemble step). Same folder, so this is instant.
+                val completeFile = withContext(Dispatchers.IO) {
                     if (realTemp.exists()) runCatching { realTemp.delete() }
-                    if (!tempFile.renameTo(realTemp)) {
-                        // renameTo fails across mount views -- copy+delete fallback.
-                        runCatching {
-                            tempFile.inputStream().use { input ->
-                                realTemp.outputStream().use { output ->
-                                    input.copyTo(output, 4 * 1024 * 1024)
-                                }
-                            }
-                            tempFile.delete()
-                        }
-                    }
+                    if (!tempFile.renameTo(realTemp)) moveToPublicStorage(tempFile, realTemp)
                     // Sidecar belongs to the part name -- drop it, download is done.
                     File(tempFile.parentFile, tempFile.name + ".xmdparts").delete()
                     realTemp
@@ -1271,7 +1254,7 @@ class DownloadService : LifecycleService() {
                 // format) just leaves it in VIDEOS rather than blocking the save.
                 if (category == DownloadCategory.VIDEOS && !Settings.categorizationDisabled()) {
                     val durationSeconds = withContext(Dispatchers.IO) {
-                        MediaDurationUtils.probeDurationSeconds(completeTemp)
+                        MediaDurationUtils.probeDurationSeconds(completeFile)
                     }
                     if (MediaDurationUtils.isMovieLength(durationSeconds)) {
                         category = DownloadCategory.MOVIES
@@ -1279,11 +1262,14 @@ class DownloadService : LifecycleService() {
                     }
                 }
 
+                // Only a late category change (movie-length detection) moves the
+                // file, and that is a rename within the same storage volume.
                 val finalDir = FileNameUtils.resolveDestinationFolder(customDir, category, fileName, sourceUrl)
                 val finalFile = File(finalDir, fileName)
-
-                QueueRepository.markSaving(itemId)
-                withContext(Dispatchers.IO) { moveToPublicStorage(completeTemp, finalFile) }
+                if (finalFile.absoluteFile != completeFile.absoluteFile) {
+                    QueueRepository.markSaving(itemId)
+                    withContext(Dispatchers.IO) { moveToPublicStorage(completeFile, finalFile) }
+                }
                 destinationFile = finalFile
 
                 QueueRepository.markDone(itemId, finalFile.absolutePath)
