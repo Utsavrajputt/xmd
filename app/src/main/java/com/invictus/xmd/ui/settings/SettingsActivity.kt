@@ -274,6 +274,7 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenDownloads = { selectedRoute = Route.DOWNLOADS },
                                 onOpenYoutube = { selectedRoute = Route.YOUTUBE },
                                 onOpenAbout = { selectedRoute = Route.ABOUT },
+                                onOpenProfile = { selectedRoute = Route.PROFILE },
                             )
                         }
                     }
@@ -299,6 +300,7 @@ class SettingsActivity : ComponentActivity() {
                         )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             when (selectedRoute) {
+                                Route.PROFILE -> SettingsProfileScreen()
                                 Route.APPEARANCE -> AppearanceRoute()
                                 Route.CONNECTIONS -> ConnectionsRoute()
                                 Route.DOWNLOADS -> DownloadsRoute()
@@ -365,8 +367,10 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenDownloads = { navController.navigate(Route.DOWNLOADS) },
                                 onOpenYoutube = { navController.navigate(Route.YOUTUBE) },
                                 onOpenAbout = { navController.navigate(Route.ABOUT) },
+                                onOpenProfile = { navController.navigate(Route.PROFILE) },
                             )
                         }
+                        composable(Route.PROFILE) { SettingsProfileScreen() }
                         composable(Route.APPEARANCE) { AppearanceRoute() }
                         composable(Route.CONNECTIONS) { ConnectionsRoute() }
                         composable(Route.DOWNLOADS) { DownloadsRoute() }
@@ -498,6 +502,7 @@ class SettingsActivity : ComponentActivity() {
 /** NavHost route strings, one per Settings category screen. */
 internal object Route {
     const val ROOT = "root"
+    const val PROFILE = "profile"
     const val APPEARANCE = "appearance"
     const val CONNECTIONS = "connections"
     const val DOWNLOADS = "downloads"
@@ -510,6 +515,7 @@ internal object Route {
 
 /** Route -> header title, replaces the old syncHeaderTitle()'s Fragment-type switch. */
 internal val routeTitles: Map<String, Int> = mapOf(
+    Route.PROFILE to R.string.settings_profile_title,
     Route.APPEARANCE to R.string.settings_category_appearance,
     Route.CONNECTIONS to R.string.settings_category_connections,
     Route.BROWSER to R.string.settings_category_browser,

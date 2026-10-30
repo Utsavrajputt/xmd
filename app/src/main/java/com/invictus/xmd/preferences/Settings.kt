@@ -516,6 +516,12 @@ object Settings {
         prefs.edit().putBoolean(KEY_BROWSER_TOOLBAR_BOTTOM, value).apply()
     }
 
+    // ── Profile (name shown at the top of Settings; photo lives in filesDir, see Profile) ──
+    fun profileName(): String = prefs.getString("profile_name", "").orEmpty()
+    fun setProfileName(value: String) {
+        prefs.edit().putString("profile_name", value).apply()
+    }
+
     // ── Browser: Tab switcher layout mode ──────────────────────────────
     fun isTabsGridMode(): Boolean = prefs.getBoolean(KEY_TABS_GRID_MODE, true)
     fun setTabsGridMode(enabled: Boolean) {

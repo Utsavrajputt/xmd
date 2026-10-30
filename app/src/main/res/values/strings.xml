@@ -344,6 +344,15 @@
     <string name="settings_bottom_bar_hint">Back, forward, home, bookmarks and downloads at the bottom while a page is open. Hides when you scroll down.</string>
     <string name="settings_nav_buttons">Back/Forward buttons</string>
     <string name="settings_nav_buttons_hint">Show back and forward buttons in the address bar. Off by default.</string>
+    <string name="settings_profile_title">Profile</string>
+    <string name="settings_profile_setup_title">Set up your profile</string>
+    <string name="settings_profile_setup_desc">Add your name and photo</string>
+    <string name="settings_profile_edit_desc">Tap to edit your profile</string>
+    <string name="settings_profile_name">Name</string>
+    <string name="settings_profile_name_hint">Shown at the top of Settings. Stays on this device.</string>
+    <string name="settings_profile_change_photo">Change photo</string>
+    <string name="settings_profile_remove_photo">Remove photo</string>
+    <string name="settings_profile_photo_failed">Couldn\'t use that image</string>
     <string name="settings_toolbar_title">Toolbar</string>
     <string name="settings_toolbar_address_bar">Address bar</string>
     <string name="settings_toolbar_position_top">Top</string>
