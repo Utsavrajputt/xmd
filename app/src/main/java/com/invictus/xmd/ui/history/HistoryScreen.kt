@@ -29,6 +29,7 @@ fun HistoryScreen(
         emptyLabel = stringResource(R.string.history_empty),
         searchEmptyLabel = stringResource(R.string.history_search_empty),
         rowIcon = Icons.History,
+        showFavicons = true,
         entries = entries,
         entryKey = { it.id },
         entryTitle = { it.title },

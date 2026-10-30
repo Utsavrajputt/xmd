@@ -14,7 +14,7 @@ interface HistoryDao {
 
     // Flow, not LiveData -- HistoryRepository turns this into a StateFlow
     // for collectAsStateWithLifecycle() in Compose (see HistoryRepository).
-    @Query("SELECT * FROM history_entries ORDER BY visitedAtMs DESC LIMIT 500")
+    @Query("SELECT * FROM history_entries ORDER BY visitedAtMs DESC LIMIT 1000")
     fun observeAll(): Flow<List<HistoryEntry>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -22,6 +22,13 @@ interface HistoryDao {
 
     @Delete
     suspend fun delete(entry: HistoryEntry)
+
+    @Query("SELECT * FROM history_entries")
+    suspend fun getAll(): List<HistoryEntry>
+
+    // Re-visiting the same URL replaces its old row instead of stacking up.
+    @Query("DELETE FROM history_entries WHERE url = :url")
+    suspend fun deleteByUrl(url: String)
 
     @Query("DELETE FROM history_entries")
     suspend fun clearAll()

@@ -70,6 +70,12 @@ import com.invictus.xmd.R
 import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.asImageBitmap
+import com.invictus.xmd.utils.FaviconLoader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val GroupOuterCorner = 20.dp
 private val GroupInnerCorner = 4.dp
@@ -101,6 +107,7 @@ fun <T> SavedPageRow(
     icon: AppIcon,
     onTap: (T) -> Unit,
     onDelete: (T) -> Unit,
+    showFavicon: Boolean = false,
     index: Int = 0,
     count: Int = 1,
     modifier: Modifier = Modifier,
@@ -157,18 +164,38 @@ fun <T> SavedPageRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
             leadingContent = {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, badgeShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(16.dp),
-                    )
+                val favicon = if (showFavicon) {
+                    produceState<android.graphics.Bitmap?>(initialValue = null, key1 = url) {
+                        value = withContext(Dispatchers.IO) { FaviconLoader.load(url) }
+                    }.value
+                } else null
+                if (favicon != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.White, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            bitmap = favicon.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, badgeShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
                 }
             },
             trailingContent = {
@@ -223,6 +250,7 @@ fun <T> SavedPagesScreen(
     emptyLabel: String,
     searchEmptyLabel: String,
     rowIcon: AppIcon,
+    showFavicons: Boolean = false,
     entries: List<T>,
     entryKey: (T) -> Any,
     entryTitle: (T) -> String,
@@ -358,6 +386,7 @@ fun <T> SavedPagesScreen(
                         title = entryTitle(entry),
                         url = entryUrl(entry),
                         icon = rowIcon,
+                        showFavicon = showFavicons,
                         onTap = onTap,
                         onDelete = onDelete,
                         index = index,

@@ -42,6 +42,12 @@ object FaviconLoader {
 
     private var diskCacheDir: File? = null
 
+    // Hosts where every source failed (raw IPs, hash-named CDN hosts...) are
+    // skipped for a while so long lists (History) don't re-run 3 slow requests
+    // per row on every scroll.
+    private const val FAILED_RETRY_MS = 10 * 60 * 1000L
+    private val failedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(4, TimeUnit.SECONDS)
         .readTimeout(4, TimeUnit.SECONDS)
@@ -64,6 +70,9 @@ object FaviconLoader {
     fun load(pageUrl: String): Bitmap? {
         val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return null
         cache.get(host)?.let { return it }
+        failedAt[host]?.let { t ->
+            if (System.currentTimeMillis() - t < FAILED_RETRY_MS) return null
+        }
 
         val diskFile = diskCacheDir?.let { File(it, diskFileName(host)) }
         if (diskFile != null && diskFile.exists() &&
@@ -100,6 +109,7 @@ object FaviconLoader {
                 }
             }
         }
+        if (best == null) failedAt[host] = System.currentTimeMillis()
         return best
     }
 
