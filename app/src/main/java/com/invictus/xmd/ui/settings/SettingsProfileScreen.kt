@@ -8,6 +8,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -106,15 +108,35 @@ fun SettingsProfileScreen() {
     val hasAvatar = remember(Profile.avatarVersion) { Profile.hasAvatar(context) }
     var nameText by remember { mutableStateOf(Profile.name()) }
 
+    var cropSource by remember { mutableStateOf<Bitmap?>(null) }
+
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             scope.launch {
-                val ok = withContext(Dispatchers.IO) { Profile.saveAvatar(context, uri) }
-                if (!ok) {
+                val decoded = withContext(Dispatchers.IO) { Profile.decodeForCrop(context, uri) }
+                if (decoded != null) {
+                    cropSource = decoded
+                } else {
                     Toast.makeText(context, R.string.settings_profile_photo_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }
+    }
+
+    cropSource?.let { source ->
+        ProfileCropDialog(
+            sourceBitmap = source,
+            onDismiss = { cropSource = null },
+            onCropped = { cropped ->
+                cropSource = null
+                scope.launch {
+                    val ok = withContext(Dispatchers.IO) { Profile.saveAvatarBitmap(context, cropped) }
+                    if (!ok) {
+                        Toast.makeText(context, R.string.settings_profile_photo_failed, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+        )
     }
     val pickPhoto = {
         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -127,31 +149,49 @@ fun SettingsProfileScreen() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(8.dp))
-        Box(modifier = Modifier.clip(CircleShape).clickable { pickPhoto() }) {
-            ProfileAvatar(size = 112.dp)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(34.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Edit,
-                    contentDescription = stringResource(R.string.settings_profile_change_photo),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(18.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .profileHeroBackground()
+                .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(modifier = Modifier.size(112.dp)) {
+                ProfileAvatar(
+                    size = 112.dp,
+                    modifier = Modifier
+                        .border(2.dp, Color.White.copy(alpha = 0.55f), CircleShape)
+                        .clip(CircleShape)
+                        .clickable { pickPhoto() },
                 )
+                // Sits on the avatar's rim (bottom-right). The outer Box is not
+                // clipped, so the badge is no longer cut off by the circle.
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(28.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .border(2.dp, Color.Black.copy(alpha = 0.35f), CircleShape)
+                        .clip(CircleShape)
+                        .clickable { pickPhoto() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Edit,
+                        contentDescription = stringResource(R.string.settings_profile_change_photo),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
             }
-        }
-        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
-            TextButton(onClick = { pickPhoto() }) {
-                Text(stringResource(R.string.settings_profile_change_photo))
-            }
-            if (hasAvatar) {
-                TextButton(onClick = { Profile.clearAvatar(context) }) {
-                    Text(stringResource(R.string.settings_profile_remove_photo))
+            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
+                TextButton(onClick = { pickPhoto() }) {
+                    Text(stringResource(R.string.settings_profile_change_photo), color = Color.White)
+                }
+                if (hasAvatar) {
+                    TextButton(onClick = { Profile.clearAvatar(context) }) {
+                        Text(stringResource(R.string.settings_profile_remove_photo), color = Color.White.copy(alpha = 0.8f))
+                    }
                 }
             }
         }

@@ -17,6 +17,8 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.preferences.Profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 
 import androidx.compose.foundation.BorderStroke
@@ -212,47 +214,49 @@ fun SettingsRootScreen(
     }
 }
 
-/** Top-of-Settings profile entry: avatar + name, tap to open the Profile page. */
+/** Top-of-Settings profile hero: avatar + name over the themed background, tap to open the Profile page. */
 @Composable
 private fun ProfileHeaderCard(isSelected: Boolean, onClick: () -> Unit) {
     val name = Profile.name().trim()
-    SettingsSectionCard {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(XmdShapes.L)
-                .background(
-                    if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                    else androidx.compose.ui.graphics.Color.Transparent
-                )
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        ) {
-            ProfileAvatar(size = 56.dp)
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (name.isEmpty()) stringResource(R.string.settings_profile_setup_title) else name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(
-                        if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_edit_desc
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                imageVector = Icons.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    val heroText = androidx.compose.ui.graphics.Color.White
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .profileHeroBackground()
+            .then(
+                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, XmdShapes.L)
+                else Modifier
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 22.dp),
+    ) {
+        ProfileAvatar(
+            size = 60.dp,
+            modifier = Modifier.border(2.dp, heroText.copy(alpha = 0.55f), CircleShape),
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (name.isEmpty()) stringResource(R.string.settings_profile_setup_title) else name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = heroText,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(
+                    if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_edit_desc
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = heroText.copy(alpha = 0.78f),
             )
         }
+        Icon(
+            imageVector = Icons.ChevronRight,
+            contentDescription = null,
+            tint = heroText.copy(alpha = 0.78f),
+        )
     }
 }

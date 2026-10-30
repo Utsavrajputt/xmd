@@ -20,7 +20,6 @@ import java.io.File
 object Profile {
 
     private const val AVATAR_FILE = "profile_avatar.png"
-    private const val AVATAR_PX = 256
 
     // Profile is first touched from the Settings screens, after Settings.init().
     private var nameState by mutableStateOf(Settings.profileName())
@@ -44,21 +43,22 @@ object Profile {
     fun loadAvatar(context: Context): Bitmap? =
         avatarFile(context).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
 
-    /** Blocking; call off the main thread. Crops to a centred square and downsizes. */
-    fun saveAvatar(context: Context, uri: Uri): Boolean = runCatching {
+    /**
+     * Blocking; call off the main thread. Decodes [uri] (at most ~2048px on the
+     * long side) into an upright bitmap for the crop screen.
+     */
+    fun decodeForCrop(context: Context, uri: Uri): Bitmap? = runCatching {
         val resolver = context.applicationContext.contentResolver
-
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= AVATAR_PX && bounds.outHeight / (sample * 2) >= AVATAR_PX) {
-            sample *= 2
-        }
+        val maxDim = maxOf(bounds.outWidth, bounds.outHeight)
+        while (maxDim / (sample * 2) >= 2048) sample *= 2
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-        } ?: return false
+        } ?: return null
 
         val rotation = runCatching {
             resolver.openInputStream(uri)?.use { input ->
@@ -74,22 +74,17 @@ object Profile {
             }
         }.getOrNull() ?: 0f
 
-        val side = minOf(decoded.width, decoded.height)
-        val matrix = Matrix().apply {
-            if (rotation != 0f) postRotate(rotation)
-            val scale = AVATAR_PX.toFloat() / side
-            if (scale < 1f) postScale(scale, scale)
+        if (rotation != 0f) {
+            val matrix = Matrix().apply { postRotate(rotation) }
+            Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+        } else {
+            decoded
         }
-        val square = Bitmap.createBitmap(
-            decoded,
-            (decoded.width - side) / 2,
-            (decoded.height - side) / 2,
-            side,
-            side,
-            matrix,
-            true,
-        )
-        avatarFile(context).outputStream().use { square.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }.getOrNull()
+
+    /** Blocking; call off the main thread. Stores an already-cropped square [bitmap] as the photo. */
+    fun saveAvatarBitmap(context: Context, bitmap: Bitmap): Boolean = runCatching {
+        avatarFile(context).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         avatarVersion++
         true
     }.getOrDefault(false)

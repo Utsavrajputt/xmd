@@ -352,6 +352,11 @@
     <string name="settings_profile_name_hint">Shown at the top of Settings. Stays on this device.</string>
     <string name="settings_profile_change_photo">Change photo</string>
     <string name="settings_profile_remove_photo">Remove photo</string>
+    <string name="settings_profile_crop_title">Crop photo</string>
+    <string name="settings_profile_crop_left">Left</string>
+    <string name="settings_profile_crop_right">Right</string>
+    <string name="settings_profile_crop_reset">Reset</string>
+    <string name="settings_profile_crop_confirm">Crop</string>
     <string name="settings_profile_photo_failed">Couldn\'t use that image</string>
     <string name="settings_toolbar_title">Toolbar</string>
     <string name="settings_toolbar_address_bar">Address bar</string>
