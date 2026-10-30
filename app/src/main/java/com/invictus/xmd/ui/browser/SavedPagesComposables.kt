@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -92,6 +93,54 @@ private fun hostOf(url: String): String =
         ?.removePrefix("www.")
         ?.takeIf { it.isNotBlank() }
         ?: url
+
+private sealed interface DayListItem {
+    data class Header(val dayStartMs: Long, val label: String) : DayListItem
+    data class Row<T>(val entry: T, val indexInDay: Int, val countInDay: Int) : DayListItem
+}
+
+private fun dayStartOf(ms: Long): Long =
+    java.util.Calendar.getInstance().apply {
+        timeInMillis = ms
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+/** Groups [entries] (already newest-first) by local calendar day, Chrome-style. */
+private fun <T> buildDayGroupedItems(
+    entries: List<T>,
+    timeOf: (T) -> Long,
+    todayLabel: String,
+    yesterdayLabel: String,
+): List<DayListItem> {
+    val todayStart = dayStartOf(System.currentTimeMillis())
+    val yesterdayStart = dayStartOf(todayStart - 1)
+    val dateFmt = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault())
+    val dayFmt = java.text.SimpleDateFormat("EEEE", java.util.Locale.getDefault())
+    val out = ArrayList<DayListItem>()
+    entries.groupBy { dayStartOf(timeOf(it)) }.forEach { (dayStart, group) ->
+        val date = java.util.Date(dayStart)
+        val label = when (dayStart) {
+            todayStart -> "$todayLabel - ${dateFmt.format(date)}"
+            yesterdayStart -> "$yesterdayLabel - ${dateFmt.format(date)}"
+            else -> "${dayFmt.format(date)} - ${dateFmt.format(date)}"
+        }
+        out.add(DayListItem.Header(dayStart, label))
+        group.forEachIndexed { i, e -> out.add(DayListItem.Row(e, i, group.size)) }
+    }
+    return out
+}
+
+private val LetterTileColors = listOf(
+    Color(0xFFC62828), Color(0xFF6A1B9A), Color(0xFF283593), Color(0xFF00695C),
+    Color(0xFF2E7D32), Color(0xFFEF6C00), Color(0xFF4E342E), Color(0xFF757575),
+)
+
+/** Stable colour per host, so the same site always gets the same tile. */
+private fun letterTileColor(host: String): Color =
+    LetterTileColors[Math.floorMod(host.lowercase().hashCode(), LetterTileColors.size)]
 
 /**
  * One row in a saved-pages list (Bookmarks or History): a rounded tonal card
@@ -182,6 +231,23 @@ fun <T> SavedPageRow(
                             modifier = Modifier.size(20.dp),
                         )
                     }
+                } else if (showFavicon) {
+                    // No favicon for this site: Chrome-style letter tile (first
+                    // letter of the host on a colour picked from the host name).
+                    val host = hostOf(url)
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(letterTileColor(host), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = host.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "?",
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier
@@ -251,6 +317,8 @@ fun <T> SavedPagesScreen(
     searchEmptyLabel: String,
     rowIcon: AppIcon,
     showFavicons: Boolean = false,
+    // When set, the list gets Chrome-style day headers ("Today - 30 Oct 2026").
+    entryTimeMs: ((T) -> Long)? = null,
     entries: List<T>,
     entryKey: (T) -> Any,
     entryTitle: (T) -> String,
@@ -370,6 +438,12 @@ fun <T> SavedPagesScreen(
                 )
             }
         } else {
+            val todayLabel = stringResource(R.string.history_today)
+            val yesterdayLabel = stringResource(R.string.history_yesterday)
+            val listItems = remember(entries, entryTimeMs, todayLabel, yesterdayLabel) {
+                if (entryTimeMs == null) emptyList()
+                else buildDayGroupedItems(entries, entryTimeMs, todayLabel, yesterdayLabel)
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -380,19 +454,59 @@ fun <T> SavedPagesScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                itemsIndexed(entries, key = { _, e -> entryKey(e) }) { index, entry ->
-                    SavedPageRow(
-                        entry = entry,
-                        title = entryTitle(entry),
-                        url = entryUrl(entry),
-                        icon = rowIcon,
-                        showFavicon = showFavicons,
-                        onTap = onTap,
-                        onDelete = onDelete,
-                        index = index,
-                        count = entries.size,
-                        modifier = Modifier.animateItem(),
-                    )
+                if (entryTimeMs == null) {
+                    itemsIndexed(entries, key = { _, e -> entryKey(e) }) { index, entry ->
+                        SavedPageRow(
+                            entry = entry,
+                            title = entryTitle(entry),
+                            url = entryUrl(entry),
+                            icon = rowIcon,
+                            showFavicon = showFavicons,
+                            onTap = onTap,
+                            onDelete = onDelete,
+                            index = index,
+                            count = entries.size,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                } else {
+                    items(
+                        listItems,
+                        key = { item ->
+                            when (item) {
+                                is DayListItem.Header -> "day_" + item.dayStartMs
+                                is DayListItem.Row<*> -> entryKey(@Suppress("UNCHECKED_CAST") (item.entry as T))
+                            }
+                        },
+                    ) { item ->
+                        when (item) {
+                            is DayListItem.Header -> Text(
+                                text = item.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)
+                                    .animateItem(),
+                            )
+                            is DayListItem.Row<*> -> {
+                                @Suppress("UNCHECKED_CAST")
+                                val rowEntry = item.entry as T
+                                SavedPageRow(
+                                    entry = rowEntry,
+                                    title = entryTitle(rowEntry),
+                                    url = entryUrl(rowEntry),
+                                    icon = rowIcon,
+                                    showFavicon = showFavicons,
+                                    onTap = onTap,
+                                    onDelete = onDelete,
+                                    index = item.indexInDay,
+                                    count = item.countInDay,
+                                    modifier = Modifier.animateItem(),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

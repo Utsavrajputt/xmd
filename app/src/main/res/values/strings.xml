@@ -344,6 +344,11 @@
     <string name="settings_bottom_bar_hint">Back, forward, home, bookmarks and downloads at the bottom while a page is open. Hides when you scroll down.</string>
     <string name="settings_nav_buttons">Back/Forward buttons</string>
     <string name="settings_nav_buttons_hint">Show back and forward buttons in the address bar. Off by default.</string>
+    <string name="settings_toolbar_title">Toolbar</string>
+    <string name="settings_toolbar_address_bar">Address bar</string>
+    <string name="settings_toolbar_position_top">Top</string>
+    <string name="settings_toolbar_position_bottom">Bottom</string>
+    <string name="settings_toolbar_summary">Address bar: %1$s</string>
     <string name="settings_force_dark">Force dark mode</string>
     <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own. Some pages may look off.</string>
     <string name="browser_bottom_back">Back</string>
@@ -574,6 +579,8 @@
 
     <!-- History -->
     <string name="history_title">History</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
     <string name="history_empty">No history yet.</string>
     <string name="history_clear_all">Clear All</string>
     <string name="history_cleared_toast">History cleared.</string>

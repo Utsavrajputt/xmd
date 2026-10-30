@@ -402,14 +402,14 @@ object Settings {
     }
 
     // ── Browser: Ad blocker (single ON/OFF switch + per-site allowlist) ─────
-    // On by default -- opt-out, like download managers with a built-in browser.
+    // Off by default -- opt-in; users who already chose a value keep it.
     // Older builds stored a Standard/Aggressive/Off level; read it once so
     // someone who had it Off stays Off, then drop it on the next write.
     private const val KEY_ADBLOCK_LEVEL = "browser_adblock_level"
 
     fun adblockEnabled(): Boolean {
         prefs.getString(KEY_ADBLOCK_LEVEL, null)?.let { return it != "OFF" }
-        return prefs.getBoolean(KEY_ADBLOCK_ENABLED, true)
+        return prefs.getBoolean(KEY_ADBLOCK_ENABLED, false)
     }
 
     fun setAdblockEnabled(enabled: Boolean) {

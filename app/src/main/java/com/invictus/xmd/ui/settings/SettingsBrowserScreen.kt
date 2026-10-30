@@ -64,6 +64,19 @@ fun SettingsBrowserScreen(
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
+    var showToolbarDialog by remember { mutableStateOf(false) }
+    if (showToolbarDialog) {
+        ToolbarLayoutDialog(
+            toolbarBottom = toolbarBottom,
+            onToolbarBottomChanged = onToolbarBottomChanged,
+            bottomBarEnabled = bottomBarEnabled,
+            onBottomBarChanged = onBottomBarChanged,
+            navButtonsEnabled = navButtonsEnabled,
+            onNavButtonsChanged = onNavButtonsChanged,
+            onDismiss = { showToolbarDialog = false },
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -103,25 +116,18 @@ fun SettingsBrowserScreen(
                 onClick = onOpenAdblock,
             )
             SettingsDivider()
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_toolbar_bottom),
-                subtitle = stringResource(R.string.settings_toolbar_bottom_hint),
-                checked = toolbarBottom,
-                onCheckedChange = onToolbarBottomChanged,
+            val addressBarLabel = stringResource(
+                if (toolbarBottom) R.string.settings_toolbar_position_bottom else R.string.settings_toolbar_position_top
             )
-            SettingsDivider()
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_bottom_bar),
-                subtitle = stringResource(R.string.settings_bottom_bar_hint),
-                checked = bottomBarEnabled,
-                onCheckedChange = onBottomBarChanged,
-            )
-            SettingsDivider()
-            SwitchSettingRow(
-                title = stringResource(R.string.settings_nav_buttons),
-                subtitle = stringResource(R.string.settings_nav_buttons_hint),
-                checked = navButtonsEnabled,
-                onCheckedChange = onNavButtonsChanged,
+            val toolbarSummary = buildList {
+                add(stringResource(R.string.settings_toolbar_summary, addressBarLabel))
+                if (bottomBarEnabled) add(stringResource(R.string.settings_bottom_bar))
+                if (navButtonsEnabled) add(stringResource(R.string.settings_nav_buttons))
+            }.joinToString(" \u00B7 ")
+            ClickableSettingRow(
+                title = stringResource(R.string.settings_toolbar_title),
+                subtitle = toolbarSummary,
+                onClick = { showToolbarDialog = true },
             )
             SettingsDivider()
             SwitchSettingRow(
@@ -144,6 +150,82 @@ fun SettingsBrowserScreen(
     }
 }
 
+
+/**
+ * One "Toolbar" entry replacing three separate rows (bottom address bar,
+ * bottom navigation bar, back/forward buttons). Changes apply immediately,
+ * same as the old switches; the three underlying prefs are unchanged.
+ */
+@Composable
+private fun ToolbarLayoutDialog(
+    toolbarBottom: Boolean,
+    onToolbarBottomChanged: (Boolean) -> Unit,
+    bottomBarEnabled: Boolean,
+    onBottomBarChanged: (Boolean) -> Unit,
+    navButtonsEnabled: Boolean,
+    onNavButtonsChanged: (Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    XmdAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.wideDialogWidth(),
+        properties = WideDialogProperties,
+        title = { Text(stringResource(R.string.settings_toolbar_title)) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Text(
+                    text = stringResource(R.string.settings_toolbar_address_bar),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+                listOf(
+                    false to R.string.settings_toolbar_position_top,
+                    true to R.string.settings_toolbar_position_bottom,
+                ).forEach { (bottom, labelRes) ->
+                    val selected = toolbarBottom == bottom
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onToolbarBottomChanged(bottom) }
+                            .padding(vertical = 2.dp),
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = selected,
+                            onClick = { onToolbarBottomChanged(bottom) },
+                        )
+                        Text(
+                            text = stringResource(labelRes),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    }
+                }
+                SettingsDivider()
+                SwitchSettingRow(
+                    title = stringResource(R.string.settings_bottom_bar),
+                    subtitle = stringResource(R.string.settings_bottom_bar_hint),
+                    checked = bottomBarEnabled,
+                    onCheckedChange = onBottomBarChanged,
+                    modifier = Modifier.padding(horizontal = 0.dp),
+                )
+                SwitchSettingRow(
+                    title = stringResource(R.string.settings_nav_buttons),
+                    subtitle = stringResource(R.string.settings_nav_buttons_hint),
+                    checked = navButtonsEnabled,
+                    onCheckedChange = onNavButtonsChanged,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                onClick = onDismiss,
+            ) { Text(stringResource(R.string.action_done)) }
+        },
+    )
+}
 
 /** Ad blocking page -- one ON/OFF switch plus the per-site allowlist, opened from one row in [SettingsBrowserScreen]. */
 @Composable
