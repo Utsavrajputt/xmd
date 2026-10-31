@@ -1437,10 +1437,8 @@ class DownloadService : LifecycleService() {
         val resolving = queue.any { it.status == ItemStatus.RESOLVING }
         // Items the notification is "about": the live downloads when there are any,
         // otherwise everything paused/retrying. Paused items next to a running one
-        // must not inflate the count or skew the progress bar -- they only get a
-        // trailing "N paused" note.
+        // must not inflate the count or skew the progress bar.
         val focus = if (active.isNotEmpty()) active else relevant
-        val extraPaused = relevant.size - focus.size
 
         // Drop held ETA entries for items no longer in-flight so the cache
         // doesn't grow unboundedly across a long-lived service instance.
@@ -1493,7 +1491,7 @@ class DownloadService : LifecycleService() {
                             "  •  " + (item.mediaStatusText ?: "YouTube")
                     else -> buildDetailLine(item.bytesDone, item.bytesTotal, item.speedBps, etaHoldKey = item.id)
                 }
-                text = if (extraPaused > 0) "$baseText  •  $extraPaused paused" else baseText
+                text = baseText
                 barPercent = when {
                     item.platform == MediaPlatform.YOUTUBE -> item.progressPercent.coerceAtLeast(0)
                     item.bytesTotal > 0 -> ((item.bytesDone * 100) / item.bytesTotal).toInt()
@@ -1511,7 +1509,6 @@ class DownloadService : LifecycleService() {
                 text = buildString {
                     if (active.isNotEmpty()) {
                         append(buildDetailLine(totalDone, totalSize, totalSpeed, etaHoldKey = "__aggregate__"))
-                        if (extraPaused > 0) append("  •  $extraPaused paused")
                     } else {
                         append(buildDetailLine(sumItems.sumOf { it.bytesDone }, sumItems.sumOf { it.bytesTotal }, 0.0))
                     }
@@ -1570,13 +1567,27 @@ class DownloadService : LifecycleService() {
                 builder.addAction(R.drawable.ic_notification_pause, getString(R.string.action_pause), pauseIntent)
             }
         }
+        // "Resume All" whenever paused items exist -- except when the single
+        // per-item "Resume" above already covers the only paused item.
+        val pausedIds = relevant.filter { it.status == ItemStatus.PAUSED }.map { it.id }
+        val singleResumeCovers = focus.size == 1 && pausedIds.size == 1 && focus.first().id == pausedIds.first()
+        if (pausedIds.isNotEmpty() && !singleResumeCovers) {
+            val resumeAllIntent = PendingIntent.getService(
+                this, 4,
+                Intent(this, DownloadService::class.java)
+                    .setAction(ACTION_RESUME_ALL)
+                    .putStringArrayListExtra(EXTRA_ITEM_IDS, ArrayList(pausedIds)),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(0, getString(R.string.action_resume_all), resumeAllIntent)
+        }
         if (relevant.isNotEmpty()) {
             val cancelIntent = PendingIntent.getService(
                 this, 2,
                 Intent(this, DownloadService::class.java).setAction(ACTION_CANCEL_ALL),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-            builder.addAction(0, getString(R.string.action_cancel), cancelIntent)
+            builder.addAction(0, getString(R.string.action_cancel_all), cancelIntent)
         }
         if (relevant.isEmpty() && !resolving) {
             // Idle: nothing to cancel, so offer a way out instead of a notification that cannot be dismissed.

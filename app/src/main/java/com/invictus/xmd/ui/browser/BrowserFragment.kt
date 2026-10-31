@@ -137,6 +137,8 @@ class BrowserFragment : Fragment() {
          *  general idea as Chrome's background tab discarding. */
         private const val MAX_LIVE_WEBVIEWS = 5
         private const val TAB_SWITCH_ANIM_MS = 130L
+        /** Max gap between a real tap and a <video> error for the in-app player to take over. */
+        private const val USER_TAP_WINDOW_MS = 6000L
         /** Cap on local history matches shown in the address-bar dropdown --
          *  Chrome-style: a handful of your own visited pages, not a full list,
          *  since the remaining rows are Google's live search suggestions. */
@@ -148,6 +150,7 @@ class BrowserFragment : Fragment() {
                 "document.addEventListener('error',function(e){var t=e.target;" +
                 "if(!t||(t.tagName!=='VIDEO'&&t.tagName!=='SOURCE'))return;" +
                 "var v=t.tagName==='VIDEO'?t:t.parentElement;" +
+                "if(v&&(v.autoplay||v.hasAttribute('autoplay')||(v.muted&&v.loop)||v.hasAttribute('playsinline')&&v.muted))return;" +
                 "var src=(v&&(v.currentSrc||v.src))||t.src||'';" +
                 "try{XmdVideo.onVideoError(src);}catch(x){}},true);})();"
 
@@ -325,6 +328,11 @@ class BrowserFragment : Fragment() {
     // mirrors the user setting (refreshed in onResume); bottomBarScrollVisible
     // is flipped by WebView scrolling so the bar hides on scroll-down.
     private var inAppPlayerRequest: InAppPlayRequest? by mutableStateOf(null)
+    /** Uptime of the last real finger-up on any tab's WebView. The in-app player may
+     *  only take over a failed <video> shortly after the user actually tapped. */
+    @Volatile private var lastUserTapUptimeMs: Long = 0L
+    /** Sources the auto-takeover already handled on this page (opens at most once each). */
+    private val inAppPlayerHandledSrcs = HashSet<String>()
     private var bottomBarEnabled: Boolean by mutableStateOf(true)
     private var toolbarBottom: Boolean by mutableStateOf(false)
     private var navButtonsEnabled: Boolean by mutableStateOf(false)
@@ -1196,6 +1204,9 @@ class BrowserFragment : Fragment() {
                 lastTouchRawX = event.rawX
                 lastTouchRawY = event.rawY
             }
+            if (event.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                lastUserTapUptimeMs = android.os.SystemClock.uptimeMillis()
+            }
             false
         }
         webView.setOnLongClickListener {
@@ -1209,6 +1220,7 @@ class BrowserFragment : Fragment() {
                 tab.isLoading = true
                 tab.progress = 0
                 tab.sniffedMedia.clear()
+                inAppPlayerHandledSrcs.clear()
                 view.evaluateJavascript(VIDEO_ERROR_SCRIPT, null)
                 if (tab.isDesktopMode) view.evaluateJavascript(DESKTOP_MODE_SCRIPT, null)
                 // A popup tab that was opened straight onto an ad page: close it.
@@ -1671,6 +1683,11 @@ class BrowserFragment : Fragment() {
      *  instead (YouTube is left alone -- its own player/embed handles it). */
     private fun handleWebVideoError(tab: BrowserTab, src: String?) {
         if (!isAdded || !isCurrentTab(tab) || inAppPlayerRequest != null) return
+        // Never pop the player on a page-initiated failure (preview clips, ads,
+        // lazy-loaded players erroring on their own): only when the user tapped
+        // the page within the last few seconds.
+        val sinceTap = android.os.SystemClock.uptimeMillis() - lastUserTapUptimeMs
+        if (lastUserTapUptimeMs == 0L || sinceTap > USER_TAP_WINDOW_MS) return
         val pageUrl = tab.url
         if (pageUrl != null && com.invictus.xmd.utils.LinkParser.isYoutubeLink(pageUrl)) return
         val candidate = src?.takeIf { it.startsWith("http", ignoreCase = true) }
@@ -1681,6 +1698,7 @@ class BrowserFragment : Fragment() {
                 }?.url
             }
             ?: return
+        if (!inAppPlayerHandledSrcs.add(candidate)) return
         inAppPlayerRequest = InAppPlayRequest(candidate, pageUrl)
     }
 
