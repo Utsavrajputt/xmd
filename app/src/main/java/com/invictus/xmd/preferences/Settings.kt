@@ -195,12 +195,13 @@ object Settings {
         prefs.edit().putInt(KEY_MAX_CONCURRENT, value.coerceIn(1, 5)).apply()
     }
 
-    /** Auto-retry a failed download up to 5 times (exponential backoff) when it
+    /** Auto-retry a failed download up to 3 times in a row (exponential backoff,
+     *  counter resets whenever an attempt made progress) when it
      *  fails on a plain network error (timeout, connection dropped, DNS
      *  failure etc.) -- direct and YouTube downloads;
      *  never for server/link-level failures like an expired share link,
-     *  those still need a manual Retry. Default OFF. */
-    fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, false)
+     *  those still need a manual Retry. Default ON. */
+    fun autoRetryEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_RETRY, true)
     fun setAutoRetryEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_RETRY, value).apply()
     }

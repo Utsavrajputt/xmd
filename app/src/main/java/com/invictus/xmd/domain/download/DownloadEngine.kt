@@ -27,6 +27,10 @@ typealias LogFn = (String) -> Unit
 // which matters most when the destination sits behind Android's FUSE
 // layer (shared/public storage) where every syscall has extra overhead.
 private const val STREAM_BLOCK_SIZE = 1024 * 1024
+private const val SEGMENT_MAX_RETRIES = 10
+private const val SEGMENT_RETRY_DELAY_MS = 1_000L
+private const val SEGMENT_RETRY_MAX_DELAY_MS = 5_000L
+private val SEGMENT_TRANSIENT_HTTP = Regex("""\(HTTP (408|425|5\d\d)\)|^Download incomplete""")
 private const val MULTI_CONNECTION_MIN_BYTES = 4L * 1024 * 1024
 // Smart mode: one thread per this many bytes, and chunks of at least this size,
 // with up to CHUNKS_PER_THREAD chunks per thread (capped overall) for load balancing.
@@ -532,7 +536,35 @@ class DownloadEngine(
                 }
             }
         }
-        download(url, destination)
+        downloadWithRetry(url, destination)
+    }
+
+    /** Same IDM/ABDM-style recovery as [downloadRangeWithRetry], for the
+     *  single-connection path: a dropped connection reconnects and resumes
+     *  from the bytes already on disk instead of failing the whole job. */
+    private fun downloadWithRetry(url: String, destination: File) {
+        var failures = 0
+        while (true) {
+            val sizeBefore = if (destination.isFile) destination.length() else 0L
+            try {
+                download(url, destination)
+                return
+            } catch (e: Exception) {
+                if (cancelled.get() || !isTransientSegmentError(e)) throw e
+                val sizeNow = if (destination.isFile) destination.length() else 0L
+                if (sizeNow > sizeBefore) failures = 0
+                failures++
+                if (failures > SEGMENT_MAX_RETRIES) throw e
+                log("Connection dropped (${e.message}) -- reconnecting ($failures/$SEGMENT_MAX_RETRIES)")
+                val waitMs = (failures * SEGMENT_RETRY_DELAY_MS).coerceAtMost(SEGMENT_RETRY_MAX_DELAY_MS)
+                var waited = 0L
+                while (waited < waitMs) {
+                    checkpoint()
+                    Thread.sleep(200)
+                    waited += 200
+                }
+            }
+        }
     }
 
     // ── Range probe (unchanged) ───────────────────────────────────────────
@@ -697,7 +729,7 @@ class DownloadEngine(
             val futures = pending.map { seg ->
                 executor.submit {
                     try {
-                        downloadRange(url, destination, seg, doneCounter, totalSize, speedMeter) {
+                        downloadRangeWithRetry(url, destination, seg, doneCounter, totalSize, speedMeter) {
                             maybeWriteSegmentMeta { writeSegmentMeta(destination, url, totalSize, segments) }
                         }
                     } catch (e: Exception) {
@@ -723,6 +755,58 @@ class DownloadEngine(
         deleteSegmentMeta(destination)
         emitProgress(totalSize, totalSize, 0.0, force = true)
         log("Downloaded ${destination.name}")
+    }
+
+    /**
+     * IDM-style per-segment recovery: when one connection drops (reset,
+     * timeout, early EOF, 5xx) only THAT segment reconnects and continues from
+     * its own saved offset (`Range: bytes=start+done-end`) while the other
+     * segments keep running -- the whole download no longer fails and restarts
+     * its retry cycle because a single socket died. Retries up to
+     * [SEGMENT_MAX_RETRIES] times in a row (the counter resets whenever an
+     * attempt moved the segment forward), waiting 1s, 2s, 3s, 4s, then 5s (mobile networks need longer than ABDM's fixed 1s),
+     * pause/cancel-aware. Expired links, rate limits, disk errors and
+     * cancellation are never retried here -- they propagate as before.
+     */
+    private fun downloadRangeWithRetry(
+        url: String,
+        destination: File,
+        seg: SegmentState,
+        doneCounter: AtomicLong,
+        totalSize: Long,
+        speedMeter: SpeedMeter,
+        persist: () -> Unit
+    ) {
+        var failures = 0
+        while (true) {
+            val doneBefore = seg.done
+            try {
+                downloadRange(url, destination, seg, doneCounter, totalSize, speedMeter, persist)
+                return
+            } catch (e: Exception) {
+                if (cancelled.get() || !isTransientSegmentError(e)) throw e
+                if (seg.done > doneBefore) failures = 0
+                failures++
+                if (failures > SEGMENT_MAX_RETRIES) throw e
+                log("Segment ${seg.start}-${seg.end} dropped (${e.message}) -- reconnecting ($failures/$SEGMENT_MAX_RETRIES)")
+                persist()
+                val waitMs = (failures * SEGMENT_RETRY_DELAY_MS).coerceAtMost(SEGMENT_RETRY_MAX_DELAY_MS)
+                var waited = 0L
+                while (waited < waitMs) {
+                    checkpoint()
+                    Thread.sleep(200)
+                    waited += 200
+                }
+            }
+        }
+    }
+
+    private fun isTransientSegmentError(e: Exception): Boolean {
+        if (e is DownloadCancelledException || e is DownloadValidationException ||
+            e is ExpiredLinkException || e is RateLimitedException || e is InterruptedException
+        ) return false
+        if (e is IOException) return true
+        return SEGMENT_TRANSIENT_HTTP.containsMatchIn(e.message.orEmpty())
     }
 
     private fun downloadRange(

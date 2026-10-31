@@ -31,6 +31,7 @@ import com.invictus.xmd.domain.download.CategoryDetector
 import com.invictus.xmd.domain.download.ShowDetector
 import com.invictus.xmd.utils.storage.FileNameUtils
 import com.invictus.xmd.domain.download.DownloadCancelledException
+import com.invictus.xmd.domain.download.ExpiredLinkException
 import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.domain.download.DownloadValidationException
@@ -81,14 +82,30 @@ class DownloadService : LifecycleService() {
         private const val DATA_LIMIT_NOTIFICATION_ID = 43
         private const val COMPLETE_NOTIFICATION_BASE = 100_000
         private const val BETWEEN_CLAIM_DELAY_MS = 500L
-        private const val MAX_AUTO_RETRIES = 5
-        private const val MAX_AUTO_RETRY_DELAY_MS = 30_000L
+        private const val MAX_AUTO_RETRIES = 3
+        /** Fixed pause between job-level retries (ABDM uses 3s; 5s suits mobile networks). */
+        private const val AUTO_RETRY_DELAY_MS = 5_000L
 
-        /** Exponential backoff for auto-retry attempt [attempt] (1-based):
-         *  2s, 4s, 8s, 16s, 30s (capped). Gives a flaky link real time to
-         *  recover instead of hammering it 2-6 seconds apart. */
-        private fun autoRetryDelayMs(attempt: Int): Long =
-            minOf(2_000L shl (attempt - 1).coerceIn(0, 10), MAX_AUTO_RETRY_DELAY_MS)
+        @Suppress("UNUSED_PARAMETER")
+        private fun autoRetryDelayMs(attempt: Int): Long = AUTO_RETRY_DELAY_MS
+
+        private val RETRYABLE_HTTP_STATUS = Regex("""HTTP (408|425|429|5\d\d)""")
+
+        /** Transient failure of a direct download worth retrying. Plain
+         *  IOExceptions, but also the engine's own RuntimeExceptions for a
+         *  truncated stream ("Incomplete download", "Parallel download
+         *  incomplete") and 408/429/5xx segment/status errors -- those are
+         *  the typical flaky-network failures and used to skip auto-retry
+         *  because they aren't IOExceptions. Expired links (401/403/404/410)
+         *  are a different type and are never retried. */
+        private fun isRetryableDirectError(e: Throwable): Boolean {
+            if (e is ExpiredLinkException || e is DownloadCancelledException) return false
+            if (e is IOException) return true
+            val m = e.message.orEmpty()
+            return m.startsWith("Incomplete download") ||
+                m.contains("download incomplete", ignoreCase = true) ||
+                RETRYABLE_HTTP_STATUS.containsMatchIn(m)
+        }
 
         private val YOUTUBE_NETWORK_ERROR_MARKERS = listOf(
             "timed out", "timeout", "connection reset", "connection aborted",
@@ -995,7 +1012,10 @@ class DownloadService : LifecycleService() {
                         Settings.NETWORK_WAIT_MARKER,
                         resetMediaProgress = true,
                     )
-                    Settings.autoRetryEnabled() && attempt < MAX_AUTO_RETRIES && isRetryableYoutubeError(e) -> {
+                    Settings.autoRetryEnabled() && attempt < MAX_AUTO_RETRIES && isRetryableYoutubeError(e) &&
+                        // Same rule as direct downloads: failing on the very first try
+                        // without any progress means a dead/blocked link -- don't retry.
+                        !(attempt == 0 && !youtubeHadProgress(itemId)) -> {
                         retryYoutube = true
                     }
                     else -> {
@@ -1028,6 +1048,11 @@ class DownloadService : LifecycleService() {
             QueueRepository.markDownloading(itemId)
             downloadYoutube(item, next)
         }
+    }
+
+    private fun youtubeHadProgress(itemId: String): Boolean {
+        val cur = QueueRepository.current().firstOrNull { it.id == itemId } ?: return false
+        return cur.bytesDone > 0 || cur.progressPercent > 0
     }
 
     /**
@@ -1143,6 +1168,7 @@ class DownloadService : LifecycleService() {
             var destinationFile: File? = null
 
             val currentItem = QueueRepository.current().firstOrNull { it.id == itemId }
+            val bytesAtAttemptStart = currentItem?.bytesDone ?: 0L
             val extraHeaders = mutableMapOf<String, String>()
             currentItem?.pageUrl?.takeIf { it.isNotBlank() }?.let { page ->
                 extraHeaders["Referer"] = page
@@ -1238,8 +1264,10 @@ class DownloadService : LifecycleService() {
                 val knownTotal = QueueRepository.current().firstOrNull { it.id == itemId }?.bytesTotal ?: 0L
                 val actualSize = tempFile.length()
                 if (!tempFile.isFile || actualSize == 0L || (knownTotal > 0 && actualSize < knownTotal)) {
-                    tempFile.delete()
-                    throw RuntimeException("Incomplete download (got ${actualSize}B" +
+                    // Keep a non-empty partial (and its .xmdparts sidecar) so the
+                    // retry resumes instead of restarting from zero.
+                    if (!tempFile.isFile || actualSize == 0L) tempFile.delete()
+                    throw IOException("Incomplete download (got ${actualSize}B" +
                         (if (knownTotal > 0) " of ${knownTotal}B" else "") + ")")
                 }
 
@@ -1301,7 +1329,12 @@ class DownloadService : LifecycleService() {
                 // fall straight through to FAILED since retrying the same dead link
                 // automatically would just burn battery/data for nothing; those need
                 // the user's manual Retry (which can re-resolve a fresh link).
-                val isNetworkError = e is IOException
+                val isNetworkError = isRetryableDirectError(e)
+                // Made progress since this attempt began -> the link is working,
+                // so the failure counter starts over instead of running out
+                // across a long download with several unrelated blips.
+                val bytesNow = QueueRepository.current().firstOrNull { it.id == itemId }?.bytesDone ?: 0L
+                if (bytesNow > bytesAtAttemptStart) attempt = 0
                 if (isNetworkError && !NetworkMonitor.hasInternet(this)) {
                     // Not a flaky link -- there's genuinely no internet at all
                     // right now (Wi-Fi/data dropped, airplane mode, router
@@ -1314,7 +1347,11 @@ class DownloadService : LifecycleService() {
                     updateNotification()
                     return
                 }
-                if (isNetworkError && Settings.autoRetryEnabled() && attempt < MAX_AUTO_RETRIES) {
+                // Like ABDM: a download that failed on its very first try without
+                // receiving a single byte never worked at all (dead/blocked link,
+                // bad host) -- retrying it just wastes time, so fail it right away.
+                val neverStarted = attempt == 0 && bytesNow <= 0L
+                if (isNetworkError && !neverStarted && Settings.autoRetryEnabled() && attempt < MAX_AUTO_RETRIES) {
                     attempt++
                     engines.remove(itemId)
                     QueueRepository.markRetrying(

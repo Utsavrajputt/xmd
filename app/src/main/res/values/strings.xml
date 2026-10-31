@@ -286,7 +286,7 @@
     <string name="settings_auto_clear_24h">After 24 hours</string>
     <string name="settings_auto_clear_7d">After 7 days</string>
     <string name="settings_auto_clear_28d">After 28 days</string>
-    <string name="settings_auto_retry_hint">Retry timeouts and dropped connections up to 5 times, waiting a little longer each time (direct and YouTube downloads).</string>
+    <string name="settings_auto_retry_hint">Retry timeouts, dropped connections and server errors up to 3 times, waiting a little longer each time and resuming where it stopped (direct and YouTube downloads).</string>
     <string name="settings_default_location">Default Save Location</string>
     <string name="settings_default_location_hint">Where new downloads are saved unless a custom folder is picked for that download.</string>
     <string name="settings_disable_categorization">Disable Folder Categorization</string>
