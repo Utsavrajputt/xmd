@@ -139,6 +139,8 @@ class BrowserFragment : Fragment() {
         private const val TAB_SWITCH_ANIM_MS = 130L
         /** Max gap between a real tap and a <video> error for the in-app player to take over. */
         private const val USER_TAP_WINDOW_MS = 6000L
+        private const val HISTORY_VEIL_FAILSAFE_MS = 700L
+        private const val HISTORY_VEIL_MAX_MS = 8000L
         /** Cap on local history matches shown in the address-bar dropdown --
          *  Chrome-style: a handful of your own visited pages, not a full list,
          *  since the remaining rows are Google's live search suggestions. */
@@ -470,7 +472,7 @@ class BrowserFragment : Fragment() {
                             onBackTap = {
                                 val v = webViewFor(tabs.getOrNull(currentTabIndex))
                                 if (v != null && v.canGoBack()) {
-                                    showNavLoadingVeil()
+                                    showHistoryNavVeil(v)
                                     v.goBack()
                                     navCanGoBack = v.canGoBack()
                                     navCanGoForward = v.canGoForward()
@@ -480,7 +482,7 @@ class BrowserFragment : Fragment() {
                             onForwardTap = {
                                 val v = webViewFor(tabs.getOrNull(currentTabIndex))
                                 if (v != null && v.canGoForward()) {
-                                    showNavLoadingVeil()
+                                    showHistoryNavVeil(v)
                                     v.goForward()
                                     navCanGoBack = v.canGoBack()
                                     navCanGoForward = v.canGoForward()
@@ -555,7 +557,7 @@ class BrowserFragment : Fragment() {
                                 onForward = {
                                     val v = webViewFor(tabs.getOrNull(currentTabIndex))
                                     if (v != null && v.canGoForward()) {
-                                        showNavLoadingVeil()
+                                        showHistoryNavVeil(v)
                                         v.goForward()
                                         navCanGoBack = v.canGoBack()
                                         navCanGoForward = v.canGoForward()
@@ -1774,7 +1776,7 @@ class BrowserFragment : Fragment() {
         val view = webViewFor(tab)
         if (view != null && view.visibility == View.VISIBLE) {
             if (view.canGoBack()) {
-                showNavLoadingVeil()
+                showHistoryNavVeil(view)
                 view.goBack()
                 navCanGoBack = view.canGoBack()
                 navCanGoForward = view.canGoForward()
@@ -2187,6 +2189,23 @@ class BrowserFragment : Fragment() {
 
     private fun hideNavLoadingVeil() {
         navLoadingVeilVisible = false
+    }
+
+    /**
+     * Veil for Back/Forward, with a failsafe. A history step to a same-document
+     * entry (pushState / #hash -- ad-heavy sites push a lot of these to trap
+     * Back) never fires onPageStarted/onPageFinished, so the plain veil would
+     * stay up forever and Back looked frozen on an endless spinner. If no real
+     * load has started shortly after the step, drop the veil; and never keep
+     * it longer than [HISTORY_VEIL_MAX_MS] whatever happens.
+     */
+    private fun showHistoryNavVeil(view: WebView) {
+        val tab = tabs.getOrNull(currentTabIndex)
+        showNavLoadingVeil()
+        view.postDelayed({
+            if (isAdded && tab?.isLoading != true) hideNavLoadingVeil()
+        }, HISTORY_VEIL_FAILSAFE_MS)
+        view.postDelayed({ if (isAdded) hideNavLoadingVeil() }, HISTORY_VEIL_MAX_MS)
     }
 
     // Add/edit/options dialogs for shortcuts are now Compose (see

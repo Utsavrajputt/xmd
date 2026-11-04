@@ -1604,27 +1604,39 @@ class DownloadService : LifecycleService() {
                 builder.addAction(R.drawable.ic_notification_pause, getString(R.string.action_pause), pauseIntent)
             }
         }
-        // "Resume All" whenever paused items exist -- except when the single
-        // per-item "Resume" above already covers the only paused item.
-        val pausedIds = relevant.filter { it.status == ItemStatus.PAUSED }.map { it.id }
-        val singleResumeCovers = focus.size == 1 && pausedIds.size == 1 && focus.first().id == pausedIds.first()
-        if (pausedIds.isNotEmpty() && !singleResumeCovers) {
+        // Buttons follow what the notification itself shows (`focus`), not the
+        // whole queue: a one-file notification gets Pause/Resume + Cancel (that
+        // file only); the "N files ..." notification gets "Cancel All", and
+        // "Resume All" only when all of those files are paused.
+        val shownMulti = focus.size > 1
+        if (shownMulti && focus.all { it.status == ItemStatus.PAUSED }) {
             val resumeAllIntent = PendingIntent.getService(
                 this, 4,
                 Intent(this, DownloadService::class.java)
                     .setAction(ACTION_RESUME_ALL)
-                    .putStringArrayListExtra(EXTRA_ITEM_IDS, ArrayList(pausedIds)),
+                    .putStringArrayListExtra(EXTRA_ITEM_IDS, ArrayList(focus.map { it.id })),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             builder.addAction(0, getString(R.string.action_resume_all), resumeAllIntent)
         }
         if (relevant.isNotEmpty()) {
-            val cancelIntent = PendingIntent.getService(
-                this, 2,
-                Intent(this, DownloadService::class.java).setAction(ACTION_CANCEL_ALL),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(0, getString(R.string.action_cancel_all), cancelIntent)
+            if (shownMulti) {
+                val cancelAllIntent = PendingIntent.getService(
+                    this, 2,
+                    Intent(this, DownloadService::class.java).setAction(ACTION_CANCEL_ALL),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                builder.addAction(0, getString(R.string.action_cancel_all), cancelAllIntent)
+            } else {
+                val cancelOneIntent = PendingIntent.getService(
+                    this, 5,
+                    Intent(this, DownloadService::class.java)
+                        .setAction(ACTION_CANCEL_ITEM)
+                        .putExtra(EXTRA_ITEM_ID, focus.first().id),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                builder.addAction(0, getString(R.string.action_cancel), cancelOneIntent)
+            }
         }
         if (relevant.isEmpty() && !resolving) {
             // Idle: nothing to cancel, so offer a way out instead of a notification that cannot be dismissed.
