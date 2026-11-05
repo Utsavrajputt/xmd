@@ -513,6 +513,7 @@ fun AddDownloadDialog(
                             Icon(
                                 imageVector = Icons.More,
                                 contentDescription = stringResource(R.string.download_settings_title),
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(22.dp),
                             )
                         }

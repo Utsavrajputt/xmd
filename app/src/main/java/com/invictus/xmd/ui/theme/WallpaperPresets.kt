@@ -259,19 +259,7 @@ private fun DrawScope.drawOcean() {
 private fun DrawScope.drawMidnight() {
     sky(0f to c(0xFF02030A), 0.6f to c(0xFF0A1030), 1f to c(0xFF1B1146))
     glow(c(0xFF4F46E5), 0.3f, 0.75f, 1.0f, 0.28f)
-    glow(c(0xFFC7D2FE), 0.74f, 0.2f, 0.55f, 0.30f)
     stars(8, 220, 0.8f)
-    val moon = Offset(size.width * 0.74f, size.height * 0.2f)
-    val r = size.width * 0.065f
-    drawCircle(
-        Brush.radialGradient(
-            listOf(c(0xFFFFFFFF), c(0xFFDDE3FF)),
-            center = Offset(moon.x - r * 0.3f, moon.y - r * 0.3f),
-            radius = r * 1.5f,
-        ),
-        radius = r,
-        center = moon,
-    )
     hills(0.90f, 0.03f, 0.7f, 1.0f, c(0xFF0B0F26), c(0xFF03040C))
     grain()
 }

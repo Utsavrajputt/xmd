@@ -501,6 +501,7 @@ fun DownloadsScreen(
                             Icon(
                                 imageVector = Icons.More,
                                 contentDescription = stringResource(R.string.action_more),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         DropdownMenu(
