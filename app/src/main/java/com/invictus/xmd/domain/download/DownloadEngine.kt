@@ -39,6 +39,8 @@ private const val SMART_MIN_CHUNK_BYTES = 2L * 1024 * 1024
 private const val SMART_CHUNKS_PER_THREAD = 4
 private const val SMART_MAX_CHUNKS = 96
 private const val PROGRESS_THROTTLE_NANOS = 200_000_000L // ~5 UI updates/sec
+private const val META_WRITE_INTERVAL_NANOS = 2_000_000_000L // sidecar is fsynced, so write it every ~2s
+private const val DURABLE_SYNC_INTERVAL_SEC = 3L // background fsync + sidecar cadence
 private val EXPIRED_LINK_CODES = setOf(401, 403, 404, 410)
 // Server-side throttling (not a dead link): too many simultaneous connections
 // from one client, or the host asking us to slow down.
@@ -118,7 +120,13 @@ class DownloadEngine(
      * serialized to the sidecar file -- @Volatile keeps that read from
      * seeing a stale value without needing a full lock.
      */
-    private data class SegmentState(val start: Long, val end: Long, @Volatile var done: Long = 0L)
+    private data class SegmentState(val start: Long, val end: Long, @Volatile var done: Long = 0L) {
+        /** Bytes of this segment known to be fsynced to disk. The sidecar records THIS,
+         *  not [done]: after an unclean stop (phone restart/crash) the file only
+         *  holds what was really flushed, so a sidecar claiming more would resume
+         *  past a hole (corrupt file) or, if it can't be trusted, restart from 0. */
+        @Volatile var durable: Long = done
+    }
 
     private data class PersistedMultiState(val url: String, val total: Long, val segments: List<SegmentState>)
 
@@ -126,6 +134,7 @@ class DownloadEngine(
     private val lastMetaWriteNanos = AtomicLong(0L)
 
     private fun metaFile(destination: File) = File(destination.parentFile, destination.name + ".xmdparts")
+    private fun metaBackupFile(destination: File) = File(destination.parentFile, destination.name + ".xmdparts.bak")
 
     /**
      * Writes current per-segment progress next to the destination file so a
@@ -144,13 +153,26 @@ class DownloadEngine(
                 val arr = JSONArray()
                 segments.forEach { seg ->
                     arr.put(JSONObject().apply {
-                        put("start", seg.start); put("end", seg.end); put("done", seg.done)
+                        put("start", seg.start); put("end", seg.end); put("done", seg.durable)
                     })
                 }
                 obj.put("segments", arr)
-                val tmp = File(destination.parentFile, metaFile(destination).name + ".tmp")
-                tmp.writeText(obj.toString())
-                tmp.renameTo(metaFile(destination))
+                val meta = metaFile(destination)
+                val tmp = File(destination.parentFile, meta.name + ".tmp")
+                // fsync the new sidecar BEFORE it replaces the old one: a plain
+                // write+rename can leave a 0-byte sidecar after a phone restart,
+                // which made the resume throw the whole partial file away.
+                java.io.FileOutputStream(tmp).use { out ->
+                    out.write(obj.toString().toByteArray())
+                    out.fd.sync()
+                }
+                // Keep the previous good sidecar as a backup (read falls back to it).
+                if (meta.isFile) {
+                    val bak = metaBackupFile(destination)
+                    bak.delete()
+                    meta.renameTo(bak)
+                }
+                tmp.renameTo(meta)
             }
         }
     }
@@ -161,7 +183,7 @@ class DownloadEngine(
     private fun maybeWriteSegmentMeta(write: () -> Unit) {
         val now = System.nanoTime()
         val last = lastMetaWriteNanos.get()
-        if (now - last < PROGRESS_THROTTLE_NANOS) return
+        if (now - last < META_WRITE_INTERVAL_NANOS) return
         if (lastMetaWriteNanos.compareAndSet(last, now)) write()
     }
 
@@ -171,8 +193,11 @@ class DownloadEngine(
      * destination file's size no longer matches what it describes (any of
      * which mean it's stale/untrustworthy and a fresh start is safer).
      */
-    private fun readPersistedMultiState(destination: File): PersistedMultiState? {
-        val file = metaFile(destination)
+    private fun readPersistedMultiState(destination: File): PersistedMultiState? =
+        readPersistedMultiStateFrom(destination, metaFile(destination))
+            ?: readPersistedMultiStateFrom(destination, metaBackupFile(destination))
+
+    private fun readPersistedMultiStateFrom(destination: File, file: File): PersistedMultiState? {
         if (!file.isFile) return null
         return try {
             val obj = JSONObject(file.readText())
@@ -193,6 +218,8 @@ class DownloadEngine(
 
     private fun deleteSegmentMeta(destination: File) {
         runCatching { metaFile(destination).delete() }
+        runCatching { metaBackupFile(destination).delete() }
+        runCatching { File(destination.parentFile, metaFile(destination).name + ".tmp").delete() }
     }
 
     // ── Rate limiter (unchanged) ──────────────────────────────────────────
@@ -479,7 +506,7 @@ class DownloadEngine(
             downloadMultiWithFallback(url, destination, resumable.total, resumable.segments, resumeThreads)
             return
         }
-        if (metaFile(destination).isFile) {
+        if (metaFile(destination).isFile || metaBackupFile(destination).isFile) {
             // A sidecar exists but readPersistedMultiState still rejected it --
             // corrupt JSON, or destination's on-disk length no longer matches
             // the recorded total (e.g. something else touched the file).
@@ -724,14 +751,30 @@ class DownloadEngine(
         val speedMeter = SpeedMeter()
         val failure    = AtomicReference<Exception?>(null)
         val executor   = Executors.newFixedThreadPool(maxConcurrent.coerceIn(1, pending.size))
+        // Crash-safe resume state WITHOUT slowing the download: one background
+        // thread snapshots every segment's progress, fsyncs the file (an fsync flushes
+        // every dirty page of the file, whichever fd wrote it), and only then records
+        // the snapshot as durable in the sidecar. Segment threads keep writing to the
+        // page cache and never wait for the disk. Also runs while paused.
+        val syncer = Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "xmd-durable-sync").apply { isDaemon = true }
+        }
+        syncer.scheduleWithFixedDelay({
+            runCatching {
+                val snapshot = LongArray(segments.size) { segments[it].done }
+                RandomAccessFile(destination, "rw").use { it.fd.sync() }
+                segments.forEachIndexed { i, seg -> if (snapshot[i] > seg.durable) seg.durable = snapshot[i] }
+                writeSegmentMeta(destination, url, totalSize, segments)
+            }
+        }, DURABLE_SYNC_INTERVAL_SEC, DURABLE_SYNC_INTERVAL_SEC, java.util.concurrent.TimeUnit.SECONDS)
 
         try {
             val futures = pending.map { seg ->
                 executor.submit {
                     try {
-                        downloadRangeWithRetry(url, destination, seg, doneCounter, totalSize, speedMeter) {
-                            maybeWriteSegmentMeta { writeSegmentMeta(destination, url, totalSize, segments) }
-                        }
+                        // Download threads never touch the disk for bookkeeping: the
+                        // durable-sync thread above flushes data and writes the sidecar.
+                        downloadRangeWithRetry(url, destination, seg, doneCounter, totalSize, speedMeter) { }
                     } catch (e: Exception) {
                         failure.compareAndSet(null, e)
                         cancel()
@@ -741,6 +784,13 @@ class DownloadEngine(
             futures.forEach { it.get() }
         } finally {
             executor.shutdownNow()
+            syncer.shutdownNow()
+            // One last flush now that every segment thread has stopped, so the
+            // final snapshot can claim everything that was written.
+            runCatching {
+                RandomAccessFile(destination, "rw").use { it.fd.sync() }
+                segments.forEach { it.durable = it.done }
+            }
             // Always snapshot final per-segment state, success or failure --
             // this is what a subsequent downloadAuto() resumes from.
             writeSegmentMeta(destination, url, totalSize, segments)
