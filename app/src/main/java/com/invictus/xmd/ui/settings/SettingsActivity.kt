@@ -275,6 +275,10 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenYoutube = { selectedRoute = Route.YOUTUBE },
                                 onOpenAbout = { selectedRoute = Route.ABOUT },
                                 onOpenProfile = { selectedRoute = Route.PROFILE },
+                                onOpenStatusSaver = {
+                                    context.startActivity(android.content.Intent(context, com.invictus.xmd.ui.status.StatusSaverActivity::class.java))
+                                },
+                                onOpenStorage = { selectedRoute = Route.STORAGE },
                             )
                         }
                     }
@@ -315,6 +319,7 @@ class SettingsActivity : ComponentActivity() {
                                     onLibrariesClick = { selectedRoute = Route.LIBRARIES },
                                 )
                                 Route.LIBRARIES -> LibrariesRoute()
+                                Route.STORAGE -> SettingsStorageScreen()
                                 else -> AppearanceRoute()
                             }
                         }
@@ -368,6 +373,10 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenYoutube = { navController.navigate(Route.YOUTUBE) },
                                 onOpenAbout = { navController.navigate(Route.ABOUT) },
                                 onOpenProfile = { navController.navigate(Route.PROFILE) },
+                                onOpenStatusSaver = {
+                                    context.startActivity(android.content.Intent(context, com.invictus.xmd.ui.status.StatusSaverActivity::class.java))
+                                },
+                                onOpenStorage = { navController.navigate(Route.STORAGE) },
                             )
                         }
                         composable(Route.PROFILE) { SettingsProfileScreen() }
@@ -389,6 +398,7 @@ class SettingsActivity : ComponentActivity() {
                             )
                         }
                         composable(Route.LIBRARIES) { LibrariesRoute() }
+                        composable(Route.STORAGE) { SettingsStorageScreen() }
                     }
                 }
             }
@@ -511,6 +521,7 @@ internal object Route {
     const val YOUTUBE = "youtube"
     const val ABOUT = "about"
     const val LIBRARIES = "libraries"
+    const val STORAGE = "storage"
 }
 
 /** Route -> header title, replaces the old syncHeaderTitle()'s Fragment-type switch. */
@@ -524,6 +535,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
     Route.YOUTUBE to R.string.settings_category_youtube,
     Route.ABOUT to R.string.settings_category_about,
     Route.LIBRARIES to R.string.about_libraries_title,
+    Route.STORAGE to R.string.settings_storage_title,
 )
 
 // ── Route bodies ──────────────────────────────────────────────────────────

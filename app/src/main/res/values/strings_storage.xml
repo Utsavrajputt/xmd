@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_chip_status_saver">Status Saver</string>
+    <string name="settings_chip_storage">Storage</string>
+    <string name="settings_chip_status_saver_hint">WhatsApp statuses</string>
+    <string name="settings_chip_storage_hint">%1$s left of %2$s</string>
+
+    <string name="storage_used_by_xmd">Used by XMD</string>
+    <string name="storage_device_free">XMD uses this • %1$s left of %2$s</string>
+    <string name="storage_videos">Videos</string>
+    <string name="storage_audio">Audio</string>
+    <string name="storage_archives_apps">Archives &amp; apps</string>
+    <string name="storage_other_downloads">Other downloads</string>
+    <string name="storage_status_saved">Saved statuses</string>
+    <string name="storage_app_data">App data</string>
+    <string name="storage_network_cache">Network cache</string>
+    <string name="storage_browser_cache">Browser cache</string>
+    <string name="storage_temporary">Temporary files</string>
+    <string name="storage_caches">Caches</string>
+    <string name="storage_network_cache_desc">DNS-over-HTTPS responses cached by the browser</string>
+    <string name="storage_browser_cache_desc">Web pages, images and scripts cached while browsing</string>
+    <string name="storage_temporary_desc">Torrent metadata and other short-lived files</string>
+    <string name="storage_clear">Clear</string>
+    <string name="storage_clear_all">Clear all caches</string>
+    <string name="storage_clear_all_desc">Network, browser and temporary files together</string>
+    <string name="storage_clear_all_confirm">Downloads, saved statuses and your settings are not touched.</string>
+    <string name="storage_freed">Freed %1$s</string>
+    <string name="storage_nothing_to_clear">Nothing to clear</string>
+    <string name="storage_open_app_info">App info</string>
+    <string name="storage_open_app_info_desc">Open Android\'s storage and permission settings for XMD</string>
+</resources>

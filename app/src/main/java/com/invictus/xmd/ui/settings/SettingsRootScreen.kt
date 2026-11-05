@@ -24,6 +24,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -58,6 +60,8 @@ fun SettingsRootScreen(
     onOpenYoutube: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenProfile: () -> Unit = {},
+    onOpenStatusSaver: () -> Unit = {},
+    onOpenStorage: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -72,7 +76,10 @@ fun SettingsRootScreen(
         ) {
             ProfileHeaderCard(
                 isSelected = selectedRoute == Route.PROFILE,
+                storageSelected = selectedRoute == Route.STORAGE,
                 onClick = onOpenProfile,
+                onOpenStatusSaver = onOpenStatusSaver,
+                onOpenStorage = onOpenStorage,
             )
             Spacer(Modifier.height(16.dp))
 
@@ -214,49 +221,155 @@ fun SettingsRootScreen(
     }
 }
 
-/** Top-of-Settings profile hero: avatar + name over the themed background, tap to open the Profile page. */
+/** Top-of-Settings profile hero: avatar + name over the themed background, tap to open the Profile page.
+ *  Two quick-action chips (Status Saver, Storage) sit along its bottom edge. */
 @Composable
-private fun ProfileHeaderCard(isSelected: Boolean, onClick: () -> Unit) {
+private fun ProfileHeaderCard(
+    isSelected: Boolean,
+    storageSelected: Boolean,
+    onClick: () -> Unit,
+    onOpenStatusSaver: () -> Unit,
+    onOpenStorage: () -> Unit,
+) {
     val name = Profile.name().trim()
     val heroText = androidx.compose.ui.graphics.Color.White
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val (freeBytes, totalBytes) = androidx.compose.runtime.remember {
+        com.invictus.xmd.domain.storage.StorageStatsRepository.deviceSpace()
+    }
+    val storageHint = if (totalBytes > 0L) {
+        stringResource(
+            R.string.settings_chip_storage_hint,
+            com.invictus.xmd.utils.formatBytes(freeBytes),
+            com.invictus.xmd.utils.formatBytes(totalBytes),
+        )
+    } else {
+        ""
+    }
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .profileHeroBackground()
             .then(
                 if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, XmdShapes.L)
                 else Modifier
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 22.dp),
+            ),
     ) {
-        ProfileAvatar(
-            size = 60.dp,
-            modifier = Modifier.border(2.dp, heroText.copy(alpha = 0.55f), CircleShape),
-        )
-        Spacer(Modifier.width(16.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 16.dp),
+        ) {
+            ProfileAvatar(
+                size = 60.dp,
+                modifier = Modifier.border(2.dp, heroText.copy(alpha = 0.55f), CircleShape),
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (name.isEmpty()) stringResource(R.string.settings_profile_setup_title) else name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = heroText,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(
+                        if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_edit_desc
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = heroText.copy(alpha = 0.78f),
+                )
+            }
+            Icon(
+                imageVector = Icons.ChevronRight,
+                contentDescription = null,
+                tint = heroText.copy(alpha = 0.78f),
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            HeroChip(
+                icon = Icons.WhatsApp,
+                accent = androidx.compose.ui.graphics.Color(0xFF25D366),
+                title = stringResource(R.string.settings_chip_status_saver),
+                hint = stringResource(R.string.settings_chip_status_saver_hint),
+                selected = false,
+                onClick = onOpenStatusSaver,
+                modifier = Modifier.weight(1f),
+            )
+            HeroChip(
+                icon = Icons.PieChart,
+                accent = androidx.compose.ui.graphics.Color(0xFFFFB300),
+                title = stringResource(R.string.settings_chip_storage),
+                hint = storageHint,
+                selected = storageSelected,
+                onClick = onOpenStorage,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** Frosted pill inside the hero: coloured icon badge + title + hint, white text over the themed sky. */
+@Composable
+private fun HeroChip(
+    icon: com.invictus.xmd.ui.icons.AppIcon,
+    accent: androidx.compose.ui.graphics.Color,
+    title: String,
+    hint: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val white = androidx.compose.ui.graphics.Color.White
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(XmdShapes.M)
+            .background(white.copy(alpha = if (selected) 0.26f else 0.14f))
+            .border(1.dp, white.copy(alpha = if (selected) 0.5f else 0.18f), XmdShapes.M)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(accent.copy(alpha = 0.22f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = if (name.isEmpty()) stringResource(R.string.settings_profile_setup_title) else name,
-                style = MaterialTheme.typography.titleLarge,
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = heroText,
+                color = white,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             )
-            Text(
-                text = stringResource(
-                    if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_edit_desc
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = heroText.copy(alpha = 0.78f),
-            )
+            if (hint.isNotEmpty()) {
+                Text(
+                    text = hint,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
+                    color = white.copy(alpha = 0.78f),
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
         }
-        Icon(
-            imageVector = Icons.ChevronRight,
-            contentDescription = null,
-            tint = heroText.copy(alpha = 0.78f),
-        )
     }
 }
