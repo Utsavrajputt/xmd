@@ -333,8 +333,15 @@ private fun HeroChip(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .clip(XmdShapes.M)
-            .background(white.copy(alpha = if (selected) 0.26f else 0.14f))
-            .border(1.dp, white.copy(alpha = if (selected) 0.5f else 0.18f), XmdShapes.M)
+            .background(
+                if (selected) androidx.compose.ui.graphics.Color(0xFF0E3386).copy(alpha = 0.90f)
+                else androidx.compose.ui.graphics.Color(0xFF081C4F).copy(alpha = 0.62f)
+            )
+            .border(
+                1.dp,
+                androidx.compose.ui.graphics.Color(0xFF2DB3FF).copy(alpha = if (selected) 0.70f else 0.32f),
+                XmdShapes.M,
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 10.dp),
     ) {

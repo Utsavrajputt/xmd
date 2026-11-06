@@ -50,23 +50,31 @@ private val HeroDots = listOf(
     HeroDot(0.07f, 0.40f, 1.3f, 0.35f, 0.05f),
 )
 
+// Colours sampled from the reference artwork (Aurora hero banner).
+private val HeroSkyLeft = Color(0xFF081C4F)
+private val HeroSkyMid = Color(0xFF08132C)
+private val HeroSkyRight = Color(0xFF091B40)
+private val HeroBottomLift = Color(0xFF0B2457)
+private val HeroWaveLight = Color(0xFF0E3386)
+private val HeroWaveDark = Color(0xFF07256D)
+private val HeroWaveEdge = Color(0xFF1B4FC0)
+private val HeroPlanetInner = Color(0xFF051E51)
+private val HeroRimDeep = Color(0xFF1142C3)
+private val HeroRimBlue = Color(0xFF1685FD)
+private val HeroCyan = Color(0xFF2ED7FE)
+private val HeroLine = Color(0xFF2DB3FF)
+private val HeroLineBright = Color(0xFF38D3FF)
+private val HeroDotBright = Color(0xFF43D9FF)
+
 /**
- * Profile hero background, drawn entirely in code: a dark sky, layered
- * translucent waves, a glowing planet on the right, one bright curve crossing
- * it and twinkling dots. All colours come from the current theme's
- * colour scheme, so it follows every theme (Aurora gives the deep-blue look);
- * light themes get a dark, tinted version so white text stays readable.
- * Clips itself to [cornerRadius].
+ * Profile hero background, drawn entirely in code from the reference artwork's
+ * exact colours: a navy sky, two soft left waves, ONE planet on the right with a
+ * bright blue-to-cyan rim, a thin glow curve across it and twinkling dots.
+ * No black fade at the bottom -- it lifts to the reference's blue instead, so the
+ * chip row sits on calm blue. Clips itself to [cornerRadius].
  */
 @Composable
 fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
-    val cs = MaterialTheme.colorScheme
-    val isDark = cs.background.luminance() < 0.5f
-    val base = if (isDark) lerp(cs.background, cs.primary, 0.16f) else lerp(cs.primary, Color.Black, 0.62f)
-    val accent = if (isDark) cs.primary else lerp(cs.primary, Color.White, 0.30f)
-    val bright = lerp(accent, Color.White, 0.28f)
-    val deep = lerp(base, Color.Black, 0.40f)
-
     val twinkle = rememberInfiniteTransition(label = "heroTwinkle").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -80,23 +88,23 @@ fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
             val w = size.width
             val h = size.height
 
-            // Sky: deep corner top-left fading to the theme tint, plus a soft glow.
+            // Sky: left blue -> dark centre -> right navy, then a blue lift at the bottom.
             drawRect(
-                Brush.linearGradient(
-                    colors = listOf(deep, base),
-                    start = Offset(0f, 0f),
-                    end = Offset(w, h),
+                Brush.horizontalGradient(
+                    0f to HeroSkyLeft,
+                    0.45f to HeroSkyMid,
+                    1f to HeroSkyRight,
                 ),
             )
             drawRect(
-                Brush.radialGradient(
-                    colors = listOf(accent.copy(alpha = 0.22f), Color.Transparent),
-                    center = Offset(w * 0.10f, h * 0.10f),
-                    radius = w * 0.55f,
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, HeroBottomLift.copy(alpha = 0.85f)),
+                    startY = h * 0.45f,
+                    endY = h,
                 ),
             )
 
-            // Wave A: left ribbon sweeping down.
+            // Wave A: lighter ribbon sweeping down the left.
             val waveATop = Path().apply {
                 moveTo(0f, h * 0.40f)
                 cubicTo(w * 0.20f, h * 0.44f, w * 0.30f, h * 0.82f, w * 0.56f, h * 0.94f)
@@ -107,10 +115,10 @@ fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
                 lineTo(0f, h)
                 close()
             }
-            drawPath(waveAFill, accent.copy(alpha = 0.17f))
-            drawPath(waveATop, accent.copy(alpha = 0.38f), style = Stroke(1.dp.toPx()))
+            drawPath(waveAFill, HeroWaveLight.copy(alpha = 0.55f))
+            drawPath(waveATop, HeroWaveEdge.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
 
-            // Wave B: wide hill across the middle.
+            // Wave B: darker hill across the middle.
             val waveBTop = Path().apply {
                 moveTo(w * 0.10f, h)
                 cubicTo(w * 0.22f, h * 0.38f, w * 0.52f, h * 0.30f, w * 0.80f, h * 0.80f)
@@ -120,89 +128,71 @@ fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
                 lineTo(w * 0.80f, h)
                 close()
             }
-            drawPath(waveBFill, accent.copy(alpha = 0.11f))
-            drawPath(waveBTop, accent.copy(alpha = 0.22f), style = Stroke(1.dp.toPx()))
+            drawPath(waveBFill, HeroWaveDark.copy(alpha = 0.55f))
+            drawPath(waveBTop, HeroWaveEdge.copy(alpha = 0.30f), style = Stroke(1.dp.toPx()))
 
-            // Wave C: soft hill behind the planet.
-            val waveC = Path().apply {
-                moveTo(w * 0.56f, h)
-                cubicTo(w * 0.66f, h * 0.56f, w * 0.80f, h * 0.36f, w * 0.96f, h * 0.34f)
-                lineTo(w * 0.96f, h)
-                close()
-            }
-            drawPath(waveC, accent.copy(alpha = 0.10f))
-
-            // Planet: big circle on the right, lit from the top-left.
-            val r = h * 1.30f
-            val c = Offset(w * 0.93f, h * 1.0f)
+            // The planet (only one): its left rim crosses the top edge at ~77% of the width
+            // and the bottom edge at ~60%. Dark inside, lit along the rim.
+            val r = h * 0.95f
+            val c = Offset(w * 1.02f, h * 0.78f)
             drawCircle(
                 brush = Brush.radialGradient(
-                    0.80f to Color.Transparent,
-                    0.93f to accent.copy(alpha = 0.30f),
-                    1f to Color.Transparent,
-                    center = c,
-                    radius = r * 1.25f,
-                ),
-                radius = r * 1.25f,
-                center = c,
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    0f to bright.copy(alpha = 0.95f),
-                    0.45f to accent.copy(alpha = 0.60f),
-                    1f to base.copy(alpha = 0f),
-                    center = Offset(c.x - r * 0.45f, c.y - r * 0.55f),
-                    radius = r * 1.35f,
+                    0f to HeroRimBlue.copy(alpha = 0.80f),
+                    0.45f to HeroRimDeep.copy(alpha = 0.50f),
+                    1f to HeroPlanetInner.copy(alpha = 0f),
+                    center = Offset(c.x - r * 0.62f, c.y - r * 0.72f),
+                    radius = r * 1.0f,
                 ),
                 radius = r,
                 center = c,
             )
             drawCircle(
                 brush = Brush.linearGradient(
-                    colors = listOf(bright.copy(alpha = 0.9f), Color.Transparent),
-                    start = Offset(c.x - r, c.y - r),
-                    end = Offset(c.x, c.y),
+                    colors = listOf(HeroRimDeep, HeroCyan, HeroRimBlue, Color.Transparent),
+                    start = Offset(c.x - r, c.y - r * 0.2f),
+                    end = Offset(c.x - r * 0.2f, c.y + r * 0.6f),
                 ),
                 radius = r,
                 center = c,
                 style = Stroke(1.6.dp.toPx()),
             )
 
-            // Glow curve crossing the whole card.
+            // Thin glow curve from the left edge up to the top-right.
             val line = Path().apply {
-                moveTo(-w * 0.02f, h * 0.93f)
-                cubicTo(w * 0.35f, h * 1.02f, w * 0.68f, h * 0.72f, w * 1.02f, h * 0.14f)
+                moveTo(-w * 0.02f, h * 0.50f)
+                cubicTo(w * 0.30f, h * 0.60f, w * 0.62f, h * 0.50f, w * 1.02f, h * 0.10f)
             }
             drawPath(
                 line,
                 Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, bright.copy(alpha = 0.22f), bright.copy(alpha = 0.30f)),
+                    colors = listOf(Color.Transparent, HeroLine.copy(alpha = 0.14f), HeroLineBright.copy(alpha = 0.26f)),
                     startX = 0f,
                     endX = w,
                 ),
-                style = Stroke(6.dp.toPx(), cap = StrokeCap.Round),
+                style = Stroke(5.dp.toPx(), cap = StrokeCap.Round),
             )
             drawPath(
                 line,
                 Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, bright.copy(alpha = 0.9f), bright),
+                    colors = listOf(Color.Transparent, HeroLine, HeroLineBright),
                     startX = 0f,
                     endX = w,
                 ),
-                style = Stroke(1.8.dp.toPx(), cap = StrokeCap.Round),
+                style = Stroke(1.4.dp.toPx(), cap = StrokeCap.Round),
             )
 
-            // Twinkling dots.
+            // Twinkling dots (upper part only).
             val t = twinkle.value
             HeroDots.forEach { dot ->
                 val pulse = 0.65f + 0.35f * sin(2.0 * PI * (t + dot.phase)).toFloat()
                 val a = (dot.alpha * pulse).coerceIn(0f, 1f)
-                val center = Offset(w * dot.x, h * dot.y)
+                val center = Offset(w * dot.x, h * dot.y * 0.60f)
                 val rad = dot.radiusDp.dp.toPx()
+                val tint = if (dot.glow) HeroDotBright else HeroLine
                 if (dot.glow) {
-                    drawCircle(bright.copy(alpha = a * 0.28f), radius = rad * 3.2f, center = center)
+                    drawCircle(tint.copy(alpha = a * 0.28f), radius = rad * 3.2f, center = center)
                 }
-                drawCircle(bright.copy(alpha = a), radius = rad, center = center)
+                drawCircle(tint.copy(alpha = a), radius = rad, center = center)
             }
         }
 }
