@@ -208,6 +208,12 @@ object ShortcutRepository {
         updated.forEach { s -> runCatching { dao.upsert(s) } }
     }
 
+    /** Account restore: replaces every speed-dial tile with [list]. */
+    suspend fun replaceAll(list: List<Shortcut>) = withContext(Dispatchers.IO) {
+        dao.getAll().forEach { dao.delete(it) }
+        list.forEach { dao.upsert(it) }
+    }
+
     suspend fun count(): Int = withContext(Dispatchers.IO) {
         runCatching { dao.getAll() }.getOrDefault(emptyList()).size
     }

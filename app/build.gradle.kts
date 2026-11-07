@@ -28,6 +28,15 @@ android {
         // every other build). The Preview update channel compares it with the
         // newest successful run of that workflow.
         buildConfigField("int", "PREVIEW_RUN", "0")
+
+        // Client id of the GitHub OAuth App behind "Sign in with GitHub" (device flow, used to
+        // back settings up to a private Gist). It is a public identifier, not a secret. Set it
+        // with -PXMD_GITHUB_CLIENT_ID=... or the XMD_GITHUB_CLIENT_ID env var / CI variable;
+        // empty = the sign-in card tells the user it isn't set up in this build.
+        val githubClientId = (project.findProperty("XMD_GITHUB_CLIENT_ID") as String?)
+            ?: System.getenv("XMD_GITHUB_CLIENT_ID")
+            ?: ""
+        buildConfigField("String", "GITHUB_CLIENT_ID", "\"${githubClientId.trim()}\"")
     }
 
     // Two flavors instead of one do-everything APK:

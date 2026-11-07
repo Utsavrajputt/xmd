@@ -55,6 +55,8 @@ jobs:
 
       - name: Build unsigned release APK
         shell: bash
+        env:
+          XMD_GITHUB_CLIENT_ID: ${{ secrets.XMD_GITHUB_CLIENT_ID }}
         run: ./gradlew assembleRelease --stacktrace --no-daemon
 
       - name: Sign and verify release APKs

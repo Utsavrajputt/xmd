@@ -1002,4 +1002,73 @@ object Settings {
         if (value !in TabId.PAGES) return
         prefs.edit().putString(KEY_DEFAULT_TAB, value).apply()
     }
+
+    // ── Account backup (see domain/account) ─────────────────────────────
+
+    /** Keys that describe this device or app run rather than the user's choices -- never backed up. */
+    private val BACKUP_EXCLUDED_KEYS = setOf(
+        "onboarding_completed", "default_save_location_path", "profile_name",
+        "ytdlp_installed", "ytdlp_last_update_ms", "ytdlp_version",
+    )
+    private val BACKUP_EXCLUDED_PREFIXES = listOf(
+        "data_usage_", "browser_adblock_remote_", "fmhy_last_", "shortcut_redirected_",
+    )
+
+    private fun isBackupKey(key: String): Boolean =
+        key !in BACKUP_EXCLUDED_KEYS && BACKUP_EXCLUDED_PREFIXES.none { key.startsWith(it) }
+
+    /** Every user-facing preference as {key: {t: type, v: value}}. A picked wallpaper file is device-local, so it is skipped. */
+    fun exportPrefsForBackup(): org.json.JSONObject {
+        val out = org.json.JSONObject()
+        for ((key, value) in prefs.all) {
+            if (!isBackupKey(key) || value == null) continue
+            if (key == KEY_WALLPAPER_URI && (value as? String)?.startsWith("file:") == true) continue
+            val entry = org.json.JSONObject()
+            when (value) {
+                is Boolean -> entry.put("t", "b").put("v", value)
+                is Int -> entry.put("t", "i").put("v", value)
+                is Long -> entry.put("t", "l").put("v", value)
+                is Float -> entry.put("t", "f").put("v", value.toDouble())
+                is String -> entry.put("t", "s").put("v", value)
+                is Set<*> -> entry.put("t", "set").put("v", org.json.JSONArray(value.filterIsInstance<String>()))
+                else -> continue
+            }
+            out.put(key, entry)
+        }
+        return out
+    }
+
+    /** Applies [json] from [exportPrefsForBackup]; returns how many preferences were written. */
+    fun importPrefsFromBackup(json: org.json.JSONObject): Int {
+        val editor = prefs.edit()
+        var count = 0
+        for (key in json.keys()) {
+            if (!isBackupKey(key)) continue
+            val entry = json.optJSONObject(key) ?: continue
+            when (entry.optString("t")) {
+                "b" -> editor.putBoolean(key, entry.getBoolean("v"))
+                "i" -> editor.putInt(key, entry.getInt("v"))
+                "l" -> editor.putLong(key, entry.getLong("v"))
+                "f" -> editor.putFloat(key, entry.getDouble("v").toFloat())
+                "s" -> {
+                    val v = entry.getString("v")
+                    if (key == KEY_WALLPAPER_URI && v.startsWith("file:")) continue
+                    editor.putString(key, v)
+                }
+                "set" -> {
+                    val arr = entry.getJSONArray("v")
+                    editor.putStringSet(key, (0 until arr.length()).mapTo(HashSet()) { arr.getString(it) })
+                }
+                else -> continue
+            }
+            count++
+        }
+        editor.apply()
+        // Re-publish the values the UI observes live.
+        _themeFlow.value = appTheme()
+        _darkModeFlow.value = isDarkMode()
+        _amoledModeFlow.value = isAmoledMode()
+        _wallpaperFlow.value = wallpaper()
+        return count
+    }
 }

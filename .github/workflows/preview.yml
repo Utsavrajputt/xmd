@@ -58,6 +58,8 @@ jobs:
       # build.gradle.kts reads GITHUB_RUN_NUMBER into BuildConfig.PREVIEW_RUN;
       # the app compares it with the newest successful run of this workflow.
       - name: Build preview APKs
+        env:
+          XMD_GITHUB_CLIENT_ID: ${{ secrets.XMD_GITHUB_CLIENT_ID }}
         run: ./gradlew assemblePreview --stacktrace --no-daemon --max-workers=2
 
       - name: Sign and verify preview APKs

@@ -63,6 +63,17 @@ object BookmarkRepository {
         scope.launch { runCatching { dao.clearAll() } }
     }
 
+    /** Snapshot for account backup. */
+    suspend fun allBookmarks(): List<Bookmark> = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        runCatching { dao.getAll() }.getOrDefault(emptyList())
+    }
+
+    /** Account restore: replaces every bookmark with [list]. */
+    suspend fun replaceAll(list: List<Bookmark>) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        dao.clearAll()
+        list.forEach { dao.upsert(it) }
+    }
+
     private fun hostOf(url: String): String =
         runCatching { java.net.URI(url).host }.getOrNull() ?: url
 }

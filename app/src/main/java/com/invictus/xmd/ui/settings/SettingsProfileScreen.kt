@@ -210,5 +210,7 @@ fun SettingsProfileScreen() {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        Spacer(Modifier.height(12.dp))
+        SettingsAccountSection()
     }
 }

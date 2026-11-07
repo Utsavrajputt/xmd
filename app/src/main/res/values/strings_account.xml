@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_title">Backup account</string>
+    <string name="account_signed_out_title">Sign in to back up settings</string>
+    <string name="account_signed_out_hint">Sign in with GitHub to keep your settings, profile and bookmarks safe in a private Gist. Used only for backup.</string>
+    <string name="account_sign_in">Sign in with GitHub</string>
+    <string name="account_not_configured">GitHub sign-in is not set up in this build.</string>
+    <string name="account_code_title">Enter this code on GitHub</string>
+    <string name="account_code_hint">Open github.com/login/device, enter the code and approve. This window closes by itself.</string>
+    <string name="account_code_copy">Copy code</string>
+    <string name="account_code_open">Open GitHub</string>
+    <string name="account_cancel">Cancel</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_what_to_back_up">What to back up</string>
+    <string name="account_opt_settings">App settings</string>
+    <string name="account_opt_profile">Profile (name and photo)</string>
+    <string name="account_opt_bookmarks">Bookmarks and shortcuts</string>
+    <string name="account_backup_now">Backup now</string>
+    <string name="account_restore">Restore</string>
+    <string name="account_last_backup">Last backup: %1$s</string>
+    <string name="account_never_backed_up">No backup from this device yet</string>
+    <string name="account_backup_done">Backup saved to GitHub</string>
+    <string name="account_restore_title">Restore backup?</string>
+    <string name="account_restore_message">The selected parts on this device will be replaced by your backup. Some settings apply after restarting XMD.</string>
+    <string name="account_restore_done">Restored. Restart XMD to apply everything.</string>
+    <string name="account_signed_in_as">Signed in as @%1$s</string>
+</resources>
