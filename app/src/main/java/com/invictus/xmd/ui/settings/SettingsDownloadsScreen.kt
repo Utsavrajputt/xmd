@@ -263,6 +263,13 @@ private fun AutoClearRow(
                 modifier = Modifier.fillMaxWidth(),
                 shape = XmdShapes.Xs,
             ) {
+                com.invictus.xmd.ui.icons.Icon(
+                    imageVector = com.invictus.xmd.ui.icons.Icons.AutoDelete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(autoClearLabel(mode), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             }
             DropdownMenu(
@@ -320,6 +327,13 @@ private fun DataLimitScopeRow(
                 modifier = Modifier.fillMaxWidth(),
                 shape = XmdShapes.Xs,
             ) {
+                com.invictus.xmd.ui.icons.Icon(
+                    imageVector = com.invictus.xmd.ui.icons.Icons.DataUsage,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(dataLimitScopeLabel(scope), modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             }
             DropdownMenu(

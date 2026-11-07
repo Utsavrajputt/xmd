@@ -322,11 +322,13 @@ fun AddDownloadDialog(
     val sponsorSubsToggles: @Composable () -> Unit = {
         DialogToggleRow(
             title = stringResource(R.string.download_dialog_sponsorblock_title),
+            icon = Icons.Shield,
             checked = sponsorBlockOn,
             onCheckedChange = { sponsorBlockOn = it },
         )
         DialogToggleRow(
             title = stringResource(R.string.download_dialog_subtitles_title),
+            icon = Icons.Subtitles,
             checked = subtitlesOn && finalQualityOption?.isAudioOnly != true,
             enabled = finalQualityOption?.isAudioOnly != true,
             onCheckedChange = { subtitlesOn = it },
@@ -1387,6 +1389,7 @@ private fun formatPlaylistEntryDuration(durationSeconds: Int?): String? {
 @Composable
 private fun DialogToggleRow(
     title: String,
+    icon: com.invictus.xmd.ui.icons.AppIcon? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -1401,6 +1404,16 @@ private fun DialogToggleRow(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Leading accent icon, same look as the Save to / Schedule rows.
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = dimAlpha),
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.labelMedium,
