@@ -16,6 +16,8 @@
     <string name="storage_network_cache">Network cache</string>
     <string name="storage_browser_cache">Browser cache</string>
     <string name="storage_temporary">Temporary files</string>
+    <string name="storage_leftover_partials">Leftover partial files</string>
+    <string name="storage_leftover_partials_desc">Unfinished download data and resume files of cancelled or removed downloads</string>
     <string name="storage_caches">Caches</string>
     <string name="storage_network_cache_desc">DNS-over-HTTPS responses cached by the browser</string>
     <string name="storage_browser_cache_desc">Web pages, images and scripts cached while browsing</string>

@@ -36,6 +36,7 @@ import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.domain.download.DownloadValidationException
 import com.invictus.xmd.domain.download.IncompleteFileUtil
+import com.invictus.xmd.domain.download.PartialFileCleaner
 import com.invictus.xmd.domain.download.DownloadScheduler
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.MediaPlatform
@@ -660,6 +661,9 @@ class DownloadService : LifecycleService() {
                     current.status != ItemStatus.DONE && current.status != ItemStatus.FAILED &&
                     current.status != ItemStatus.READY
                 ) {
+                    // Nothing was running, so nothing else will remove the half-written
+                    // part file + resume sidecars -- do it here (off the main thread).
+                    Thread { PartialFileCleaner.cleanupItem(current) }.start()
                     QueueRepository.markFailed(id, "Cancelled")
                 }
                 updateNotification()
@@ -1242,7 +1246,7 @@ class DownloadService : LifecycleService() {
                     targetDir.listFiles { f ->
                         f != tempFile && f.name.endsWith(".xmd.part") &&
                             f.name.startsWith(realTemp.name + ".dl-")
-                    }?.forEach { runCatching { it.delete() } }
+                    }?.forEach { PartialFileCleaner.deletePartWithSidecars(it) }
                 }
                 destinationFile = tempFile
 
@@ -1277,7 +1281,7 @@ class DownloadService : LifecycleService() {
                     if (realTemp.exists()) runCatching { realTemp.delete() }
                     if (!tempFile.renameTo(realTemp)) moveToPublicStorage(tempFile, realTemp)
                     // Sidecar belongs to the part name -- drop it, download is done.
-                    File(tempFile.parentFile, tempFile.name + ".xmdparts").delete()
+                    PartialFileCleaner.deleteSidecars(tempFile)
                     realTemp
                 }
 

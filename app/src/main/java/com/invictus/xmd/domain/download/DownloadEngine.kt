@@ -442,12 +442,13 @@ class DownloadEngine(
          */
         fun deletePartialFiles(destination: File) {
             destination.delete()
-            File(destination.parentFile, destination.name + ".xmdparts").delete()
+            // .xmdparts + its .bak backup + the .tmp used while writing.
+            PartialFileCleaner.deleteSidecars(destination)
             // Same stem, incomplete suffix (can't know the id here -- sweep).
             destination.parentFile?.listFiles { f ->
                 f.name.startsWith(destination.nameWithoutExtension.take(40)) &&
                     f.name.endsWith(".xmd.part")
-            }?.forEach { runCatching { it.delete() } }
+            }?.forEach { PartialFileCleaner.deletePartWithSidecars(it) }
             if (IncompleteFileUtil.isIncompleteFile(destination)) {
                 destination.delete()
             }

@@ -579,11 +579,19 @@ object QueueRepository {
 
     fun clearFinishedAndFailed() {
         val removedIds: List<String>
+        val removedFailed: List<QueueItem>
         synchronized(lock) {
             val (removed, kept) = master.partition { it.status == ItemStatus.DONE || it.status == ItemStatus.FAILED }
             master = kept
             _items.value = master
             removedIds = removed.map { it.id }
+            removedFailed = removed.filter { it.status == ItemStatus.FAILED }
+        }
+        // Failed rows keep their partial file for a manual Retry; clearing the row ends that.
+        if (removedFailed.isNotEmpty()) {
+            scope.launch {
+                removedFailed.forEach { runCatching { com.invictus.xmd.domain.download.PartialFileCleaner.cleanupItem(it) } }
+            }
         }
         if (removedIds.isNotEmpty() && ::dao.isInitialized) {
             scope.launch { runCatching { dao.deleteByIds(removedIds) } }

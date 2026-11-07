@@ -295,6 +295,9 @@ class DownloadsFragment : Fragment() {
         if (deleteFile) {
             item.filePath?.let { File(it) }?.takeIf { it.exists() }?.delete()
         }
+        // An unfinished item being dropped leaves its .xmd.part + resume sidecars
+        // behind (potentially GBs) -- they are useless without the row.
+        Thread { com.invictus.xmd.domain.download.PartialFileCleaner.cleanupItem(item) }.start()
         QueueRepository.removeItem(item.id)
     }
 

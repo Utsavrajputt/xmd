@@ -70,6 +70,7 @@ private object StorageColors {
     val NetworkCache = Color(0xFFFF7043)
     val BrowserCache = Color(0xFFEF5350)
     val Temporary = Color(0xFF78909C)
+    val Leftover = Color(0xFFEC407A)
 }
 
 private data class StorageSegment(val key: String, val label: String, val bytes: Long, val color: Color)
@@ -123,6 +124,7 @@ fun SettingsStorageScreen() {
         StorageSegment("audio", stringResource(R.string.storage_audio), stats.audioBytes, StorageColors.Audio),
         StorageSegment("archives", stringResource(R.string.storage_archives_apps), stats.archivesAppsBytes, StorageColors.ArchivesApps),
         StorageSegment("other", stringResource(R.string.storage_other_downloads), stats.otherDownloadsBytes, StorageColors.OtherDownloads),
+        StorageSegment("leftover", stringResource(R.string.storage_leftover_partials), stats.leftoverPartialBytes, StorageColors.Leftover),
         StorageSegment("status", stringResource(R.string.storage_status_saved), stats.statusSavedBytes, StorageColors.StatusSaved),
         StorageSegment("appdata", stringResource(R.string.storage_app_data), stats.appDataBytes, StorageColors.AppData),
         StorageSegment("network", stringResource(R.string.storage_network_cache), stats.networkCacheBytes, StorageColors.NetworkCache),
@@ -171,6 +173,19 @@ fun SettingsStorageScreen() {
                     )
                 }
                 StorageHistogram(segments = segments, loading = loading)
+            }
+        }
+
+        if (stats.leftoverPartialBytes > 0L) {
+            SettingsSectionCard {
+                CacheRow(
+                    icon = Icons.DeleteSweep,
+                    accent = StorageColors.Leftover,
+                    title = stringResource(R.string.storage_leftover_partials),
+                    description = stringResource(R.string.storage_leftover_partials_desc),
+                    bytes = stats.leftoverPartialBytes,
+                    onClear = { scope.launch { onCleared(StorageStatsRepository.clearLeftoverPartials()) } },
+                )
             }
         }
 

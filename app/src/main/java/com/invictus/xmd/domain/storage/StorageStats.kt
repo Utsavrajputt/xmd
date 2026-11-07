@@ -5,6 +5,8 @@ import android.os.Environment
 import android.os.StatFs
 import com.invictus.xmd.domain.status.StatusSaverRepository
 import com.invictus.xmd.preferences.Settings
+import com.invictus.xmd.domain.download.PartialFileCleaner
+import com.invictus.xmd.repository.QueueRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -25,10 +27,11 @@ data class StorageStats(
     val networkCacheBytes: Long = 0L,
     val browserCacheBytes: Long = 0L,
     val temporaryBytes: Long = 0L,
+    val leftoverPartialBytes: Long = 0L,
 ) {
     val downloadsBytes: Long get() = videosBytes + audioBytes + archivesAppsBytes + otherDownloadsBytes
     val totalCacheBytes: Long get() = networkCacheBytes + browserCacheBytes + temporaryBytes
-    val appUsedBytes: Long get() = downloadsBytes + statusSavedBytes + appDataBytes + totalCacheBytes
+    val appUsedBytes: Long get() = downloadsBytes + leftoverPartialBytes + statusSavedBytes + appDataBytes + totalCacheBytes
 
     companion object {
         val Empty = StorageStats()
@@ -58,10 +61,16 @@ object StorageStatsRepository {
         var audio = 0L
         var archives = 0L
         var other = 0L
-        runCatching { File(Settings.defaultSaveLocation()) }.getOrNull()
+        val saveRoot = runCatching { File(Settings.defaultSaveLocation()) }.getOrNull()
+        // Finished/abandoned downloads' leftovers (orphan .xmd.part + resume sidecars) are
+        // reported on their own line instead of being lumped into "other downloads".
+        val orphans = saveRoot?.let { findLeftovers(it) }.orEmpty()
+        val orphanPaths = orphans.mapTo(HashSet()) { it.absolutePath }
+        val leftoverBytes = orphans.sumOf { it.length() }
+        saveRoot
             ?.takeIf { it.isDirectory }
             ?.walkTopDown()
-            ?.filter { it.isFile }
+            ?.filter { it.isFile && it.absolutePath !in orphanPaths }
             ?.forEach { file ->
                 val len = file.length()
                 when (file.extension.lowercase()) {
@@ -98,7 +107,18 @@ object StorageStatsRepository {
             networkCacheBytes = network,
             browserCacheBytes = browser,
             temporaryBytes = temp,
+            leftoverPartialBytes = leftoverBytes,
         )
+    }
+
+    private fun findLeftovers(root: File): List<File> =
+        runCatching { PartialFileCleaner.findOrphans(root, QueueRepository.current().map { it.id }) }
+            .getOrDefault(emptyList())
+
+    /** Deletes orphan partial-download files; returns the bytes freed. */
+    suspend fun clearLeftoverPartials(): Long = withContext(Dispatchers.IO) {
+        val root = runCatching { File(Settings.defaultSaveLocation()) }.getOrNull() ?: return@withContext 0L
+        PartialFileCleaner.delete(findLeftovers(root))
     }
 
     /** Each returns the bytes freed. */
