@@ -42,6 +42,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -133,13 +139,14 @@ fun BrowserToolbarRow(
     onMediaActionTap: () -> Unit = {},
     linkActionVisible: Boolean = false,
     onLinkActionTap: () -> Unit = {},
+    onLensTap: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 8.dp),
-            shape = XmdShapes.S,
+            shape = XmdShapes.M,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 3.dp,
             shadowElevation = 3.dp,
@@ -192,6 +199,7 @@ fun BrowserToolbarRow(
                     bookmarkVisible = bookmarkVisible,
                     bookmarkFilled = bookmarkFilled,
                     onBookmarkTap = onBookmarkTap,
+                    onLensTap = onLensTap,
                 )
                 if (!addressBarFocused) {
                     if (homeVisible) {
@@ -281,9 +289,11 @@ private fun AddressPill(
     bookmarkVisible: Boolean,
     bookmarkFilled: Boolean,
     onBookmarkTap: () -> Unit,
+    onLensTap: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val hostView = LocalView.current
 
     // Local cursor/selection state, re-synced from [text] only when it
     // changed from *outside* this composable (onPageStarted,
@@ -302,11 +312,25 @@ private fun AddressPill(
     // Old urlInput.clearFocus() + hideSoftInputFromWindow(), now driven by
     // a one-shot signal bump from BrowserFragment.loadUrl() -- see this
     // file's doc comment above.
+    // Only react to a *new* bump. The old `clearFocusSignal > 0` check was true
+    // forever after the first page load, so every time this pill (re)entered
+    // composition it replayed a stale clear and could eat a fresh tap's focus.
+    var handledSignal by remember { mutableStateOf(clearFocusSignal) }
     LaunchedEffect(clearFocusSignal) {
-        if (clearFocusSignal > 0) {
+        if (clearFocusSignal != handledSignal) {
+            handledSignal = clearFocusSignal
             focusManager.clearFocus()
             keyboardController?.hide()
         }
+    }
+    // After the user touches a loaded page, Android view focus sits on the
+    // WebView, not on the ComposeView. A Compose requestFocus() in that state
+    // can be dropped (no onFocusChanged -> no clear, no info card, no IME), so
+    // pull view focus back to the Compose root first.
+    val requestAddressFocus: () -> Unit = {
+        if (!hostView.hasFocus()) hostView.requestFocus()
+        runCatching { focusRequester.requestFocus() }
+        keyboardController?.show()
     }
 
     Surface(
@@ -328,12 +352,21 @@ private fun AddressPill(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                 ) {
-                    focusRequester.requestFocus()
-                    keyboardController?.show()
+                    requestAddressFocus()
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (securityIconVisible) {
+            if (fieldFocused) {
+                // Editing: Chrome shows a "+" on the left (same 24dp as the Lens on the right).
+                Icon(
+                    imageVector = Icons.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .padding(start = 12.dp)
+                        .size(24.dp),
+                )
+            } else if (securityIconVisible) {
                 Icon(
                     imageVector = if (isSecure) Icons.Lock else Icons.LockOpen,
                     contentDescription = null,
@@ -344,7 +377,19 @@ private fun AddressPill(
                 )
             }
             Box(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    // Taps landing on the text field itself never reach the Row's
+                    // clickable (the field consumes them), so they skipped the
+                    // view-focus fix above. Watch the down event on the Initial
+                    // pass (without consuming it) and run the same path.
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                            if (!fieldFocused) requestAddressFocus()
+                        }
+                    },
                 contentAlignment = Alignment.CenterStart,
             ) {
                 BasicTextField(
@@ -394,7 +439,44 @@ private fun AddressPill(
                     },
                 )
             }
-            if (bookmarkVisible) {
+            if (fieldFocused) {
+                if (fieldValue.text.isEmpty()) {
+                    // Nothing typed: Lens, single-colour like Chrome.
+                    IconButton(
+                        shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                        onClick = onLensTap,
+                        modifier = Modifier
+                            .padding(end = 2.dp)
+                            .size(36.dp),
+                    ) {
+                        androidx.compose.material3.Icon(
+                            painter = painterResource(R.drawable.ic_lens_mono),
+                            contentDescription = stringResource(R.string.action_google_lens),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                } else {
+                    // Anything typed: Lens turns into a clear (cross) button.
+                    IconButton(
+                        shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                        onClick = {
+                            fieldValue = TextFieldValue("")
+                            onTextChange("")
+                        },
+                        modifier = Modifier
+                            .padding(end = 2.dp)
+                            .size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Close,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            } else if (bookmarkVisible) {
                 IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
                     onClick = onBookmarkTap,
                     modifier = Modifier

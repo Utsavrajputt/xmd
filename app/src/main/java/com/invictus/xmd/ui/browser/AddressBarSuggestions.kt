@@ -85,7 +85,7 @@ fun AddressBarSuggestions(
 ) {
     if (suggestions.isEmpty()) return
     ElevatedCard(
-        shape = XmdShapes.S,
+        shape = XmdShapes.M,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ),
@@ -133,12 +133,20 @@ private fun SuggestionRow(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            val favicon = if (item is Suggestion.CurrentPage) {
+            // Favicon for every row that points at a real page (history,
+            // current page, copied link) -- search phrases keep the plain icon.
+            val faviconUrl = when (item) {
+                is Suggestion.History -> item.url
+                is Suggestion.CurrentPage -> item.url
+                is Suggestion.Clipboard -> item.url
+                is Suggestion.Search -> null
+            }
+            val favicon = if (faviconUrl != null) {
                 produceState<android.graphics.Bitmap?>(
-                    initialValue = FaviconLoader.peek(item.url),
-                    key1 = item.url,
+                    initialValue = FaviconLoader.peek(faviconUrl),
+                    key1 = faviconUrl,
                 ) {
-                    value = withContext(Dispatchers.IO) { FaviconLoader.load(item.url, fast = true) }
+                    value = withContext(Dispatchers.IO) { FaviconLoader.load(faviconUrl, fast = true) }
                         ?: value
                 }.value
             } else null

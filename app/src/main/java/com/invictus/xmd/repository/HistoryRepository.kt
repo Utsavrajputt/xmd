@@ -26,13 +26,17 @@ object HistoryRepository {
     fun init(context: Context) {
         if (::dao.isInitialized) return
         dao = AppDatabase.get(context).historyDao()
-        // See BookmarkRepository for why WhileSubscribed(5000) here.
+        // Eagerly (not WhileSubscribed): the address bar reads entries.value
+        // directly for history suggestions without collecting the flow, and
+        // a WhileSubscribed StateFlow keeps returning its empty initial value
+        // until something collects it -- which made history suggestions
+        // randomly missing.
         // Collapse repeat visits (same page title on the same site, e.g. one
         // video opened many times with a different token URL each time) into
         // one row -- the newest. Also cleans up duplicates already stored.
         entries = dao.observeAll()
             .map { list -> list.distinctBy { dedupKey(it) } }
-            .stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyList())
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
     }
 
     private fun hostOf(url: String): String =
@@ -43,6 +47,32 @@ object HistoryRepository {
 
     /** Two entries with the same title on the same host count as the same page. */
     private fun dedupKey(e: HistoryEntry): String = hostOf(e.url) + "\u0000" + e.title
+
+    /**
+     * Address-bar history matching. Every whitespace-separated word of
+     * [query] must appear in the title or URL (so "avengers 4k" still finds
+     * "Avengers Endgame 4K - site"). Pages whose address starts with the
+     * query are ranked first, the rest keep newest-first order.
+     */
+    fun search(query: String, limit: Int): List<HistoryEntry> {
+        if (!::entries.isInitialized) return emptyList()
+        val q = query.trim().lowercase()
+        val tokens = q.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return emptyList()
+        return entries.value.asSequence()
+            .filter { e ->
+                val t = e.title.lowercase()
+                val u = e.url.lowercase()
+                tokens.all { t.contains(it) || u.contains(it) }
+            }
+            .distinctBy { it.url }
+            .sortedBy { e -> if (stripScheme(e.url.lowercase()).startsWith(q)) 0 else 1 }
+            .take(limit)
+            .toList()
+    }
+
+    private fun stripScheme(url: String): String =
+        url.removePrefix("https://").removePrefix("http://").removePrefix("www.")
 
     fun record(url: String, title: String) {
         if (url.isBlank()) return

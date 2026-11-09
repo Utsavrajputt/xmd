@@ -785,4 +785,5 @@
     <string name="status_selected_count">%1$d selected</string>
     <string name="status_close">Close</string>
     <string name="status_refresh">Refresh</string>
+    <string name="action_google_lens">Search with Google Lens</string>
 </resources>

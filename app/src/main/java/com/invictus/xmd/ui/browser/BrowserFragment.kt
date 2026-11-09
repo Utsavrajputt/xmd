@@ -457,6 +457,12 @@ class BrowserFragment : Fragment() {
                                 // ever reach scheduleSuggest.
                                 if (focused) {
                                     showQuickSuggestions()
+                                    // Open the TLS connection to the suggest
+                                    // endpoint now so the first keystroke's
+                                    // request doesn't pay for the handshake.
+                                    viewLifecycleOwner.lifecycleScope.launch {
+                                        SuggestApi.suggest("a", suggestClient)
+                                    }
                                 } else {
                                     hideSuggestions()
                                     addressBarText = if (speedDialVisible) "" else currentPageUrl().orEmpty()
@@ -498,6 +504,7 @@ class BrowserFragment : Fragment() {
                             onMediaActionTap = ::onSniffedMediaFabTapped,
                             linkActionVisible = detectedLinkVisible,
                             onLinkActionTap = ::onAddLinkClicked,
+                            onLensTap = ::openGoogleLens,
                             tabsCount = tabsCountValue,
                             onDownloadsTap = { (activity as? Callbacks)?.onBrowserOpenDownloads() },
                             // The bottom bar already has Downloads, so drop the duplicate up here (same rule as Home).
@@ -1820,44 +1827,59 @@ class BrowserFragment : Fragment() {
     // lambdas, wired once in onViewCreated's browserToolbar.setContent.
 
     /**
-     * 2-3 letters is enough to start querying, debounced ~150ms so we're not
-     * firing a network request on every keystroke. Merges two sources,
-     * history first then search (Chrome-style):
-     *  - local visited-page history (HistoryRepository's already-cached
-     *    LiveData value -- no DB round-trip needed here), matched by
-     *    title/URL substring, capped at [MAX_HISTORY_SUGGESTIONS]
-     *  - Google's public suggest endpoint, filtered to search-phrase
-     *    results only (see SuggestApi) -- no bundled/bare-URL "website"
-     *    suggestions of any kind
+     * Starts from the first typed character. History (matched word-by-word
+     * against title/URL, see HistoryRepository.search) and cached search
+     * phrases paint on the keystroke's own frame; the live Google request
+     * (cancellable, ~40ms debounce, cached per query) then replaces the
+     * provisional part. Order is history first, then search (Chrome-style).
      */
     private fun scheduleSuggest(query: String) {
         suggestJob?.cancel()
         val trimmed = query.trim()
-        if (trimmed.length < 2) {
+        if (trimmed.isEmpty()) {
             // Nothing typed yet -- show the same "quick" rows Chrome shows
             // at this point instead of an empty dropdown.
             showQuickSuggestions()
             return
         }
-        val historyMatches = HistoryRepository.entries.value
-            .filter { it.title.contains(trimmed, ignoreCase = true) || it.url.contains(trimmed, ignoreCase = true) }
-            .distinctBy { it.url }
-            .take(MAX_HISTORY_SUGGESTIONS)
+        val historyMatches = HistoryRepository.search(trimmed, MAX_HISTORY_SUGGESTIONS)
             .map { Suggestion.History(text = it.title, url = it.url) }
 
-        // History is already in memory, so it renders on this frame instead
-        // of waiting on the debounce + network round-trip below -- only the
-        // search half of the list is provisional at this point.
-        if (historyMatches.isNotEmpty()) {
-            suggestionItems = historyMatches
+        // Paint immediately, on the keystroke's own frame: history (already
+        // in memory) + whatever search phrases we can already derive from
+        // the cache. Only the live network part is provisional below.
+        val instant = historyMatches + SuggestApi.provisional(trimmed).map { Suggestion.Search(it) }
+        suggestionItems = if (instant.isNotEmpty()) {
+            instant
+        } else {
+            // Keep the previous phrase/history rows instead of blinking the
+            // dropdown away between keystrokes; drop the page/clipboard rows.
+            suggestionItems.filter { it is Suggestion.Search || it is Suggestion.History }
         }
 
+        // Exact query already fetched before -- provisional() was the final answer.
+        if (SuggestApi.cached(trimmed) != null) return
+
         suggestJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay(150)
-            val searchResults = withContext(Dispatchers.IO) { SuggestApi.suggest(trimmed, suggestClient) }
+            delay(40) // just enough to skip a request per key during fast typing
+            val searchResults = SuggestApi.suggest(trimmed, suggestClient)
             if (!isAdded) return@launch
-            val merged = historyMatches + searchResults.map { Suggestion.Search(it) }
-            suggestionItems = merged.ifEmpty { quickSuggestions() }
+            suggestionItems = historyMatches + searchResults.map { Suggestion.Search(it) }
+        }
+    }
+
+    /** Google Lens app via its deep link; if the Google app isn't there, the web version. */
+    private fun openGoogleLens() {
+        addressBarClearFocusSignal++
+        hideSuggestions()
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("googleapp://lens"),
+        ).setPackage("com.google.android.googlequicksearchbox")
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            loadUrl("https://lens.google.com/")
         }
     }
 
