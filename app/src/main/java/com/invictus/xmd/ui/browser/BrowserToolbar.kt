@@ -27,6 +27,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -133,8 +138,8 @@ fun BrowserToolbarRow(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp),
-            shape = XmdShapes.L,
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            shape = XmdShapes.S,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 3.dp,
             shadowElevation = 3.dp,
@@ -249,7 +254,7 @@ fun BrowserToolbarRow(
                 modifier = Modifier
                     .align(if (isBottomBar) Alignment.TopCenter else Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 17.dp)
                     .padding(
                         top = if (isBottomBar) 8.dp else 0.dp,
                         bottom = if (isBottomBar) 0.dp else 8.dp,
@@ -287,6 +292,7 @@ private fun AddressPill(
     // doesn't get its cursor position clobbered on every recomposition.
     var fieldValue by remember { mutableStateOf(TextFieldValue(text)) }
     var fieldFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
     LaunchedEffect(text) {
         if (text != fieldValue.text) {
             // Cursor at the start on programmatic update so the domain stays visible
@@ -306,12 +312,25 @@ private fun AddressPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        // Focused: drop the inner fill so the outer card is the only layer
+        // (no "double layered" look), like Chrome's single omnibox pill.
+        color = if (fieldFocused) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp),
+                .height(40.dp)
+                // The text field itself is only one text line tall, so taps on the
+                // rest of the 40dp pill (above/below the text, on the lock icon,
+                // in the side padding) never focused it -- focus "sometimes
+                // worked". Make the whole pill request focus.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (securityIconVisible) {
@@ -324,7 +343,10 @@ private fun AddressPill(
                         .size(16.dp),
                 )
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                contentAlignment = Alignment.CenterStart,
+            ) {
                 BasicTextField(
                     value = fieldValue,
                     onValueChange = { newValue ->
@@ -334,9 +356,18 @@ private fun AddressPill(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
+                        .focusRequester(focusRequester)
                         .onFocusChanged { state ->
+                            val gainedFocus = state.isFocused && !fieldFocused
                             fieldFocused = state.isFocused
                             onFocusChange(state.isFocused)
+                            // Chrome: tapping the omnibox empties it (hint shows,
+                            // cursor ready) -- the current URL stays reachable via
+                            // the "current page" row's Edit action.
+                            if (gainedFocus && fieldValue.text.isNotEmpty()) {
+                                fieldValue = TextFieldValue("")
+                                onTextChange("")
+                            }
                         },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
@@ -362,25 +393,6 @@ private fun AddressPill(
                         innerTextField()
                     },
                 )
-            }
-            // Clear-URL button, next to the bookmark: only while editing a
-            // non-empty address. Focus stays in the field so the keyboard
-            // remains open for typing the next URL.
-            if (fieldFocused && fieldValue.text.isNotEmpty()) {
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
-                    onClick = {
-                        fieldValue = TextFieldValue("")
-                        onTextChange("")
-                    },
-                    modifier = Modifier.size(36.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Close,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
             }
             if (bookmarkVisible) {
                 IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 

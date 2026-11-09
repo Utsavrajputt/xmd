@@ -2,7 +2,16 @@
 package com.invictus.xmd.ui.browser
 
 import com.invictus.xmd.ui.theme.XmdShapes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import com.invictus.xmd.utils.FaviconLoader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -124,17 +133,38 @@ private fun SuggestionRow(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = when (item) {
-                    is Suggestion.History -> Icons.History
-                    is Suggestion.CurrentPage -> Icons.Public
-                    is Suggestion.Clipboard -> Icons.Link
-                    is Suggestion.Search -> Icons.Search
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(15.dp),
-            )
+            val favicon = if (item is Suggestion.CurrentPage) {
+                produceState<android.graphics.Bitmap?>(
+                    initialValue = FaviconLoader.peek(item.url),
+                    key1 = item.url,
+                ) {
+                    value = withContext(Dispatchers.IO) { FaviconLoader.load(item.url, fast = true) }
+                        ?: value
+                }.value
+            } else null
+            if (favicon != null) {
+                Image(
+                    bitmap = favicon.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .padding(5.dp),
+                )
+            } else {
+                Icon(
+                    imageVector = when (item) {
+                        is Suggestion.History -> Icons.History
+                        is Suggestion.CurrentPage -> Icons.Public
+                        is Suggestion.Clipboard -> Icons.Link
+                        is Suggestion.Search -> Icons.Search
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(15.dp),
+                )
+            }
         }
         if (item is Suggestion.Clipboard) {
             // Two-line "Link that you copied" / actual URL, like Chrome's

@@ -67,7 +67,7 @@ object FaviconLoader {
      * it fills a 52dp tile) and keeps the sharpest bitmap actually found
      * rather than stopping at the first response that merely succeeds.
      */
-    fun load(pageUrl: String): Bitmap? {
+    fun load(pageUrl: String, fast: Boolean = false): Bitmap? {
         val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return null
         cache.get(host)?.let { return it }
         failedAt[host]?.let { t ->
@@ -87,7 +87,12 @@ object FaviconLoader {
         val scheme = runCatching { URI(pageUrl).scheme }.getOrNull().takeUnless { it.isNullOrBlank() } ?: "https"
 
         var best: Bitmap? = null
-        val candidates = listOf(
+        // fast = address-bar suggestion row: Google's service first (one quick,
+        // reliable hit) and skip the often-404 apple-touch-icon probe.
+        val candidates = if (fast) listOf(
+            "https://www.google.com/s2/favicons?sz=$TARGET_PX&domain=$host",
+            "$scheme://$host/favicon.ico"
+        ) else listOf(
             "$scheme://$host/apple-touch-icon.png",
             "https://www.google.com/s2/favicons?sz=$TARGET_PX&domain=$host",
             "$scheme://$host/favicon.ico"
@@ -111,6 +116,22 @@ object FaviconLoader {
         }
         if (best == null) failedAt[host] = System.currentTimeMillis()
         return best
+    }
+
+    // Small icons handed over by the WebView itself (onReceivedIcon): shown
+    // instantly while the sharper network fetch is still running.
+    private val quick = object : LruCache<String, Bitmap>(MAX_CACHE_ENTRIES) {}
+
+    /** Memory-only, non-blocking: best icon already in hand for this page, or null. */
+    fun peek(pageUrl: String): Bitmap? {
+        val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return null
+        return cache.get(host) ?: quick.get(host)
+    }
+
+    /** Stores the WebView-provided favicon for instant display. */
+    fun putQuick(pageUrl: String, bitmap: Bitmap) {
+        val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return
+        quick.put(host, bitmap)
     }
 
     /** Filesystem-safe cache filename for a host, e.g. "www.example.com" -> "www.example.com.png". */

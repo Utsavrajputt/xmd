@@ -612,6 +612,7 @@ class BrowserFragment : Fragment() {
                                         // field already holds this exact
                                         // URL, editable. Just dismiss the
                                         // dropdown, same as tapping Edit.
+                                        addressBarText = item.url
                                         hideSuggestions()
                                     }
                                 }
@@ -627,7 +628,12 @@ class BrowserFragment : Fragment() {
                             },
                             onCopyTap = ::copyLinkToClipboard,
                             onShareTap = ::shareLink,
-                            onEditTap = { hideSuggestions() },
+                            onEditTap = { url ->
+                                // Field is emptied on focus (Chrome-style), so Edit
+                                // brings the page URL back for editing.
+                                addressBarText = url
+                                hideSuggestions()
+                            },
                         )
                     },
                     findInPage = {
@@ -1245,7 +1251,14 @@ class BrowserFragment : Fragment() {
                     bottomBarScrollVisible = true
                     toolbarProgress = 0
                     toolbarProgressVisible = true
-                    addressBarText = url.orEmpty()
+                    // Don't refill the box while the user is typing/has it cleared.
+                    if (!addressBarFocused) addressBarText = url.orEmpty()
+                    // Warm the favicon cache now so the address-bar info row shows it instantly.
+                    url?.let { u ->
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                            com.invictus.xmd.utils.FaviconLoader.load(u, fast = true)
+                        }
+                    }
                     updateSecurityIcon(tab)
                     clearDetectedLink()
                     updateSniffedMediaFab(tab)
@@ -1578,6 +1591,13 @@ class BrowserFragment : Fragment() {
                     com.invictus.xmd.domain.browser.WebDebugLog.add("JS ${m.messageLevel()} ${m.message()} (${m.sourceId()}:${m.lineNumber()})")
                 }
                 return false
+            }
+
+            override fun onReceivedIcon(view: WebView, icon: android.graphics.Bitmap?) {
+                val pageUrl = view.url ?: tab.url
+                if (icon != null && pageUrl != null) {
+                    com.invictus.xmd.utils.FaviconLoader.putQuick(pageUrl, icon)
+                }
             }
 
             override fun onProgressChanged(view: WebView, newProgress: Int) {

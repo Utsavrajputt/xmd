@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import com.invictus.xmd.ui.components.XmdAlertDialog
@@ -149,11 +150,20 @@ internal fun BrowserScreen(
                             ),
                     )
                 }
+                // Toolbar card already has 8dp of its own padding on this edge, so
+                // zero the suggestions' padding there and pull it 2dp closer:
+                // ~6dp gap between address bar and info card, like Chrome.
                 Box(
                     modifier = Modifier
                         .align(if (toolbarBottom) Alignment.BottomCenter else Alignment.TopCenter)
                         .fillMaxWidth()
-                        .padding(8.dp),
+                        .padding(
+                            start = 10.dp,
+                            end = 10.dp,
+                            top = if (toolbarBottom) 8.dp else 0.dp,
+                            bottom = if (toolbarBottom) 0.dp else 8.dp,
+                        )
+                        .offset(y = if (toolbarBottom) 2.dp else (-2).dp),
                 ) {
                     suggestions()
                 }
@@ -161,7 +171,7 @@ internal fun BrowserScreen(
                     modifier = Modifier
                         .align(if (toolbarBottom) Alignment.BottomCenter else Alignment.TopCenter)
                         .fillMaxWidth()
-                        .padding(8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
                     findInPage()
                 }
