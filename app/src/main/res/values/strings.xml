@@ -487,6 +487,8 @@
     <string name="action_reload">Reload</string>
     <string name="action_stop">Stop</string>
     <string name="action_new_tab">New Tab</string>
+    <string name="action_scan_qr">Scan QR code</string>
+    <string name="qr_scanner_unavailable">QR scanner needs Google Play services</string>
     <string name="action_home">Home</string>
     <string name="action_tabs">Tabs</string>
     <string name="tabs_overlay_header">%1$d tabs</string>

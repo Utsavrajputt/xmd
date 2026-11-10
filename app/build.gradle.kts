@@ -178,6 +178,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    // QR scanner for the address bar: Google's Code Scanner, no CAMERA permission needed.
+    implementation(libs.google.code.scanner)
 
     // libtorrent4j: real BitTorrent engine (magnet links + .torrent files) --
     // see core/TorrentEngine.kt. The main artifact is pure-Java bindings;

@@ -9,6 +9,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import com.invictus.xmd.utils.FaviconLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -131,6 +133,15 @@ fun AddressBarSuggestions(
             )
         }
     }
+}
+
+/** Address line colour: the theme blue, softened toward the secondary text colour on dark themes so it
+ *  reads lighter and doesn't out-shout the title. */
+@Composable
+private fun addressColor(): Color {
+    val cs = MaterialTheme.colorScheme
+    val dark = cs.surface.luminance() < 0.5f
+    return if (dark) lerp(cs.primary, cs.onSurfaceVariant, 0.55f) else cs.primary
 }
 
 /** "https://www.github.com/a/b/" -> "github.com/a/b" (how Chrome prints an address in a suggestion). */
@@ -333,7 +344,7 @@ private fun SuggestionRow(
                 }
                 Text(
                     text = address,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = addressColor(),
                     style = if (showTitle) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

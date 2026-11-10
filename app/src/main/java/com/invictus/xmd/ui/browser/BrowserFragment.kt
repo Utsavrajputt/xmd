@@ -502,7 +502,7 @@ class BrowserFragment : Fragment() {
                             onMediaActionTap = ::onSniffedMediaFabTapped,
                             linkActionVisible = detectedLinkVisible,
                             onLinkActionTap = ::onAddLinkClicked,
-                            onLensTap = ::openGoogleLens,
+                            onScanQrTap = ::openQrScanner,
                             tabsCount = tabsCountValue,
                             onDownloadsTap = { (activity as? Callbacks)?.onBrowserOpenDownloads() },
                             // The bottom bar already has Downloads, so drop the duplicate up here (same rule as Home).
@@ -1875,19 +1875,28 @@ class BrowserFragment : Fragment() {
         }
     }
 
-    /** Real Google Lens (Google app deep link); without the Google app, the Lens website in a new tab. */
-    private fun openGoogleLens() {
+    /**
+     * QR scanner (Google's Code Scanner: its own camera UI, so no CAMERA permission here).
+     * A scanned link opens in the current tab; any other text is searched.
+     */
+    private fun openQrScanner() {
         addressBarClearFocusSignal++
         hideSuggestions()
-        val intent = android.content.Intent(
-            android.content.Intent.ACTION_VIEW,
-            android.net.Uri.parse("googleapp://lens"),
-        ).setPackage("com.google.android.googlequicksearchbox")
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            openTabFor("https://lens.google.com/", childOfCurrent = true)
-        }
+        val ctx = context ?: return
+        val options = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
+            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
+            .enableAutoZoom()
+            .build()
+        com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(ctx, options)
+            .startScan()
+            .addOnSuccessListener { barcode ->
+                val text = barcode.rawValue?.trim().orEmpty()
+                if (text.isNotEmpty() && isAdded) loadUrl(text)
+            }
+            .addOnFailureListener {
+                // No Google Play services / scanner module unavailable (a user cancel is not a failure).
+                android.widget.Toast.makeText(ctx, R.string.qr_scanner_unavailable, android.widget.Toast.LENGTH_LONG).show()
+            }
     }
 
     /**

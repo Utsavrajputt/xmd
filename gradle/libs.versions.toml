@@ -7,6 +7,7 @@ composeBom = "2025.10.01"
 # Material 3 Expressive pre-release; overrides the version the BOM maps to.
 material3 = "1.5.0-beta02"
 room = "2.8.4"
+codeScanner = "16.1.0"
 lifecycle = "2.8.4"
 coroutines = "1.8.1"
 okhttp = "4.12.0"
@@ -31,6 +32,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+google-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
 
 libtorrent4j = { module = "org.libtorrent4j:libtorrent4j", version.ref = "libtorrent4j" }
 libtorrent4j-android-arm64 = { module = "org.libtorrent4j:libtorrent4j-android-arm64", version.ref = "libtorrent4j" }

@@ -139,7 +139,7 @@ fun BrowserToolbarRow(
     onMediaActionTap: () -> Unit = {},
     linkActionVisible: Boolean = false,
     onLinkActionTap: () -> Unit = {},
-    onLensTap: () -> Unit = {},
+    onScanQrTap: () -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         Surface(
@@ -199,7 +199,7 @@ fun BrowserToolbarRow(
                     bookmarkVisible = bookmarkVisible,
                     bookmarkFilled = bookmarkFilled,
                     onBookmarkTap = onBookmarkTap,
-                    onLensTap = onLensTap,
+                    onScanQrTap = onScanQrTap,
                     onNewTabTap = onNewTabTap,
                 )
                 if (!addressBarFocused) {
@@ -290,7 +290,7 @@ private fun AddressPill(
     bookmarkVisible: Boolean,
     bookmarkFilled: Boolean,
     onBookmarkTap: () -> Unit,
-    onLensTap: () -> Unit,
+    onScanQrTap: () -> Unit,
     onNewTabTap: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -454,17 +454,17 @@ private fun AddressPill(
             }
             if (fieldFocused) {
                 if (fieldValue.text.isEmpty()) {
-                    // Nothing typed: Lens, single-colour like Chrome.
+                    // Nothing typed: QR scanner.
                     IconButton(
                         shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
-                        onClick = onLensTap,
+                        onClick = onScanQrTap,
                         modifier = Modifier
                             .padding(end = 2.dp)
                             .size(36.dp),
                     ) {
                         androidx.compose.material3.Icon(
-                            painter = painterResource(R.drawable.ic_lens_mono),
-                            contentDescription = stringResource(R.string.action_google_lens),
+                            painter = painterResource(R.drawable.ic_qr_scan),
+                            contentDescription = stringResource(R.string.action_scan_qr),
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(24.dp),
                         )
