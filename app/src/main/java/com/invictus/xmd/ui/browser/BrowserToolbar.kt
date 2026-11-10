@@ -200,6 +200,7 @@ fun BrowserToolbarRow(
                     bookmarkFilled = bookmarkFilled,
                     onBookmarkTap = onBookmarkTap,
                     onLensTap = onLensTap,
+                    onNewTabTap = onNewTabTap,
                 )
                 if (!addressBarFocused) {
                     if (homeVisible) {
@@ -290,6 +291,7 @@ private fun AddressPill(
     bookmarkFilled: Boolean,
     onBookmarkTap: () -> Unit,
     onLensTap: () -> Unit,
+    onNewTabTap: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -305,8 +307,9 @@ private fun AddressPill(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(text) {
         if (text != fieldValue.text) {
-            // Cursor at the start on programmatic update so the domain stays visible
-            fieldValue = TextFieldValue(text, selection = TextRange(0))
+            // Cursor at the start on programmatic update so the domain stays visible;
+            // while editing (e.g. the suggestion's fill-in arrow) at the end, to keep typing.
+            fieldValue = TextFieldValue(text, selection = TextRange(if (fieldFocused) text.length else 0))
         }
     }
     // Old urlInput.clearFocus() + hideSoftInputFromWindow(), now driven by
@@ -357,15 +360,25 @@ private fun AddressPill(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (fieldFocused) {
-                // Editing: Chrome shows a "+" on the left (same 24dp as the Lens on the right).
-                Icon(
-                    imageVector = Icons.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
+                // Editing: Chrome's "+" on the left = new tab (same 24dp glyph as the Lens on the right).
+                IconButton(
+                    shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                    onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        onNewTabTap()
+                    },
                     modifier = Modifier
-                        .padding(start = 12.dp)
-                        .size(24.dp),
-                )
+                        .padding(start = 4.dp)
+                        .size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Add,
+                        contentDescription = stringResource(R.string.action_new_tab),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             } else if (securityIconVisible) {
                 Icon(
                     imageVector = if (isSecure) Icons.Lock else Icons.LockOpen,

@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import com.invictus.xmd.utils.FaviconLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,9 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
@@ -37,6 +33,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Row
 import com.invictus.xmd.R
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import com.invictus.xmd.network.SuggestImageLoader
 
 /**
  * Phase 5 (Browser) conversion of the old suggestionsCard MaterialCardView +
@@ -57,7 +66,14 @@ import com.invictus.xmd.R
  */
 sealed class Suggestion {
     abstract val text: String
-    data class Search(override val text: String) : Suggestion()
+    /** [subtitle]/[imageUrl] are set for Google "entity" rows (Chrome's rows
+     *  with a picture); [typed] marks the first "what you typed" row. */
+    data class Search(
+        override val text: String,
+        val subtitle: String? = null,
+        val imageUrl: String? = null,
+        val typed: Boolean = false,
+    ) : Suggestion()
     data class History(override val text: String, val url: String) : Suggestion()
 
     /** The page currently loaded in this tab -- shown so the copy/share/
@@ -74,36 +90,82 @@ sealed class Suggestion {
     data class Clipboard(override val text: String, val url: String) : Suggestion()
 }
 
+/**
+ * Chrome-style full-body suggestion list: fills the whole area under the
+ * address bar (the caller paints the opaque background behind it), one
+ * rounded theme-coloured row per suggestion with a small gap between rows.
+ * [reverse] flips the order for a bottom toolbar so the best match sits
+ * next to the bar.
+ */
 @Composable
 fun AddressBarSuggestions(
     suggestions: List<Suggestion>,
+    query: String,
+    reverse: Boolean,
     onTap: (Suggestion) -> Unit,
+    onFillTap: (String) -> Unit,
     onAddTap: (String) -> Unit,
     onCopyTap: (String) -> Unit,
     onShareTap: (String) -> Unit,
     onEditTap: (String) -> Unit,
 ) {
     if (suggestions.isEmpty()) return
-    ElevatedCard(
-        shape = XmdShapes.M,
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        reverseLayout = reverse,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        LazyColumn(
-            modifier = Modifier.heightIn(max = 280.dp),
-        ) {
-            items(suggestions) { item ->
-                SuggestionRow(
-                    item = item,
-                    onTap = onTap,
-                    onAddTap = onAddTap,
-                    onCopyTap = onCopyTap,
-                    onShareTap = onShareTap,
-                    onEditTap = onEditTap,
-                )
-            }
+        items(suggestions) { item ->
+            SuggestionRow(
+                item = item,
+                query = query,
+                onTap = onTap,
+                onFillTap = onFillTap,
+                onAddTap = onAddTap,
+                onCopyTap = onCopyTap,
+                onShareTap = onShareTap,
+                onEditTap = onEditTap,
+            )
+        }
+    }
+}
+
+/** Typed part normal, the part Google added bold -- like Chrome. */
+private fun boldCompletion(text: String, query: String): AnnotatedString {
+    val q = query.trim()
+    val bold = SpanStyle(fontWeight = FontWeight.Bold)
+    return buildAnnotatedString {
+        if (q.isNotEmpty() && text.startsWith(q, ignoreCase = true)) {
+            append(text.substring(0, q.length))
+            withStyle(bold) { append(text.substring(q.length)) }
+        } else {
+            withStyle(bold) { append(text) }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionThumb(url: String) {
+    val bitmap = produceState<android.graphics.Bitmap?>(
+        initialValue = SuggestImageLoader.peek(url),
+        key1 = url,
+    ) {
+        value = withContext(Dispatchers.IO) { SuggestImageLoader.load(url) } ?: value
+    }.value
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(XmdShapes.Xs)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
@@ -111,67 +173,90 @@ fun AddressBarSuggestions(
 @Composable
 private fun SuggestionRow(
     item: Suggestion,
+    query: String,
     onTap: (Suggestion) -> Unit,
+    onFillTap: (String) -> Unit,
     onAddTap: (String) -> Unit,
     onCopyTap: (String) -> Unit,
     onShareTap: (String) -> Unit,
     onEditTap: (String) -> Unit,
 ) {
+    val search = item as? Suggestion.Search
+    val thumbUrl = search?.imageUrl
+    val subtitle = search?.subtitle
+    val tall = thumbUrl != null || subtitle != null || item is Suggestion.Clipboard
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onTap(item) }
-            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            .clip(XmdShapes.S)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .combinedClickable(
+                onClick = { onTap(item) },
+                // Search rows lost their old "+" (the arrow replaced it), so
+                // long-press keeps "add to shortcuts" reachable.
+                onLongClick = if (search != null && !search.typed) {
+                    { onAddTap(search.text) }
+                } else null,
+            )
+            .padding(
+                start = 12.dp,
+                end = 4.dp,
+                top = if (tall) 8.dp else 4.dp,
+                bottom = if (tall) 8.dp else 4.dp,
+            )
+            .heightIn(min = 44.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(30.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(50),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            // Favicon for every row that points at a real page (history,
-            // current page, copied link) -- search phrases keep the plain icon.
-            val faviconUrl = when (item) {
-                is Suggestion.History -> item.url
-                is Suggestion.CurrentPage -> item.url
-                is Suggestion.Clipboard -> item.url
-                is Suggestion.Search -> null
-            }
-            val favicon = if (faviconUrl != null) {
-                produceState<android.graphics.Bitmap?>(
-                    initialValue = FaviconLoader.peek(faviconUrl),
-                    key1 = faviconUrl,
-                ) {
-                    value = withContext(Dispatchers.IO) { FaviconLoader.load(faviconUrl, fast = true) }
-                        ?: value
-                }.value
-            } else null
-            if (favicon != null) {
-                Image(
-                    bitmap = favicon.asImageBitmap(),
+        // Fixed-width leading slot so every row's text lines up.
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            when {
+                thumbUrl != null -> SuggestionThumb(thumbUrl)
+                search != null -> Icon(
+                    imageVector = Icons.Search,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .padding(5.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
-            } else {
-                Icon(
-                    imageVector = when (item) {
-                        is Suggestion.History -> Icons.History
-                        is Suggestion.CurrentPage -> Icons.Public
-                        is Suggestion.Clipboard -> Icons.Link
-                        is Suggestion.Search -> Icons.Search
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(15.dp),
-                )
+                else -> {
+                    val faviconUrl = when (item) {
+                        is Suggestion.History -> item.url
+                        is Suggestion.CurrentPage -> item.url
+                        is Suggestion.Clipboard -> item.url
+                        is Suggestion.Search -> null
+                    }
+                    val favicon = if (faviconUrl != null) {
+                        produceState<android.graphics.Bitmap?>(
+                            initialValue = FaviconLoader.peek(faviconUrl),
+                            key1 = faviconUrl,
+                        ) {
+                            value = withContext(Dispatchers.IO) { FaviconLoader.load(faviconUrl, fast = true) }
+                                ?: value
+                        }.value
+                    } else null
+                    if (favicon != null) {
+                        Image(
+                            bitmap = favicon.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .padding(5.dp),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = when (item) {
+                                is Suggestion.History -> Icons.History
+                                is Suggestion.CurrentPage -> Icons.Public
+                                is Suggestion.Clipboard -> Icons.Link
+                                is Suggestion.Search -> Icons.Search
+                            },
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
             }
         }
         if (item is Suggestion.Clipboard) {
@@ -199,11 +284,34 @@ private fun SuggestionRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        } else if (search != null) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            ) {
+                Text(
+                    text = boldCompletion(search.text, query),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         } else {
             Text(
                 text = item.text,
                 color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
@@ -213,16 +321,26 @@ private fun SuggestionRow(
         }
         when (item) {
             is Suggestion.Search -> {
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { onAddTap(item.text) }) {
-                    Icon(
-                        imageVector = Icons.Add,
-                        contentDescription = stringResource(R.string.action_add_shortcut),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
+                if (item.typed) {
+                    Spacer(Modifier.size(12.dp))
+                } else {
+                    // Chrome's "↖": copy this suggestion into the address bar to keep editing it.
+                    IconButton(
+                        shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                        onClick = { onFillTap(item.text) },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.FillArrow,
+                            contentDescription = stringResource(R.string.action_edit),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
             is Suggestion.CurrentPage -> {
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                     onClick = { onCopyTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {
@@ -233,7 +351,7 @@ private fun SuggestionRow(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                     onClick = { onShareTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {
@@ -244,7 +362,7 @@ private fun SuggestionRow(
                         modifier = Modifier.size(18.dp),
                     )
                 }
-                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), 
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                     onClick = { onEditTap(item.url) },
                     modifier = Modifier.size(36.dp),
                 ) {

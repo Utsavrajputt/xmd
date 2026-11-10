@@ -51,6 +51,7 @@ import com.invictus.xmd.domain.browser.MediaSniffer
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.network.DnsOverHttpsResolver
 import com.invictus.xmd.network.SuggestApi
+import com.invictus.xmd.network.SuggestItem
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.HistoryRepository
@@ -600,6 +601,13 @@ class BrowserFragment : Fragment() {
                     suggestions = {
                         AddressBarSuggestions(
                             suggestions = suggestionItems,
+                            query = addressBarText,
+                            reverse = toolbarBottom,
+                            onFillTap = { phrase ->
+                                // Chrome's "↖": copy the phrase into the field, keep editing.
+                                addressBarText = phrase
+                                scheduleSuggest(phrase)
+                            },
                             onTap = { item ->
                                 when (item) {
                                     is Suggestion.History -> {
@@ -1845,16 +1853,18 @@ class BrowserFragment : Fragment() {
         val historyMatches = HistoryRepository.search(trimmed, MAX_HISTORY_SUGGESTIONS)
             .map { Suggestion.History(text = it.title, url = it.url) }
 
-        // Paint immediately, on the keystroke's own frame: history (already
-        // in memory) + whatever search phrases we can already derive from
-        // the cache. Only the live network part is provisional below.
-        val instant = historyMatches + SuggestApi.provisional(trimmed).map { Suggestion.Search(it) }
-        suggestionItems = if (instant.isNotEmpty()) {
-            instant
+        // Paint immediately, on the keystroke's own frame: the "what you typed"
+        // row + history (already in memory) + whatever search phrases we can
+        // already derive from the cache. Only the live network part is provisional below.
+        val provisional = SuggestApi.provisional(trimmed)
+        suggestionItems = if (historyMatches.isNotEmpty() || provisional.isNotEmpty()) {
+            buildSuggestionList(trimmed, historyMatches, provisional)
         } else {
             // Keep the previous phrase/history rows instead of blinking the
-            // dropdown away between keystrokes; drop the page/clipboard rows.
-            suggestionItems.filter { it is Suggestion.Search || it is Suggestion.History }
+            // list away between keystrokes; drop the page/clipboard rows and
+            // the old typed row (replaced by the fresh one).
+            listOf<Suggestion>(Suggestion.Search(trimmed, typed = true)) +
+                suggestionItems.filter { (it is Suggestion.Search && !it.typed) || it is Suggestion.History }
         }
 
         // Exact query already fetched before -- provisional() was the final answer.
@@ -1864,23 +1874,28 @@ class BrowserFragment : Fragment() {
             delay(40) // just enough to skip a request per key during fast typing
             val searchResults = SuggestApi.suggest(trimmed, suggestClient)
             if (!isAdded) return@launch
-            suggestionItems = historyMatches + searchResults.map { Suggestion.Search(it) }
+            suggestionItems = buildSuggestionList(trimmed, historyMatches, searchResults)
         }
     }
 
-    /** Google Lens app via its deep link; if the Google app isn't there, the web version. */
+    /** Chrome order: what you typed, then history matches, then Google's phrases/entities (all of them). */
+    private fun buildSuggestionList(
+        typed: String,
+        history: List<Suggestion.History>,
+        results: List<SuggestItem>,
+    ): List<Suggestion> =
+        listOf<Suggestion>(Suggestion.Search(typed, typed = true)) +
+            history +
+            results
+                .filterNot { it.text.equals(typed, ignoreCase = true) }
+                .map { Suggestion.Search(it.text, it.subtitle, it.imageUrl) }
+
+
+    /** Google Lens website (lens.google.com) in a new tab, so the page you were on stays open. */
     private fun openGoogleLens() {
         addressBarClearFocusSignal++
         hideSuggestions()
-        val intent = android.content.Intent(
-            android.content.Intent.ACTION_VIEW,
-            android.net.Uri.parse("googleapp://lens"),
-        ).setPackage("com.google.android.googlequicksearchbox")
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            loadUrl("https://lens.google.com/")
-        }
+        openTabFor("https://lens.google.com/", childOfCurrent = true)
     }
 
     /**

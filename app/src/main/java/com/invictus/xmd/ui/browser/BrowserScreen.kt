@@ -136,9 +136,14 @@ internal fun BrowserScreen(
                     }
                 }
                 if (addressBarFocused) {
+                    // While the address bar is focused the whole body (below the bar)
+                    // becomes the suggestions page, like Chrome: opaque theme
+                    // background so the site never shows through, suggestions fill it,
+                    // and a tap on any empty part dismisses.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -148,24 +153,9 @@ internal fun BrowserScreen(
                                     onDismissAddressBar()
                                 },
                             ),
-                    )
-                }
-                // Toolbar card already has 8dp of its own padding on this edge, so
-                // zero the suggestions' padding there and pull it 2dp closer:
-                // ~6dp gap between address bar and info card, like Chrome.
-                Box(
-                    modifier = Modifier
-                        .align(if (toolbarBottom) Alignment.BottomCenter else Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .padding(
-                            start = 10.dp,
-                            end = 10.dp,
-                            top = if (toolbarBottom) 8.dp else 0.dp,
-                            bottom = if (toolbarBottom) 0.dp else 8.dp,
-                        )
-                        .offset(y = if (toolbarBottom) 2.dp else (-2).dp),
-                ) {
-                    suggestions()
+                    ) {
+                        suggestions()
+                    }
                 }
                 Box(
                     modifier = Modifier

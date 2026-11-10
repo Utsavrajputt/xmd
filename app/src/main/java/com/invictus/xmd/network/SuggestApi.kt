@@ -27,29 +27,37 @@ import kotlin.coroutines.resume
  * query, and [provisional] lets the UI paint something on the very same
  * frame as the keystroke while the real request is still on its way.
  */
+/** One autocomplete row: the phrase, plus -- for Google "entity" results
+ *  (a person, place, show...) -- a one-line description and a thumbnail URL. */
+data class SuggestItem(
+    val text: String,
+    val subtitle: String? = null,
+    val imageUrl: String? = null,
+)
+
 object SuggestApi {
 
     private const val ENDPOINT = "https://www.google.com/complete/search"
 
-    private val cache = object : LruCache<String, List<String>>(150) {}
+    private val cache = object : LruCache<String, List<SuggestItem>>(150) {}
 
     private fun key(query: String) = query.trim().lowercase()
 
     /** Exact cached result for [query], or null if never fetched. */
-    fun cached(query: String): List<String>? = cache.get(key(query))
+    fun cached(query: String): List<SuggestItem>? = cache.get(key(query))
 
     /**
      * Instant placeholder list: the exact cached result if we have one,
      * otherwise the longest cached shorter prefix filtered down to phrases
      * that still start with what's typed now ("goo" -> filter of "go").
      */
-    fun provisional(query: String): List<String> {
+    fun provisional(query: String): List<SuggestItem> {
         val q = key(query)
         if (q.isEmpty()) return emptyList()
         cache.get(q)?.let { return it }
         for (len in q.length - 1 downTo 1) {
             val prefix = cache.get(q.substring(0, len)) ?: continue
-            return prefix.filter { it.lowercase().startsWith(q) }
+            return prefix.filter { it.text.lowercase().startsWith(q) }
         }
         return emptyList()
     }
@@ -58,7 +66,7 @@ object SuggestApi {
      * Empty list on any failure (network error, malformed response, blank
      * query). Cancelling the calling coroutine cancels the HTTP call.
      */
-    suspend fun suggest(query: String, client: OkHttpClient): List<String> {
+    suspend fun suggest(query: String, client: OkHttpClient): List<SuggestItem> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
         cache.get(key(trimmed))?.let { return it }
@@ -70,7 +78,7 @@ object SuggestApi {
             ?.build() ?: return emptyList()
         val request = Request.Builder().url(url).build()
 
-        val result = suspendCancellableCoroutine<List<String>?> { cont ->
+        val result = suspendCancellableCoroutine<List<SuggestItem>?> { cont ->
             val call = client.newCall(request)
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
@@ -92,24 +100,35 @@ object SuggestApi {
         return result
     }
 
-    private fun parse(raw: String): List<String> {
+    private fun parse(raw: String): List<SuggestItem> {
         // A couple of Google's suggest variants prefix the body with
         // a )]}' XSSI-protection line before the actual JSON -- strip
         // it if present so JSONArray(...) below doesn't choke on it.
         val body = if (raw.startsWith(")]}'")) raw.substringAfter("\n") else raw
 
-        // Shape: ["query", ["phrase one", "phrase two", ...], [], {"google:suggesttype": ["QUERY", "NAVIGATION", ...]}]
+        // Shape: ["query", ["phrase one", ...], [], {"google:suggesttype": ["QUERY", "ENTITY", ...],
+        //         "google:suggestdetail": [{}, {"a": "description", "i": "thumbnail url"}, ...]}]
         val outer = JSONArray(body)
         if (outer.length() < 2) return emptyList()
         val phrases = outer.getJSONArray(1)
-        val types = outer.optJSONObject(3)?.optJSONArray("google:suggesttype")
+        val meta = outer.optJSONObject(3)
+        val types = meta?.optJSONArray("google:suggesttype")
+        val details = meta?.optJSONArray("google:suggestdetail")
 
         return (0 until phrases.length()).mapNotNull { i ->
             val phrase = phrases.getString(i)
             val type = types?.optString(i)
             // No type info at all (older/plain response shape) -- keep
-            // everything rather than dropping results outright.
-            if (type != null && type != "QUERY") null else phrase
+            // everything rather than dropping results outright. Search
+            // phrases and entities (the rows Chrome shows with a picture)
+            // are kept; NAVIGATION (website guesses) stay dropped.
+            if (type != null && type != "QUERY" && type != "ENTITY") return@mapNotNull null
+            val detail = details?.optJSONObject(i)
+            SuggestItem(
+                text = phrase,
+                subtitle = detail?.optString("a")?.takeIf { it.isNotBlank() },
+                imageUrl = detail?.optString("i")?.takeIf { it.startsWith("http") },
+            )
         }
     }
 }
