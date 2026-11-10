@@ -22,7 +22,10 @@ import kotlin.math.min
 object SuggestionRanker {
 
     private const val MAX_ROWS = 24
-    private const val MAX_PAGE_ROWS = 6
+    // Pages from history pile up fast (every video/article of one site is its own row), so only a
+    // few show, and at most two from the same site.
+    private const val MAX_PAGE_ROWS = 4
+    private const val MAX_PAGE_ROWS_PER_HOST = 2
     private const val MAX_PAST_SEARCH_ROWS = 4
     private const val PAST_SEARCH_CAP = 1250
     private const val DAY_MS = 86_400_000.0
@@ -48,7 +51,7 @@ object SuggestionRanker {
                 val rel = historyRelevance(tokens, query, pastQuery, "", e, false, nowMs)
                     .coerceAtMost(PAST_SEARCH_CAP)
                 candidates += Candidate(
-                    Suggestion.Search(pastQuery, history = true), rel, "q:" + pastQuery.lowercase(),
+                    Suggestion.Search(pastQuery, history = true, inHistory = true), rel, "q:" + pastQuery.lowercase(),
                 )
             } else {
                 val rel = historyRelevance(tokens, query, e.title, e.url, e, isBookmarked(e.url), nowMs)
@@ -75,10 +78,18 @@ object SuggestionRanker {
         out += Suggestion.Search(query, typed = true)
         var pages = 0
         var past = 0
+        val perHost = HashMap<String, Int>()
         for (c in merged.values.sortedByDescending { it.relevance }) { // stable: ties keep source order
             if (out.size >= MAX_ROWS) break
             val s = c.suggestion
-            if (s is Suggestion.History) { if (pages >= MAX_PAGE_ROWS) continue; pages++ }
+            if (s is Suggestion.History) {
+                if (pages >= MAX_PAGE_ROWS) continue
+                val host = addressKey(s.url).substringBefore('/')
+                val sameHost = perHost[host] ?: 0
+                if (sameHost >= MAX_PAGE_ROWS_PER_HOST) continue
+                perHost[host] = sameHost + 1
+                pages++
+            }
             if (s is Suggestion.Search && s.history) { if (past >= MAX_PAST_SEARCH_ROWS) continue; past++ }
             out += s
         }
@@ -93,7 +104,11 @@ object SuggestionRanker {
             val rich = listOf(sa, sb).firstOrNull { it.imageUrl != null || it.subtitle != null }
             val shown = rich ?: listOf(sa, sb).firstOrNull { it.history } ?: sa
             val both = sa.history != sb.history
-            return Candidate(shown, maxOf(a.relevance, b.relevance) + if (both) 40 else 0, a.key)
+            return Candidate(
+                shown.copy(inHistory = sa.inHistory || sb.inHistory),
+                maxOf(a.relevance, b.relevance) + if (both) 40 else 0,
+                a.key,
+            )
         }
         return if (a.relevance >= b.relevance) a else b
     }

@@ -495,7 +495,13 @@
     <string name="action_stop">Stop</string>
     <string name="action_new_tab">New Tab</string>
     <string name="action_scan_qr">Scan QR code</string>
-    <string name="qr_scanner_unavailable">QR scanner needs Google Play services</string>
+    <string name="qr_scanner_unavailable">QR scanner could not start</string>
+    <string name="qr_scanner_hint">Point the camera at a QR code</string>
+    <string name="qr_scanner_permission_needed">Camera permission is needed to scan QR codes</string>
+    <string name="qr_scanner_grant_permission">Allow camera</string>
+    <string name="qr_scanner_from_gallery">Scan from gallery</string>
+    <string name="qr_scanner_torch">Torch</string>
+    <string name="qr_scanner_no_code_in_image">No QR code found in this image</string>
     <string name="action_home">Home</string>
     <string name="action_tabs">Tabs</string>
     <string name="tabs_overlay_header">%1$d tabs</string>
@@ -607,6 +613,11 @@
     <string name="history_empty">No history yet.</string>
     <string name="history_clear_all">Clear All</string>
     <string name="history_cleared_toast">History cleared.</string>
+    <string name="history_clear_search_history">Search history</string>
+    <string name="history_clear_browser_history">Browser history</string>
+    <string name="suggestion_remove_from_history">Remove from history</string>
+    <string name="suggestion_add_shortcut">Add to shortcuts</string>
+    <string name="suggestion_removed_toast">Removed from history.</string>
     <string name="history_search_hint">Search history</string>
     <string name="history_search_empty">No matching history.</string>
 

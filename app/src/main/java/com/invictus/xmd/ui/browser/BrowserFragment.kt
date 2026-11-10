@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -221,6 +222,11 @@ class BrowserFragment : Fragment() {
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) shortcutsViewModel.onIconPicked(uri)
         }
+    private val qrScanLauncher =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+            val text = result.data?.getStringExtra(com.invictus.xmd.ui.qr.QrScannerActivity.EXTRA_TEXT)?.trim().orEmpty()
+            if (result.resultCode == android.app.Activity.RESULT_OK && text.isNotEmpty() && isAdded) loadUrl(text)
+        }
     private var lastDetectedLink: String? = null
     private var speedDialVisible: Boolean by mutableStateOf(true)
     private var browserMenuExpanded: Boolean by mutableStateOf(false)
@@ -241,6 +247,9 @@ class BrowserFragment : Fragment() {
     // See showLinkContextMenu() for how the coordinates get translated from
     // webView-local to browserDialogHost-local before landing here.
     private var linkContextMenuState: LinkContextMenuState? by mutableStateOf(null)
+    // Address-bar suggestion row that was long-pressed -- non-null shows its action menu
+    // (remove from history / add to shortcuts).
+    private var suggestionMenuTarget: Suggestion? by mutableStateOf(null)
     // Drives browserDialogHost's AddBookmarkDialog branch -- non-null shows
     // the dialog prefilled with whatever showAddBookmarkDialog() was called
     // with (current tab's URL/title, or an explicit prefill).
@@ -648,15 +657,7 @@ class BrowserFragment : Fragment() {
                                     }
                                 }
                             },
-                            onAddTap = { phrase ->
-                                val url = normalizeToUrl(phrase)
-                                ShortcutRepository.add(title = phrase, url = url)
-                                Toast.makeText(
-                                    requireContext(),
-                                    R.string.shortcut_added_toast,
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            },
+                            onLongTap = { suggestionMenuTarget = it },
                             onCopyTap = ::copyLinkToClipboard,
                             onShareTap = ::shareLink,
                             onEditTap = { url ->
@@ -730,6 +731,32 @@ class BrowserFragment : Fragment() {
                                     }
                                 },
                                 onDismiss = { sniffedSheetStreams = null },
+                            )
+                        }
+                        suggestionMenuTarget?.let { target ->
+                            val actions = buildList<Pair<String, () -> Unit>> {
+                                val inHistory = target is Suggestion.History ||
+                                    (target is Suggestion.Search && target.inHistory)
+                                if (inHistory) {
+                                    add(stringResource(R.string.suggestion_remove_from_history) to {
+                                        removeSuggestionFromHistory(target)
+                                    })
+                                }
+                                if (target is Suggestion.Search) {
+                                    add(stringResource(R.string.suggestion_add_shortcut) to {
+                                        addSearchShortcut(target.text)
+                                    })
+                                }
+                            }
+                            com.invictus.xmd.ui.components.AppChoiceDialog(
+                                title = target.text,
+                                choices = actions.map { it.first },
+                                dismissLabel = stringResource(android.R.string.cancel),
+                                onChoice = { index ->
+                                    suggestionMenuTarget = null
+                                    actions[index].second()
+                                },
+                                onDismiss = { suggestionMenuTarget = null },
                             )
                         }
                         linkContextMenuState?.let { menuState ->
@@ -1907,27 +1934,15 @@ class BrowserFragment : Fragment() {
     }
 
     /**
-     * QR scanner (Google's Code Scanner: its own camera UI, so no CAMERA permission here).
+     * QR scanner: our own camera screen ([com.invictus.xmd.ui.qr.QrScannerActivity]).
      * A scanned link opens in the current tab; any other text is searched.
      */
     private fun openQrScanner() {
         addressBarClearFocusSignal++
         hideSuggestions()
-        val ctx = context ?: return
-        val options = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
-            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
-            .enableAutoZoom()
-            .build()
-        com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(ctx, options)
-            .startScan()
-            .addOnSuccessListener { barcode ->
-                val text = barcode.rawValue?.trim().orEmpty()
-                if (text.isNotEmpty() && isAdded) loadUrl(text)
-            }
-            .addOnFailureListener {
-                // No Google Play services / scanner module unavailable (a user cancel is not a failure).
-                android.widget.Toast.makeText(ctx, R.string.qr_scanner_unavailable, android.widget.Toast.LENGTH_LONG).show()
-            }
+        qrScanLauncher.launch(
+            android.content.Intent(requireContext(), com.invictus.xmd.ui.qr.QrScannerActivity::class.java),
+        )
     }
 
     /**
@@ -1967,7 +1982,37 @@ class BrowserFragment : Fragment() {
         clipboardUrlOrNull()?.let { clip ->
             if (clip != pageUrl) quick.add(Suggestion.Clipboard(text = clip, url = clip))
         }
+        // Recent searches (clock rows) so past searches are one tap away before typing anything.
+        HistoryRepository.recentSearches(5).forEach { phrase ->
+            quick.add(Suggestion.Search(phrase, history = true, inHistory = true))
+        }
         return quick
+    }
+
+    /** Long-press -> "Remove from history": drops the page / search phrase from history and from the list on screen. */
+    private fun removeSuggestionFromHistory(target: Suggestion) {
+        when (target) {
+            is Suggestion.History -> HistoryRepository.removeSite(target.url)
+            is Suggestion.Search -> HistoryRepository.removeSearch(target.text)
+            else -> return
+        }
+        // Filter the visible list right away -- the database delete lands a moment later.
+        suggestionItems = suggestionItems.mapNotNull { row ->
+            when {
+                row is Suggestion.History && target is Suggestion.History && row.url == target.url -> null
+                row is Suggestion.Search && target is Suggestion.Search && !row.typed &&
+                    row.text.equals(target.text, ignoreCase = true) ->
+                    // A pure history row disappears; a Google row for the same phrase stays.
+                    if (row.history) null else row.copy(inHistory = false)
+                else -> row
+            }
+        }
+        Toast.makeText(requireContext(), R.string.suggestion_removed_toast, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun addSearchShortcut(phrase: String) {
+        ShortcutRepository.add(title = phrase, url = normalizeToUrl(phrase))
+        Toast.makeText(requireContext(), R.string.shortcut_added_toast, Toast.LENGTH_SHORT).show()
     }
 
     /** The clipboard's current text, if (and only if) it's a plain http(s)

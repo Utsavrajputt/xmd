@@ -77,6 +77,8 @@ sealed class Suggestion {
         val typed: Boolean = false,
         /** A past search from history: clock icon instead of the magnifier. */
         val history: Boolean = false,
+        /** This phrase is stored in history (even when a Google row is shown for it) -- long-press can forget it. */
+        val inHistory: Boolean = false,
     ) : Suggestion()
     data class History(override val text: String, val url: String) : Suggestion()
 
@@ -108,7 +110,7 @@ fun AddressBarSuggestions(
     reverse: Boolean,
     onTap: (Suggestion) -> Unit,
     onFillTap: (String) -> Unit,
-    onAddTap: (String) -> Unit,
+    onLongTap: (Suggestion) -> Unit,
     onCopyTap: (String) -> Unit,
     onShareTap: (String) -> Unit,
     onEditTap: (String) -> Unit,
@@ -126,7 +128,7 @@ fun AddressBarSuggestions(
                 query = query,
                 onTap = onTap,
                 onFillTap = onFillTap,
-                onAddTap = onAddTap,
+                onLongTap = onLongTap,
                 onCopyTap = onCopyTap,
                 onShareTap = onShareTap,
                 onEditTap = onEditTap,
@@ -193,7 +195,7 @@ private fun SuggestionRow(
     query: String,
     onTap: (Suggestion) -> Unit,
     onFillTap: (String) -> Unit,
-    onAddTap: (String) -> Unit,
+    onLongTap: (Suggestion) -> Unit,
     onCopyTap: (String) -> Unit,
     onShareTap: (String) -> Unit,
     onEditTap: (String) -> Unit,
@@ -210,10 +212,9 @@ private fun SuggestionRow(
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(
                 onClick = { onTap(item) },
-                // Search rows lost their old "+" (the arrow replaced it), so
-                // long-press keeps "add to shortcuts" reachable.
-                onLongClick = if (search != null && !search.typed) {
-                    { onAddTap(search.text) }
+                // Long-press opens the row menu (remove from history / add to shortcuts).
+                onLongClick = if ((search != null && !search.typed) || item is Suggestion.History) {
+                    { onLongTap(item) }
                 } else null,
             )
             .padding(

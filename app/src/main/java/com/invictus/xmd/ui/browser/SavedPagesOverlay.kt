@@ -3,14 +3,20 @@ package com.invictus.xmd.ui.browser
 
 import android.widget.Toast
 import com.invictus.xmd.ui.components.XmdAlertDialog
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -39,7 +45,7 @@ internal fun SavedPagesOverlay(
     key(destination) {
         when (destination) {
             SavedPagesDestination.History -> SavedPagesListOverlay(
-                entriesFlow = HistoryRepository.entries,
+                entriesFlow = HistoryRepository.siteEntries,
                 titleRes = R.string.history_clear_all,
                 clearAllToastRes = R.string.history_cleared_toast,
                 getTitle = { it.title },
@@ -47,7 +53,9 @@ internal fun SavedPagesOverlay(
                 onBack = onBack,
                 onOpenUrl = onOpenUrl,
                 onDelete = HistoryRepository::remove,
-                onClearAll = HistoryRepository::clearAll,
+                // Checkboxes in the dialog: 0 = search history, 1 = browser history (both ticked by default).
+                clearChoices = listOf(R.string.history_clear_search_history, R.string.history_clear_browser_history),
+                onClearAll = { picked -> HistoryRepository.clear(searches = 0 in picked, sites = 1 in picked) },
                 screen = { entries, query, onQueryChange, back, clearAll, tap, delete ->
                     HistoryScreen(entries, query, onQueryChange, back, clearAll, tap, delete)
                 },
@@ -61,7 +69,7 @@ internal fun SavedPagesOverlay(
                 onBack = onBack,
                 onOpenUrl = onOpenUrl,
                 onDelete = BookmarkRepository::remove,
-                onClearAll = BookmarkRepository::clearAll,
+                onClearAll = { BookmarkRepository.clearAll() },
                 screen = { entries, query, onQueryChange, back, clearAll, tap, delete ->
                     BookmarkScreen(entries, query, onQueryChange, back, clearAll, tap, delete)
                 },
@@ -80,7 +88,8 @@ private fun <T> SavedPagesListOverlay(
     onBack: () -> Unit,
     onOpenUrl: (String) -> Unit,
     onDelete: (T) -> Unit,
-    onClearAll: () -> Unit,
+    clearChoices: List<Int> = emptyList(),
+    onClearAll: (Set<Int>) -> Unit,
     screen: @Composable (
         entries: List<T>,
         query: String,
@@ -118,17 +127,36 @@ private fun <T> SavedPagesListOverlay(
     )
 
     if (confirmingClearAll) {
+        // One tick per clear choice, all on by default.
+        val ticked = remember { mutableStateListOf<Boolean>().apply { repeat(clearChoices.size) { add(true) } } }
         XmdAlertDialog(
             onDismissRequest = { confirmingClearAll = false },
             modifier = Modifier.compactDialogWidth(),
             properties = WideDialogProperties,
             compact = true,
             title = { Text(stringResource(titleRes)) },
+            text = if (clearChoices.isEmpty()) null else {
+                {
+                    Column {
+                        clearChoices.forEachIndexed { index, labelRes ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable { ticked[index] = !ticked[index] },
+                            ) {
+                                Checkbox(checked = ticked[index], onCheckedChange = { ticked[index] = it })
+                                Text(stringResource(labelRes))
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), 
+                TextButton(
+                    shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                    enabled = clearChoices.isEmpty() || ticked.any { it },
                     onClick = {
                         confirmingClearAll = false
-                        onClearAll()
+                        onClearAll(ticked.withIndex().filter { it.value }.map { it.index }.toSet())
                         Toast.makeText(context, clearAllToastRes, Toast.LENGTH_SHORT).show()
                     },
                 ) {

@@ -13,6 +13,7 @@ import java.util.UUID
 import com.invictus.xmd.database.AppDatabase
 import com.invictus.xmd.database.dao.HistoryDao
 import com.invictus.xmd.database.entities.HistoryEntry
+import com.invictus.xmd.ui.browser.SuggestionRanker
 
 /** Browser tab visited-page history. Same simple Room-backed shape as BookmarkRepository. */
 object HistoryRepository {
@@ -21,6 +22,11 @@ object HistoryRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     lateinit var entries: StateFlow<List<HistoryEntry>>
+        private set
+
+    /** Visited pages only. Search-result pages are "search history": they feed the address-bar
+     *  suggestions but are kept out of the History screen. */
+    lateinit var siteEntries: StateFlow<List<HistoryEntry>>
         private set
 
     fun init(context: Context) {
@@ -41,6 +47,19 @@ object HistoryRepository {
                     .map { g -> g.first().copy(visitCount = g.sumOf { it.visitCount }) }
             }
             .stateIn(scope, SharingStarted.Eagerly, emptyList())
+        siteEntries = entries
+            .map { list -> list.filter { SuggestionRanker.searchQueryOf(it.url) == null } }
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }
+
+    /** Newest-first distinct search phrases (from search-engine result pages in history). */
+    fun recentSearches(limit: Int): List<String> {
+        if (!::entries.isInitialized) return emptyList()
+        return entries.value.asSequence()
+            .mapNotNull { SuggestionRanker.searchQueryOf(it.url) }
+            .distinctBy { it.lowercase() }
+            .take(limit)
+            .toList()
     }
 
     private fun hostOf(url: String): String =
@@ -109,5 +128,35 @@ object HistoryRepository {
 
     fun clearAll() {
         scope.launch { runCatching { dao.clearAll() } }
+    }
+
+    /** Removes a visited page (and its stored duplicates) -- used by the address-bar long-press. */
+    fun removeSite(url: String) {
+        val entry = if (::entries.isInitialized) entries.value.firstOrNull { it.url == url } else null
+        if (entry != null) remove(entry) else scope.launch { runCatching { dao.deleteByUrl(url) } }
+    }
+
+    /** Forgets one past search phrase: every stored results page for it, on any search engine. */
+    fun removeSearch(query: String) {
+        scope.launch {
+            runCatching {
+                dao.getAll()
+                    .filter { SuggestionRanker.searchQueryOf(it.url)?.equals(query, ignoreCase = true) == true }
+                    .forEach { dao.delete(it) }
+            }
+        }
+    }
+
+    /** History "Clear All" with its two checkboxes: [searches] = search-result pages, [sites] = every other page. */
+    fun clear(searches: Boolean, sites: Boolean) {
+        if (searches && sites) { clearAll(); return }
+        if (!searches && !sites) return
+        scope.launch {
+            runCatching {
+                dao.getAll()
+                    .filter { (SuggestionRanker.searchQueryOf(it.url) != null) == searches }
+                    .forEach { dao.delete(it) }
+            }
+        }
     }
 }

@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- QR scanner camera; optional hardware so installs on camera-less devices still work. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- libtorrent4j (magnet/torrent downloads) reads the Wi-Fi state to pick
          a network interface for its peer/DHT sockets. -->
@@ -443,6 +446,11 @@
                 <data android:pathPattern=".*\\..*\\..*\\.torrent" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.qr.QrScannerActivity"
+            android:exported="false"
+            android:label="@string/action_scan_qr" />
 
         <activity
             android:name=".ui.ChallengeActivity"
