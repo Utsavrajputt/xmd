@@ -340,6 +340,11 @@ class BrowserFragment : Fragment() {
     private var navCanGoBack: Boolean by mutableStateOf(false)
     private var navCanGoForward: Boolean by mutableStateOf(false)
     private var lastBottomBarToggleMs: Long = 0L
+    // Sites (bare hosts) where the bottom bar hides itself shortly after showing -- see
+    // BottomBarAutoHide. Refreshed in onResume like the other bar prefs. The nonce is bumped
+    // on every Back so the hide timer restarts even when the bar was already showing.
+    private var bottomBarAutoHideSites: List<String> by mutableStateOf(Settings.DEFAULT_BOTTOM_BAR_AUTOHIDE_SITES)
+    private var bottomBarAutoHideNonce: Int by mutableStateOf(0)
 
     private val browserViewModel: BrowserViewModel by viewModels()
 
@@ -424,6 +429,20 @@ class BrowserFragment : Fragment() {
         )
         setContent {
             com.invictus.xmd.ui.theme.XmdTheme {
+                // Auto-hide: on a listed site, a visible bottom bar hides after a short delay.
+                // Any change of the keys (bar shown again by scroll-up / Back / new page, new
+                // site) cancels the pending hide and restarts the countdown.
+                val autoHideActive = bottomBarEnabled && !toolbarBottom && !speedDialVisible &&
+                    !addressBarFocused &&
+                    BottomBarAutoHide.matches(addressBarText, bottomBarAutoHideSites)
+                androidx.compose.runtime.LaunchedEffect(autoHideActive, bottomBarScrollVisible, bottomBarAutoHideNonce) {
+                    if (autoHideActive && bottomBarScrollVisible) {
+                        delay(BOTTOM_BAR_AUTO_HIDE_DELAY_MS)
+                        bottomBarScrollVisible = false
+                        // Same echo-scroll guard the scroll listener uses after a toggle.
+                        lastBottomBarToggleMs = android.os.SystemClock.uptimeMillis()
+                    }
+                }
                 BrowserScreen(
                     speedDialVisible = speedDialVisible,
                     addressBarFocused = addressBarFocused,
@@ -476,6 +495,8 @@ class BrowserFragment : Fragment() {
                             onBackTap = {
                                 val v = webViewFor(tabs.getOrNull(currentTabIndex))
                                 if (v != null && v.canGoBack()) {
+                                    bottomBarScrollVisible = true
+                                    bottomBarAutoHideNonce++
                                     showHistoryNavVeil(v)
                                     v.goBack()
                                     navCanGoBack = v.canGoBack()
@@ -498,8 +519,6 @@ class BrowserFragment : Fragment() {
                             homeVisible = toolbarBottom || !bottomBarEnabled,
                             onNewTabTap = ::addNewTab,
                             onTabsTap = ::showTabsOverlay,
-                            mediaActionVisible = sniffedMediaFabVisible,
-                            onMediaActionTap = ::onSniffedMediaFabTapped,
                             linkActionVisible = detectedLinkVisible,
                             onLinkActionTap = ::onAddLinkClicked,
                             onScanQrTap = ::openQrScanner,
@@ -661,7 +680,15 @@ class BrowserFragment : Fragment() {
                         )
                     },
                     loadingVeil = { NavLoadingVeil(visible = navLoadingVeilVisible) },
-                    floatingActions = {},
+                    floatingActions = {
+                        BrowserMediaFab(
+                            visible = sniffedMediaFabVisible && !speedDialVisible && !addressBarFocused,
+                            text = sniffedMediaFabText,
+                            bottomBarShowing = !toolbarBottom && bottomBarEnabled && bottomBarScrollVisible,
+                            toolbarAtBottom = toolbarBottom,
+                            onClick = ::onSniffedMediaFabTapped,
+                        )
+                    },
                     dialogs = {
                         inAppPlayerRequest?.let { request ->
                             InAppVideoPlayerDialog(
@@ -679,6 +706,7 @@ class BrowserFragment : Fragment() {
                         sniffedSheetStreams?.let { streams ->
                             SniffedMediaSheet(
                                 streams = streams,
+                                pageTitle = tabs.getOrNull(currentTabIndex)?.title,
                                 onStreamSelected = { stream ->
                                     val needsPicker = with(com.invictus.xmd.domain.browser.MediaSniffer) {
                                         stream.kind.needsQualityPicker()
@@ -1807,6 +1835,9 @@ class BrowserFragment : Fragment() {
         val tab = tabs.getOrNull(currentTabIndex) ?: return false
         val view = webViewFor(tab)
         if (view != null && view.visibility == View.VISIBLE) {
+            // Back brings the bottom bar back; on auto-hide sites it hides again after the delay.
+            bottomBarScrollVisible = true
+            bottomBarAutoHideNonce++
             if (view.canGoBack()) {
                 showHistoryNavVeil(view)
                 view.goBack()
@@ -2199,6 +2230,7 @@ class BrowserFragment : Fragment() {
         super.onResume()
         toolbarBottom = Settings.browserToolbarBottom()
         bottomBarEnabled = Settings.browserBottomBarEnabled()
+        bottomBarAutoHideSites = Settings.browserBottomBarAutoHideSites()
         navButtonsEnabled = Settings.browserNavButtonsEnabled()
         webViews.values.forEach(::applyForceDark) // picks up a toggle made in Settings
         val currentTab = tabs.getOrNull(currentTabIndex)
@@ -2690,7 +2722,7 @@ class BrowserFragment : Fragment() {
             if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT &&
                 url != null && com.invictus.xmd.utils.LinkParser.isYoutubeVideoPage(url)
             ) {
-                sniffedMediaFabText = getString(R.string.sniffed_media_chip_one)
+                sniffedMediaFabText = getString(R.string.browser_fab_videos_one)
                 sniffedMediaIsYoutubePage = true
                 sniffedMediaFabVisible = true
                 return
@@ -2699,11 +2731,9 @@ class BrowserFragment : Fragment() {
             return
         }
         sniffedMediaFabText = if (count == 1) {
-            val only = synchronized(tab.sniffedMedia) { tab.sniffedMedia.values.firstOrNull() }
-            val height = only?.let { com.invictus.xmd.domain.browser.MediaSniffer.qualityFromUrl(it.url) }
-            getString(R.string.sniffed_media_chip_one) + (height?.let { " \u00b7 ${it}p" } ?: "")
+            getString(R.string.browser_fab_videos_one)
         } else {
-            getString(R.string.sniffed_media_chip_many, count)
+            getString(R.string.browser_fab_videos_many, count)
         }
         sniffedMediaIsYoutubePage = false
         sniffedMediaFabVisible = true

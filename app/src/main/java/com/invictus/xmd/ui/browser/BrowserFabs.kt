@@ -1,101 +1,75 @@
 package com.invictus.xmd.ui.browser
 
-import com.invictus.xmd.ui.theme.XmdShapes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
-import com.invictus.xmd.ui.icons.Icon
-import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.invictus.xmd.R
-import com.invictus.xmd.domain.browser.MediaSniffer
+import com.invictus.xmd.ui.icons.Icon
+import com.invictus.xmd.ui.icons.Icons
+import com.invictus.xmd.ui.theme.XmdShapes
 
 /**
- * Phase F of the Compose migration: fragment_browser.xml's two independent
- * FloatingActionButtons -- addLinkFab (appears when a downloadable link is
- * found on the current page) and sniffedMediaFab (a count chip that
- * appears when MediaSniffer picks up a stream) -- are now one shared
- * ComposeView (`browserFabs` in fragment_browser.xml) hosting this single
- * composable, per the user's call on this phase's ComposeView-count
- * question. Each FAB keeps the exact fixed bottom|end margins the old XML
- * had (20dp/20dp for the download FAB, 20dp horizontal + 88dp bottom for
- * the sniffed-media chip) rather than being stacked in a Column, since
- * that's how the old layout positioned them -- independently, not
- * relative to each other, so sniffedMediaFab's gap above addLinkFab holds
- * even when addLinkFab itself is hidden.
+ * Floating action button shown while the current page has detected videos
+ * (sniffed streams, or a YouTube watch/shorts page). Label is the video
+ * count ("1 video" / "3 videos"); tapping it opens the list dialog (or, for
+ * a YouTube page, the quality picker) -- see BrowserFragment.onSniffedMediaFabTapped.
  *
- * Colors/shape reproduce Widget.Xmd.FloatingActionButton (colorPrimaryContainer
- * background, colorOnPrimaryContainer content, 28dp "Expressive" corner
- * radius) since Compose's FloatingActionButton/ExtendedFloatingActionButton
- * don't pick up that XML style automatically.
+ * It sits just above the bottom nav bar while that bar is showing and glides
+ * down to the screen edge when the bar auto-hides / hides on scroll, so it
+ * never floats over empty space or covers the bar's buttons.
  *
- * Both taps still route straight back to the same BrowserFragment functions
- * the old click listeners called (onAddLinkClicked(), showSniffedMediaSheet())
- * -- see BrowserFragment.onViewCreated's browserFabs.setContent.
- *
- * Not independently verified -- no local Android SDK/Gradle in this
- * environment, same caveat every prior phase's summary notes.
+ * Same colors/shape as Widget.Xmd.FloatingActionButton (primaryContainer,
+ * 28dp "Expressive" corners). Meant to be hosted in BrowserScreen's
+ * `floatingActions` slot (a fillMaxSize Box scope).
  */
 @Composable
-fun BrowserFabs(
-    detectedLinkVisible: Boolean,
-    onDetectedLinkTap: () -> Unit,
-    sniffedMediaVisible: Boolean,
-    sniffedMediaText: String,
-    onSniffedMediaTap: () -> Unit,
+fun BrowserMediaFab(
+    visible: Boolean,
+    text: String,
+    bottomBarShowing: Boolean,
+    toolbarAtBottom: Boolean,
+    onClick: () -> Unit,
 ) {
-    val fabShape = XmdShapes.L
-    val containerColor = MaterialTheme.colorScheme.primaryContainer
-    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    // 52dp bar + 16dp gap | 16dp from the edge | 88dp over a bottom address bar.
+    val targetBottom = when {
+        toolbarAtBottom -> 88.dp
+        bottomBarShowing -> 68.dp
+        else -> 16.dp
+    }
+    val bottom by animateDpAsState(targetValue = targetBottom, label = "mediaFabBottom")
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val baseBottomPadding = 88.dp
-        if (sniffedMediaVisible) {
-            val bottomPadding = if (detectedLinkVisible) baseBottomPadding + 64.dp else baseBottomPadding
+        AnimatedVisibility(
+            visible = visible,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 16.dp, bottom = bottom),
+            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+            exit = fadeOut() + scaleOut(targetScale = 0.8f),
+        ) {
             ExtendedFloatingActionButton(
-                onClick = onSniffedMediaTap,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = bottomPadding),
-                shape = fabShape,
-                containerColor = containerColor,
-                contentColor = contentColor,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Video,
-                        contentDescription = null,
-                    )
-                },
-                text = { Text(sniffedMediaText) },
+                onClick = onClick,
+                shape = XmdShapes.L,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                icon = { Icon(imageVector = Icons.Download, contentDescription = null) },
+                text = { Text(text) },
             )
-        }
-        if (detectedLinkVisible) {
-            FloatingActionButton(
-                onClick = onDetectedLinkTap,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 20.dp, bottom = baseBottomPadding),
-                shape = fabShape,
-                containerColor = containerColor,
-                contentColor = contentColor,
-            ) {
-                Icon(
-                    imageVector = Icons.Download,
-                    contentDescription = stringResource(R.string.action_add_to_downloads),
-                )
-            }
         }
     }
 }

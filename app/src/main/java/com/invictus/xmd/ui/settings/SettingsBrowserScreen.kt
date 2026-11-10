@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.invictus.xmd.R
 import com.invictus.xmd.preferences.Settings
+import com.invictus.xmd.ui.browser.BottomBarAutoHide
 import com.invictus.xmd.ui.components.WideDialogProperties
 import com.invictus.xmd.ui.components.wideDialogWidth
 import com.invictus.xmd.ui.icons.Icon
@@ -61,6 +62,8 @@ fun SettingsBrowserScreen(
     onNavButtonsChanged: (Boolean) -> Unit,
     forceDarkEnabled: Boolean,
     onForceDarkChanged: (Boolean) -> Unit,
+    autoHideSites: List<String>,
+    onAutoHideSitesChanged: (List<String>) -> Unit,
     onImportWebsites: () -> Unit,
     onExportWebsites: () -> Unit,
 ) {
@@ -74,6 +77,18 @@ fun SettingsBrowserScreen(
             navButtonsEnabled = navButtonsEnabled,
             onNavButtonsChanged = onNavButtonsChanged,
             onDismiss = { showToolbarDialog = false },
+        )
+    }
+
+    var showAutoHideDialog by remember { mutableStateOf(false) }
+    if (showAutoHideDialog) {
+        AutoHideSitesDialog(
+            sites = autoHideSites,
+            onSave = {
+                onAutoHideSitesChanged(it)
+                showAutoHideDialog = false
+            },
+            onDismiss = { showAutoHideDialog = false },
         )
     }
 
@@ -129,6 +144,18 @@ fun SettingsBrowserScreen(
                 subtitle = toolbarSummary,
                 onClick = { showToolbarDialog = true },
             )
+            if (bottomBarEnabled) {
+                SettingsDivider()
+                ClickableSettingRow(
+                    title = stringResource(R.string.settings_bottom_bar_autohide_title),
+                    subtitle = if (autoHideSites.isEmpty()) {
+                        stringResource(R.string.settings_bottom_bar_autohide_off)
+                    } else {
+                        autoHideSites.joinToString(", ")
+                    },
+                    onClick = { showAutoHideDialog = true },
+                )
+            }
             SettingsDivider()
             SwitchSettingRow(
                 title = stringResource(R.string.settings_force_dark),
@@ -150,6 +177,53 @@ fun SettingsBrowserScreen(
     }
 }
 
+
+/** Editable list of sites (one per line) where the bottom bar auto-hides. Saving an empty box turns the feature off. */
+@Composable
+private fun AutoHideSitesDialog(
+    sites: List<String>,
+    onSave: (List<String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf(sites.joinToString("\n")) }
+    XmdAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.wideDialogWidth(),
+        properties = WideDialogProperties,
+        title = { Text(stringResource(R.string.settings_bottom_bar_autohide_title)) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Text(
+                    text = stringResource(R.string.settings_bottom_bar_autohide_dialog_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text(stringResource(R.string.settings_bottom_bar_autohide_field_label)) },
+                    placeholder = { Text("youtube.com") },
+                    minLines = 3,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                onClick = { onSave(BottomBarAutoHide.parseInput(text)) },
+            ) { Text(stringResource(R.string.action_done)) }
+        },
+        dismissButton = {
+            TextButton(
+                shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                onClick = { text = Settings.DEFAULT_BOTTOM_BAR_AUTOHIDE_SITES.joinToString("\n") },
+            ) { Text(stringResource(R.string.settings_bottom_bar_autohide_reset)) }
+        },
+    )
+}
 
 /**
  * One "Toolbar" entry replacing three separate rows (bottom address bar,

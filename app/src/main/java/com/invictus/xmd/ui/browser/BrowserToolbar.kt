@@ -18,7 +18,7 @@ import com.invictus.xmd.ui.icons.AppIcon
 import com.invictus.xmd.ui.icons.Icon
 import com.invictus.xmd.ui.icons.Icons
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -135,8 +135,6 @@ fun BrowserToolbarRow(
     downloadsVisible: Boolean = true,
     isBottomBar: Boolean = false,
     navButtonsVisible: Boolean = false,
-    mediaActionVisible: Boolean = false,
-    onMediaActionTap: () -> Unit = {},
     linkActionVisible: Boolean = false,
     onLinkActionTap: () -> Unit = {},
     onScanQrTap: () -> Unit = {},
@@ -216,15 +214,8 @@ fun BrowserToolbarRow(
                         contentDescription = stringResource(R.string.action_tabs),
                         onClick = onTabsTap,
                     )
-                    // Replaces the old floating buttons: only present while the page has a
-                    // detected video / downloadable link.
-                    if (mediaActionVisible) {
-                        ToolbarIconButton(
-                            icon = Icons.Video,
-                            contentDescription = stringResource(R.string.sniffed_media_chip_one),
-                            onClick = onMediaActionTap,
-                        )
-                    }
+                    // Only present while the page has a downloadable link (detected videos
+                    // now surface as a floating action button, see BrowserFabs).
                     if (linkActionVisible) {
                         ToolbarIconButton(
                             icon = Icons.Link,
@@ -258,8 +249,10 @@ fun BrowserToolbarRow(
                 targetValue = (progress / 100f).coerceIn(0f, 1f),
                 label = "toolbarProgress",
             )
-            LinearProgressIndicator(
-                progress = { animatedProgress },
+            // Hand-drawn 2dp line instead of LinearProgressIndicator: the Material
+            // indicator pins its own 4dp height, which read as too chunky on the
+            // address bar edge.
+            Box(
                 modifier = Modifier
                     .align(if (isBottomBar) Alignment.TopCenter else Alignment.BottomCenter)
                     .fillMaxWidth()
@@ -267,12 +260,17 @@ fun BrowserToolbarRow(
                     .padding(
                         top = if (isBottomBar) 8.dp else 0.dp,
                         bottom = if (isBottomBar) 0.dp else 8.dp,
-                    ),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = Color.Transparent,
-                gapSize = 0.dp,
-                drawStopIndicator = {},
-            )
+                    )
+                    .height(2.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(animatedProgress)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
         }
     }
 }

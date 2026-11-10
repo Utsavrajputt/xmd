@@ -909,6 +909,9 @@ private fun BrowserRoute(
     var forceDarkEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.browserForceDark())
     }
+    var autoHideSites by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.browserBottomBarAutoHideSites())
+    }
     if (showSearchEngineDialog) {
         SearchEngineDialog(
             currentEngine = searchEngine,
@@ -984,6 +987,11 @@ private fun BrowserRoute(
         onForceDarkChanged = { checked ->
             forceDarkEnabled = checked
             com.invictus.xmd.preferences.Settings.setBrowserForceDark(checked)
+        },
+        autoHideSites = autoHideSites,
+        onAutoHideSitesChanged = { sites ->
+            autoHideSites = sites
+            com.invictus.xmd.preferences.Settings.setBrowserBottomBarAutoHideSites(sites)
         },
         onImportWebsites = onImportWebsites,
         onExportWebsites = onExportWebsites,

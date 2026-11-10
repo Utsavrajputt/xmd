@@ -388,6 +388,13 @@
     <string name="sniffed_media_title">Videos &amp; audio found on this page</string>
     <string name="sniffed_media_chip_one">🎬 1 video</string>
     <string name="sniffed_media_chip_many">🎬 %d videos</string>
+    <string name="settings_bottom_bar_autohide_title">Auto-hide bottom bar</string>
+    <string name="settings_bottom_bar_autohide_off">Off</string>
+    <string name="settings_bottom_bar_autohide_dialog_hint">Hides the bottom bar a few seconds after the page opens on these sites. It comes back on scroll-up or Back. One site per line; leave empty to turn off.</string>
+    <string name="settings_bottom_bar_autohide_field_label">Sites</string>
+    <string name="settings_bottom_bar_autohide_reset">Reset</string>
+    <string name="browser_fab_videos_one">1 video</string>
+    <string name="browser_fab_videos_many">%d videos</string>
     <string name="settings_ytdlp_title">yt-dlp engine</string>
     <string name="settings_ytdlp_hint">Video-site support depends on the selected build.</string>
     <string name="settings_ytdlp_not_installed_hint">Install to download from supported video sites.</string>

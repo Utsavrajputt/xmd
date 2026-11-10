@@ -51,6 +51,7 @@ import com.invictus.xmd.domain.browser.MediaSniffer
 @Composable
 fun SniffedMediaSheet(
     streams: List<MediaSniffer.Sniffed>,
+    pageTitle: String? = null,
     onStreamSelected: (MediaSniffer.Sniffed) -> Unit,
     onCopyLink: (String) -> Unit,
     onPlayClick: ((MediaSniffer.Sniffed) -> Unit)? = null,
@@ -69,6 +70,24 @@ fun SniffedMediaSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
+        // Header: how many videos were found + the page they came from.
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp)) {
+            Text(
+                text = if (streams.size == 1) stringResource(R.string.browser_fab_videos_one)
+                else stringResource(R.string.browser_fab_videos_many, streams.size),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (!pageTitle.isNullOrBlank()) {
+                Text(
+                    text = pageTitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -77,9 +96,10 @@ fun SniffedMediaSheet(
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            streams.forEach { stream ->
+            streams.forEachIndexed { index, stream ->
                 SniffedMediaRow(
                     stream = stream,
+                    displayName = streamDisplayName(stream, index, streams.size, pageTitle),
                     onClick = {
                         onStreamSelected(stream)
                         closeSheet()
@@ -100,6 +120,7 @@ fun SniffedMediaSheet(
 @Composable
 private fun SniffedMediaRow(
     stream: MediaSniffer.Sniffed,
+    displayName: String,
     onClick: () -> Unit,
     onCopyClick: () -> Unit,
     onPlayClick: (() -> Unit)? = null,
@@ -128,20 +149,25 @@ private fun SniffedMediaRow(
             value = if (com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url)) null
             else withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
         }
-        val detail = info?.let { MediaSniffer.describe(it) }
+        // Always shows at least the format (HLS / MP4 ...); quality + size are
+        // appended once the probe finishes.
+        val detail = listOfNotNull(
+            streamFormatLabel(stream),
+            info?.let { MediaSniffer.describe(it) },
+        ).joinToString(" \u00b7 ")
         Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
         ) {
             Text(
-                text = MediaSniffer.guessLabel(stream.url),
+                text = displayName,
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (detail != null) {
+            if (detail.isNotBlank()) {
                 Text(
                     text = detail,
                     color = MaterialTheme.colorScheme.primary,
@@ -170,4 +196,29 @@ private fun SniffedMediaRow(
             )
         }
     }
+}
+
+private val GENERIC_STREAM_NAME = Regex(
+    """(?i)^(index|master|playlist|manifest|chunklist|stream|video|hls|main|init)(\.(m3u8|mpd|mp4|webm))?$|^[0-9a-f]{16,}(\.\w+)?$""",
+)
+
+/** URL's last segment when it reads like a real file name; otherwise the page title (numbered when
+ *  several streams share it), since "index.m3u8" tells the user nothing. */
+private fun streamDisplayName(
+    stream: MediaSniffer.Sniffed,
+    index: Int,
+    total: Int,
+    pageTitle: String?,
+): String {
+    val label = MediaSniffer.guessLabel(stream.url)
+    if (!GENERIC_STREAM_NAME.matches(label) || pageTitle.isNullOrBlank()) return label
+    return if (total > 1) "$pageTitle (${index + 1})" else pageTitle
+}
+
+private fun streamFormatLabel(stream: MediaSniffer.Sniffed): String? = when (stream.kind) {
+    MediaSniffer.Kind.HLS -> "HLS"
+    MediaSniffer.Kind.DASH -> "DASH"
+    MediaSniffer.Kind.DIRECT_VIDEO, MediaSniffer.Kind.DIRECT_AUDIO ->
+        Regex("""\.([a-z0-9]{2,4})(?:\?|$)""", RegexOption.IGNORE_CASE)
+            .find(stream.url.substringBefore('#'))?.groupValues?.get(1)?.uppercase()
 }

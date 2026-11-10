@@ -77,6 +77,7 @@ object Settings {
     private const val KEY_ADBLOCK_ENABLED = "browser_adblock_enabled"
     private const val KEY_BACKGROUND_PLAYBACK_ENABLED = "browser_background_playback_enabled"
     private const val KEY_BROWSER_BOTTOM_BAR_ENABLED = "browser_bottom_bar_enabled"
+    private const val KEY_BROWSER_BOTTOM_BAR_AUTOHIDE_SITES = "browser_bottom_bar_autohide_sites"
     private const val KEY_BROWSER_TOOLBAR_BOTTOM = "browser_toolbar_bottom"
     private const val KEY_BROWSER_NAV_BUTTONS_ENABLED = "browser_nav_buttons_enabled"
     private const val KEY_BROWSER_FORCE_DARK = "browser_force_dark"
@@ -485,6 +486,22 @@ object Settings {
         prefs.getBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, false)
     fun setBrowserBottomBarEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, value).apply()
+    }
+
+    // ── Browser: sites where the bottom nav bar hides itself after a few seconds ──
+    // Full-screen-ish video/social sites (YouTube, Instagram...) where the bar just
+    // steals screen space. The bar comes back on scroll-up / Back / a new page and
+    // hides again after the delay. Stored as one comma-separated string; an empty
+    // list turns the feature off. Entries are bare hosts, subdomains match too.
+    val DEFAULT_BOTTOM_BAR_AUTOHIDE_SITES = listOf("youtube.com", "instagram.com", "moctale.in")
+
+    fun browserBottomBarAutoHideSites(): List<String> {
+        val raw = prefs.getString(KEY_BROWSER_BOTTOM_BAR_AUTOHIDE_SITES, null)
+            ?: return DEFAULT_BOTTOM_BAR_AUTOHIDE_SITES
+        return raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    }
+    fun setBrowserBottomBarAutoHideSites(sites: List<String>) {
+        prefs.edit().putString(KEY_BROWSER_BOTTOM_BAR_AUTOHIDE_SITES, sites.joinToString(",")).apply()
     }
 
     // ── Browser: Back/Forward buttons in the address-bar toolbar ──
