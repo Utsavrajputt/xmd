@@ -329,6 +329,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     private var downloadsSelectionState: DownloadsSelectionUiState? by mutableStateOf(null)
     private var isBrowserHeaderLocked: Boolean = false
     private var isBrowserWebpageOpen: Boolean by mutableStateOf(false)
+    private var isBrowserAddressBarFocused: Boolean by mutableStateOf(false)
 
     private fun updateViewPagerUserInputEnabled() {
         val disabled = (downloadsSelectionState != null) ||
@@ -699,6 +700,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                     onToggleTheme = ::toggleDarkMode,
                     onViewPagerReady = ::setupViewPager,
                     isBrowserWebpageOpen = isBrowserWebpageOpen,
+                    hideBottomBar = isBrowserAddressBarFocused && mainDestination == MainDestination.Browser,
                     onBottomBarDragStart = {
                         if (mainViewPager?.isFakeDragging == false) {
                             mainViewPager?.beginFakeDrag()
@@ -1693,6 +1695,10 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     override fun onBrowserHeaderInteractionChanged(locked: Boolean) {
         this.isBrowserHeaderLocked = locked
         updateViewPagerUserInputEnabled()
+    }
+
+    override fun onBrowserAddressBarFocusChanged(focused: Boolean) {
+        this.isBrowserAddressBarFocused = focused
     }
 
     override fun onBrowserWebpageVisibilityChanged(isWebpageOpen: Boolean) {

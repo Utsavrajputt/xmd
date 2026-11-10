@@ -27,6 +27,9 @@ interface HistoryDao {
     suspend fun getAll(): List<HistoryEntry>
 
     // Re-visiting the same URL replaces its old row instead of stacking up.
+    @Query("SELECT COALESCE(SUM(visitCount), 0) FROM history_entries WHERE url = :url")
+    suspend fun visitCountFor(url: String): Int
+
     @Query("DELETE FROM history_entries WHERE url = :url")
     suspend fun deleteByUrl(url: String)
 

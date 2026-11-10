@@ -35,7 +35,11 @@ object HistoryRepository {
         // video opened many times with a different token URL each time) into
         // one row -- the newest. Also cleans up duplicates already stored.
         entries = dao.observeAll()
-            .map { list -> list.distinctBy { dedupKey(it) } }
+            .map { list ->
+                // newest-first list: the first row of each group is the newest; visit counts add up.
+                list.groupBy { dedupKey(it) }.values
+                    .map { g -> g.first().copy(visitCount = g.sumOf { it.visitCount }) }
+            }
             .stateIn(scope, SharingStarted.Eagerly, emptyList())
     }
 
@@ -78,8 +82,16 @@ object HistoryRepository {
         if (url.isBlank()) return
         scope.launch {
             runCatching {
+                val visits = dao.visitCountFor(url) + 1
                 dao.deleteByUrl(url)
-                dao.insert(HistoryEntry(id = UUID.randomUUID().toString(), url = url, title = title.ifBlank { url }))
+                dao.insert(
+                    HistoryEntry(
+                        id = UUID.randomUUID().toString(),
+                        url = url,
+                        title = title.ifBlank { url },
+                        visitCount = visits,
+                    )
+                )
             }
         }
     }

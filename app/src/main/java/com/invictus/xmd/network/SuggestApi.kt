@@ -33,6 +33,8 @@ data class SuggestItem(
     val text: String,
     val subtitle: String? = null,
     val imageUrl: String? = null,
+    /** Google's own score for this row (Chrome sorts by it); 0 = not provided. */
+    val relevance: Int = 0,
 )
 
 object SuggestApi {
@@ -114,6 +116,7 @@ object SuggestApi {
         val meta = outer.optJSONObject(3)
         val types = meta?.optJSONArray("google:suggesttype")
         val details = meta?.optJSONArray("google:suggestdetail")
+        val relevances = meta?.optJSONArray("google:suggestrelevance")
 
         return (0 until phrases.length()).mapNotNull { i ->
             val phrase = phrases.getString(i)
@@ -128,6 +131,7 @@ object SuggestApi {
                 text = phrase,
                 subtitle = detail?.optString("a")?.takeIf { it.isNotBlank() },
                 imageUrl = detail?.optString("i")?.takeIf { it.startsWith("http") },
+                relevance = relevances?.optInt(i, 0) ?: 0,
             )
         }
     }

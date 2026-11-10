@@ -136,6 +136,7 @@ internal fun MainShell(
     onBottomBarDragEnd: () -> Unit = {},
     overlayActive: Boolean = false,
     isBrowserWebpageOpen: Boolean = false,
+    hideBottomBar: Boolean = false,
     overlay: @Composable BoxScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -186,7 +187,7 @@ internal fun MainShell(
             val barSpatial = MaterialTheme.motionScheme.fastSpatialSpec<IntOffset>()
             val barEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
             androidx.compose.animation.AnimatedVisibility(
-                visible = !imeVisible && !hideForBrowserWebpage,
+                visible = !imeVisible && !hideForBrowserWebpage && !hideBottomBar,
                 enter = slideInVertically(barSpatial) { height -> height } + fadeIn(barEffects),
                 exit = slideOutVertically(barSpatial) { height -> height } + fadeOut(barEffects),
                 label = "BottomBarVisibilityTransition",

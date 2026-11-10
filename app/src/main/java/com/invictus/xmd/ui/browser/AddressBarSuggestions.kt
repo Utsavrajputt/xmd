@@ -73,6 +73,8 @@ sealed class Suggestion {
         val subtitle: String? = null,
         val imageUrl: String? = null,
         val typed: Boolean = false,
+        /** A past search from history: clock icon instead of the magnifier. */
+        val history: Boolean = false,
     ) : Suggestion()
     data class History(override val text: String, val url: String) : Suggestion()
 
@@ -131,6 +133,10 @@ fun AddressBarSuggestions(
     }
 }
 
+/** "https://www.github.com/a/b/" -> "github.com/a/b" (how Chrome prints an address in a suggestion). */
+private fun displayUrl(url: String): String =
+    url.trim().removePrefix("https://").removePrefix("http://").removePrefix("www.").trimEnd('/')
+
 /** Typed part normal, the part Google added bold -- like Chrome. */
 private fun boldCompletion(text: String, query: String): AnnotatedString {
     val q = query.trim()
@@ -184,7 +190,7 @@ private fun SuggestionRow(
     val search = item as? Suggestion.Search
     val thumbUrl = search?.imageUrl
     val subtitle = search?.subtitle
-    val tall = thumbUrl != null || subtitle != null || item is Suggestion.Clipboard
+    val tall = thumbUrl != null || subtitle != null || item is Suggestion.Clipboard || item is Suggestion.History
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -212,7 +218,7 @@ private fun SuggestionRow(
             when {
                 thumbUrl != null -> SuggestionThumb(thumbUrl)
                 search != null -> Icon(
-                    imageVector = Icons.Search,
+                    imageVector = if (search.history) Icons.History else Icons.Search,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp),
@@ -246,7 +252,7 @@ private fun SuggestionRow(
                     } else {
                         Icon(
                             imageVector = when (item) {
-                                is Suggestion.History -> Icons.History
+                                is Suggestion.History -> Icons.Public
                                 is Suggestion.CurrentPage -> Icons.Public
                                 is Suggestion.Clipboard -> Icons.Link
                                 is Suggestion.Search -> Icons.Search
@@ -307,6 +313,32 @@ private fun SuggestionRow(
                     )
                 }
             }
+        } else if (item is Suggestion.History) {
+            // Chrome's page row: title, then the address in the accent colour.
+            val address = displayUrl(item.url)
+            val showTitle = item.text.isNotBlank() && displayUrl(item.text) != address
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp),
+            ) {
+                if (showTitle) {
+                    Text(
+                        text = item.text,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = address,
+                    color = MaterialTheme.colorScheme.primary,
+                    style = if (showTitle) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         } else {
             Text(
                 text = item.text,
@@ -337,6 +369,20 @@ private fun SuggestionRow(
                             modifier = Modifier.size(22.dp),
                         )
                     }
+                }
+            }
+            is Suggestion.History -> {
+                IconButton(
+                    shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                    onClick = { onFillTap(item.url) },
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.FillArrow,
+                        contentDescription = stringResource(R.string.action_edit),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             }
             is Suggestion.CurrentPage -> {

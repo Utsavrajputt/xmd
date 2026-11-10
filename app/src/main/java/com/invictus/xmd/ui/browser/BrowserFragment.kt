@@ -51,7 +51,6 @@ import com.invictus.xmd.domain.browser.MediaSniffer
 import com.invictus.xmd.domain.download.DownloadEngine
 import com.invictus.xmd.network.DnsOverHttpsResolver
 import com.invictus.xmd.network.SuggestApi
-import com.invictus.xmd.network.SuggestItem
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.HistoryRepository
@@ -102,6 +101,8 @@ class BrowserFragment : Fragment() {
          * other Callbacks implementers don't need to do anything.
          */
         fun triggerPrepareFromPage(url: String, pageUrl: String) { triggerPrepare(listOf(url)) }
+        /** The address bar gained/lost focus: the host hides its floating bottom bar while it is focused. */
+        fun onBrowserAddressBarFocusChanged(focused: Boolean) {}
         /**
          * The WebView's own download intercept (see [onWebViewDownloadRequested])
          * fired for a real file link -- opens the full Add Download editor
@@ -142,10 +143,6 @@ class BrowserFragment : Fragment() {
         private const val USER_TAP_WINDOW_MS = 6000L
         private const val HISTORY_VEIL_FAILSAFE_MS = 700L
         private const val HISTORY_VEIL_MAX_MS = 8000L
-        /** Cap on local history matches shown in the address-bar dropdown --
-         *  Chrome-style: a handful of your own visited pages, not a full list,
-         *  since the remaining rows are Google's live search suggestions. */
-        private const val MAX_HISTORY_SUGGESTIONS = 5
         /** Reports any <video> that fails to play (codec/format the WebView can't
          *  handle) to [VideoBridge] so the in-app player can take over. */
         private const val VIDEO_ERROR_SCRIPT =
@@ -1850,15 +1847,15 @@ class BrowserFragment : Fragment() {
             showQuickSuggestions()
             return
         }
-        val historyMatches = HistoryRepository.search(trimmed, MAX_HISTORY_SUGGESTIONS)
-            .map { Suggestion.History(text = it.title, url = it.url) }
-
-        // Paint immediately, on the keystroke's own frame: the "what you typed"
-        // row + history (already in memory) + whatever search phrases we can
-        // already derive from the cache. Only the live network part is provisional below.
+        // One ranked list, like Chrome's omnibox: every candidate -- pages you visited,
+        // your past searches, Google's phrases and entities -- gets a relevance score and
+        // the list is sorted by it (see SuggestionRanker). Painted on the keystroke's own
+        // frame from memory/cache; the live Google request then re-ranks it.
+        val rawHistory = HistoryRepository.search(trimmed, 60)
+        val isBookmarked: (String) -> Boolean = { bookmarkKey(it) in bookmarkedUrls }
         val provisional = SuggestApi.provisional(trimmed)
-        suggestionItems = if (historyMatches.isNotEmpty() || provisional.isNotEmpty()) {
-            buildSuggestionList(trimmed, historyMatches, provisional)
+        suggestionItems = if (rawHistory.isNotEmpty() || provisional.isNotEmpty()) {
+            SuggestionRanker.rank(trimmed, rawHistory, isBookmarked, provisional)
         } else {
             // Keep the previous phrase/history rows instead of blinking the
             // list away between keystrokes; drop the page/clipboard rows and
@@ -1874,28 +1871,23 @@ class BrowserFragment : Fragment() {
             delay(40) // just enough to skip a request per key during fast typing
             val searchResults = SuggestApi.suggest(trimmed, suggestClient)
             if (!isAdded) return@launch
-            suggestionItems = buildSuggestionList(trimmed, historyMatches, searchResults)
+            suggestionItems = SuggestionRanker.rank(trimmed, rawHistory, isBookmarked, searchResults)
         }
     }
 
-    /** Chrome order: what you typed, then history matches, then Google's phrases/entities (all of them). */
-    private fun buildSuggestionList(
-        typed: String,
-        history: List<Suggestion.History>,
-        results: List<SuggestItem>,
-    ): List<Suggestion> =
-        listOf<Suggestion>(Suggestion.Search(typed, typed = true)) +
-            history +
-            results
-                .filterNot { it.text.equals(typed, ignoreCase = true) }
-                .map { Suggestion.Search(it.text, it.subtitle, it.imageUrl) }
-
-
-    /** Google Lens website (lens.google.com) in a new tab, so the page you were on stays open. */
+    /** Real Google Lens (Google app deep link); without the Google app, the Lens website in a new tab. */
     private fun openGoogleLens() {
         addressBarClearFocusSignal++
         hideSuggestions()
-        openTabFor("https://lens.google.com/", childOfCurrent = true)
+        val intent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("googleapp://lens"),
+        ).setPackage("com.google.android.googlequicksearchbox")
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            openTabFor("https://lens.google.com/", childOfCurrent = true)
+        }
     }
 
     /**
@@ -2191,6 +2183,7 @@ class BrowserFragment : Fragment() {
     private fun updateHeaderInteractionState() {
         val locked = addressBarFocused || tabsOverlayVisible
         (activity as? Callbacks)?.onBrowserHeaderInteractionChanged(locked)
+        (activity as? Callbacks)?.onBrowserAddressBarFocusChanged(addressBarFocused)
     }
 
     override fun onResume() {

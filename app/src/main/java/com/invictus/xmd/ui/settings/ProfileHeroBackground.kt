@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
@@ -37,15 +38,14 @@ private data class HeroDot(
 // Fixed positions (fractions of the card) so the sky looks the same every time.
 private val HeroDots = listOf(
     HeroDot(0.13f, 0.76f, 2.6f, 0.95f, 0.00f, glow = true),
-    HeroDot(0.82f, 0.56f, 2.4f, 0.95f, 0.35f, glow = true),
-    HeroDot(0.66f, 0.18f, 2.0f, 0.80f, 0.60f),
+    HeroDot(0.92f, 0.60f, 2.4f, 0.95f, 0.35f, glow = true),
+    HeroDot(0.62f, 0.30f, 2.0f, 0.80f, 0.60f),
     HeroDot(0.39f, 0.30f, 1.8f, 0.70f, 0.15f),
     HeroDot(0.46f, 0.38f, 1.6f, 0.65f, 0.80f),
     HeroDot(0.55f, 0.46f, 1.5f, 0.55f, 0.45f),
     HeroDot(0.20f, 0.88f, 1.7f, 0.70f, 0.25f),
     HeroDot(0.65f, 0.86f, 1.6f, 0.65f, 0.70f),
     HeroDot(0.96f, 0.82f, 2.0f, 0.85f, 0.55f),
-    HeroDot(0.74f, 0.10f, 1.5f, 0.45f, 0.90f),
     HeroDot(0.30f, 0.14f, 1.3f, 0.35f, 0.40f),
     HeroDot(0.07f, 0.40f, 1.3f, 0.35f, 0.05f),
 )
@@ -68,8 +68,8 @@ private val HeroDotBright = Color(0xFF43D9FF)
 
 /**
  * Profile hero background, drawn entirely in code from the reference artwork's
- * exact colours: a navy sky, two soft left waves, ONE planet on the right with a
- * bright blue-to-cyan rim, a thin glow curve across it and twinkling dots.
+ * exact colours: a navy sky, two soft left waves (fills only, no lines), one small
+ * ringed planet in the top-right corner and twinkling dots.
  * No black fade at the bottom -- it lifts to the reference's blue instead, so the
  * chip row sits on calm blue. Clips itself to [cornerRadius].
  */
@@ -116,7 +116,6 @@ fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
                 close()
             }
             drawPath(waveAFill, HeroWaveLight.copy(alpha = 0.55f))
-            drawPath(waveATop, HeroWaveEdge.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
 
             // Wave B: darker hill across the middle.
             val waveBTop = Path().apply {
@@ -129,57 +128,51 @@ fun Modifier.profileHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
                 close()
             }
             drawPath(waveBFill, HeroWaveDark.copy(alpha = 0.55f))
-            drawPath(waveBTop, HeroWaveEdge.copy(alpha = 0.30f), style = Stroke(1.dp.toPx()))
 
-            // The planet (only one): its left rim crosses the top edge at ~77% of the width
-            // and the bottom edge at ~60%. Dark inside, lit along the rim.
-            val r = h * 0.95f
-            val c = Offset(w * 1.02f, h * 0.78f)
+            // A small ringed planet tucked into the top-right corner. It lives entirely in the
+            // upper part of the card (above the chip row) and nothing is drawn below it, so no
+            // arc or line ever runs behind Status Saver / Storage.
+            val pr = h * 0.115f
+            val pc = Offset(w * 0.80f, h * 0.20f)
+            // soft halo
             drawCircle(
                 brush = Brush.radialGradient(
-                    0f to HeroRimBlue.copy(alpha = 0.80f),
-                    0.45f to HeroRimDeep.copy(alpha = 0.50f),
-                    1f to HeroPlanetInner.copy(alpha = 0f),
-                    center = Offset(c.x - r * 0.62f, c.y - r * 0.72f),
-                    radius = r * 1.0f,
+                    0f to HeroCyan.copy(alpha = 0.22f),
+                    1f to Color.Transparent,
+                    center = pc,
+                    radius = pr * 3.0f,
                 ),
-                radius = r,
-                center = c,
+                radius = pr * 3.0f,
+                center = pc,
             )
-            drawCircle(
-                brush = Brush.linearGradient(
-                    colors = listOf(HeroRimDeep, HeroCyan, HeroRimBlue, Color.Transparent),
-                    start = Offset(c.x - r, c.y - r * 0.2f),
-                    end = Offset(c.x - r * 0.2f, c.y + r * 0.6f),
-                ),
-                radius = r,
-                center = c,
-                style = Stroke(1.6.dp.toPx()),
-            )
-
-            // Thin glow curve from the left edge up to the top-right.
-            val line = Path().apply {
-                moveTo(-w * 0.02f, h * 0.50f)
-                cubicTo(w * 0.30f, h * 0.60f, w * 0.62f, h * 0.50f, w * 1.02f, h * 0.10f)
+            rotate(degrees = -22f, pivot = pc) {
+                val ringW = pr * 3.0f
+                val ringH = pr * 0.95f
+                val ringTL = Offset(pc.x - ringW / 2f, pc.y - ringH / 2f)
+                val ringSize = androidx.compose.ui.geometry.Size(ringW, ringH)
+                val ringStroke = Stroke(1.5.dp.toPx())
+                val ringBrush = Brush.horizontalGradient(
+                    colors = listOf(HeroRimBlue.copy(alpha = 0.35f), HeroCyan.copy(alpha = 0.95f), HeroRimBlue.copy(alpha = 0.35f)),
+                    startX = pc.x - ringW / 2f,
+                    endX = pc.x + ringW / 2f,
+                )
+                // back half of the ring (behind the planet)
+                drawArc(ringBrush, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = ringTL, size = ringSize, style = ringStroke)
+                // the planet body
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        0f to HeroCyan,
+                        0.5f to HeroRimBlue,
+                        1f to HeroRimDeep,
+                        center = Offset(pc.x - pr * 0.35f, pc.y - pr * 0.40f),
+                        radius = pr * 1.5f,
+                    ),
+                    radius = pr,
+                    center = pc,
+                )
+                // front half of the ring (in front of the planet)
+                drawArc(ringBrush, startAngle = 0f, sweepAngle = 180f, useCenter = false, topLeft = ringTL, size = ringSize, style = ringStroke)
             }
-            drawPath(
-                line,
-                Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, HeroLine.copy(alpha = 0.14f), HeroLineBright.copy(alpha = 0.26f)),
-                    startX = 0f,
-                    endX = w,
-                ),
-                style = Stroke(5.dp.toPx(), cap = StrokeCap.Round),
-            )
-            drawPath(
-                line,
-                Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, HeroLine, HeroLineBright),
-                    startX = 0f,
-                    endX = w,
-                ),
-                style = Stroke(1.4.dp.toPx(), cap = StrokeCap.Round),
-            )
 
             // Twinkling dots (upper part only).
             val t = twinkle.value
