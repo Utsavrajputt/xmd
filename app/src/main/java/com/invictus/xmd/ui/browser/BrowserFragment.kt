@@ -2808,6 +2808,22 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         detectedLinkVisible = false
     }
 
+    /** A manifest / media element the page's own JS saw (see MEDIA_SNIFF_SCRIPT). Same list as the URL sniff. */
+    private fun onPageMediaReport(tab: BrowserTab, json: String?) {
+        if (json == null || json.length > 8192 || !isAdded) return
+        val report = runCatching { org.json.JSONObject(json) }.getOrNull() ?: return
+        val url = report.optString("u")
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return
+        val sniffed = when (report.optString("k")) {
+            "hls" -> MediaSniffer.Sniffed(url, MediaSniffer.Kind.HLS)
+            "dash" -> MediaSniffer.Sniffed(url, MediaSniffer.Kind.DASH)
+            "video" -> MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_VIDEO)
+            "audio" -> MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_AUDIO)
+            else -> return
+        }
+        if (tab.sniffedMedia.put(url, sniffed) == null && isCurrentTab(tab)) updateSniffedMediaFab(tab)
+    }
+
     /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
      *  from onPageStarted (clears it), and from shouldInterceptRequest's
      *  sniff hook every time a genuinely new stream URL is found. No-op
@@ -2819,24 +2835,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
      *  shorts page shows the FAB purely off the page URL, independent of
      *  tab.sniffedMedia. Gated on BuildConfig.HAS_YOUTUBE_SUPPORT since
      *  the Lite build has no yt-dlp/quality-picker to hand the tap off to. */
-    /** A manifest / media element the page's own JS saw (see MEDIA_SNIFF_SCRIPT). Same list as the URL sniff. */
-    private fun onPageMediaReport(tab: BrowserTab, json: String?) {
-        if (json == null || json.length > 8192 || !isAdded) return
-        val report = runCatching { org.json.JSONObject(json) }.getOrNull() ?: return
-        val url = report.optString("u")
-        if (!url.startsWith("http://") && !url.startsWith("https://")) return
-        val sniffer = com.invictus.xmd.domain.browser.MediaSniffer
-        val kind = sniffer.Kind
-        val sniffed = when (report.optString("k")) {
-            "hls" -> sniffer.Sniffed(url, kind.HLS)
-            "dash" -> sniffer.Sniffed(url, kind.DASH)
-            "video" -> sniffer.classifyUrl(url) ?: sniffer.Sniffed(url, kind.DIRECT_VIDEO)
-            "audio" -> sniffer.classifyUrl(url) ?: sniffer.Sniffed(url, kind.DIRECT_AUDIO)
-            else -> return
-        }
-        if (tab.sniffedMedia.put(url, sniffed) == null && isCurrentTab(tab)) updateSniffedMediaFab(tab)
-    }
-
     private fun updateSniffedMediaFab(tab: BrowserTab) {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
