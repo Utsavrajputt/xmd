@@ -225,6 +225,10 @@ dependencies {
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.navigation.compose)
 
+    // Background work for GitHub sync: auto-backup (daily + after settings change) and the
+    // "Send to phone" inbox poll.
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Lets ViewModels expose StateFlow/collectAsStateWithLifecycle() straight
     // into composables -- QueueRepository, BookmarkRepository etc. already
     // expose Flow, so this is the natural consumption point on the UI side.

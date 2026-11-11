@@ -264,7 +264,7 @@ class SettingsActivity : ComponentActivity() {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             SettingsRootScreen(
                                 showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
-                                selectedRoute = if (selectedRoute == Route.ADBLOCK) Route.BROWSER else selectedRoute,
+                                selectedRoute = when (selectedRoute) { Route.ADBLOCK -> Route.BROWSER; Route.GITHUB -> Route.PROFILE; else -> selectedRoute },
                                 showBatteryWarning = showBatteryWarning,
                                 onDismissBatteryWarning = { batteryWarningDismissed = true },
                                 onFixBatteryOptimization = { requestDisableBatteryOptimization(context) },
@@ -304,7 +304,8 @@ class SettingsActivity : ComponentActivity() {
                         )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             when (selectedRoute) {
-                                Route.PROFILE -> SettingsProfileScreen()
+                                Route.PROFILE -> SettingsProfileScreen(onOpenGithub = { selectedRoute = Route.GITHUB })
+                                Route.GITHUB -> SettingsGithubScreen()
                                 Route.APPEARANCE -> AppearanceRoute()
                                 Route.CONNECTIONS -> ConnectionsRoute()
                                 Route.DOWNLOADS -> DownloadsRoute()
@@ -379,7 +380,8 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenStorage = { navController.navigate(Route.STORAGE) },
                             )
                         }
-                        composable(Route.PROFILE) { SettingsProfileScreen() }
+                        composable(Route.PROFILE) { SettingsProfileScreen(onOpenGithub = { navController.navigate(Route.GITHUB) }) }
+                        composable(Route.GITHUB) { SettingsGithubScreen() }
                         composable(Route.APPEARANCE) { AppearanceRoute() }
                         composable(Route.CONNECTIONS) { ConnectionsRoute() }
                         composable(Route.DOWNLOADS) { DownloadsRoute() }
@@ -513,6 +515,7 @@ class SettingsActivity : ComponentActivity() {
 internal object Route {
     const val ROOT = "root"
     const val PROFILE = "profile"
+    const val GITHUB = "github"
     const val APPEARANCE = "appearance"
     const val CONNECTIONS = "connections"
     const val DOWNLOADS = "downloads"
@@ -527,6 +530,7 @@ internal object Route {
 /** Route -> header title, replaces the old syncHeaderTitle()'s Fragment-type switch. */
 internal val routeTitles: Map<String, Int> = mapOf(
     Route.PROFILE to R.string.settings_profile_title,
+    Route.GITHUB to R.string.github_title,
     Route.APPEARANCE to R.string.settings_category_appearance,
     Route.CONNECTIONS to R.string.settings_category_connections,
     Route.BROWSER to R.string.settings_category_browser,

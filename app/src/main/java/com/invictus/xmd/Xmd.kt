@@ -36,6 +36,8 @@ class Xmd : Application(), Application.ActivityLifecycleCallbacks {
         ShortcutRepository.init(this)
         BookmarkRepository.init(this)
         com.invictus.xmd.domain.account.AccountManager.init(this)
+        com.invictus.xmd.domain.account.GistSync.init(this)
+        com.invictus.xmd.domain.account.SyncScheduler.init(this)
         HistoryRepository.init(this)
         FaviconLoader.init(this)
         GithubAvatarLoader.init(this)

@@ -1034,6 +1034,19 @@ object Settings {
     private fun isBackupKey(key: String): Boolean =
         key !in BACKUP_EXCLUDED_KEYS && BACKUP_EXCLUDED_PREFIXES.none { key.startsWith(it) }
 
+    // SharedPreferences holds listeners weakly, so the listener must be kept strongly here.
+    private var backupChangeListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+
+    /** Calls [onChange] whenever a backed-up preference changes (drives the debounced auto-backup). */
+    fun setBackupChangeListener(onChange: () -> Unit) {
+        backupChangeListener?.let { prefs.unregisterOnSharedPreferenceChangeListener(it) }
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key != null && isBackupKey(key)) onChange()
+        }
+        backupChangeListener = listener
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+
     /** Every user-facing preference as {key: {t: type, v: value}}. A picked wallpaper file is device-local, so it is skipped. */
     fun exportPrefsForBackup(): org.json.JSONObject {
         val out = org.json.JSONObject()

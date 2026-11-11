@@ -11,6 +11,9 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.BookmarkRepository
 import com.invictus.xmd.repository.ShortcutRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
@@ -33,6 +36,14 @@ data class Account(val login: String, val name: String?, val avatarUrl: String?)
 
 data class RestoreSummary(val settings: Int, val profile: Boolean, val bookmarks: Int, val shortcuts: Int)
 
+/** One entry of the backup history: a past state of the backup file in the Gist. */
+data class BackupRevision(
+    val sha: String,
+    /** When the backup was taken (from the file itself), not when GitHub stored the commit. */
+    val backupAtMs: Long,
+    val deviceName: String?,
+)
+
 /**
  * The signed-in GitHub account plus "Back up now" / "Restore": the user's settings, profile and
  * bookmarks/shortcuts are serialised to one JSON file stored in a private Gist of their own
@@ -41,8 +52,8 @@ data class RestoreSummary(val settings: Int, val profile: Boolean, val bookmarks
  */
 object AccountManager {
     private const val PREFS = "xmd_account"
-    private const val GIST_FILE = "xmd-backup.json"
-    private const val GIST_DESCRIPTION = "XMD settings backup (managed by the XMD app)"
+    internal const val GIST_FILE = "xmd-backup.json"
+    internal const val GIST_DESCRIPTION = "XMD settings backup (managed by the XMD app)"
     private const val FORMAT_VERSION = 1
 
     private lateinit var appContext: Context
@@ -64,6 +75,25 @@ object AccountManager {
     }
 
     private fun token(): String? = prefs.getString("token_enc", null)?.let { TokenCipher.decrypt(it) }
+
+    /** The decrypted token, or a friendly error when nobody is signed in. For [GistSync]. */
+    internal fun requireToken(): String = token() ?: throw AccountException("Please sign in first.")
+
+    // ── Auto-backup / inbox switches (remembered; cleared on sign-out) ──
+
+    fun autoBackupEnabled(): Boolean = prefs.getBoolean("auto_backup", false)
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("auto_backup", enabled).apply()
+        SyncScheduler.refresh(appContext)
+    }
+
+    fun inboxEnabled(): Boolean = prefs.getBoolean("inbox_enabled", true)
+
+    fun setInboxEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("inbox_enabled", enabled).apply()
+        SyncScheduler.refresh(appContext)
+    }
 
     // ── What to include (remembered) ────────────────────────────────────
 
@@ -93,24 +123,37 @@ object AccountManager {
             .putString("avatar_url", user.avatarUrl)
             .remove("gist_id")
             .apply()
-        return Account(user.login, user.name, user.avatarUrl).also { _account.value = it }
+        return Account(user.login, user.name, user.avatarUrl).also {
+            _account.value = it
+            SyncScheduler.refresh(appContext)
+        }
     }
 
     /** Signs out on this device only; the Gist (the backup) stays on GitHub. */
     fun signOut() {
         prefs.edit().clear().apply()
+        GistSync.clearLocalState()
         _account.value = null
         _lastBackupMs.value = 0L
+        SyncScheduler.refresh(appContext)
     }
 
     // ── Backup / restore ────────────────────────────────────────────────
 
-    /** Uploads the selected parts; returns the backup time. */
-    suspend fun backupNow(scope: BackupScope): Long = withContext(Dispatchers.IO) {
+    /**
+     * Uploads the selected parts; returns the backup time. With [auto] set, nothing is uploaded
+     * when the content is identical to the last backup, so background runs do not fill the history.
+     */
+    suspend fun backupNow(scope: BackupScope, auto: Boolean = false): Long = withContext(Dispatchers.IO) {
         val token = token() ?: throw AccountException("Please sign in first.")
         if (!scope.any) throw AccountException("Choose something to back up.")
         val now = System.currentTimeMillis()
-        val content = buildSnapshot(scope, now).toString()
+        val snapshot = buildSnapshot(scope, now)
+        val hash = contentHash(snapshot)
+        if (auto && hash == prefs.getString("last_backup_hash", null)) {
+            return@withContext prefs.getLong("last_backup_ms", now)
+        }
+        val content = snapshot.toString()
 
         val files = JSONObject().put(GIST_FILE, JSONObject().put("content", content))
         val existing = findGistId(token)
@@ -129,18 +172,72 @@ object AccountManager {
         if (existing == null) {
             prefs.edit().putString("gist_id", JSONObject(text).getString("id")).apply()
         }
-        prefs.edit().putLong("last_backup_ms", now).apply()
+        prefs.edit().putLong("last_backup_ms", now).putString("last_backup_hash", hash).apply()
         _lastBackupMs.value = now
         now
     }
 
-    /** Downloads the backup and applies the selected parts over what is on this device. */
+    /** Hash of a snapshot ignoring its timestamp, to tell "nothing changed" from "new backup". */
+    private fun contentHash(snapshot: JSONObject): String {
+        val copy = JSONObject(snapshot.toString()).apply { remove("createdAtMs") }
+        return java.security.MessageDigest.getInstance("SHA-256")
+            .digest(copy.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    /** Downloads the newest backup and applies the selected parts over what is on this device. */
     suspend fun restore(scope: BackupScope): RestoreSummary = withContext(Dispatchers.IO) {
         val token = token() ?: throw AccountException("Please sign in first.")
         if (!scope.any) throw AccountException("Choose something to restore.")
         val gistId = findGistId(token) ?: throw AccountException("No backup found in your GitHub account yet.")
+        applySnapshot(readBackup(token, "https://api.github.com/gists/$gistId"), scope)
+    }
 
-        val (code, text) = GitHubAuth.call(GitHubAuth.apiRequest("https://api.github.com/gists/$gistId", token).get().build())
+    // ── Backup history (Gist revisions) ─────────────────────────────────
+
+    /** Up to ~20 distinct past backups, newest first. Commits that only touched other files are skipped. */
+    suspend fun backupHistory(): List<BackupRevision> = withContext(Dispatchers.IO) {
+        val token = token() ?: throw AccountException("Please sign in first.")
+        val gistId = findGistId(token) ?: return@withContext emptyList()
+        val (code, text) = GitHubAuth.call(
+            GitHubAuth.apiRequest("https://api.github.com/gists/$gistId/commits?per_page=30", token).get().build(),
+        )
+        checkApi(code)
+        val commits = JSONArray(text)
+        val shas = (0 until commits.length()).map { commits.getJSONObject(it).getString("version") }
+        val gate = kotlinx.coroutines.sync.Semaphore(4)
+        val loaded = kotlinx.coroutines.coroutineScope {
+            shas.map { sha ->
+                async {
+                    gate.withPermit {
+                        runCatching {
+                            val snap = readBackup(token, "https://api.github.com/gists/$gistId/$sha")
+                            BackupRevision(sha, snap.optLong("createdAtMs", 0L), snap.optString("deviceName").takeIf { it.isNotBlank() })
+                        }.getOrNull()
+                    }
+                }
+            }.awaitAll()
+        }
+        // Inbox/device-file commits leave the backup file unchanged: keep one row per distinct backup.
+        loaded.filterNotNull().distinctBy { it.backupAtMs }.take(20)
+    }
+
+    /**
+     * Restores [revision]. The current state of this device is uploaded first (a normal backup, so
+     * it shows up in the history) and the restore can be undone from there.
+     */
+    suspend fun restoreRevision(revision: BackupRevision, scope: BackupScope): RestoreSummary {
+        if (!scope.any) throw AccountException("Choose something to restore.")
+        val token = requireToken()
+        val gistId = withContext(Dispatchers.IO) { findGistId(token) } ?: throw AccountException("No backup found in your GitHub account yet.")
+        val snapshot = withContext(Dispatchers.IO) { readBackup(token, "https://api.github.com/gists/$gistId/${revision.sha}") }
+        backupNow(BackupScope())
+        return withContext(Dispatchers.IO) { applySnapshot(snapshot, scope) }
+    }
+
+    /** Reads and validates the backup file of the gist at [gistUrl] (newest, or a revision url). */
+    private fun readBackup(token: String, gistUrl: String): JSONObject {
+        val (code, text) = GitHubAuth.call(GitHubAuth.apiRequest(gistUrl, token).get().build())
         checkApi(code)
         val file = JSONObject(text).optJSONObject("files")?.optJSONObject(GIST_FILE)
             ?: throw AccountException("No backup found in your GitHub account yet.")
@@ -155,10 +252,10 @@ object AccountManager {
         if (snapshot.optInt("version", 0) > FORMAT_VERSION) {
             throw AccountException("This backup is from a newer version of XMD. Update the app first.")
         }
-        applySnapshot(snapshot, scope)
+        return snapshot
     }
 
-    private fun checkApi(code: Int) {
+    internal fun checkApi(code: Int) {
         when {
             code in 200..299 -> Unit
             code == 401 -> throw AccountException("GitHub rejected the sign-in. Sign out and sign in again.")
@@ -167,8 +264,16 @@ object AccountManager {
         }
     }
 
-    /** The backup Gist's id: remembered, else found by its file name in the user's gists. */
-    private fun findGistId(token: String): String? {
+    internal fun forgetGistId() {
+        prefs.edit().remove("gist_id").apply()
+    }
+
+    internal fun rememberGistId(id: String) {
+        prefs.edit().putString("gist_id", id).apply()
+    }
+
+    /** The XMD Gist's id: remembered, else found by its backup / device file name in the user's gists. */
+    internal fun findGistId(token: String): String? {
         prefs.getString("gist_id", null)?.let { return it }
         for (page in 1..5) {
             val (code, text) = GitHubAuth.call(
@@ -179,7 +284,8 @@ object AccountManager {
             if (arr.length() == 0) return null
             for (i in 0 until arr.length()) {
                 val gist = arr.getJSONObject(i)
-                if (gist.optJSONObject("files")?.has(GIST_FILE) == true) {
+                val files = gist.optJSONObject("files")
+                if (files != null && (files.has(GIST_FILE) || files.keys().asSequence().any { it.startsWith(GistSync.DEVICE_FILE_PREFIX) })) {
                     return gist.getString("id").also { prefs.edit().putString("gist_id", it).apply() }
                 }
             }
@@ -192,6 +298,7 @@ object AccountManager {
 
     private suspend fun buildSnapshot(scope: BackupScope, now: Long): JSONObject {
         val root = JSONObject().put("app", "xmd").put("version", FORMAT_VERSION).put("createdAtMs", now)
+            .put("deviceName", GistSync.deviceName(appContext))
         if (scope.settings) root.put("settings", Settings.exportPrefsForBackup())
         if (scope.profile) {
             val profile = JSONObject().put("name", Profile.name())

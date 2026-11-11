@@ -111,7 +111,7 @@ fun ProfileAvatar(size: Dp, modifier: Modifier = Modifier) {
 
 /** Profile page: photo + name on a plain surface; the edit badge opens [EditProfileDialog]. */
 @Composable
-fun SettingsProfileScreen() {
+fun SettingsProfileScreen(onOpenGithub: () -> Unit = {}) {
     var editing by remember { mutableStateOf(false) }
     val name = Profile.name().trim()
 
@@ -166,7 +166,7 @@ fun SettingsProfileScreen() {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(20.dp))
-        SettingsAccountSection()
+        SettingsGithubEntryCard(onClick = onOpenGithub)
     }
 }
 

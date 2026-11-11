@@ -378,6 +378,22 @@
              (Firefox, Vivaldi), and magnet/.torrent links without bringing
              MainActivity to the foreground. Shows a floating dialog over the
              caller's app and starts downloads in the background. -->
+        <!-- Share-sheet target "Send to my phone": hands a link to the user's other devices
+             through their GitHub Gist (see GistSync). -->
+        <activity
+            android:name=".ui.SendToPhoneActivity"
+            android:label="@string/send_to_phone_label"
+            android:theme="@style/Theme.Xmd.Transparent"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ui.ShareReceiverActivity"
             android:theme="@style/Theme.Xmd.Transparent"
