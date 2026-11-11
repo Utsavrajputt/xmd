@@ -248,7 +248,7 @@ private fun ProfileHeaderCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .profileHeroBackground()
+            .settingsHeroBackground()
             .then(
                 if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, XmdShapes.L)
                 else Modifier
@@ -277,7 +277,7 @@ private fun ProfileHeaderCard(
                 )
                 Text(
                     text = stringResource(
-                        if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_edit_desc
+                        if (name.isEmpty()) R.string.settings_profile_setup_desc else R.string.settings_profile_tap_hint
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = heroText.copy(alpha = 0.78f),

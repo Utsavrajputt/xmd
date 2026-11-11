@@ -155,6 +155,51 @@ class BrowserFragment : Fragment() {
                 "var src=(v&&(v.currentSrc||v.src))||t.src||'';" +
                 "try{XmdVideo.onVideoError(src);}catch(x){}},true);})();"
 
+        /**
+         * In-page media detection, injected at document start into every frame. The URL sniff in
+         * shouldInterceptRequest only knows ".m3u8/.mpd/.mp4"-style names, so players that hide
+         * their manifest behind an extensionless/disguised URL (e.g. playdrive-style embeds) never
+         * showed the FAB. This watches what the page actually receives instead: fetch/XHR
+         * responses that *are* HLS/DASH manifests (by content-type or "#EXTM3U"/"<MPD" body), and
+         * <video>/<audio> elements playing a real http(s) URL. Results go to [onPageMediaReport]
+         * through the XmdSniff web-message channel. Segments (.ts/.m4s) are deliberately ignored.
+         * Skipped on YouTube, which has its own yt-dlp flow.
+         */
+        private const val MEDIA_SNIFF_SCRIPT = """
+(function(){
+if(window.__xmdSniff)return;window.__xmdSniff=true;
+if(/(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com|googlevideo\.com)${'$'}/i.test(location.hostname))return;
+var seen={},master=false;
+function abs(u){try{return new URL(u,location.href).href}catch(e){return ''}}
+function send(u,k){u=abs(u);if(!/^https?:/i.test(u)||seen[k+u])return;seen[k+u]=1;
+try{XmdSniff.postMessage(JSON.stringify({u:u,k:k}))}catch(e){}}
+function text(u,t){if(!t)return;
+if(t.indexOf('#EXTM3U')===0){if(t.indexOf('EXT-X-STREAM-INF')>=0){master=true;send(u,'hls')}else if(!master)send(u,'hls');}
+else if(/<MPD[\s>]/.test(t.slice(0,4096)))send(u,'dash');}
+function byType(u,ct){ct=(ct||'').toLowerCase();
+if(ct.indexOf('mpegurl')>=0){send(u,'hls');return true}
+if(ct.indexOf('dash+xml')>=0){send(u,'dash');return true}return false}
+function maybeText(ct){return !ct||/text\/plain|octet-stream|binary|application\/x-|text\/html/i.test(ct)}
+var xo=XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open=function(m,u){var x=this,url=u;
+try{x.addEventListener('readystatechange',function(){try{if(x.readyState!==4)return;
+var ct=x.getResponseHeader('content-type')||'';if(byType(url,ct))return;
+if(maybeText(ct)&&(x.responseType===''||x.responseType==='text')&&x.responseText&&x.responseText.length<3000000)text(url,x.responseText)}catch(e){}})}catch(e){}
+return xo.apply(this,arguments)};
+var of=window.fetch;
+if(of)window.fetch=function(){var p=of.apply(this,arguments);
+p.then(function(r){try{var ct=r.headers.get('content-type')||'';if(byType(r.url,ct))return;
+if(maybeText(ct)&&r.body&&r.body.getReader){var rd=r.clone().body.getReader();
+rd.read().then(function(x){if(x&&x.value)text(r.url,new TextDecoder().decode(x.value));try{rd.cancel()}catch(e){}}).catch(function(){})}}catch(e){}},function(){});
+return p};
+function media(t){try{if(!t||(t.tagName!=='VIDEO'&&t.tagName!=='AUDIO'))return;
+var s=t.currentSrc||t.src;if(s&&!/^(blob|data):/i.test(s))send(s,t.tagName==='VIDEO'?'video':'audio')}catch(e){}}
+['loadstart','loadedmetadata','play','playing'].forEach(function(n){document.addEventListener(n,function(e){media(e.target)},true)});
+function scan(){try{var l=document.querySelectorAll('video,audio');for(var i=0;i<l.length;i++)media(l[i])}catch(e){}}
+document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2000)});
+})();
+"""
+
         /** Desktop-site extras beyond the UA string: many sites decide layout
          *  from navigator.userAgentData (stays "mobile" in WebView) or from a
          *  width=device-width viewport meta, so they ignored the UA switch. */
@@ -1150,6 +1195,18 @@ class BrowserFragment : Fragment() {
 
     private fun configureWebView(webView: WebView, tab: BrowserTab) {
         webView.addJavascriptInterface(MediaBridge(tab.id), "XmdMedia")
+        // In-page media detection (see MEDIA_SNIFF_SCRIPT). Needs both features; older WebViews
+        // just keep the URL-based sniffing.
+        runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT) &&
+                androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)
+            ) {
+                androidx.webkit.WebViewCompat.addWebMessageListener(webView, "XmdSniff", setOf("*")) { _, message, _, _, _ ->
+                    onPageMediaReport(tab, message.data)
+                }
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(webView, MEDIA_SNIFF_SCRIPT, setOf("*"))
+            }
+        }
         webView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
             if (!isCurrentTab(tab)) return@setOnScrollChangeListener
             val dy = scrollY - oldScrollY
@@ -1982,9 +2039,12 @@ class BrowserFragment : Fragment() {
         clipboardUrlOrNull()?.let { clip ->
             if (clip != pageUrl) quick.add(Suggestion.Clipboard(text = clip, url = clip))
         }
-        // Recent searches (clock rows) so past searches are one tap away before typing anything.
-        HistoryRepository.recentSearches(5).forEach { phrase ->
-            quick.add(Suggestion.Search(phrase, history = true, inHistory = true))
+        // Recent searches only on the home / new-tab screen. With a website open, focusing the
+        // address bar shows just the current page (and clipboard) -- no search history.
+        if (speedDialVisible && pageUrl == null) {
+            HistoryRepository.recentSearches(5).forEach { phrase ->
+                quick.add(Suggestion.Search(phrase, history = true, inHistory = true))
+            }
         }
         return quick
     }
@@ -2759,6 +2819,24 @@ class BrowserFragment : Fragment() {
      *  shorts page shows the FAB purely off the page URL, independent of
      *  tab.sniffedMedia. Gated on BuildConfig.HAS_YOUTUBE_SUPPORT since
      *  the Lite build has no yt-dlp/quality-picker to hand the tap off to. */
+    /** A manifest / media element the page's own JS saw (see MEDIA_SNIFF_SCRIPT). Same list as the URL sniff. */
+    private fun onPageMediaReport(tab: BrowserTab, json: String?) {
+        if (json == null || json.length > 8192 || !isAdded) return
+        val report = runCatching { org.json.JSONObject(json) }.getOrNull() ?: return
+        val url = report.optString("u")
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return
+        val sniffer = com.invictus.xmd.domain.browser.MediaSniffer
+        val kind = sniffer.Kind
+        val sniffed = when (report.optString("k")) {
+            "hls" -> sniffer.Sniffed(url, kind.HLS)
+            "dash" -> sniffer.Sniffed(url, kind.DASH)
+            "video" -> sniffer.classifyUrl(url) ?: sniffer.Sniffed(url, kind.DIRECT_VIDEO)
+            "audio" -> sniffer.classifyUrl(url) ?: sniffer.Sniffed(url, kind.DIRECT_AUDIO)
+            else -> return
+        }
+        if (tab.sniffedMedia.put(url, sniffed) == null && isCurrentTab(tab)) updateSniffedMediaFab(tab)
+    }
+
     private fun updateSniffedMediaFab(tab: BrowserTab) {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
