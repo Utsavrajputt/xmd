@@ -143,7 +143,14 @@ fun BrowserToolbarRow(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                // Chrome-like tight gap on the side facing the page / suggestions
+                // (4dp); the outer edge keeps its 8dp breathing room.
+                .padding(
+                    start = 10.dp,
+                    end = 10.dp,
+                    top = if (isBottomBar) 4.dp else 8.dp,
+                    bottom = if (isBottomBar) 8.dp else 4.dp,
+                ),
             shape = XmdShapes.M,
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 3.dp,
@@ -242,14 +249,14 @@ fun BrowserToolbarRow(
             }
         }
         // Chrome-style thin progress line sitting on the address bar
-        // card's edge -- same 8dp side margins + 8dp top/bottom margin.
+        // card's edge -- same 10dp side margins + the card's 4dp page-side margin.
         // Track is transparent so only the moving indicator line shows.
         if (progressVisible) {
             val animatedProgress by animateFloatAsState(
                 targetValue = (progress / 100f).coerceIn(0f, 1f),
                 label = "toolbarProgress",
             )
-            // Hand-drawn 2dp line instead of LinearProgressIndicator: the Material
+            // Hand-drawn 1.75dp line instead of LinearProgressIndicator: the Material
             // indicator pins its own 4dp height, which read as too chunky on the
             // address bar edge.
             Box(
@@ -258,16 +265,16 @@ fun BrowserToolbarRow(
                     .fillMaxWidth()
                     .padding(horizontal = 17.dp)
                     .padding(
-                        top = if (isBottomBar) 8.dp else 0.dp,
-                        bottom = if (isBottomBar) 0.dp else 8.dp,
+                        top = if (isBottomBar) 4.dp else 0.dp,
+                        bottom = if (isBottomBar) 0.dp else 4.dp,
                     )
-                    .height(2.dp),
+                    .height(1.75.dp),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(animatedProgress)
-                        .clip(RoundedCornerShape(1.dp))
+                        .clip(RoundedCornerShape(0.875.dp))
                         .background(MaterialTheme.colorScheme.primary),
                 )
             }

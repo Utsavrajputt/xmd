@@ -349,9 +349,9 @@
     <string name="settings_profile_setup_desc">Add your name and photo</string>
     <string name="settings_profile_tap_hint">Tap to view or edit profile</string>
     <string name="settings_profile_edit_desc">Name &amp; photo, saved on this device</string>
-    <string name="settings_profile_name">Name</string>
-    <string name="settings_profile_name_hint">Shown at the top of Settings. Stays on this device.</string>
-    <string name="settings_profile_change_photo">Change photo</string>
+    <string name="settings_profile_edit_title">Edit profile</string>
+    <string name="settings_profile_choose_photo">Choose photo</string>
+    <string name="settings_profile_display_name">Display name</string>
     <string name="settings_profile_remove_photo">Remove photo</string>
     <string name="settings_profile_crop_title">Crop photo</string>
     <string name="settings_profile_crop_left">Left</string>

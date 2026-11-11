@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +35,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import com.invictus.xmd.ui.components.XmdAlertDialog
+import com.invictus.xmd.ui.components.WideDialogProperties
+import com.invictus.xmd.ui.components.wideDialogWidth
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,13 +109,85 @@ fun ProfileAvatar(size: Dp, modifier: Modifier = Modifier) {
     }
 }
 
-/** Profile page: photo (pick / remove) and display name. Saves as you type. */
+/** Profile page: photo + name on a plain surface; the edit badge opens [EditProfileDialog]. */
 @Composable
 fun SettingsProfileScreen() {
+    var editing by remember { mutableStateOf(false) }
+    val name = Profile.name().trim()
+
+    if (editing) {
+        EditProfileDialog(onDismiss = { editing = false })
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(8.dp))
+        Box(modifier = Modifier.size(112.dp)) {
+            ProfileAvatar(
+                size = 112.dp,
+                modifier = Modifier
+                    .border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    .clip(CircleShape)
+                    .clickable { editing = true },
+            )
+            // Sits on the avatar's rim (bottom-right); the outer Box is not
+            // clipped, so the badge isn't cut off by the circle.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(32.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    .clip(CircleShape)
+                    .clickable { editing = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Edit,
+                    contentDescription = stringResource(R.string.settings_profile_edit_title),
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = if (name.isEmpty()) stringResource(R.string.settings_profile_setup_title) else name,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(20.dp))
+        SettingsAccountSection()
+    }
+}
+
+/**
+ * Edit dialog: photo preview with Choose / Crop / Remove and the display name.
+ * Nothing is written until Save; Cancel (or tapping outside) discards it all.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun EditProfileDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val hasAvatar = remember(Profile.avatarVersion) { Profile.hasAvatar(context) }
+
     var nameText by remember { mutableStateOf(Profile.name()) }
+    // Pending photo edits: [pendingAvatar] replaces the saved photo, [removed] hides it.
+    var pendingAvatar by remember { mutableStateOf<Bitmap?>(null) }
+    var removed by remember { mutableStateOf(false) }
+    val saved by produceState<Bitmap?>(initialValue = null, Profile.avatarVersion) {
+        value = withContext(Dispatchers.IO) { Profile.loadAvatar(context) }
+    }
+    val shown: Bitmap? = pendingAvatar ?: if (removed) null else saved
 
     var cropSource by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -129,88 +210,108 @@ fun SettingsProfileScreen() {
             onDismiss = { cropSource = null },
             onCropped = { cropped ->
                 cropSource = null
-                scope.launch {
-                    val ok = withContext(Dispatchers.IO) { Profile.saveAvatarBitmap(context, cropped) }
-                    if (!ok) {
-                        Toast.makeText(context, R.string.settings_profile_photo_failed, Toast.LENGTH_SHORT).show()
-                    }
-                }
+                pendingAvatar = cropped
+                removed = false
             },
         )
     }
-    val pickPhoto = {
-        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .profileHeroBackground()
-                .padding(vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(modifier = Modifier.size(112.dp)) {
-                ProfileAvatar(
-                    size = 112.dp,
-                    modifier = Modifier
-                        .border(2.dp, Color.White.copy(alpha = 0.55f), CircleShape)
-                        .clip(CircleShape)
-                        .clickable { pickPhoto() },
-                )
-                // Sits on the avatar's rim (bottom-right). The outer Box is not
-                // clipped, so the badge is no longer cut off by the circle.
+    XmdAlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.wideDialogWidth(),
+        properties = WideDialogProperties,
+        title = { Text(stringResource(R.string.settings_profile_edit_title)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(28.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                        .border(2.dp, Color.Black.copy(alpha = 0.35f), CircleShape)
+                        .size(80.dp)
                         .clip(CircleShape)
-                        .clickable { pickPhoto() },
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Edit,
-                        contentDescription = stringResource(R.string.settings_profile_change_photo),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-            }
-            Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
-                TextButton(onClick = { pickPhoto() }) {
-                    Text(stringResource(R.string.settings_profile_change_photo), color = Color.White)
-                }
-                if (hasAvatar) {
-                    TextButton(onClick = { Profile.clearAvatar(context) }) {
-                        Text(stringResource(R.string.settings_profile_remove_photo), color = Color.White.copy(alpha = 0.8f))
+                    val bmp = shown
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        val initial = nameText.trim().firstOrNull()?.uppercaseChar()?.toString()
+                        if (initial != null) {
+                            Text(
+                                text = initial,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 34.sp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(44.dp),
+                            )
+                        }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    OutlinedButton(onClick = {
+                        picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }) { Text(stringResource(R.string.settings_profile_choose_photo)) }
+                    if (shown != null) {
+                        OutlinedButton(onClick = { cropSource = shown }) {
+                            Text(stringResource(R.string.settings_profile_crop_confirm))
+                        }
+                    }
+                }
+                if (shown != null) {
+                    OutlinedButton(
+                        onClick = {
+                            pendingAvatar = null
+                            removed = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) { Text(stringResource(R.string.settings_profile_remove_photo)) }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it.take(40) },
+                    label = { Text(stringResource(R.string.settings_profile_display_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        SettingsSectionCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
-            OutlinedTextField(
-                value = nameText,
-                onValueChange = {
-                    nameText = it.take(40)
-                    Profile.setName(nameText)
-                },
-                label = { Text(stringResource(R.string.settings_profile_name)) },
-                supportingText = { Text(stringResource(R.string.settings_profile_name_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        SettingsAccountSection()
-    }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+        confirmButton = {
+            Button(onClick = {
+                Profile.setName(nameText.trim())
+                val pending = pendingAvatar
+                when {
+                    pending != null -> scope.launch {
+                        val ok = withContext(Dispatchers.IO) { Profile.saveAvatarBitmap(context, pending) }
+                        if (!ok) {
+                            Toast.makeText(context, R.string.settings_profile_photo_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    removed -> Profile.clearAvatar(context)
+                }
+                onDismiss()
+            }) { Text(stringResource(R.string.settings_save)) }
+        },
+    )
 }

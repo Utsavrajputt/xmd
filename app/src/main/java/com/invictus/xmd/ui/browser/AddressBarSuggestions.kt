@@ -119,7 +119,14 @@ fun AddressBarSuggestions(
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         reverseLayout = reverse,
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+        // No extra gap on the side next to the bar (the bar's own 4dp margin is
+        // the whole gap, like Chrome); the far side keeps 8dp.
+        contentPadding = PaddingValues(
+            start = 10.dp,
+            end = 10.dp,
+            top = if (reverse) 8.dp else 0.dp,
+            bottom = if (reverse) 0.dp else 8.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items(suggestions) { item ->
