@@ -92,7 +92,7 @@ object FaviconLoader {
         val candidates = if (fast) listOf(
             "https://www.google.com/s2/favicons?sz=$TARGET_PX&domain=$host",
             "$scheme://$host/favicon.ico"
-        ) else listOf(
+        ) else declaredIconUrls("$scheme://$host/") + listOf(
             "$scheme://$host/apple-touch-icon.png",
             "https://www.google.com/s2/favicons?sz=$TARGET_PX&domain=$host",
             "$scheme://$host/favicon.ico"
@@ -158,6 +158,37 @@ object FaviconLoader {
     /** Filesystem-safe cache filename for a host, e.g. "www.example.com" -> "www.example.com.png". */
     private fun diskFileName(host: String): String =
         host.replace(Regex("[^a-zA-Z0-9.-]"), "_") + ".png"
+
+    /**
+     * Icons the site itself declares in its home page (`<link rel="apple-touch-icon|icon" ...>`),
+     * best first: touch icons before plain icons, larger `sizes` first. These are usually far
+     * sharper than a guessed /favicon.ico or a 16px third-party lookup. SVGs are skipped.
+     */
+    private fun declaredIconUrls(homeUrl: String): List<String> {
+        return try {
+            val html = client.newCall(Request.Builder().url(homeUrl).build()).execute().use { r ->
+                if (!r.isSuccessful) return emptyList()
+                r.body?.source()?.let { src ->
+                    src.request(120_000)
+                    src.buffer.clone().readUtf8(minOf(src.buffer.size, 120_000L))
+                }.orEmpty()
+            }
+            val base = URI(homeUrl)
+            data class Cand(val url: String, val score: Int)
+            Regex("""<link\b[^>]*>""", RegexOption.IGNORE_CASE).findAll(html).mapNotNull { m ->
+                val tag = m.value
+                val rel = Regex("""rel\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE).find(tag)?.groupValues?.get(1)?.lowercase() ?: return@mapNotNull null
+                if (!rel.contains("icon") || rel.contains("mask-icon")) return@mapNotNull null
+                val href = Regex("""href\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(tag)?.groupValues?.get(1) ?: return@mapNotNull null
+                if (href.substringBefore('?').endsWith(".svg", ignoreCase = true) || href.startsWith("data:")) return@mapNotNull null
+                val size = Regex("""sizes\s*=\s*["'](\d+)x\d+""", RegexOption.IGNORE_CASE).find(tag)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                val resolved = runCatching { base.resolve(href).toString() }.getOrNull() ?: return@mapNotNull null
+                Cand(resolved, (if (rel.contains("apple-touch")) 1000 else 0) + size)
+            }.sortedByDescending { it.score }.map { it.url }.distinct().take(3).toList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     private fun fetch(url: String): Bitmap? {
         return try {

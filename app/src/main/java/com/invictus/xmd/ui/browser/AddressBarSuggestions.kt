@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -259,19 +260,25 @@ private fun SuggestionRow(
                         }.value
                     } else null
                     if (favicon != null) {
+                        // Chrome style: the favicon exactly as the site provides it, no preset
+                        // shape. Only a transparent icon that would vanish into the row (GitHub's
+                        // black octocat on a dark theme) gets a light plate behind it.
+                        val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                        val needsPlate = remember(favicon, darkTheme) { faviconNeedsPlate(favicon, darkTheme) }
                         Image(
                             bitmap = favicon.asImageBitmap(),
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                // Extra inset + softly rounded corners keep square icons (black
-                                // tiles, logos on a box) fully inside the circle instead of
-                                // poking its edge.
-                                .padding(7.dp)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)),
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                            filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                            modifier = if (needsPlate) {
+                                Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .padding(4.dp)
+                            } else {
+                                Modifier.size(26.dp)
+                            },
                         )
                     } else {
                         Icon(
@@ -447,4 +454,27 @@ private fun SuggestionRow(
             else -> Unit
         }
     }
+}
+
+/**
+ * True when [bitmap] is a mostly transparent icon whose visible pixels have the same lightness as
+ * the surface it sits on (dark glyph on a dark theme, light glyph on a light one), i.e. it would
+ * be hard to see without a backing plate. Opaque icons (their own background) never need one.
+ */
+private fun faviconNeedsPlate(bitmap: android.graphics.Bitmap, darkTheme: Boolean): Boolean {
+    val small = android.graphics.Bitmap.createScaledBitmap(bitmap, 16, 16, true)
+    var transparent = 0
+    var visible = 0
+    var lum = 0.0
+    for (y in 0 until 16) for (x in 0 until 16) {
+        val px = small.getPixel(x, y)
+        val a = android.graphics.Color.alpha(px)
+        if (a < 40) { transparent++; continue }
+        visible++
+        lum += (0.299 * android.graphics.Color.red(px) + 0.587 * android.graphics.Color.green(px) +
+            0.114 * android.graphics.Color.blue(px)) / 255.0
+    }
+    if (visible == 0 || transparent < 256 * 0.15) return false
+    val avg = lum / visible
+    return if (darkTheme) avg < 0.35 else avg > 0.75
 }

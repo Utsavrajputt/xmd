@@ -640,7 +640,7 @@ private fun Modifier.chromeSwipeToClose(onClose: () -> Unit): Modifier {
     var offsetX by remember { mutableFloatStateOf(0f) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
     var width by remember { mutableFloatStateOf(1f) }
-    val flingPx = with(LocalDensity.current) { 600.dp.toPx() }
+    val flingPx = with(LocalDensity.current) { 400.dp.toPx() }
     val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     val currentOnClose by rememberUpdatedState(onClose)
     val dragState = rememberDraggableState { delta -> offsetX += delta }
@@ -661,7 +661,7 @@ private fun Modifier.chromeSwipeToClose(onClose: () -> Unit): Modifier {
             onDragStopped = { velocity ->
                 settleJob?.cancel()
                 settleJob = scope.launch {
-                    val dismiss = abs(offsetX) > width * 0.35f || abs(velocity) > flingPx
+                    val dismiss = abs(offsetX) > width * 0.25f || abs(velocity) > flingPx
                     if (dismiss) {
                         val dir = when {
                             offsetX > 0f -> 1f
@@ -670,13 +670,25 @@ private fun Modifier.chromeSwipeToClose(onClose: () -> Unit): Modifier {
                             else -> -1f
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        // Short non-bouncy throw-off; the tab is closed as soon as the card is
+                        // mostly off-screen instead of after the whole spring has settled.
+                        var closed = false
                         animate(
                             initialValue = offsetX,
                             targetValue = dir * width * 1.1f,
                             initialVelocity = if (velocity * dir > 0f) velocity else 0f,
-                            animationSpec = spec,
-                        ) { v, _ -> offsetX = v }
-                        currentOnClose()
+                            animationSpec = androidx.compose.animation.core.tween(
+                                durationMillis = 140,
+                                easing = androidx.compose.animation.core.FastOutLinearInEasing,
+                            ),
+                        ) { v, _ ->
+                            offsetX = v
+                            if (!closed && abs(v) > width * 0.6f) {
+                                closed = true
+                                currentOnClose()
+                            }
+                        }
+                        if (!closed) currentOnClose()
                         // Closing the only tab resets it to a blank tab (same
                         // id), so this item is NOT removed and would stay
                         // invisible. If still composed afterwards, slide back
