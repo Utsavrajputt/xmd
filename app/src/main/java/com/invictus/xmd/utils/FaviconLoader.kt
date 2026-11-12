@@ -128,6 +128,27 @@ object FaviconLoader {
         return cache.get(host) ?: quick.get(host)
     }
 
+    /**
+     * Drops everything remembered for [pageUrl]'s host (memory, disk, "failed" marker) so the next
+     * [load] fetches fresh. Used when a shortcut moves to a new domain.
+     */
+    fun invalidate(pageUrl: String) {
+        val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return
+        cache.remove(host)
+        failedAt.remove(host)
+        diskCacheDir?.let { File(it, diskFileName(host)).delete() }
+    }
+
+    /** Keeps [bitmap] (e.g. the page's own WebView favicon) as the icon for [pageUrl]'s host, in memory and on disk. */
+    fun save(pageUrl: String, bitmap: Bitmap) {
+        val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return
+        cache.put(host, bitmap)
+        failedAt.remove(host)
+        diskCacheDir?.let { dir ->
+            runCatching { File(dir, diskFileName(host)).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+        }
+    }
+
     /** Stores the WebView-provided favicon for instant display. */
     fun putQuick(pageUrl: String, bitmap: Bitmap) {
         val host = runCatching { URI(pageUrl).host }.getOrNull() ?: return

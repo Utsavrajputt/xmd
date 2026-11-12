@@ -340,7 +340,7 @@ private fun ShortcutTile(
             if (customPath != null) {
                 runCatching { android.graphics.BitmapFactory.decodeFile(customPath) }.getOrNull()
             } else {
-                FaviconLoader.load(shortcut.url)
+                FaviconLoader.load(shortcut.url) ?: FaviconLoader.peek(shortcut.url)
             }
         }
     }

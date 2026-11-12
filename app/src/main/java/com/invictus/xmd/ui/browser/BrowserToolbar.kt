@@ -256,7 +256,7 @@ fun BrowserToolbarRow(
                 targetValue = (progress / 100f).coerceIn(0f, 1f),
                 label = "toolbarProgress",
             )
-            // Hand-drawn 1.75dp line instead of LinearProgressIndicator: the Material
+            // Hand-drawn 1.8dp line instead of LinearProgressIndicator: the Material
             // indicator pins its own 4dp height, which read as too chunky on the
             // address bar edge.
             Box(
@@ -268,7 +268,7 @@ fun BrowserToolbarRow(
                         top = if (isBottomBar) 4.dp else 0.dp,
                         bottom = if (isBottomBar) 0.dp else 4.dp,
                     )
-                    .height(1.75.dp),
+                    .height(1.8.dp),
             ) {
                 Box(
                     modifier = Modifier

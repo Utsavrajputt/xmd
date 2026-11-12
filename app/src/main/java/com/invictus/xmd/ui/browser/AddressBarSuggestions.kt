@@ -266,7 +266,12 @@ private fun SuggestionRow(
                                 .size(30.dp)
                                 .clip(CircleShape)
                                 .background(Color.White)
-                                .padding(5.dp),
+                                // Extra inset + softly rounded corners keep square icons (black
+                                // tiles, logos on a box) fully inside the circle instead of
+                                // poking its edge.
+                                .padding(7.dp)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                         )
                     } else {
                         Icon(

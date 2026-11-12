@@ -1278,14 +1278,18 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         }
         // Expose WebAuthn (window.PublicKeyCredential). It is undefined in a plain WebView,
         // and GitHub then hides its whole "Continue with Google / Apple / passkey" block.
-        // Via enables the same WEB_AUTHENTICATION feature. Reflection keeps this compiling
-        // regardless of the androidx.webkit opt-in annotations on the API.
+        // Reflection keeps this compiling regardless of the androidx.webkit opt-in annotations.
+        // FOR_APP, not FOR_BROWSER: FOR_BROWSER makes WebView call Credential Manager with
+        // setOrigin(), which needs the privileged CREDENTIAL_MANAGER_SET_ORIGIN permission. A normal
+        // app lacks it, so the first passkey request threw a SecurityException that killed the
+        // whole process. FOR_APP keeps PublicKeyCredential defined; an unsupported request just
+        // fails inside the page.
         runCatching {
             if (androidx.webkit.WebViewFeature.isFeatureSupported("WEB_AUTHENTICATION")) {
                 val cls = androidx.webkit.WebSettingsCompat::class.java
-                val forBrowser = cls.getField("WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER").getInt(null)
+                val forApp = cls.getField("WEB_AUTHENTICATION_SUPPORT_FOR_APP").getInt(null)
                 cls.getMethod("setWebAuthenticationSupport", WebSettings::class.java, Int::class.javaPrimitiveType)
-                    .invoke(null, webView.settings, forBrowser)
+                    .invoke(null, webView.settings, forApp)
             }
         }
         applyDesktopMode(webView, tab.isDesktopMode)
@@ -2251,6 +2255,15 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
             val newUrl = com.invictus.xmd.domain.browser.ShortcutRedirectUpdater
                 .newUrlFor(saved.url, saved.title.ifBlank { title }, finalUrl) ?: return@launch
             tab.pendingShortcutId = null
+            // Icons are cached per host, so the old domain's icon (or a failed lookup for the new one)
+            // must not stick: fetch the new site's icon first, falling back to the page's own favicon,
+            // and only then re-point the tile so it renders with the right icon straight away.
+            withContext(Dispatchers.IO) {
+                val quick = com.invictus.xmd.utils.FaviconLoader.peek(finalUrl)
+                com.invictus.xmd.utils.FaviconLoader.invalidate(newUrl)
+                val fetched = com.invictus.xmd.utils.FaviconLoader.load(newUrl)
+                if (fetched == null && quick != null) com.invictus.xmd.utils.FaviconLoader.save(newUrl, quick)
+            }
             ShortcutRepository.updateAll(listOf(saved.copy(url = newUrl)))
             Settings.markShortcutRedirected(id)
             android.widget.Toast.makeText(
