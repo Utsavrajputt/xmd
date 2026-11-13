@@ -258,6 +258,7 @@ fun DownloadsScreen(
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var renameTarget by remember { mutableStateOf<QueueItem?>(null) }
     var deleteTargets by remember { mutableStateOf<List<QueueItem>?>(null) }
+    var pendingClearRunning by remember { mutableStateOf<QueueItem?>(null) }
     var errorDetailsTarget by remember { mutableStateOf<QueueItem?>(null) }
     var overflowMenuExpanded by remember { mutableStateOf(false) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
@@ -571,15 +572,15 @@ fun DownloadsScreen(
                 EmptyState(showIcon = query.isBlank())
             } else {
                 val onSwipeClearItem: (QueueItem) -> Unit = { swipedItem ->
-                    if (swipedItem.status == ItemStatus.DOWNLOADING ||
-                        swipedItem.status == ItemStatus.RETRYING ||
-                        swipedItem.status == ItemStatus.SAVING
-                    ) {
-                        onCancel(swipedItem)
-                    }
-                    onClear(swipedItem)
-                    if (swipedItem.id in selectedIds) {
-                        selectedIds = selectedIds - swipedItem.id
+                    if (swipedItem.status != ItemStatus.DONE && swipedItem.status != ItemStatus.FAILED) {
+                        // Still running or queued: ask first. Confirming cancels it, waits for it to
+                        // stop, deletes its files and then clears the row.
+                        pendingClearRunning = swipedItem
+                    } else {
+                        onClear(swipedItem)
+                        if (swipedItem.id in selectedIds) {
+                            selectedIds = selectedIds - swipedItem.id
+                        }
                     }
                 }
 
@@ -712,6 +713,48 @@ fun DownloadsScreen(
             dismissButton = {
                 TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { deleteTargets = null }) {
                     Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+
+    // ── Clear a still-running download: cancel + delete files + clear ─────
+    pendingClearRunning?.let { item ->
+        XmdAlertDialog(
+            onDismissRequest = { pendingClearRunning = null },
+            modifier = Modifier.compactDialogWidth(),
+            properties = WideDialogProperties,
+            compact = true,
+            title = { Text(stringResource(R.string.clear_running_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = item.fileName ?: item.sourceUrl,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(R.string.clear_running_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                    onClick = {
+                        onDeleteItems(listOf(item), true)
+                        selectedIds = selectedIds - item.id
+                        pendingClearRunning = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(stringResource(R.string.clear_running_confirm)) }
+            },
+            dismissButton = {
+                TextButton(shapes = androidx.compose.material3.ButtonDefaults.shapes(), onClick = { pendingClearRunning = null }) {
+                    Text(stringResource(R.string.action_keep_downloading))
                 }
             },
         )

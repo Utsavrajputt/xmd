@@ -178,6 +178,33 @@ class DownloadService : LifecycleService() {
             )
         }
 
+        private val removeScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
+        /**
+         * Cancels a running/queued item and, once it has really stopped, deletes its partial files
+         * and drops the row. Removing the row first (what Clear used to do) left the engine
+         * downloading invisibly in the background.
+         */
+        fun cancelAndRemove(context: Context, item: QueueItem) {
+            val app = context.applicationContext
+            cancelItem(app, item.id)
+            removeScope.launch {
+                val deadline = System.currentTimeMillis() + 20_000L
+                while (System.currentTimeMillis() < deadline) {
+                    val cur = QueueRepository.current().firstOrNull { it.id == item.id } ?: return@launch
+                    if (cur.status == ItemStatus.FAILED || cur.status == ItemStatus.DONE) break
+                    kotlinx.coroutines.delay(100)
+                }
+                // Let the worker's own cleanup finish first, then sweep anything it left behind.
+                kotlinx.coroutines.delay(400)
+                val latest = QueueRepository.current().firstOrNull { it.id == item.id } ?: item
+                if (latest.status != ItemStatus.DONE) {
+                    runCatching { com.invictus.xmd.domain.download.PartialFileCleaner.cleanupItem(latest) }
+                }
+                QueueRepository.removeItem(item.id)
+            }
+        }
+
         fun cancelAll(context: Context) {
             context.startService(Intent(context, DownloadService::class.java).setAction(ACTION_CANCEL_ALL))
         }
@@ -649,6 +676,16 @@ class DownloadService : LifecycleService() {
                 } else {
                     engines[id]?.cancel()
                     torrentEngines[id]?.cancel()
+                    // Interrupting the connections can take a moment (blocked reads, segment
+                    // workers winding down). Show "Cancelled" right away instead of leaving the
+                    // row looking unresponsive; the worker finishes cleaning up its part files
+                    // in the background and its own markFailed is a harmless repeat. Progress
+                    // updates cannot flip it back (terminal items ignore mutateNonTerminal).
+                    if (current != null && current.status != ItemStatus.DONE && current.status != ItemStatus.FAILED &&
+                        (engines[id] != null || torrentEngines[id] != null)
+                    ) {
+                        QueueRepository.markFailed(id, "Cancelled")
+                    }
                 }
                 // No live engine to interrupt above -- either mid an auto-retry
                 // backoff wait (engine was removed before the delay), or a

@@ -52,4 +52,10 @@
     <string name="send_to_phone_sign_in">Sign in with GitHub in XMD settings first</string>
     <string name="inbox_channel_name">Links from other devices</string>
     <string name="inbox_notification_title">Link from %1$s</string>
+    <string name="clear_running_title">Cancel and clear?</string>
+    <string name="clear_running_message">This download is still running. It will be cancelled and its partial files deleted, then removed from the list.</string>
+    <string name="clear_running_confirm">Cancel &amp; clear</string>
+    <string name="github_history_subtitle">Restore an earlier version of your backup</string>
+    <string name="github_history_today">Today, %1$s</string>
+    <string name="github_history_older">Older backup</string>
 </resources>

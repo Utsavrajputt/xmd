@@ -21,6 +21,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -125,56 +127,100 @@ private fun BackupHistoryCard() {
         Toast.makeText(context, if (e is AccountException) e.message.orEmpty() else "Something went wrong", Toast.LENGTH_LONG).show()
     }
 
-    SettingsSectionCard(contentPadding = PaddingValues(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.History, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(R.string.github_history_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    var expanded by remember { mutableStateOf(false) }
+    fun load() {
+        if (loading) return
+        loading = true
+        scope.launch {
+            try {
+                history = AccountManager.backupHistory()
+            } catch (e: Throwable) {
+                fail(e)
+            } finally {
+                loading = false
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        val list = history
-        if (list == null) {
-            OutlinedButton(
-                onClick = {
-                    loading = true
-                    scope.launch {
-                        try {
-                            history = AccountManager.backupHistory()
-                        } catch (e: Throwable) {
-                            fail(e)
-                        } finally {
-                            loading = false
+    }
+
+    SettingsSectionCard {
+        Column {
+            // Header: tap to expand; the list is only fetched the first time it is opened.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        expanded = !expanded
+                        if (expanded && history == null) load()
+                    }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Icon(Icons.History, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.github_history_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.github_history_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    Icons.ChevronRight,
+                    null,
+                    tint = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(22.dp).rotate(if (expanded) 90f else 0f),
+                )
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = expanded) {
+                Column(Modifier.padding(start = 16.dp, end = 8.dp, bottom = 8.dp)) {
+                    val list = history
+                    when {
+                        loading && list == null -> Text(
+                            "…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                        list != null && list.isEmpty() -> Text(
+                            stringResource(R.string.github_history_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                        list != null -> list.forEachIndexed { index, rev ->
+                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            val time = DateUtils.formatDateTime(context, rev.backupAtMs, DateUtils.FORMAT_SHOW_TIME)
+                            val title = if (DateUtils.isToday(rev.backupAtMs)) {
+                                stringResource(R.string.github_history_today, time)
+                            } else {
+                                DateUtils.formatDateTime(
+                                    context,
+                                    rev.backupAtMs,
+                                    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_SHOW_TIME,
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        rev.deviceName ?: stringResource(R.string.github_history_older),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                TextButton(
+                                    enabled = !busy,
+                                    onClick = {
+                                        restoreScope = BackupScope()
+                                        picked = rev
+                                    },
+                                ) { Text(stringResource(R.string.account_restore)) }
+                            }
                         }
                     }
-                },
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (loading) "…" else stringResource(R.string.github_history_load)) }
-        } else if (list.isEmpty()) {
-            Text(
-                stringResource(R.string.github_history_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            list.forEach { rev ->
-                val ago = DateUtils.getRelativeTimeSpanString(rev.backupAtMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !busy) {
-                            restoreScope = BackupScope()
-                            picked = rev
-                        }
-                        .padding(vertical = 10.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.github_history_row, ago, rev.deviceName ?: "—"),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(Icons.CloudDownload, null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(20.dp))
                 }
             }
         }

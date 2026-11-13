@@ -2362,6 +2362,15 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     }
 
     private fun showSpeedDial() {
+        // The speed dial is transparent and sits over the content area, so any WebView still visible
+        // would show through it. Callers only hide the one WebView they were switching away from;
+        // after quick tab switches (or a crossfade that was cut short) another tab's page could be
+        // left on screen behind the tiles. Hide every WebView, not just the outgoing one.
+        webViews.values.forEach {
+            it.animate().cancel()
+            it.alpha = 0f
+            it.visibility = View.GONE
+        }
         addressBarClearFocusSignal++
         speedDialVisible = true
         navCanGoBack = false

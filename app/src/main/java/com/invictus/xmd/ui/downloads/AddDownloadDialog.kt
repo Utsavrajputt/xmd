@@ -192,6 +192,9 @@ fun AddDownloadDialog(
     var link by remember { mutableStateOf(initialLink) }
     var name by remember { mutableStateOf(initialName) }
     var nameManuallyEdited by remember { mutableStateOf(false) }
+    // True while the server's real filename is still being looked up. Starting the download in that
+    // window must not lock in the URL-derived placeholder (often an opaque hash), see onStart below.
+    var nameProbePending by remember { mutableStateOf(false) }
     var customSaveDir by remember { mutableStateOf<String?>(null) }
     var advancedExpanded by remember { mutableStateOf(false) }
     var audioFormatPreset by remember { mutableStateOf(Settings.presetAudioFormat()) }
@@ -453,7 +456,12 @@ fun AddDownloadDialog(
             else -> {
                 val guessed = DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
                 if (guessed.isNotBlank()) name = guessed
-                val probed = probeRealFilename(link)
+                nameProbePending = true
+                val probed = try {
+                    probeRealFilename(link)
+                } finally {
+                    nameProbePending = false
+                }
                 if (!nameManuallyEdited && !probed.isNullOrBlank()) name = probed
             }
         }
@@ -1153,7 +1161,10 @@ fun AddDownloadDialog(
                     } else if (link.isNotBlank()) {
                         onStart(
                             link.trim(),
-                            name.trim().takeUnless { it.isBlank() },
+                            // Name lookup still running and the user never typed one: send no name, so
+                            // the download service resolves the real filename itself (before any file
+                            // is created) instead of locking in the placeholder shown in the field.
+                            name.trim().takeUnless { it.isBlank() || (nameProbePending && !nameManuallyEdited) },
                             customSaveDir,
                             finalQualityOption,
                             audioFormatPreset,

@@ -82,7 +82,7 @@ class DownloadsFragment : Fragment() {
                     onPauseResume = { onItemPauseResume(it) },
                     onCancel = { DownloadService.cancelItem(requireContext(), it.id) },
                     onRetry = { (activity as? Callbacks)?.retryItem(it.id) },
-                    onClear = { QueueRepository.removeItem(it.id) },
+                    onClear = { clearItem(it) },
                     onOpen = { openFile(it) },
                     onOpenWith = { openFile(it) },
                     onRename = { item, newName -> renameFile(item, newName) },
@@ -291,7 +291,24 @@ class DownloadsFragment : Fragment() {
 
     /** Deletes the on-disk file (if requested and exists) and drops the row from the queue.
      *  A FAILED item with no file just removes the row. */
+    /** Clear a row: finished items just leave the list, cancelled/failed ones also lose their leftovers. */
+    private fun clearItem(item: QueueItem) {
+        when (item.status) {
+            ItemStatus.DONE -> QueueRepository.removeItem(item.id)
+            ItemStatus.FAILED -> {
+                Thread { com.invictus.xmd.domain.download.PartialFileCleaner.cleanupItem(item) }.start()
+                QueueRepository.removeItem(item.id)
+            }
+            // Still active: stop it for real first, then remove (never leave it running unseen).
+            else -> DownloadService.cancelAndRemove(requireContext(), item)
+        }
+    }
+
     private fun deleteItem(item: QueueItem, deleteFile: Boolean = true) {
+        if (item.status != ItemStatus.DONE && item.status != ItemStatus.FAILED) {
+            DownloadService.cancelAndRemove(requireContext(), item)
+            return
+        }
         if (deleteFile) {
             item.filePath?.let { File(it) }?.takeIf { it.exists() }?.delete()
         }
