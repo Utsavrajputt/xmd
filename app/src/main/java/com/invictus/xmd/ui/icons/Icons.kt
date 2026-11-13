@@ -70,7 +70,7 @@ private fun fillArrowIcon(): ImageVector = ImageVector.Builder(
 ).build()
 
 /**
- * WhatsApp-status style glyph: a speech bubble (tail bottom-left) outlining a
+ * WhatsApp-status style glyph: a full circle outlining a
  * ring broken into four dashes. Built as an ImageVector (same approach as
  * magnetIcon above) so it takes Icon()'s tint like every other entry in [Icons].
  */
@@ -89,7 +89,7 @@ private fun statusRingIcon(): ImageVector {
             cx + ringRadius * cos(end), cy + ringRadius * sin(end),
         )
     }
-    val bubble = "M5.64,17.86 L3,21.2 L9.67,20.19 A9,9 0 1 0 5.64,17.86 Z"
+    val bubble = "M12,2.5 A9,9 0 1 1 12,20.5 A9,9 0 1 1 12,2.5 Z"
     return ImageVector.Builder(
         name = "StatusBubble",
         defaultWidth = 24.dp,

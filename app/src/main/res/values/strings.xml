@@ -498,6 +498,7 @@
     <string name="action_scan_qr">Scan QR code</string>
     <string name="qr_scanner_unavailable">QR scanner could not start</string>
     <string name="qr_scanner_hint">Point the camera at a QR code</string>
+    <string name="qr_no_payment_app">No payment app found to open this QR</string>
     <string name="qr_scanner_permission_needed">Camera permission is needed to scan QR codes</string>
     <string name="qr_scanner_grant_permission">Allow camera</string>
     <string name="qr_scanner_from_gallery">Scan from gallery</string>

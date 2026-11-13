@@ -32,6 +32,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.Color
+import com.invictus.xmd.ui.theme.AppTheme
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -113,38 +117,16 @@ fun AboutScreen(
     ) {
         // ===== Hero identity card =====
         val cs = MaterialTheme.colorScheme
-        val transition = rememberInfiniteTransition()
-        val fraction by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 5000),
-                repeatMode = RepeatMode.Reverse,
-            ),
-        )
-        val heroCornerRadius = 28.dp
+        // Aurora keeps its fixed blue/violet (same as Replay); every other theme tints from its own colours.
+        val theme by Settings.themeFlow.collectAsState()
+        val heroPrimary = if (theme == AppTheme.Aurora) Color(0xFF5B93FF) else cs.primary
+        val heroTertiary = if (theme == AppTheme.Aurora) Color(0xFF9B7BFF) else cs.tertiary
+        val heroText = Color.White
+        val heroShape = RoundedCornerShape(28.dp)
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .drawWithCache {
-                    val cx = size.width - size.width * fraction
-                    val cy = size.height * fraction
-                    val gradient = Brush.radialGradient(
-                        colors = listOf(cs.primaryContainer, cs.tertiaryContainer),
-                        center = Offset(cx, cy),
-                        radius = 800f,
-                    )
-                    onDrawBehind {
-                        drawRoundRect(
-                            brush = gradient,
-                            cornerRadius = CornerRadius(heroCornerRadius.toPx(), heroCornerRadius.toPx()),
-                        )
-                    }
-                }
-                .padding(20.dp),
-        ) {
-            Column {
+        Box(modifier = Modifier.fillMaxWidth().clip(heroShape)) {
+            AboutHeaderBackground(heroPrimary, heroTertiary, Modifier.matchParentSize())
+            Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val context = LocalContext.current
                     val appIconBitmap = remember {
@@ -152,11 +134,19 @@ fun AboutScreen(
                             .toBitmap()
                             .asImageBitmap()
                     }
-                    Image(
-                        bitmap = appIconBitmap,
-                        contentDescription = stringResource(R.string.app_name),
-                        modifier = Modifier.size(64.dp),
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            Modifier.size(80.dp).background(
+                                Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent)),
+                                CircleShape,
+                            ),
+                        )
+                        Image(
+                            bitmap = appIconBitmap,
+                            contentDescription = stringResource(R.string.app_name),
+                            modifier = Modifier.size(64.dp),
+                        )
+                    }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
@@ -165,25 +155,25 @@ fun AboutScreen(
                             text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = cs.onPrimaryContainer,
+                            color = heroText,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.about_tagline),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = cs.onPrimaryContainer.copy(alpha = 0.85f),
+                            color = heroText.copy(alpha = 0.7f),
                         )
                         Spacer(Modifier.height(8.dp))
                         Surface(
-                            shape = XmdShapes.S,
-                            color = cs.primary.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = heroPrimary.copy(alpha = 0.16f),
                         ) {
                             Text(
                                 text = versionText,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = cs.onPrimaryContainer,
+                                color = heroText,
                             )
                         }
                     }
@@ -195,8 +185,9 @@ fun AboutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    val btnContainer = cs.primary
-                    val btnContent = cs.onPrimary
+                    val btnContainer = cs.surfaceContainerHigh.copy(alpha = 0.6f)
+                    val btnContent = heroText
+                    val btnBorder = androidx.compose.foundation.BorderStroke(1.dp, heroPrimary.copy(alpha = 0.35f))
 
                     // Libraries (left) -- opens the standalone Libraries
                     // screen listing the open-source projects Xmd is built
@@ -204,7 +195,8 @@ fun AboutScreen(
                     Button(
                         onClick = onLibrariesClick,
                         modifier = Modifier.weight(1f).height(56.dp),
-                        shape = XmdShapes.S,
+                        shape = RoundedCornerShape(16.dp),
+                        border = btnBorder,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = btnContainer,
                             contentColor = btnContent,
@@ -228,7 +220,8 @@ fun AboutScreen(
                     Button(
                         onClick = onGithubClick,
                         modifier = Modifier.weight(1f).height(56.dp),
-                        shape = XmdShapes.S,
+                        shape = RoundedCornerShape(16.dp),
+                        border = btnBorder,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = btnContainer,
                             contentColor = btnContent,

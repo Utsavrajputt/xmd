@@ -270,8 +270,26 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     private val qrScanLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
             val text = result.data?.getStringExtra(com.invictus.xmd.ui.qr.QrScannerActivity.EXTRA_TEXT)?.trim().orEmpty()
-            if (result.resultCode == android.app.Activity.RESULT_OK && text.isNotEmpty() && isAdded) loadUrl(text)
+            if (result.resultCode == android.app.Activity.RESULT_OK && text.isNotEmpty() && isAdded) {
+                if (!openPaymentLink(text)) loadUrl(text)
+            }
         }
+
+    /** UPI / wallet QR codes go to the payment app chooser instead of being searched. */
+    private fun openPaymentLink(text: String): Boolean {
+        val scheme = text.substringBefore(':', "").lowercase()
+        if (scheme !in PAYMENT_SCHEMES || !text.contains(':')) return false
+        return try {
+            val view = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(text))
+            startActivity(android.content.Intent.createChooser(view, null))
+            true
+        } catch (e: android.content.ActivityNotFoundException) {
+            android.widget.Toast.makeText(requireContext(), R.string.qr_no_payment_app, android.widget.Toast.LENGTH_LONG).show()
+            true
+        }
+    }
+
+    private val PAYMENT_SCHEMES = setOf("upi", "tez", "phonepe", "paytmmp", "paytm", "gpay", "bhim", "mobikwik", "cred", "amazonpay")
     private var lastDetectedLink: String? = null
     private var speedDialVisible: Boolean by mutableStateOf(true)
     private var browserMenuExpanded: Boolean by mutableStateOf(false)
