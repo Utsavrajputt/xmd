@@ -1,6 +1,9 @@
 package com.invictus.xmd.domain.download
 
+import android.content.Context
 import com.invictus.xmd.database.entities.QueueItem
+import com.invictus.xmd.domain.torrent.TorrentPaths
+import com.invictus.xmd.utils.LinkParser
 import com.invictus.xmd.utils.storage.FileNameUtils
 import java.io.File
 
@@ -16,6 +19,13 @@ object PartialFileCleaner {
 
     /** Files younger than this are never treated as leftovers (a download may just have created them). */
     private const val MIN_AGE_MS = 2 * 60 * 1000L
+
+    private var cacheDir: File? = null
+
+    /** Needed to find yt-dlp's temp folders (they live in the app cache). Called from Application.onCreate. */
+    fun init(context: Context) {
+        cacheDir = context.applicationContext.cacheDir
+    }
 
     /** Same derivation DownloadService uses to name an item's part file. */
     fun partIdFor(itemId: String): Long =
@@ -40,6 +50,39 @@ object PartialFileCleaner {
      */
     fun cleanupItem(item: QueueItem) {
         if (item.status == ItemStatus.DONE) return
+        when {
+            item.platform == MediaPlatform.YOUTUBE -> cleanupYtDlp(item)
+            LinkParser.isTorrentLink(item.sourceUrl) -> cleanupTorrent(item)
+            else -> cleanupDirect(item)
+        }
+    }
+
+    /** yt-dlp downloads into its own per-item temp folder in the app cache (see YtDlpManager). */
+    private fun cleanupYtDlp(item: QueueItem) {
+        val root = cacheDir ?: return
+        runCatching { File(root, "ytdlp/${item.id}").deleteRecursively() }
+    }
+
+    /**
+     * A cancelled/failed torrent leaves its (partly filled) content at `<save dir>/<torrent name>`.
+     * That is only deleted when it is certain to belong to this item: the download must have started,
+     * the entry must have been written to since (so a complete copy from an earlier download of the
+     * same torrent is never touched), and it must sit strictly inside the save dir.
+     */
+    private fun cleanupTorrent(item: QueueItem) {
+        val name = item.fileName?.takeIf { it.isNotBlank() } ?: return
+        if (item.downloadStartedAtMs <= 0L) return
+        runCatching {
+            val baseDir = TorrentPaths.resolveBaseDir(item.customSaveDirPath, name).canonicalFile
+            val target = File(baseDir, name).canonicalFile
+            if (target.parentFile?.canonicalPath != baseDir.canonicalPath) return // name had path parts / escaped
+            if (!target.exists()) return
+            if (target.lastModified() < item.downloadStartedAtMs - 1_000L) return // older than this download
+            target.deleteRecursively()
+        }
+    }
+
+    private fun cleanupDirect(item: QueueItem) {
         val name = item.fileName?.takeIf { it.isNotBlank() } ?: return
         runCatching {
             val dir = FileNameUtils.resolveDestinationFolder(item.customSaveDirPath, item.category, name, item.sourceUrl)

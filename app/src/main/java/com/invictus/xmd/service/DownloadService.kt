@@ -1113,41 +1113,8 @@ class DownloadService : LifecycleService() {
         torrentEngines[itemId] = engine
 
         try {
-            val defaultBaseDir = if (!customSaveDirPath.isNullOrBlank()) {
-                // Picked via the Editor dialog's Advanced -> Change (see
-                // MainActivity) -- overrides both the settings
-                // default and the Torrents-subfolder convention below.
-                File(customSaveDirPath)
-            } else {
-                val saveRoot = File(Settings.defaultSaveLocation())
-                if (Settings.categorizationDisabled()) {
-                    saveRoot
-                } else {
-                    // Own subfolder rather than DownloadCategory.folderName -- a
-                    // torrent is very often a multi-file batch (a whole season,
-                    // an album, a repack's several parts) that belongs together
-                    // as one folder rather than split across Videos/Music/Others.
-                    File(saveRoot, "Torrents")
-                }
-            }
-
-            // A torrent that is an episode or a season pack (S01E02 / S01 /
-            // Season 2 in its name) is grouped under Shows/ -- with a
-            // <Show Name>/ subfolder only when "Show name folders" is on. The
-            // torrent's own top-level folder is kept below that. Custom save
-            // dirs are left untouched; "categorization off" only skips Shows/
-            // when show-name folders are off too.
             val torrentName = QueueRepository.current().firstOrNull { it.id == itemId }?.fileName
-            val showFolders = Settings.showNameFoldersEnabled()
-            val baseDir = if (customSaveDirPath.isNullOrBlank() &&
-                (!Settings.categorizationDisabled() || showFolders) &&
-                ShowDetector.isEpisodeOrSeasonPack(torrentName)
-            ) {
-                val showsRoot = File(Settings.defaultSaveLocation(), DownloadCategory.SHOWS.folderName)
-                if (showFolders) File(showsRoot, ShowDetector.showFolderName(torrentName)) else showsRoot
-            } else {
-                defaultBaseDir
-            }
+            val baseDir = com.invictus.xmd.domain.torrent.TorrentPaths.resolveBaseDir(customSaveDirPath, torrentName)
 
             val result = withContext(Dispatchers.IO) {
                 if (LinkParser.isMagnetLink(sourceUrl)) {
