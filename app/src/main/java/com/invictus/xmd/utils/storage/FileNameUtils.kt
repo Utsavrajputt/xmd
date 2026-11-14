@@ -17,7 +17,13 @@ enum class OnDuplicateStrategy {
     AddNumbered,
 
     /** Overwrites the existing on-disk file and replaces the conflicting queue item. */
-    OverrideDownload;
+    OverrideDownload,
+
+    /**
+     * Keeps the failed/expired download (its id, part files and progress) and just swaps in the new
+     * link, exactly like "Fetch from browser" does after a link expires.
+     */
+    ResumeExisting;
 
     companion object {
         fun default() = AddNumbered
@@ -77,6 +83,16 @@ object FileNameUtils {
         val name = item.fileName?.takeUnless { it.isBlank() } ?: return null
         return resolveDestinationFile(name, item.customSaveDirPath, item.category, item.sourceUrl)
     }
+
+    /**
+     * A direct download that failed because its link expired (the error is ExpiredLinkException's
+     * "...expired or is unavailable..." text, the same check MainActivity uses to show the
+     * expired-link dialog), so a fresh link can pick it up where it stopped.
+     */
+    fun isResumableWithNewLink(item: QueueItem): Boolean =
+        item.platform == com.invictus.xmd.domain.download.MediaPlatform.DIRECT &&
+            item.status == com.invictus.xmd.domain.download.ItemStatus.FAILED &&
+            item.error?.contains("expired", ignoreCase = true) == true
 
     /**
      * Finds an existing download in the queue whose destination file matches [targetFile].

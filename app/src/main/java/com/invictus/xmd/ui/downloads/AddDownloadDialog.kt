@@ -642,10 +642,10 @@ fun AddDownloadDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        val strategyText = if (onDuplicateStrategy == OnDuplicateStrategy.AddNumbered) {
-                            stringResource(R.string.download_strategy_add_a_numbered_file)
-                        } else {
-                            stringResource(R.string.download_strategy_override_existing_file)
+                        val strategyText = when (onDuplicateStrategy) {
+                            OnDuplicateStrategy.AddNumbered -> stringResource(R.string.download_strategy_add_a_numbered_file)
+                            OnDuplicateStrategy.ResumeExisting -> stringResource(R.string.download_strategy_resume_existing)
+                            else -> stringResource(R.string.download_strategy_override_existing_file)
                         }
                         Text(
                             text = strategyText,
@@ -1259,6 +1259,18 @@ fun AddDownloadDialog(
                             showSolutionsDialog = false
                         },
                     )
+                    if (conflictingItem?.let(FileNameUtils::isResumableWithNewLink) == true) {
+                        Spacer(Modifier.height(8.dp))
+                        DuplicateSolutionCard(
+                            title = stringResource(R.string.download_strategy_resume_existing),
+                            description = stringResource(R.string.download_strategy_resume_existing_description),
+                            isSelected = onDuplicateStrategy == OnDuplicateStrategy.ResumeExisting,
+                            onClick = {
+                                onDuplicateStrategy = OnDuplicateStrategy.ResumeExisting
+                                showSolutionsDialog = false
+                            },
+                        )
+                    }
                 }
             },
             confirmButton = {},

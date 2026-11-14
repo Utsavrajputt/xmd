@@ -749,6 +749,8 @@
     <string name="download_strategy_add_a_numbered_file_description">Save as a new file with a numbered suffix (e.g. name_1.ext)</string>
     <string name="download_strategy_override_existing_file">Overwrite existing file</string>
     <string name="download_strategy_override_existing_file_description">Remove existing download and overwrite this file</string>
+    <string name="download_strategy_resume_existing">Resume existing download</string>
+    <string name="download_strategy_resume_existing_description">Use this new link to continue the failed download from where it stopped</string>
     <string name="download_override_active">Can\'t overwrite an active download. Cancel it or save a numbered copy.</string>
     <string name="download_override_delete_failed">Couldn\'t remove the existing file. Save a numbered copy instead.</string>
     <string name="show_solutions">Show solutions</string>

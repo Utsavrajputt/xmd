@@ -239,7 +239,34 @@ object QueueRepository {
                         FileNameUtils.destinationFileOf(existing)?.absoluteFile == targetPath
                 }
 
-                if (duplicateStrategy == OnDuplicateStrategy.OverrideDownload) {
+                val resumeTarget = if (duplicateStrategy == OnDuplicateStrategy.ResumeExisting) {
+                    conflicts.firstOrNull { FileNameUtils.isResumableWithNewLink(it) }
+                } else null
+
+                if (duplicateStrategy == OnDuplicateStrategy.ResumeExisting && resumeTarget == null) {
+                    // Something is already running on this file -- never touch it. Otherwise (e.g. only a
+                    // finished file exists) there is nothing to resume, so behave like "numbered file".
+                    conflicts.firstOrNull { it.status.isWritingDestination() }
+                        ?.let { return@synchronized EnqueueResult.ActiveConflict(it) }
+                }
+
+                if (resumeTarget != null) {
+                    // Same item, same destination and part files; only the link (and schedule) changes. The
+                    // engine resumes from what is on disk regardless of the URL, as with Fetch from browser.
+                    enqueuedItem = resumeTarget.copy(
+                        sourceUrl = item.sourceUrl,
+                        directUrl = item.directUrl ?: item.sourceUrl,
+                        pageUrl = item.pageUrl ?: resumeTarget.pageUrl,
+                        status = ItemStatus.READY,
+                        error = null,
+                        speedBps = 0.0,
+                        scheduleMode = item.scheduleMode,
+                        scheduledAtMs = item.scheduledAtMs,
+                        windowStartMinute = item.windowStartMinute,
+                        windowEndMinute = item.windowEndMinute,
+                        windowDaysMask = item.windowDaysMask,
+                    )
+                } else if (duplicateStrategy == OnDuplicateStrategy.OverrideDownload) {
                     val activeConflict = conflicts.firstOrNull { it.status.isWritingDestination() }
                     if (activeConflict != null) {
                         return@synchronized EnqueueResult.ActiveConflict(activeConflict)
