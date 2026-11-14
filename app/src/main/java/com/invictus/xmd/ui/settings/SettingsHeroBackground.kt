@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -25,8 +26,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun Modifier.settingsHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
     val primary = MaterialTheme.colorScheme.primary
-    val top = lerp(primary, Color.Black, 0.62f)
-    val bottom = lerp(primary, Color.Black, 0.86f)
+    // Light themes get a light, primary-tinted hero (dark text); dark themes keep the deep one.
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val top = if (light) lerp(Color.White, primary, 0.14f) else lerp(primary, Color.Black, 0.62f)
+    val bottom = if (light) lerp(Color.White, primary, 0.30f) else lerp(primary, Color.Black, 0.86f)
     val shape = RoundedCornerShape(cornerRadius)
 
     return this
@@ -44,7 +47,7 @@ fun Modifier.settingsHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
             // Soft glow behind the avatar.
             drawRect(
                 Brush.radialGradient(
-                    colors = listOf(primary.copy(alpha = 0.28f), Color.Transparent),
+                    colors = listOf(primary.copy(alpha = if (light) 0.20f else 0.28f), Color.Transparent),
                     center = Offset(w * 0.12f, h * 0.30f),
                     radius = w * 0.45f,
                 ),
@@ -60,11 +63,11 @@ fun Modifier.settingsHeroBackground(cornerRadius: Dp = 28.dp): Modifier {
             // Slightly darker floor so the chip row sits on a calm area.
             drawRect(
                 Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.22f)),
+                    colors = listOf(Color.Transparent, (if (light) primary else Color.Black).copy(alpha = if (light) 0.10f else 0.22f)),
                     startY = h * 0.5f,
                     endY = h,
                 ),
             )
         }
-        .border(1.dp, Color.White.copy(alpha = 0.08f), shape)
+        .border(1.dp, (if (light) primary else Color.White).copy(alpha = if (light) 0.18f else 0.08f), shape)
 }

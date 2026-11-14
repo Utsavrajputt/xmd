@@ -1208,7 +1208,25 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                     else androidx.webkit.WebSettingsCompat.FORCE_DARK_OFF,
                 )
             }
+            // "Smart" mode: a page that ships its own dark theme (prefers-color-scheme / color-scheme) keeps
+            // it instead of being darkened a second time, which is what produced washed-out or mixed pages.
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.FORCE_DARK_STRATEGY)) {
+                androidx.webkit.WebSettingsCompat.setForceDarkStrategy(
+                    webView.settings,
+                    androidx.webkit.WebSettingsCompat.DARK_STRATEGY_PREFER_WEB_THEME_OVER_USER_AGENT_DARKENING,
+                )
+            }
         }
+        // Whatever the page leaves unpainted (not-yet-rasterised tiles while scrolling, overscroll, gaps
+        // between sections, the frame before first paint) shows the WebView's own background. White there
+        // read as "white patches" in dark mode, so match the app's dark surface while Force dark is on.
+        webView.setBackgroundColor(
+            when {
+                !enabled -> android.graphics.Color.WHITE
+                Settings.isAmoledMode() -> android.graphics.Color.BLACK
+                else -> 0xFF121212.toInt()
+            },
+        )
     }
 
     private fun configureWebView(webView: WebView, tab: BrowserTab) {

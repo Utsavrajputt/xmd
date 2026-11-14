@@ -28,7 +28,7 @@ import kotlin.math.sin
  * tint it (Aurora passes its fixed blue/violet, other themes pass their own colours).
  */
 @Composable
-fun AboutHeaderBackground(primary: Color, tertiary: Color, modifier: Modifier = Modifier) {
+fun AboutHeaderBackground(primary: Color, tertiary: Color, light: Boolean, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "about_header")
     val drift by transition.animateFloat(
         0f, 1f,
@@ -45,7 +45,7 @@ fun AboutHeaderBackground(primary: Color, tertiary: Color, modifier: Modifier = 
         infiniteRepeatable(tween(2400), RepeatMode.Reverse),
         label = "twinkle",
     )
-    Canvas(modifier = modifier) { drawHeaderScene(primary, tertiary, drift, glowPulse, twinkle) }
+    Canvas(modifier = modifier) { drawHeaderScene(primary, tertiary, light, drift, glowPulse, twinkle) }
 }
 
 private const val HEADER_SCENE_W = 853f
@@ -109,17 +109,18 @@ private fun headerBand(upper: List<Offset>, lower: List<Offset>) =
 private fun DrawScope.drawHeaderScene(
   primary: Color,
   tertiary: Color,
+  light: Boolean,
   drift: Float,
   glowPulse: Float,
   twinkle: Float,
 ) {
-  drawRect(color = lerp(Color.Black, primary, 0.13f), size = size)
+  drawRect(color = if (light) lerp(Color.White, primary, 0.10f) else lerp(Color.Black, primary, 0.13f), size = size)
   val fit = maxOf(size.width / HEADER_SCENE_W, size.height / HEADER_SCENE_H)
   val dx = (size.width - HEADER_SCENE_W * fit) / 2f
   val dy = (size.height - HEADER_SCENE_H * fit) / 2f
   translate(left = dx, top = dy) {
     scale(scaleX = fit, scaleY = fit, pivot = Offset.Zero) {
-      drawHeaderSweep(primary, tertiary, drift, glowPulse, twinkle)
+      drawHeaderSweep(primary, tertiary, light, drift, glowPulse, twinkle)
     }
   }
 }
@@ -127,18 +128,20 @@ private fun DrawScope.drawHeaderScene(
 private fun DrawScope.drawHeaderSweep(
   primary: Color,
   tertiary: Color,
+  light: Boolean,
   drift: Float,
   glowPulse: Float,
   twinkle: Float,
 ) {
-  val core = lerp(primary, Color.White, 0.40f)
+  // On a light base the line has to be deeper than the page, not brighter.
+  val core = if (light) lerp(primary, Color.Black, 0.12f) else lerp(primary, Color.White, 0.40f)
   val violet = lerp(primary, tertiary, 0.35f)
 
   // Blue haze on the left, like the artwork's soft background glow.
   drawCircle(
     brush =
       Brush.radialGradient(
-        colors = listOf(primary.copy(alpha = 0.34f), Color.Transparent),
+        colors = listOf(primary.copy(alpha = if (light) 0.22f else 0.34f), Color.Transparent),
         center = Offset(150f, 300f),
         radius = 480f,
       ),
@@ -196,7 +199,7 @@ private fun DrawScope.drawHeaderSweep(
   // The single main line: soft body, crisp core, and a light that travels along it.
   drawPath(headerLine(line(0f, 0f)), ramp(core, 0.70f), style = Stroke(width = 10f, cap = StrokeCap.Round))
   drawPath(headerLine(line(0f, 0f)), ramp(core, 0.80f + 0.20f * glowPulse), style = Stroke(width = 3.6f, cap = StrokeCap.Round))
-  drawPath(headerLine(line(0f, 0f)), shimmer(lerp(core, Color.White, 0.5f), 0.55f), style = Stroke(width = 2.4f, cap = StrokeCap.Round))
+  drawPath(headerLine(line(0f, 0f)), shimmer(if (light) lerp(primary, tertiary, 0.5f) else lerp(core, Color.White, 0.5f), 0.55f), style = Stroke(width = 2.4f, cap = StrokeCap.Round))
 
   // Everything else just fades out: thin, faint lines that open up toward the right.
   drawPath(headerLine(line(-34f, -62f)), env(core, 0.50f), style = Stroke(width = 2.2f, cap = StrokeCap.Round))

@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import com.invictus.xmd.ui.theme.AppTheme
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -121,30 +122,42 @@ fun AboutScreen(
         val theme by Settings.themeFlow.collectAsState()
         val heroPrimary = if (theme == AppTheme.Aurora) Color(0xFF5B93FF) else cs.primary
         val heroTertiary = if (theme == AppTheme.Aurora) Color(0xFF9B7BFF) else cs.tertiary
-        val heroText = Color.White
+        val light = cs.background.luminance() > 0.5f
+        val heroText = if (light) cs.onSurface else Color.White
         val heroShape = RoundedCornerShape(28.dp)
 
         Box(modifier = Modifier.fillMaxWidth().clip(heroShape)) {
-            AboutHeaderBackground(heroPrimary, heroTertiary, Modifier.matchParentSize())
+            AboutHeaderBackground(heroPrimary, heroTertiary, light, Modifier.matchParentSize())
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val context = LocalContext.current
                     val appIconBitmap = remember {
-                        context.packageManager.getApplicationIcon(context.packageName)
-                            .toBitmap()
-                            .asImageBitmap()
+                        // Foreground layer only: the adaptive icon's background plate stays out so the logo is transparent.
+                        val icon = context.packageManager.getApplicationIcon(context.packageName)
+                        val layer = (icon as? android.graphics.drawable.AdaptiveIconDrawable)?.foreground ?: icon
+                        layer.toBitmap(width = 432, height = 432).asImageBitmap()
                     }
                     Box(contentAlignment = Alignment.Center) {
                         Box(
-                            Modifier.size(80.dp).background(
-                                Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent)),
+                            Modifier.size(96.dp).background(
+                                if (light) {
+                                    // The logo is light; on a light hero it needs a soft deep halo behind it.
+                                    val halo = androidx.compose.ui.graphics.lerp(heroPrimary, Color.Black, 0.35f)
+                                    Brush.radialGradient(
+                                        0f to halo.copy(alpha = 0.92f),
+                                        0.62f to halo.copy(alpha = 0.70f),
+                                        1f to Color.Transparent,
+                                    )
+                                } else {
+                                    Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent))
+                                },
                                 CircleShape,
                             ),
                         )
                         Image(
                             bitmap = appIconBitmap,
                             contentDescription = stringResource(R.string.app_name),
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(96.dp),
                         )
                     }
 
@@ -185,9 +198,9 @@ fun AboutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    val btnContainer = cs.surfaceContainerHigh.copy(alpha = 0.6f)
+                    val btnContainer = if (light) heroPrimary.copy(alpha = 0.12f) else cs.surfaceContainerHigh.copy(alpha = 0.6f)
                     val btnContent = heroText
-                    val btnBorder = androidx.compose.foundation.BorderStroke(1.dp, heroPrimary.copy(alpha = 0.35f))
+                    val btnBorder = androidx.compose.foundation.BorderStroke(1.dp, heroPrimary.copy(alpha = if (light) 0.45f else 0.35f))
 
                     // Libraries (left) -- opens the standalone Libraries
                     // screen listing the open-source projects Xmd is built

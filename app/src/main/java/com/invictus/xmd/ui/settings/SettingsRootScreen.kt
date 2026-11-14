@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -234,7 +235,8 @@ private fun ProfileHeaderCard(
     onOpenStorage: () -> Unit,
 ) {
     val name = Profile.name().trim()
-    val heroText = androidx.compose.ui.graphics.Color.White
+    val heroText = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) MaterialTheme.colorScheme.onSurface
+        else androidx.compose.ui.graphics.Color.White
     val (freeBytes, totalBytes) = androidx.compose.runtime.remember {
         com.invictus.xmd.domain.storage.StorageStatsRepository.deviceSpace()
     }
@@ -330,15 +332,21 @@ private fun HeroChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val white = androidx.compose.ui.graphics.Color.White
     val theme by com.invictus.xmd.preferences.Settings.themeFlow.collectAsState()
     val primary = MaterialTheme.colorScheme.primary
     val black = androidx.compose.ui.graphics.Color.Black
-    // Aurora keeps its fixed navy/blue; every other theme tints the chip from its own primary.
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val white = if (light) MaterialTheme.colorScheme.onSurface else androidx.compose.ui.graphics.Color.White
+    // Light themes: light tinted chip with dark text. Dark: Aurora keeps its fixed navy/blue, every
+    // other theme tints the chip from its own primary.
     val fillSelected: androidx.compose.ui.graphics.Color
     val fillIdle: androidx.compose.ui.graphics.Color
     val stroke: androidx.compose.ui.graphics.Color
-    if (theme == com.invictus.xmd.ui.theme.AppTheme.Aurora) {
+    if (light) {
+        fillSelected = androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.Color.White, primary, 0.26f)
+        fillIdle = androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.Color.White, primary, 0.12f)
+        stroke = primary
+    } else if (theme == com.invictus.xmd.ui.theme.AppTheme.Aurora) {
         fillSelected = androidx.compose.ui.graphics.Color(0xFF0E3386)
         fillIdle = androidx.compose.ui.graphics.Color(0xFF081C4F)
         stroke = androidx.compose.ui.graphics.Color(0xFF2DB3FF)
