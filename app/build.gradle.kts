@@ -12,8 +12,8 @@ android {
         applicationId = "com.invictus.xmd"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.0.0"
+        versionCode = 11
+        versionName = "1.1.0"
 
         // Commit count of this build: the Preview update channel compares it
         // against the auto-built manifest's commit_count (see preview.yml).

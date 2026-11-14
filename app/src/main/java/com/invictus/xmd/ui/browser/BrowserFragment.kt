@@ -41,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -176,25 +177,38 @@ try{XmdSniff.postMessage(JSON.stringify({u:u,k:k}))}catch(e){}}
 function text(u,t){if(!t)return;
 if(t.indexOf('#EXTM3U')===0){if(t.indexOf('EXT-X-STREAM-INF')>=0){master=true;send(u,'hls')}else if(!master)send(u,'hls');}
 else if(/<MPD[\s>]/.test(t.slice(0,4096)))send(u,'dash');}
-function byType(u,ct){ct=(ct||'').toLowerCase();
+function isSeg(u){return /\.(ts|m4s|m4f|cmfv|cmfa|aac)(\?|${'$'})/i.test(u)||/(seg|chunk|frag|fragment)[-_]?\d+/i.test(u)}
+function byType(u,ct,len){ct=(ct||'').toLowerCase();
 if(ct.indexOf('mpegurl')>=0){send(u,'hls');return true}
-if(ct.indexOf('dash+xml')>=0){send(u,'dash');return true}return false}
+if(ct.indexOf('dash+xml')>=0){send(u,'dash');return true}
+if(/^(video|audio)\//.test(ct)){var n=parseInt(len||'0',10);
+if(!isSeg(u)&&(!n||n>=102400))send(u,ct.charAt(0)==='v'?'video':'audio');return true}
+return false}
 function maybeText(ct){return !ct||/text\/plain|octet-stream|binary|application\/x-|text\/html/i.test(ct)}
 var xo=XMLHttpRequest.prototype.open;
 XMLHttpRequest.prototype.open=function(m,u){var x=this,url=u;
 try{x.addEventListener('readystatechange',function(){try{if(x.readyState!==4)return;
-var ct=x.getResponseHeader('content-type')||'';if(byType(url,ct))return;
+var ct=x.getResponseHeader('content-type')||'';if(byType(url,ct,x.getResponseHeader('content-length')))return;
 if(maybeText(ct)&&(x.responseType===''||x.responseType==='text')&&x.responseText&&x.responseText.length<3000000)text(url,x.responseText)}catch(e){}})}catch(e){}
 return xo.apply(this,arguments)};
 var of=window.fetch;
 if(of)window.fetch=function(){var p=of.apply(this,arguments);
-p.then(function(r){try{var ct=r.headers.get('content-type')||'';if(byType(r.url,ct))return;
+p.then(function(r){try{var ct=r.headers.get('content-type')||'';if(byType(r.url,ct,r.headers.get('content-length')))return;
 if(maybeText(ct)&&r.body&&r.body.getReader){var rd=r.clone().body.getReader();
 rd.read().then(function(x){if(x&&x.value)text(r.url,new TextDecoder().decode(x.value));try{rd.cancel()}catch(e){}}).catch(function(){})}}catch(e){}},function(){});
 return p};
+function okMedia(t){try{
+if(t.readyState<1)return false;
+if(t.muted&&t.loop&&t.autoplay)return false;
+if(t.tagName==='VIDEO'){var r=t.getBoundingClientRect();if(r.width*r.height<4096&&!t.__xu)return false}
+var d=t.duration;if(isFinite(d)&&d>0&&d<10&&!t.__xu)return false;
+if(window!==window.top&&(innerWidth<200||innerHeight<120))return false;
+return true}catch(e){return true}}
 function media(t){try{if(!t||(t.tagName!=='VIDEO'&&t.tagName!=='AUDIO'))return;
+if(!okMedia(t))return;
 var s=t.currentSrc||t.src;if(s&&!/^(blob|data):/i.test(s))send(s,t.tagName==='VIDEO'?'video':'audio')}catch(e){}}
-['loadstart','loadedmetadata','play','playing'].forEach(function(n){document.addEventListener(n,function(e){media(e.target)},true)});
+['loadedmetadata','durationchange','play','playing'].forEach(function(n){document.addEventListener(n,function(e){var t=e.target;
+if((n==='playing'||n==='play')&&t&&!t.muted)t.__xu=1;media(t)},true)});
 function scan(){try{var l=document.querySelectorAll('video,audio');for(var i=0;i<l.length;i++)media(l[i])}catch(e){}}
 document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2000)});
 })();
@@ -366,6 +380,8 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     // instead of opening SniffedMediaSheet (which would have nothing to
     // list, since no MediaSniffer entries exist for a YouTube page).
     private var sniffedMediaIsYoutubePage: Boolean by mutableStateOf(false)
+    // True while more candidates are still being verified and the FAB already shows something.
+    private var sniffedMediaChecking: Boolean by mutableStateOf(false)
 
     // ── Phase E: browserToolbar's state ──────────────────────────────────
     // Drives BrowserToolbarRow's setContent lambda below -- same "field on
@@ -751,6 +767,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                             bottomBarShowing = !toolbarBottom && bottomBarEnabled && bottomBarScrollVisible,
                             toolbarAtBottom = toolbarBottom,
                             onClick = ::onSniffedMediaFabTapped,
+                            checking = sniffedMediaChecking,
                         )
                     },
                     dialogs = {
@@ -771,13 +788,35 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                             SniffedMediaSheet(
                                 streams = streams,
                                 pageTitle = tabs.getOrNull(currentTabIndex)?.title,
-                                onStreamSelected = { stream ->
-                                    val needsPicker = with(com.invictus.xmd.domain.browser.MediaSniffer) {
-                                        stream.kind.needsQualityPicker()
-                                    }
-                                    (activity as? Callbacks)?.triggerSniffedMedia(stream.url, needsPicker)
-                                },
+                                // Row tap and the Download button do the same thing: streams open the yt-dlp
+                                // quality picker, direct files open Add Download (editable name/folder, page as
+                                // Referer, cookies attached by the engine).
+                                onStreamSelected = ::downloadSniffed,
+                                onDownloadClick = ::downloadSniffed,
                                 onCopyLink = ::copyLinkToClipboard,
+                                isResumable = { stream ->
+                                    val name = (stream.fileName
+                                        ?: android.webkit.URLUtil.guessFileName(stream.url, null, stream.mime)).lowercase()
+                                    com.invictus.xmd.repository.QueueRepository.current().any {
+                                        com.invictus.xmd.utils.storage.FileNameUtils.isResumableWithNewLink(it) &&
+                                            it.fileName?.lowercase() == name
+                                    }
+                                },
+                                onIgnoreSite = {
+                                    val host = tabs.getOrNull(currentTabIndex)?.url
+                                        ?.let { com.invictus.xmd.utils.UrlUtils.lenientUri(it)?.host }
+                                    if (host != null) {
+                                        com.invictus.xmd.preferences.Settings.setSniffIgnored(host, true)
+                                        tabs.getOrNull(currentTabIndex)?.let { t ->
+                                            t.sniffedMedia.clear()
+                                            updateSniffedMediaFab(t)
+                                        }
+                                        android.widget.Toast.makeText(
+                                            requireContext(), getString(R.string.sniff_ignored_toast, host),
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
                                 onPlayClick = { stream ->
                                     val currentPage = tabs.getOrNull(currentTabIndex)?.url
                                     if (stream.kind == com.invictus.xmd.domain.browser.MediaSniffer.Kind.DASH ||
@@ -1349,6 +1388,11 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                     userAgent = userAgent ?: webView.settings.userAgentString,
                     page = webView.originalUrl ?: tab.openedByUrl ?: tab.url
                 )
+                // The page's own download handled here -> drop the same file from the detected-videos list.
+                val dupKey = MediaSniffer.normalizedKey(MediaSniffer.Sniffed(request.url, MediaSniffer.Kind.DIRECT_VIDEO))
+                if (tab.sniffedMedia.remove(dupKey) != null) updateSniffedMediaFab(tab)
+                com.invictus.xmd.domain.download.DownloadEngine.browserUserAgent =
+                    (userAgent ?: webView.settings.userAgentString)?.takeIf { it.isNotBlank() }
                 onWebViewDownloadRequested(
                     url = request.url,
                     contentDisposition = contentDisposition,
@@ -1392,6 +1436,9 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 tab.isLoading = true
                 tab.progress = 0
                 tab.sniffedMedia.clear()
+                tab.sniffSeen.clear()
+                tab.sniffEpoch++
+                tab.sniffPending.set(0)
                 inAppPlayerHandledSrcs.clear()
                 view.evaluateJavascript(VIDEO_ERROR_SCRIPT, null)
                 if (tab.isDesktopMode) view.evaluateJavascript(DESKTOP_MODE_SCRIPT, null)
@@ -1566,9 +1613,14 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 val sniffed = com.invictus.xmd.domain.browser.MediaSniffer.classifyUrl(url)
                     ?: youtubeEmbedSniffed(url)
                     ?: return
-                val isNew = tab.sniffedMedia.put(url, sniffed) == null
-                if (isNew && isCurrentTab(tab)) {
-                    view.post { updateSniffedMediaFab(tab) }
+                // YouTube embeds go straight to the yt-dlp flow; everything else is verified first.
+                if (com.invictus.xmd.utils.LinkParser.isYoutubeLink(sniffed.url)) {
+                    val key = com.invictus.xmd.domain.browser.MediaSniffer.normalizedKey(sniffed)
+                    if (tab.sniffedMedia.put(key, sniffed) == null && isCurrentTab(tab)) {
+                        view.post { updateSniffedMediaFab(tab) }
+                    }
+                } else {
+                    submitSniffCandidate(tab, sniffed)
                 }
             }
 
@@ -1726,6 +1778,11 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                     if (body == null) {
                         response.close()
                         return null
+                    }
+                    runCatching {
+                        com.invictus.xmd.domain.browser.MediaSniffer.classifyResponse(
+                            url, response.header("Content-Type"), response.header("Content-Length")?.toLongOrNull()
+                        )?.let { submitSniffCandidate(tab, it) }
                     }
                     val mimeType = body.contentType()?.let { "${it.type}/${it.subtype}" }
                     val charset = body.contentType()?.charset()?.name() ?: "utf-8"
@@ -2879,7 +2936,61 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
             "audio" -> MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_AUDIO)
             else -> return
         }
-        if (tab.sniffedMedia.put(url, sniffed) == null && isCurrentTab(tab)) updateSniffedMediaFab(tab)
+        submitSniffCandidate(tab, sniffed)
+    }
+
+    private fun downloadSniffed(stream: MediaSniffer.Sniffed) {
+        val needsPicker = with(MediaSniffer) { stream.kind.needsQualityPicker() }
+        val cb = activity as? Callbacks ?: return
+        runCatching { webViewFor(tabs.getOrNull(currentTabIndex))?.settings?.userAgentString }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { com.invictus.xmd.domain.download.DownloadEngine.browserUserAgent = it }
+        if (needsPicker) {
+            cb.triggerSniffedMedia(stream.url, true)
+        } else {
+            val name = stream.fileName
+                ?: android.webkit.URLUtil.guessFileName(stream.url, null, stream.mime)
+            cb.onOpenAddDownloadDialog(stream.url, name, tabs.getOrNull(currentTabIndex)?.url)
+        }
+    }
+
+    private val sniffProbeGate = kotlinx.coroutines.sync.Semaphore(3)
+
+    /**
+     * Candidate -> verification -> list. A candidate (URL sniff or page-JS report) only reaches the pill and
+     * the sheet after [MediaSniffer.verify] confirms it is really media, probed with the WebView's own
+     * User-Agent, cookies and the page as Referer. Safe to call from any thread.
+     */
+    private fun submitSniffCandidate(tab: BrowserTab, candidate: MediaSniffer.Sniffed) {
+        if (com.invictus.xmd.preferences.Settings.isSniffIgnored(
+                com.invictus.xmd.utils.UrlUtils.lenientUri(tab.url.orEmpty())?.host
+            )
+        ) return
+        val key = MediaSniffer.normalizedKey(candidate)
+        if (!tab.sniffSeen.add(key)) return
+        val epoch = tab.sniffEpoch
+        tab.sniffPending.incrementAndGet()
+        activity?.runOnUiThread {
+            if (!isAdded) {
+                tab.sniffPending.decrementAndGet()
+                return@runOnUiThread
+            }
+            val ua = runCatching { webViewFor(tab)?.settings?.userAgentString }.getOrNull()
+            val page = tab.url
+            val cookie = runCatching { android.webkit.CookieManager.getInstance().getCookie(candidate.url) }.getOrNull()
+            viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val verified = try {
+                    sniffProbeGate.withPermit { MediaSniffer.verify(candidate, page, ua, cookie) }
+                } finally {
+                    if (tab.sniffEpoch == epoch) tab.sniffPending.decrementAndGet()
+                }
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (!isAdded || tab.sniffEpoch != epoch) return@withContext
+                    if (verified != null) tab.sniffedMedia[key] = verified
+                    if (isCurrentTab(tab)) updateSniffedMediaFab(tab)
+                }
+            }
+        }
     }
 
     /** Reflects [tab]'s current sniffedMedia count onto the chip -- called
@@ -2896,6 +3007,12 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     private fun updateSniffedMediaFab(tab: BrowserTab) {
         if (!isCurrentTab(tab)) return
         val count = tab.sniffedMedia.size
+        sniffedMediaChecking = count > 0 && tab.sniffPending.get() > 0
+        if (sniffedSheetStreams != null) {
+            // Sheet is open: keep its rows in step with new / removed detections.
+            val live = synchronized(tab.sniffedMedia) { tab.sniffedMedia.values.toList() }
+            if (live.isEmpty()) sniffedSheetStreams = null else if (live != sniffedSheetStreams) sniffedSheetStreams = live
+        }
         if (count == 0) {
             val url = tab.url
             if (com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT &&

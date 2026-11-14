@@ -470,6 +470,28 @@ object Settings {
         prefs.edit().putStringSet(KEY_ADBLOCK_SITE_ALLOWLIST, updated).apply()
     }
 
+    // Sites where the "videos found" detection is switched off (same host shape as the allowlist).
+    private const val KEY_SNIFF_IGNORED_HOSTS = "sniff_ignored_hosts"
+
+    fun sniffIgnoredSites(): Set<String> =
+        HashSet(prefs.getStringSet(KEY_SNIFF_IGNORED_HOSTS, emptySet()).orEmpty())
+
+    fun isSniffIgnored(host: String?): Boolean {
+        if (host.isNullOrBlank()) return false
+        return sniffIgnoredSites().contains(normalizeSiteHost(host))
+    }
+
+    fun setSniffIgnored(host: String, ignored: Boolean) {
+        val normalized = normalizeSiteHost(host)
+        val updated = HashSet(sniffIgnoredSites())
+        if (ignored) updated.add(normalized) else updated.remove(normalized)
+        prefs.edit().putStringSet(KEY_SNIFF_IGNORED_HOSTS, updated).apply()
+    }
+
+    fun clearSniffIgnoredSites() {
+        prefs.edit().remove(KEY_SNIFF_IGNORED_HOSTS).apply()
+    }
+
     // ── Browser: Background playback ───────────────────────────────────
     // Off by default -- this overrides the page's own Page Visibility API
     // (document.hidden/visibilityState + visibilitychange), which is an

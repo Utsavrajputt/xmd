@@ -53,8 +53,11 @@ fun SniffedMediaSheet(
     streams: List<MediaSniffer.Sniffed>,
     pageTitle: String? = null,
     onStreamSelected: (MediaSniffer.Sniffed) -> Unit,
+    onDownloadClick: (MediaSniffer.Sniffed) -> Unit = onStreamSelected,
     onCopyLink: (String) -> Unit,
     onPlayClick: ((MediaSniffer.Sniffed) -> Unit)? = null,
+    isResumable: (MediaSniffer.Sniffed) -> Boolean = { false },
+    onIgnoreSite: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -104,6 +107,10 @@ fun SniffedMediaSheet(
                         onStreamSelected(stream)
                         closeSheet()
                     },
+                    onDownloadClick = {
+                        onDownloadClick(stream)
+                        closeSheet()
+                    },
                     onCopyClick = { onCopyLink(stream.url) },
                     onPlayClick = onPlayClick?.let { playAction ->
                         {
@@ -111,7 +118,19 @@ fun SniffedMediaSheet(
                             closeSheet()
                         }
                     },
+                    resumable = isResumable(stream),
                 )
+            }
+        }
+        if (onIgnoreSite != null) {
+            androidx.compose.material3.TextButton(
+                onClick = {
+                    onIgnoreSite()
+                    closeSheet()
+                },
+                modifier = Modifier.padding(horizontal = 12.dp),
+            ) {
+                Text(stringResource(R.string.sniff_ignore_site))
             }
         }
     }
@@ -122,8 +141,10 @@ private fun SniffedMediaRow(
     stream: MediaSniffer.Sniffed,
     displayName: String,
     onClick: () -> Unit,
+    onDownloadClick: () -> Unit,
     onCopyClick: () -> Unit,
     onPlayClick: (() -> Unit)? = null,
+    resumable: Boolean = false,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -146,12 +167,21 @@ private fun SniffedMediaRow(
         // HEAD) once the row appears; YouTube links have no cheap probe, so
         // their quality list shows up in the picker that opens on tap.
         val info by produceState<MediaSniffer.MediaInfo?>(null, stream.url) {
-            value = if (com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url)) null
-            else withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
+            value = when {
+                com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url) -> null
+                // Already verified when it was found: size is known, no second request needed.
+                stream.sizeBytes != null && !with(MediaSniffer) { stream.kind.needsQualityPicker() } ->
+                    MediaSniffer.MediaInfo(
+                        if (stream.kind == MediaSniffer.Kind.DIRECT_VIDEO) listOfNotNull(MediaSniffer.qualityFromUrl(stream.url)) else emptyList(),
+                        stream.sizeBytes,
+                    )
+                else -> withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
+            }
         }
         // Always shows at least the format (HLS / MP4 ...); quality + size are
         // appended once the probe finishes.
         val detail = listOfNotNull(
+            if (resumable) stringResource(R.string.sniff_resume_hint) else null,
             streamFormatLabel(stream),
             info?.let { MediaSniffer.describe(it) },
         ).joinToString(" \u00b7 ")
@@ -176,6 +206,14 @@ private fun SniffedMediaRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onDownloadClick) {
+            Icon(
+                imageVector = Icons.Download,
+                contentDescription = stringResource(R.string.sniffed_download),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
         }
         if (onPlayClick != null) {
             IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onPlayClick) {
@@ -210,6 +248,7 @@ private fun streamDisplayName(
     total: Int,
     pageTitle: String?,
 ): String {
+    stream.fileName?.takeIf { it.isNotBlank() }?.let { return it }
     val label = MediaSniffer.guessLabel(stream.url)
     if (!GENERIC_STREAM_NAME.matches(label) || pageTitle.isNullOrBlank()) return label
     return if (total > 1) "$pageTitle (${index + 1})" else pageTitle

@@ -902,6 +902,9 @@ private fun BrowserRoute(
     var adblockEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.adblockEnabled())
     }
+    var sniffIgnoredCount by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.sniffIgnoredSites().size)
+    }
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
     }
@@ -971,6 +974,11 @@ private fun BrowserRoute(
         onHomePageClick = { showHomePageDialog = true },
         adblockEnabled = adblockEnabled,
         onOpenAdblock = onOpenAdblock,
+        sniffIgnoredCount = sniffIgnoredCount,
+        onClearSniffIgnored = {
+            com.invictus.xmd.preferences.Settings.clearSniffIgnoredSites()
+            sniffIgnoredCount = 0
+        },
         backgroundPlaybackEnabled = backgroundPlaybackEnabled,
         onBackgroundPlaybackChanged = { checked ->
             backgroundPlaybackEnabled = checked

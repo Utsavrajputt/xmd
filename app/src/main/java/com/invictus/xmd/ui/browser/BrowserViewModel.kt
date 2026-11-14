@@ -59,6 +59,13 @@ class BrowserViewModel : ViewModel() {
         // this needs to be a synchronized map, not a plain LinkedHashMap.
         val sniffedMedia: MutableMap<String, MediaSniffer.Sniffed> =
             java.util.Collections.synchronizedMap(LinkedHashMap()),
+        // Keys ([MediaSniffer.normalizedKey]) of candidates already sent to verification on this page, so each
+        // one is probed once. [sniffEpoch] bumps on every navigation: a probe that finishes after the page
+        // changed must not add its result to the new page's list.
+        val sniffSeen: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet(),
+        @Volatile var sniffEpoch: Int = 0,
+        // Candidates currently being verified; drives the FAB's "checking" spinner.
+        val sniffPending: java.util.concurrent.atomic.AtomicInteger = java.util.concurrent.atomic.AtomicInteger(0),
         var openedBy: Long? = null,
         var openedByUrl: String? = null,
         // Chrome-style parent: the tab this one was opened from via a link,

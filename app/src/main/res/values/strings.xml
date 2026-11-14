@@ -365,7 +365,7 @@
     <string name="settings_toolbar_position_bottom">Bottom</string>
     <string name="settings_toolbar_summary">Address bar: %1$s</string>
     <string name="settings_force_dark">Force dark mode</string>
-    <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own.</string>
+    <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own. Pages with their own dark theme are left alone.</string>
     <string name="browser_bottom_back">Back</string>
     <string name="browser_bottom_forward">Forward</string>
     <string name="browser_bottom_home">Home</string>
@@ -756,6 +756,12 @@
     <string name="show_solutions">Show solutions</string>
     <string name="change_solution">Change solution</string>
     <string name="open_existing_file">Open file</string>
+    <string name="sniff_ignore_site">Don\'t detect videos on this site</string>
+    <string name="sniff_ignored_toast">Video detection off for %1$s</string>
+    <string name="sniff_resume_hint">Resume available</string>
+    <string name="settings_sniff_ignored_title">Sites without video detection</string>
+    <string name="settings_sniff_ignored_summary">%1$d sites · tap to reset</string>
+    <string name="sniffed_download">Download</string>
     <string name="download_dialog_play_external">Play</string>
     <string name="open_in_external_player">Open in player</string>
     <string name="no_player_found">No external media player found</string>

@@ -9,6 +9,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ fun BrowserMediaFab(
     bottomBarShowing: Boolean,
     toolbarAtBottom: Boolean,
     onClick: () -> Unit,
+    checking: Boolean = false,
 ) {
     // 52dp bar + 16dp gap | 16dp from the edge | 88dp over a bottom address bar.
     val targetBottom = when {
@@ -67,7 +69,17 @@ fun BrowserMediaFab(
                 shape = XmdShapes.L,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = { Icon(imageVector = Icons.Download, contentDescription = null) },
+                icon = {
+                    if (checking) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    } else {
+                        Icon(imageVector = Icons.Download, contentDescription = null)
+                    }
+                },
                 text = { Text(text) },
             )
         }

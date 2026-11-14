@@ -5,40 +5,66 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 
 ## [1.1.0] - 2026-11-13
 
-☁️ **GitHub & Sync, smarter downloads, and a refreshed About screen.**
+☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**
 
 ### ✨ Highlights
-- ☁️ New **GitHub & Sync** screen — auto-backup, backup history with one-tap restore, and "Send to phone" links between your devices.
-- 📥 Downloads: real filenames resolved safely, instant cancel, a safe Clear flow, and full cleanup of leftover part/yt-dlp/torrent files.
-- 💳 Scanning a UPI/payment QR now opens your payment app instead of a web search.
-- 🎨 About header redesigned with an animated sweep background; Settings hero chips follow your theme.
-- 🌐 Sharper, Chrome-style favicons and faster swipe-to-close on tabs.
+- ☁️ **GitHub & Sync** — auto-backup, restorable backup history, and "Send to phone" between your devices.
+- 📥 **Downloads you can trust** — real filenames, instant cancel, a safe Clear flow, and no leftover part / yt-dlp / torrent files.
+- 💳 **Payment QR codes open your payment app** instead of a web search.
+- 👤 **Profile, wallpapers and Status Saver** in a redesigned Settings, with theme-aware quick chips.
+- 🎨 **New About header** with an animated light-sweep (Aurora keeps its fixed blue/violet; other themes use their own colours).
+- 🎬 **Smarter video detection** — verified streams only, a Download button in the "videos found" sheet, and per-site opt-out.
+- 🌐 **Chrome-style favicons**, faster swipe-to-close tabs, and several browser fixes.
 
 <details>
 <summary>See all changes since v1.0.0</summary>
 
-### ✨ Added
-- ☁️ **GitHub & Sync screen** (Settings) with account sign-in and a Gist-backed store using one file per device, so devices never overwrite each other.
-- 🔄 **Auto-backup** — a daily backup plus a ~60 s debounced backup after you change settings; everything stops when signed out or the switch is off.
-- 🕘 **Backup history** — a collapsible card listing the last ~20 revisions with compact rows and restore.
-- 📲 **Send to phone** — share any link or magnet from another app to your other device via the share sheet, with a device picker; the receiving device checks its inbox on app open and every 15 minutes.
-- 💳 **UPI / payment QR handling** — `upi://`, `tez`, `phonepe`, `paytm`, `gpay`, `bhim` and similar codes open the payment app chooser, with a toast if no payment app is installed.
-- 🎨 **Animated About header** with a glowing light-sweep and twinkling dots; Aurora keeps its fixed blue/violet, other themes tint from their own colours. The app logo is shown transparent, without its icon plate.
-- 🔠 **Download name probing** — while the real filename is still being fetched, the item gets renamed automatically a few seconds after you start the download.
-- 🗑️ **Clear confirmation for running downloads** — tapping Clear on an active download asks "this will delete and clear", then cancels, deletes and clears.
+### ☁️ GitHub & Sync
+- **Dedicated GitHub & Sync screen** under Settings with GitHub sign-in. Data lives in one private Gist with **one file per device**, so two devices never overwrite each other.
+- **Auto-backup** — a daily backup plus a ~60 s debounced backup after you change settings (a burst of edits makes a single backup). Scheduling is cancelled when you sign out or switch it off, and only runs when online.
+- **Backup history** — a collapsible card with compact rows for the last ~20 Gist revisions, each restorable with one tap.
+- **Send to phone** — share any link or magnet from another app to your other device through the share sheet, with an "All devices / specific device" picker. The receiving device checks its inbox when the app opens and every 15 minutes in the background (ETag polling keeps it cheap).
+- Network blips retry automatically; rejected sign-ins and rate limits are not retried, so they cannot loop in the background.
 
-### 🛠 Fixed
-- 🔐 Crash when using passkeys inside the in-app browser (WebAuthn origin permission).
-- ⏱️ Cancel now responds instantly, and clearing a running download no longer leaves it downloading invisibly in the background.
-- 🧹 Clearing a cancelled or failed item now also deletes its part files, resume files, yt-dlp cache and torrent leftovers.
-- 🔖 Favicons: updated after a redirect, sharper quality, shown as-is like Chrome (no preset clipping), correct sizing, and a proper GitHub icon plate on dark icons.
-- 🏠 Speed-dial no longer overlaps a stale page after switching tabs (all WebViews are hidden when it shows).
-- ⭕ The Status Saver top-bar icon is now a full circle instead of a speech bubble with a cut corner.
+### 📥 Downloads
+- **Real filename resolution** — while the actual name is still being fetched, the item shows a placeholder and is renamed automatically a few seconds after you start it, instead of keeping a hash-like name.
+- **Instant cancel** — the item flips to cancelled immediately instead of waiting for the engine to wind down.
+- **Safe Clear** — clearing a *running* download now asks "this will delete and clear", then cancels, deletes the files and clears it. Clear no longer leaves an invisible download running in the background.
+- **Full cleanup on Clear / Delete** for cancelled and failed items: direct-download part files and resume sidecars, the yt-dlp cache folder, and torrent content (with a modified-time guard so a still-active file is never removed).
+- **Download history cards redesigned** for a cleaner look.
 
-### 🎨 Changed
-- 🗂️ Swipe-to-close on tabs is faster (140 ms animation, lower close threshold, fling support).
-- 📜 Download history cards redesigned.
-- 🧩 Settings hero quick chips (Status Saver, Storage) follow the active theme; Aurora keeps its navy look.
+### 🎬 Video detection
+- **Verified before listed** — every detected video / stream is probed (status, content-type, size) with the page's own User-Agent, cookies and Referer, so ads, stubs and error pages ("0.0 MB" rows) no longer appear.
+- **Header-based detection** catches extensionless / signed CDN links by their Content-Type while skipping HLS/DASH segments.
+- **Download button** on every row, real name and size, HLS **duration** and resolutions.
+- **No duplicates** — a file the page downloads itself disappears from the list; the sheet updates live while open and the button shows a spinner while more links are still being checked.
+- **Don't detect on this site** from the sheet; manage the list from Settings → Browser.
+- Downloads captured from the browser reuse the tab's User-Agent, and a "Resume available" hint shows when a file matches a failed, expired download.
+
+### 💳 QR scanner
+- Scanning a **UPI or wallet code** (`upi://`, `tez`, `phonepe`, `paytm`, `gpay`, `bhim`, and similar) opens the **payment app chooser** instead of searching the web. If no payment app is installed you get a toast instead of a silent failure.
+- The scanner itself is the app's own offline one (CameraX + bundled ML Kit): QR-only decoding, 1080p frames, tap-to-focus, auto-zoom for small codes, torch, and scanning from a gallery image.
+
+### 👤 Settings, Profile & Status Saver
+- **Settings hero** with your profile photo and name; the **Status Saver** and **Storage** quick chips sit along its bottom edge. Chips follow the active theme (Aurora keeps its navy look).
+- **Profile page** with a circular photo cropper (pinch to zoom, drag, rotate, reset) and name editing.
+- **Wallpaper editor** — code-drawn presets or your own image, Fit/Fill, zoom/position/blur/transparency, applied only when you press Save.
+- **Status Saver** for WhatsApp and WhatsApp Business statuses, reached from the Status icon in the top bar.
+- **Storage screen** showing where XMD's space goes, with per-category colours that stay distinct on every theme.
+- **App icon picker** to switch the launcher icon (background + logo combinations).
+- More colour themes, including **Aurora**, Catppuccin, Cloudflare, Nord, Rosé Pine, Dracula and others.
+
+### 🎨 About screen
+- **Animated header background** — a glowing light-sweep with faint parallel lines and twinkling dots on a deep dark base, tinted from the theme. Aurora uses a fixed blue/violet; every other theme uses its own primary and tertiary colours.
+- The **app logo is shown transparent**, without the launcher icon's background plate, with a soft glow behind it.
+- Version chip and the Libraries / GitHub buttons restyled to match the new header.
+
+### 🌐 Browser
+- **Favicons rebuilt**: updated after a redirect, sharper quality, shown exactly as the site provides them (rounded or square, like Chrome, no preset clipping), correct sizing in the address bar and suggestions, and a neutral plate behind dark transparent icons such as GitHub.
+- **Swipe-to-close on tabs is faster** — 140 ms animation, closes as soon as the row is mostly off-screen, 25 % drag threshold, and fling support.
+- **Speed Dial overlap fixed** — opening Speed Dial now hides every WebView, so a stale page from another tab can no longer show through.
+- **Passkey crash fixed** — using passkeys / WebAuthn in the in-app browser no longer crashes (the privileged origin permission is no longer requested).
+- The **Status Saver icon** in the top bar is now a full circle instead of a speech bubble with a cut corner.
 
 </details>
 

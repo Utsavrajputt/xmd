@@ -86,7 +86,7 @@ class DownloadEngine(
         }
         val hasUserAgent = extraHeaders.keys.any { it.equals("User-Agent", ignoreCase = true) }
         if (!hasUserAgent) {
-            builder.header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            builder.header("User-Agent", browserUserAgent ?: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
         }
         val cmCookie = runCatching { android.webkit.CookieManager.getInstance().getCookie(url) }.getOrNull()
         if (!cmCookie.isNullOrBlank()) {
@@ -336,6 +336,9 @@ class DownloadEngine(
 
     // ── Companions (filename utils) ─────────────────────────────────────
     companion object {
+        /** UA of the browser tab a download was captured from; used when the request carries none. */
+        @Volatile var browserUserAgent: String? = null
+
         /** Per-host plan that worked after a 429/503, kept for this process so later downloads skip the failures. */
         private val hostPlans = ConcurrentHashMap<String, HostPlan>()
 
@@ -401,7 +404,7 @@ class DownloadEngine(
                 val b = Request.Builder().url(url)
                 headers.forEach { (k, v) -> if (!k.equals("Range", ignoreCase = true)) b.header(k, v) }
                 if (!headers.keys.any { it.equals("User-Agent", ignoreCase = true) }) {
-                    b.header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    b.header("User-Agent", browserUserAgent ?: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
                 }
                 val cmCookie = runCatching { android.webkit.CookieManager.getInstance().getCookie(url) }.getOrNull()
                 if (!cmCookie.isNullOrBlank()) {

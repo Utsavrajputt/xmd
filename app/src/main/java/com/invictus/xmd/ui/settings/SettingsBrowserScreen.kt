@@ -52,6 +52,8 @@ fun SettingsBrowserScreen(
     onHomePageClick: () -> Unit,
     adblockEnabled: Boolean,
     onOpenAdblock: () -> Unit,
+    sniffIgnoredCount: Int = 0,
+    onClearSniffIgnored: () -> Unit = {},
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
     toolbarBottom: Boolean,
@@ -130,6 +132,14 @@ fun SettingsBrowserScreen(
                 ),
                 onClick = onOpenAdblock,
             )
+            if (sniffIgnoredCount > 0) {
+                SettingsDivider()
+                ClickableSettingRow(
+                    title = stringResource(R.string.settings_sniff_ignored_title),
+                    subtitle = stringResource(R.string.settings_sniff_ignored_summary, sniffIgnoredCount),
+                    onClick = onClearSniffIgnored,
+                )
+            }
             SettingsDivider()
             val addressBarLabel = stringResource(
                 if (toolbarBottom) R.string.settings_toolbar_position_bottom else R.string.settings_toolbar_position_top
