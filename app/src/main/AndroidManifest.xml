@@ -62,6 +62,8 @@
             android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:windowSoftInputMode="adjustResize">
 
             <!-- Default-browser candidate. Android only lists an app under

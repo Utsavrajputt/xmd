@@ -316,6 +316,11 @@
     <string name="settings_shields_add_site_title">Add a whitelisted site</string>
     <string name="settings_shields_add_site_hint">example.com</string>
     <string name="settings_shields_add_site_invalid">Enter a valid domain, like example.com</string>
+    <string name="settings_pip">Picture-in-picture</string>
+    <string name="settings_pip_hint">When a video is fullscreen and you leave the app, it keeps playing in a small floating window with play / pause, close and background-audio buttons.</string>
+    <string name="pip_action_play">Play</string>
+    <string name="pip_action_pause">Pause</string>
+    <string name="pip_action_background">Play in background</string>
     <string name="settings_background_playback">Background playback</string>
     <string name="settings_background_playback_hint">Keeps audio/video playing when a site would otherwise pause it because the app isn\'t in the foreground.</string>
     <string name="settings_general_header">General</string>

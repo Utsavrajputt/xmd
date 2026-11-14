@@ -3,7 +3,7 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
-## [1.1.0] - 2026-11-13
+## [1.1.0] - 2026-11-14
 
 ☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**
 
@@ -91,6 +91,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Favicons rebuilt**: updated after a redirect, sharper quality, shown exactly as the site provides them (rounded or square, like Chrome, no preset clipping), correct sizing in the address bar and suggestions, and a neutral plate behind dark transparent icons such as GitHub.
 - **Swipe-to-close on tabs is faster** — 140 ms animation, closes as soon as the row is mostly off-screen, 25 % drag threshold, and fling support.
 - **Speed Dial overlap fixed** — opening Speed Dial now hides every WebView, so a stale page from another tab can no longer show through.
+- **Background playback fixed for embedded players** — audio/video inside iframes (blog and embedded video players) is now detected, so the playback service starts and keeps playing after you go Home or swipe the app into Recents. The page-visibility override now loads at document start in every frame.
+- **Picture-in-picture** — leaving the app while a video is fullscreen now keeps it playing in a floating window, like YouTube, with **play / pause**, **background audio** (headphones) and the system **close** button. Controls reach embedded (iframe) players too. Off by default — turn it on in Settings → Browser → Picture-in-picture.
 - **Passkey crash fixed** — using passkeys / WebAuthn in the in-app browser no longer crashes (the privileged origin permission is no longer requested).
 - The **Status Saver icon** in the top bar is now a full circle instead of a speech bubble with a cut corner.
 

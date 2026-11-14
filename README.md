@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **`v1.0.0`** — first stable release. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **`v1.1.0`** — GitHub sync, smarter video detection, reworked AMOLED mode, picture-in-picture and more. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />

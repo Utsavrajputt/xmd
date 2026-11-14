@@ -56,6 +56,8 @@ fun SettingsBrowserScreen(
     onClearSniffIgnored: () -> Unit = {},
     backgroundPlaybackEnabled: Boolean,
     onBackgroundPlaybackChanged: (Boolean) -> Unit,
+    pipEnabled: Boolean = true,
+    onPipChanged: (Boolean) -> Unit = {},
     toolbarBottom: Boolean,
     onToolbarBottomChanged: (Boolean) -> Unit,
     bottomBarEnabled: Boolean,
@@ -179,6 +181,13 @@ fun SettingsBrowserScreen(
                 subtitle = stringResource(R.string.settings_background_playback_hint),
                 checked = backgroundPlaybackEnabled,
                 onCheckedChange = onBackgroundPlaybackChanged,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_pip),
+                subtitle = stringResource(R.string.settings_pip_hint),
+                checked = pipEnabled,
+                onCheckedChange = onPipChanged,
             )
         }
 
