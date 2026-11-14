@@ -172,8 +172,8 @@ if(window.__xmdSniff)return;window.__xmdSniff=true;
 if(/(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com|googlevideo\.com)${'$'}/i.test(location.hostname))return;
 var seen={},master=false;
 function abs(u){try{return new URL(u,location.href).href}catch(e){return ''}}
-function send(u,k){u=abs(u);if(!/^https?:/i.test(u)||seen[k+u])return;seen[k+u]=1;
-try{XmdSniff.postMessage(JSON.stringify({u:u,k:k}))}catch(e){}}
+function send(u,k,h){u=abs(u);if(!/^https?:/i.test(u)||seen[k+u])return;seen[k+u]=1;
+try{XmdSniff.postMessage(JSON.stringify({u:u,k:k,h:h||0}))}catch(e){}}
 function text(u,t){if(!t)return;
 if(t.indexOf('#EXTM3U')===0){if(t.indexOf('EXT-X-STREAM-INF')>=0){master=true;send(u,'hls')}else if(!master)send(u,'hls');}
 else if(/<MPD[\s>]/.test(t.slice(0,4096)))send(u,'dash');}
@@ -206,7 +206,7 @@ if(window!==window.top&&(innerWidth<200||innerHeight<120))return false;
 return true}catch(e){return true}}
 function media(t){try{if(!t||(t.tagName!=='VIDEO'&&t.tagName!=='AUDIO'))return;
 if(!okMedia(t))return;
-var s=t.currentSrc||t.src;if(s&&!/^(blob|data):/i.test(s))send(s,t.tagName==='VIDEO'?'video':'audio')}catch(e){}}
+var s=t.currentSrc||t.src;if(s&&!/^(blob|data):/i.test(s))send(s,t.tagName==='VIDEO'?'video':'audio',t.videoHeight)}catch(e){}}
 ['loadedmetadata','durationchange','play','playing'].forEach(function(n){document.addEventListener(n,function(e){var t=e.target;
 if((n==='playing'||n==='play')&&t&&!t.muted)t.__xu=1;media(t)},true)});
 function scan(){try{var l=document.querySelectorAll('video,audio');for(var i=0;i<l.length;i++)media(l[i])}catch(e){}}
@@ -795,8 +795,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                                 onDownloadClick = ::downloadSniffed,
                                 onCopyLink = ::copyLinkToClipboard,
                                 isResumable = { stream ->
-                                    val name = (stream.fileName
-                                        ?: android.webkit.URLUtil.guessFileName(stream.url, null, stream.mime)).lowercase()
+                                    val name = MediaSniffer.bestName(stream, tabs.getOrNull(currentTabIndex)?.title).lowercase()
                                     com.invictus.xmd.repository.QueueRepository.current().any {
                                         com.invictus.xmd.utils.storage.FileNameUtils.isResumableWithNewLink(it) &&
                                             it.fileName?.lowercase() == name
@@ -2932,7 +2931,8 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         val sniffed = when (report.optString("k")) {
             "hls" -> MediaSniffer.Sniffed(url, MediaSniffer.Kind.HLS)
             "dash" -> MediaSniffer.Sniffed(url, MediaSniffer.Kind.DASH)
-            "video" -> MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_VIDEO)
+            "video" -> (MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_VIDEO))
+                .let { s -> report.optInt("h", 0).takeIf { it in 100..8000 }?.let { s.copy(height = it) } ?: s }
             "audio" -> MediaSniffer.classifyUrl(url) ?: MediaSniffer.Sniffed(url, MediaSniffer.Kind.DIRECT_AUDIO)
             else -> return
         }
@@ -2948,8 +2948,8 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         if (needsPicker) {
             cb.triggerSniffedMedia(stream.url, true)
         } else {
-            val name = stream.fileName
-                ?: android.webkit.URLUtil.guessFileName(stream.url, null, stream.mime)
+            val name = MediaSniffer.bestName(stream, tabs.getOrNull(currentTabIndex)?.title)
+            MediaSniffer.registerNameHint(stream.url, name)
             cb.onOpenAddDownloadDialog(stream.url, name, tabs.getOrNull(currentTabIndex)?.url)
         }
     }

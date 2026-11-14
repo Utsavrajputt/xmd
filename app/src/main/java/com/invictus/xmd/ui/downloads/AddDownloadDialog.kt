@@ -454,7 +454,10 @@ fun AddDownloadDialog(
                 if (!nameManuallyEdited && !probed.isNullOrBlank()) name = probed
             }
             else -> {
-                val guessed = DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
+                // A name chosen by the browser's video sheet (page title + real extension) beats the generic
+                // URL guess ("videoplayback"), and only a server-given name with an extension may replace it.
+                val hint = com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(link)
+                val guessed = hint ?: DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
                 if (guessed.isNotBlank()) name = guessed
                 nameProbePending = true
                 val probed = try {
@@ -462,7 +465,9 @@ fun AddDownloadDialog(
                 } finally {
                     nameProbePending = false
                 }
-                if (!nameManuallyEdited && !probed.isNullOrBlank()) name = probed
+                if (!nameManuallyEdited && !probed.isNullOrBlank() &&
+                    (hint == null || probed.substringAfterLast('.', "").length in 2..4)
+                ) name = probed
             }
         }
     }

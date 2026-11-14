@@ -29,6 +29,8 @@ object MediaSniffer {
         val sizeBytes: Long? = null,
         val fileName: String? = null,
         val mime: String? = null,
+        /** Video height in px: reported by the page's player, the CDN itag or the mp4 header. */
+        val height: Int? = null,
     )
 
     /**
@@ -173,6 +175,95 @@ object MediaSniffer {
     private val URL_HEIGHT = Regex("""(?<![0-9])(2160|1440|1080|720|576|480|360|240|144)(?:p|(?=[_./-]))""", RegexOption.IGNORE_CASE)
     private val URL_RES = Regex("""(?<![0-9])\d{3,4}x(\d{3,4})(?![0-9])""")
 
+    private val ITAG_HEIGHT = mapOf(
+        5 to 240, 6 to 270, 13 to 144, 17 to 144, 18 to 360, 22 to 720, 34 to 360, 35 to 480, 36 to 240,
+        37 to 1080, 43 to 360, 44 to 480, 45 to 720, 46 to 1080, 59 to 480, 78 to 480,
+    )
+
+    /** Known quality code of a googlevideo (Blogger/YouTube CDN) URL, e.g. itag=22 -> 720. */
+    private fun itagHeight(url: String): Int? {
+        if (!url.contains("googlevideo.com")) return null
+        val itag = Regex("""[?&]itag=(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull() ?: return null
+        return ITAG_HEIGHT[itag]
+    }
+
+    /** Height for a stream: player-reported first, then CDN code, then a number in the URL. */
+    fun heightOf(s: Sniffed): Int? = s.height ?: itagHeight(s.url) ?: qualityFromUrl(s.url)
+
+    /** Name hints for links handed to the Add Download dialog, so its generic URL guess can't replace them. */
+    private val nameHints = java.util.concurrent.ConcurrentHashMap<String, String>()
+    fun registerNameHint(url: String, name: String) {
+        if (nameHints.size > 64) nameHints.clear()
+        nameHints[url] = name
+    }
+    fun nameHintFor(url: String): String? = nameHints[url]
+
+    private fun be32(b: ByteArray, o: Int): Long =
+        ((b[o].toLong() and 0xFF) shl 24) or ((b[o + 1].toLong() and 0xFF) shl 16) or
+            ((b[o + 2].toLong() and 0xFF) shl 8) or (b[o + 3].toLong() and 0xFF)
+
+    /** Largest track height found in the first part of an mp4 (moov/trak/tkhd), or null (e.g. moov at the end). */
+    internal fun mp4Height(buf: ByteArray, len: Int): Int? {
+        fun scan(start: Int, end: Int, depth: Int): Int? {
+            var pos = start
+            var best: Int? = null
+            while (pos + 8 <= end) {
+                var size = be32(buf, pos)
+                val type = String(buf, pos + 4, 4, Charsets.ISO_8859_1)
+                var header = 8
+                if (size == 1L && pos + 16 <= end) {
+                    size = (be32(buf, pos + 8) shl 32) or be32(buf, pos + 12); header = 16
+                } else if (size == 0L) size = (end - pos).toLong()
+                if (size < header) return best
+                val boxEnd = (pos + size).coerceAtMost(end.toLong()).toInt()
+                val payload = pos + header
+                when {
+                    type == "tkhd" && payload + 4 <= boxEnd -> {
+                        val off = if (buf[payload].toInt() == 1) 88 else 76
+                        if (payload + off + 8 <= boxEnd) {
+                            val h = (be32(buf, payload + off + 4) ushr 16).toInt()
+                            if (h > 0 && (best == null || h > best)) best = h
+                        }
+                    }
+                    (type == "moov" || type == "trak") && depth < 3 ->
+                        scan(payload, boxEnd, depth + 1)?.let { if (best == null || it > best!!) best = it }
+                }
+                if (size > Int.MAX_VALUE || pos + size >= end) break
+                pos += size.toInt()
+            }
+            return best
+        }
+        return runCatching { scan(0, len, 0) }.getOrNull()
+    }
+
+    private fun probeMp4Height(url: String, pageUrl: String?, userAgent: String?, cookie: String?): Int? {
+        var conn: java.net.HttpURLConnection? = null
+        return try {
+            conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
+            conn.setRequestProperty("User-Agent", userAgent?.takeIf { it.isNotBlank() } ?: "Mozilla/5.0")
+            if (!cookie.isNullOrBlank()) conn.setRequestProperty("Cookie", cookie)
+            if (!pageUrl.isNullOrBlank()) conn.setRequestProperty("Referer", pageUrl)
+            conn.setRequestProperty("Range", "bytes=0-262143")
+            if (conn.responseCode !in 200..299) return null
+            val buf = ByteArray(262144)
+            var n = 0
+            conn.inputStream.use { input ->
+                while (n < buf.size) {
+                    val r = input.read(buf, n, buf.size - n)
+                    if (r < 0) break
+                    n += r
+                }
+            }
+            mp4Height(buf, n)
+        } catch (e: Exception) {
+            null
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
     /** Best-effort height ("720" from ".../720p/..." or "..._1280x720.mp4") read from the URL alone. */
     fun qualityFromUrl(url: String): Int? {
         URL_RES.find(url)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
@@ -212,7 +303,7 @@ object MediaSniffer {
                     conn.readTimeout = 8000
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0")
                     val len = conn.contentLengthLong.takeIf { it > 0 }
-                    MediaInfo(if (s.kind == Kind.DIRECT_VIDEO) listOfNotNull(qualityFromUrl(s.url)) else emptyList(), len)
+                    MediaInfo(if (s.kind == Kind.DIRECT_VIDEO) listOfNotNull(heightOf(s)) else emptyList(), len)
                 } finally {
                     conn.disconnect()
                 }
@@ -282,7 +373,11 @@ object MediaSniffer {
             if (mime == null && !strongExt) return null
             val name = com.invictus.xmd.domain.download.DownloadEngine
                 .filenameFromContentDisposition(conn.getHeaderField("Content-Disposition"))
-            s.copy(sizeBytes = total, fileName = name, mime = mime)
+            val known = s.height ?: itagHeight(s.url)
+            val height = known ?: if (s.kind == Kind.DIRECT_VIDEO &&
+                (mime == null || mime == "video/mp4" || mime == "video/quicktime" || mime == "video/x-m4v")
+            ) probeMp4Height(s.url, pageUrl, userAgent, cookie) else null
+            s.copy(sizeBytes = total, fileName = name, mime = mime, height = height)
         } catch (e: java.io.IOException) {
             if (strongExt) s else null
         } catch (e: RuntimeException) {
@@ -311,6 +406,41 @@ object MediaSniffer {
         } finally {
             conn.disconnect()
         }
+    }
+
+    private val KNOWN_MEDIA_EXT = Regex("""\.(mp4|webm|mkv|mov|m4v|mp3|m4a|aac|ogg|opus|m3u8|mpd)$""", RegexOption.IGNORE_CASE)
+
+    /** File extension for a media Content-Type, or the kind's usual default. */
+    fun extFor(mime: String?, kind: Kind): String {
+        when (mime?.substringBefore(';')?.trim()?.lowercase()) {
+            "video/mp4" -> return "mp4"
+            "video/webm" -> return "webm"
+            "video/x-matroska" -> return "mkv"
+            "video/quicktime" -> return "mov"
+            "video/3gpp" -> return "3gp"
+            "audio/mpeg", "audio/mp3" -> return "mp3"
+            "audio/mp4", "audio/x-m4a" -> return "m4a"
+            "audio/aac" -> return "aac"
+            "audio/ogg", "application/ogg" -> return "ogg"
+            "audio/webm" -> return "weba"
+            "audio/opus" -> return "opus"
+        }
+        return if (kind == Kind.DIRECT_AUDIO) "m4a" else "mp4"
+    }
+
+    /**
+     * A usable file name for a direct stream. Opaque endpoints ("/videoplayback", "/get_video?id=..")
+     * have no extension: use the page title plus the extension from Content-Type.
+     */
+    fun bestName(s: Sniffed, pageTitle: String?): String {
+        s.fileName?.takeIf { it.isNotBlank() && KNOWN_MEDIA_EXT.containsMatchIn(it) }?.let { return it }
+        val path = com.invictus.xmd.utils.UrlUtils.lenientUri(s.url)?.path.orEmpty().trimEnd('/')
+        val seg = path.substringAfterLast('/')
+        if (KNOWN_MEDIA_EXT.containsMatchIn(seg)) return seg
+        val title = pageTitle?.replace(Regex("""[\\/:*?"<>|\p{Cntrl}]"""), " ")?.replace(Regex("""\s+"""), " ")
+            ?.trim()?.take(80)?.trim('.', ' ')
+        val base = if (!title.isNullOrBlank()) title else s.fileName?.takeIf { it.isNotBlank() } ?: seg.ifBlank { "video" }
+        return "$base.${extFor(s.mime, s.kind)}"
     }
 
     /** "1080p · 720p · 480p · ~45.2 MB" for a [MediaInfo], or null when nothing is known. */

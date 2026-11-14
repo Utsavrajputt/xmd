@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.invictus.xmd.ui.browser
 
 import androidx.compose.foundation.layout.Arrangement
@@ -81,23 +81,14 @@ fun SniffedMediaSheet(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            if (!pageTitle.isNullOrBlank()) {
-                Text(
-                    text = pageTitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 400.dp)
+                .heightIn(max = 480.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             streams.forEachIndexed { index, stream ->
                 SniffedMediaRow(
@@ -146,93 +137,115 @@ private fun SniffedMediaRow(
     onPlayClick: (() -> Unit)? = null,
     resumable: Boolean = false,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 2.dp),
+    // Size / duration / manifest qualities are read once the row appears; direct files that were verified
+    // when found already carry size and height, so they need no second request.
+    val info by produceState<MediaSniffer.MediaInfo?>(null, stream.url) {
+        value = when {
+            com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url) -> null
+            stream.sizeBytes != null && !with(MediaSniffer) { stream.kind.needsQualityPicker() } ->
+                MediaSniffer.MediaInfo(
+                    if (stream.kind == MediaSniffer.Kind.DIRECT_VIDEO) listOfNotNull(MediaSniffer.heightOf(stream)) else emptyList(),
+                    stream.sizeBytes,
+                )
+            else -> withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
+        }
+    }
+    val chips = buildList {
+        if (resumable) add(stringResource(R.string.sniff_resume_hint) to true)
+        streamFormatLabel(stream)?.let { add(it to false) }
+        info?.heights?.take(3)?.forEach { add("${it}p" to true) }
+        info?.let { MediaSniffer.describe(it.copy(heights = emptyList())) }
+            ?.split(" \u00b7 ")?.forEach { add(it to false) }
+    }
+    androidx.compose.material3.Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     ) {
-        val icon = when (stream.kind) {
-            MediaSniffer.Kind.DIRECT_AUDIO -> Icons.Music
-            else -> Icons.Video
-        }
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
-        )
-        // Quality/size are read off the stream itself (HLS/DASH manifest or
-        // HEAD) once the row appears; YouTube links have no cheap probe, so
-        // their quality list shows up in the picker that opens on tap.
-        val info by produceState<MediaSniffer.MediaInfo?>(null, stream.url) {
-            value = when {
-                com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url) -> null
-                // Already verified when it was found: size is known, no second request needed.
-                stream.sizeBytes != null && !with(MediaSniffer) { stream.kind.needsQualityPicker() } ->
-                    MediaSniffer.MediaInfo(
-                        if (stream.kind == MediaSniffer.Kind.DIRECT_VIDEO) listOfNotNull(MediaSniffer.qualityFromUrl(stream.url)) else emptyList(),
-                        stream.sizeBytes,
+        Column(modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 6.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                androidx.compose.material3.Surface(
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (stream.kind == MediaSniffer.Kind.DIRECT_AUDIO) Icons.Music else Icons.Video,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f).padding(start = 12.dp, end = 6.dp)) {
+                    Text(
+                        text = displayName,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                else -> withContext(Dispatchers.IO) { MediaSniffer.probeInfo(stream) }
+                    if (chips.isNotEmpty()) {
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(top = 8.dp),
+                        ) {
+                            chips.forEach { (label, accent) -> SniffChip(label, accent) }
+                        }
+                    }
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            ) {
+                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCopyClick) {
+                    Icon(
+                        imageVector = Icons.Link,
+                        contentDescription = stringResource(R.string.torrent_dialog_copy_link),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                if (onPlayClick != null) {
+                    IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onPlayClick) {
+                        Icon(
+                            imageVector = Icons.Play,
+                            contentDescription = stringResource(R.string.download_dialog_play_external),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+                androidx.compose.material3.Button(
+                    onClick = onDownloadClick,
+                    shapes = androidx.compose.material3.ButtonDefaults.shapes(),
+                    modifier = Modifier.padding(start = 4.dp, end = 6.dp),
+                ) {
+                    Icon(Icons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
+                    Text(stringResource(R.string.sniffed_download))
+                }
             }
         }
-        // Always shows at least the format (HLS / MP4 ...); quality + size are
-        // appended once the probe finishes.
-        val detail = listOfNotNull(
-            if (resumable) stringResource(R.string.sniff_resume_hint) else null,
-            streamFormatLabel(stream),
-            info?.let { MediaSniffer.describe(it) },
-        ).joinToString(" \u00b7 ")
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
-        ) {
-            Text(
-                text = displayName,
-                color = MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (detail.isNotBlank()) {
-                Text(
-                    text = detail,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onDownloadClick) {
-            Icon(
-                imageVector = Icons.Download,
-                contentDescription = stringResource(R.string.sniffed_download),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        if (onPlayClick != null) {
-            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onPlayClick) {
-                Icon(
-                    imageVector = Icons.Play,
-                    contentDescription = stringResource(R.string.download_dialog_play_external),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-        IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onCopyClick) {
-            Icon(
-                imageVector = Icons.Link,
-                contentDescription = stringResource(R.string.torrent_dialog_copy_link),
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(18.dp),
-            )
-        }
+    }
+}
+
+@Composable
+private fun SniffChip(label: String, accent: Boolean) {
+    androidx.compose.material3.Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        color = if (accent) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (accent) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
     }
 }
 
@@ -248,6 +261,10 @@ private fun streamDisplayName(
     total: Int,
     pageTitle: String?,
 ): String {
+    if (stream.kind == MediaSniffer.Kind.DIRECT_VIDEO || stream.kind == MediaSniffer.Kind.DIRECT_AUDIO) {
+        val n = MediaSniffer.bestName(stream, pageTitle)
+        return if (total > 1) n.substringBeforeLast('.') + " (${index + 1})." + n.substringAfterLast('.') else n
+    }
     stream.fileName?.takeIf { it.isNotBlank() }?.let { return it }
     val label = MediaSniffer.guessLabel(stream.url)
     if (!GENERIC_STREAM_NAME.matches(label) || pageTitle.isNullOrBlank()) return label
@@ -258,6 +275,5 @@ private fun streamFormatLabel(stream: MediaSniffer.Sniffed): String? = when (str
     MediaSniffer.Kind.HLS -> "HLS"
     MediaSniffer.Kind.DASH -> "DASH"
     MediaSniffer.Kind.DIRECT_VIDEO, MediaSniffer.Kind.DIRECT_AUDIO ->
-        Regex("""\.([a-z0-9]{2,4})(?:\?|$)""", RegexOption.IGNORE_CASE)
-            .find(stream.url.substringBefore('#'))?.groupValues?.get(1)?.uppercase()
+        MediaSniffer.extFor(stream.mime, stream.kind).uppercase()
 }
