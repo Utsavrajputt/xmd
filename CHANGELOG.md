@@ -13,7 +13,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 💳 **Payment QR codes open your payment app** instead of a web search.
 - 👤 **Profile, wallpapers and Status Saver** in a redesigned Settings, with theme-aware quick chips.
 - 🎨 **New About header** with an animated light-sweep (Aurora keeps its fixed blue/violet; other themes use their own colours).
-- 🎬 **Smarter video detection** — verified streams only, a Download button in the "videos found" sheet, and per-site opt-out.
+- 🎬 **Smarter video detection** — verified streams only, real names and quality, a redesigned "videos found" sheet with a Download button, and per-site opt-out.
+- 🌑 **Reworked AMOLED mode** and 🌗 **light-theme heroes**, with a smarter **Force dark** for web pages.
+- 🔗 **Resume with a new link** when a download's link has expired.
 - 🌐 **Chrome-style favicons**, faster swipe-to-close tabs, and several browser fixes.
 
 <details>
@@ -32,14 +34,34 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Safe Clear** — clearing a *running* download now asks "this will delete and clear", then cancels, deletes the files and clears it. Clear no longer leaves an invisible download running in the background.
 - **Full cleanup on Clear / Delete** for cancelled and failed items: direct-download part files and resume sidecars, the yt-dlp cache folder, and torrent content (with a modified-time guard so a still-active file is never removed).
 - **Download history cards redesigned** for a cleaner look.
+- **Faster filename detection** in the Add Download dialog — the lookups now overlap and are cached, so the real name appears sooner.
+- **Resume with a new link** — for a failed *expired* download, the "Select a solution" dialog and the duplicate prompt now offer **Resume existing**: the new link continues from the partial file on disk instead of starting over.
+- **Expired-link dialog fixed** — tapping outside or pressing back only closes it and leaves the error as it was; the item is cleared only with the Clear button.
 
 ### 🎬 Video detection
-- **Verified before listed** — every detected video / stream is probed (status, content-type, size) with the page's own User-Agent, cookies and Referer, so ads, stubs and error pages ("0.0 MB" rows) no longer appear.
-- **Header-based detection** catches extensionless / signed CDN links by their Content-Type while skipping HLS/DASH segments.
-- **Download button** on every row, real name and size, HLS **duration** and resolutions.
-- **No duplicates** — a file the page downloads itself disappears from the list; the sheet updates live while open and the button shows a spinner while more links are still being checked.
-- **Don't detect on this site** from the sheet; manage the list from Settings → Browser.
-- Downloads captured from the browser reuse the tab's User-Agent, and a "Resume available" hint shows when a file matches a failed, expired download.
+**Fewer false results**
+- **Verified before listed** — every detected video / stream is probed (HTTP status, Content-Type, size) with the page's own User-Agent, cookies and Referer. Ads, 1×1 stubs, HTML/JSON/image responses and error pages (the "0.0 MB" rows) no longer appear.
+- **Manifests are checked for real** — an HLS link must start with `#EXTM3U` and a DASH link must contain `<MPD`.
+- **Smaller dedupe** — the same media with a different signed token or cache-buster in the query is one entry, not many.
+- **Segments are ignored** — `.ts` / `.m4s` / chunk URLs and `video/mp2t` responses never show up as videos.
+- **Fewer misses** — extensionless or signed CDN links are caught from their response Content-Type, and the page's own player (`<video>` / `<audio>`, `fetch` / XHR manifests) reports what it plays.
+
+**Names and quality**
+- **Real names** — links with no file name (such as `/videoplayback`) are named from the page title plus the correct extension from the Content-Type (`video/mp4` → `.mp4`, audio → `.m4a`, and so on). Illegal file-name characters are removed and the name is capped at 80 characters. The Add Download dialog keeps this name; only a server-given name that has an extension may replace it. Normal downloads are unaffected.
+- **Quality for direct videos** — taken from the page's own player (`videoHeight`), then the CDN's quality code (googlevideo `itag`), then the MP4 header (a small ranged read of the file's first 256 KB). If none of these is available, no quality chip is shown.
+- **HLS** rows show the **duration** (for playlists that list every segment) and the available resolutions; DASH rows show resolutions.
+- The format label now comes from the Content-Type, so the stray "00" label is gone.
+
+**The "videos found" sheet**
+- **Redesigned** — each video is a card with a round icon, a two-line name, and chips for format, quality, duration and size. A clear **Download** button sits beside Play and Copy link. The page-title subtitle was removed because the name already uses it.
+- **Download button** on every row: streams open the quality picker; direct files open Add Download with the page as Referer and the browser's cookies.
+- **Live** — new and removed videos update while the sheet is open, and the floating button shows a spinner while more links are still being checked.
+- **No duplicates** — a file the page downloads itself disappears from the list.
+- **Don't detect videos on this site** at the bottom of the sheet; the list of those sites is managed (and reset) from Settings → Browser.
+
+**Downloads from the browser**
+- They reuse the tab's real User-Agent (plus cookies and Referer), so protected CDNs that reject a generic UA now serve the file.
+- A **Resume available** chip appears when a video matches a failed, expired download in the queue.
 
 ### 💳 QR scanner
 - Scanning a **UPI or wallet code** (`upi://`, `tez`, `phonepe`, `paytm`, `gpay`, `bhim`, and similar) opens the **payment app chooser** instead of searching the web. If no payment app is installed you get a toast instead of a silent failure.
@@ -56,10 +78,16 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 
 ### 🎨 About screen
 - **Animated header background** — a glowing light-sweep with faint parallel lines and twinkling dots on a deep dark base, tinted from the theme. Aurora uses a fixed blue/violet; every other theme uses its own primary and tertiary colours.
-- The **app logo is shown transparent**, without the launcher icon's background plate, with a soft glow behind it.
+- The **app logo** keeps the launcher icon's background with a soft glow behind it.
 - Version chip and the Libraries / GitHub buttons restyled to match the new header.
 
+### 🌑 Appearance
+- **AMOLED mode reworked** — pure black backgrounds with softly tinted cards (not grey and dull), brighter text and icon contrast, visible separator lines, and black on every screen, dialog and bottom sheet. System bar scrims are black too, and the edge-to-edge cache now accounts for AMOLED so switching modes updates them immediately.
+- **Light themes** get a light, tinted Settings hero and About header; dark themes keep the dark look. The Status Saver and Storage chips adapt to the theme in both modes (white badges with a deeper icon colour in light themes).
+- **Aurora keeps its fixed blue / violet** header colours; every other theme tints from its own primary and tertiary colours.
+
 ### 🌐 Browser
+- **Force dark is smarter** — it prefers a site's own dark theme, darkens only pages that have none, and uses a dark WebView background so there are fewer white flashes while pages load. Pages that paint their own white blocks (ads, iframes, images) can still show them.
 - **Favicons rebuilt**: updated after a redirect, sharper quality, shown exactly as the site provides them (rounded or square, like Chrome, no preset clipping), correct sizing in the address bar and suggestions, and a neutral plate behind dark transparent icons such as GitHub.
 - **Swipe-to-close on tabs is faster** — 140 ms animation, closes as soon as the row is mostly off-screen, 25 % drag threshold, and fling support.
 - **Speed Dial overlap fixed** — opening Speed Dial now hides every WebView, so a stale page from another tab can no longer show through.

@@ -374,13 +374,16 @@ private fun HeroChip(
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(accent.copy(alpha = 0.22f), CircleShape),
+                .background(
+                    if (light) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.78f) else accent.copy(alpha = 0.22f),
+                    CircleShape,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = accent,
+                tint = if (light) androidx.compose.ui.graphics.lerp(accent, black, 0.22f) else accent,
                 modifier = Modifier.size(20.dp),
             )
         }

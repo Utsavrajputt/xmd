@@ -132,32 +132,21 @@ fun AboutScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val context = LocalContext.current
                     val appIconBitmap = remember {
-                        // Foreground layer only: the adaptive icon's background plate stays out so the logo is transparent.
-                        val icon = context.packageManager.getApplicationIcon(context.packageName)
-                        val layer = (icon as? android.graphics.drawable.AdaptiveIconDrawable)?.foreground ?: icon
-                        layer.toBitmap(width = 432, height = 432).asImageBitmap()
+                        context.packageManager.getApplicationIcon(context.packageName)
+                            .toBitmap()
+                            .asImageBitmap()
                     }
                     Box(contentAlignment = Alignment.Center) {
                         Box(
-                            Modifier.size(96.dp).background(
-                                if (light) {
-                                    // The logo is light; on a light hero it needs a soft deep halo behind it.
-                                    val halo = androidx.compose.ui.graphics.lerp(heroPrimary, Color.Black, 0.35f)
-                                    Brush.radialGradient(
-                                        0f to halo.copy(alpha = 0.92f),
-                                        0.62f to halo.copy(alpha = 0.70f),
-                                        1f to Color.Transparent,
-                                    )
-                                } else {
-                                    Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent))
-                                },
+                            Modifier.size(80.dp).background(
+                                Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent)),
                                 CircleShape,
                             ),
                         )
                         Image(
                             bitmap = appIconBitmap,
                             contentDescription = stringResource(R.string.app_name),
-                            modifier = Modifier.size(96.dp),
+                            modifier = Modifier.size(64.dp),
                         )
                     }
 
