@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -329,17 +331,33 @@ private fun HeroChip(
     modifier: Modifier = Modifier,
 ) {
     val white = androidx.compose.ui.graphics.Color.White
+    val theme by com.invictus.xmd.preferences.Settings.themeFlow.collectAsState()
+    val primary = MaterialTheme.colorScheme.primary
+    val black = androidx.compose.ui.graphics.Color.Black
+    // Aurora keeps its fixed navy/blue; every other theme tints the chip from its own primary.
+    val fillSelected: androidx.compose.ui.graphics.Color
+    val fillIdle: androidx.compose.ui.graphics.Color
+    val stroke: androidx.compose.ui.graphics.Color
+    if (theme == com.invictus.xmd.ui.theme.AppTheme.Aurora) {
+        fillSelected = androidx.compose.ui.graphics.Color(0xFF0E3386)
+        fillIdle = androidx.compose.ui.graphics.Color(0xFF081C4F)
+        stroke = androidx.compose.ui.graphics.Color(0xFF2DB3FF)
+    } else {
+        fillSelected = androidx.compose.ui.graphics.lerp(black, primary, 0.50f)
+        fillIdle = androidx.compose.ui.graphics.lerp(black, primary, 0.30f)
+        stroke = primary
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .clip(XmdShapes.M)
             .background(
-                if (selected) androidx.compose.ui.graphics.Color(0xFF0E3386).copy(alpha = 0.90f)
-                else androidx.compose.ui.graphics.Color(0xFF081C4F).copy(alpha = 0.62f)
+                if (selected) fillSelected.copy(alpha = 0.90f)
+                else fillIdle.copy(alpha = 0.62f)
             )
             .border(
                 1.dp,
-                androidx.compose.ui.graphics.Color(0xFF2DB3FF).copy(alpha = if (selected) 0.70f else 0.32f),
+                stroke.copy(alpha = if (selected) 0.70f else 0.32f),
                 XmdShapes.M,
             )
             .clickable(onClick = onClick)

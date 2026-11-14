@@ -8,15 +8,6 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.ui.graphics.Color
 import com.invictus.xmd.preferences.Settings
 
-private val backgroundPureBlack = Color.Black
-private val surfacePureBlack = Color.Black
-private val surfaceDimPureBlack = Color.Black
-private val surfaceBrightPureBlack = Color(0xFF1A1A1A)
-private val surfaceContainerLowestPureBlack = Color(0xFF000000)
-private val surfaceContainerLowPureBlack = Color(0xFF0A0A0A)
-private val surfaceContainerPureBlack = Color(0xFF121212)
-private val surfaceContainerHighPureBlack = Color(0xFF1A1A1A)
-private val surfaceContainerHighestPureBlack = Color(0xFF222222)
 
 /**
  * Resolves the active [ColorScheme] for the specified [theme], dark mode, and AMOLED flags.
@@ -30,19 +21,7 @@ fun resolveXmdColorScheme(
 ): ColorScheme = when {
     theme.isDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         when {
-            isDark && isAmoled -> {
-                dynamicDarkColorScheme(context).copy(
-                    background = backgroundPureBlack,
-                    surface = surfacePureBlack,
-                    surfaceDim = surfaceDimPureBlack,
-                    surfaceBright = surfaceBrightPureBlack,
-                    surfaceContainerLowest = surfaceContainerLowestPureBlack,
-                    surfaceContainerLow = surfaceContainerLowPureBlack,
-                    surfaceContainer = surfaceContainerPureBlack,
-                    surfaceContainerHigh = surfaceContainerHighPureBlack,
-                    surfaceContainerHighest = surfaceContainerHighestPureBlack,
-                )
-            }
+            isDark && isAmoled -> dynamicDarkColorScheme(context).toAmoled()
             isDark -> dynamicDarkColorScheme(context)
             else -> dynamicLightColorScheme(context).withComfortableLightSurfaces()
         }

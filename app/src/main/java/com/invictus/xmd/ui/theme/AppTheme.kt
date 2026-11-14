@@ -559,23 +559,53 @@ enum class AppTheme(
   }
 
   /**
-   * Get the AMOLED (pure black) color scheme for this theme
+   * Get the AMOLED (pure black) color scheme for this theme: black background, cards tinted from
+   * the theme's own primary (not neutral grey), visible separators and high-contrast text.
    */
-  fun getAmoledColorScheme(): ColorScheme =
-    getDarkColorScheme().copy(
-      background = Color.Black,
-      surface = Color.Black,
-      surfaceDim = Color.Black,
-      surfaceBright = primaryDark.copy(alpha = 0.06f).compositeOver(Color(0xFF1A1A1A)),
-      surfaceVariant = primaryDark.copy(alpha = 0.08f).compositeOver(Color(0xFF242424)),
-      surfaceContainerLowest = Color.Black,
-      surfaceContainerLow = primaryDark.copy(alpha = 0.04f).compositeOver(Color(0xFF0A0A0A)),
-      surfaceContainer = primaryDark.copy(alpha = 0.06f).compositeOver(Color(0xFF121212)),
-      surfaceContainerHigh = primaryDark.copy(alpha = 0.08f).compositeOver(Color(0xFF1A1A1A)),
-      surfaceContainerHighest = primaryDark.copy(alpha = 0.12f).compositeOver(Color(0xFF222222)),
-      outline = secondaryDark.copy(alpha = 0.4f).compositeOver(Color(0xFF484848)),
-      outlineVariant = Color(0xFF262626),
-    )
+  fun getAmoledColorScheme(): ColorScheme = getDarkColorScheme().toAmoled()
+}
+
+/**
+ * Turns a dark scheme into its AMOLED version. Surfaces are ramps from pure black toward the
+ * scheme's primary, so cards keep the theme's hue instead of turning grey, while the page itself
+ * stays #000. Text and accents are re-checked against the lightest surface so they stay readable.
+ */
+internal fun ColorScheme.toAmoled(): ColorScheme {
+  fun ramp(amount: Float) = androidx.compose.ui.graphics.lerp(Color.Black, primary, amount)
+
+  val container = ramp(0.10f)
+  val containerHigh = ramp(0.14f)
+  val containerHighest = ramp(0.18f)
+  val bright = ramp(0.21f)
+  val variant = ramp(0.16f)
+  val surfaces = listOf(Color.Black, ramp(0.06f), container, containerHigh, containerHighest, bright, variant)
+
+  val onSurface = androidx.compose.ui.graphics.lerp(Color.White, primary, 0.05f)
+  val onSurfaceVariant =
+    androidx.compose.ui.graphics.lerp(Color(0xFFD4D4D4), primary, 0.18f)
+      .withMinimumContrastAgainst(surfaces)
+
+  return copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceDim = Color.Black,
+    surfaceBright = bright,
+    surfaceVariant = variant,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = ramp(0.06f),
+    surfaceContainer = container,
+    surfaceContainerHigh = containerHigh,
+    surfaceContainerHighest = containerHighest,
+    onBackground = onSurface,
+    onSurface = onSurface,
+    onSurfaceVariant = onSurfaceVariant,
+    // Separators and borders: clearly lighter than the cards, still tinted.
+    outlineVariant = ramp(0.42f),
+    outline = androidx.compose.ui.graphics.lerp(Color(0xFF8C8C8C), primary, 0.25f),
+    primary = primary.withMinimumContrastAgainst(surfaces),
+    secondary = secondary.withMinimumContrastAgainst(surfaces),
+    tertiary = tertiary.withMinimumContrastAgainst(surfaces),
+  )
 }
 
 // Extension functions for color manipulation

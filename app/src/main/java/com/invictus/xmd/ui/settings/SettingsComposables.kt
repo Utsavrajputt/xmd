@@ -65,7 +65,7 @@ fun SettingsSectionCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        border = if (isAmoled) BorderStroke(1.dp, Color(0xFF1F1F1F)) else null,
+        border = if (isAmoled) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)) else null,
         shape = XmdShapes.L,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {

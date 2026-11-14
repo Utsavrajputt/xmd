@@ -374,6 +374,11 @@ class DownloadEngine(
             return sanitize(decoded).ifBlank { null }
         }
 
+        private const val RANGE_GET_DELAY_MS = 700L
+        private val nameProbeCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        private val nameProbePool: java.util.concurrent.ExecutorService =
+            java.util.concurrent.Executors.newCachedThreadPool { r -> Thread(r, "name-probe").apply { isDaemon = true } }
+
         /**
          * Looks up the server's real filename before a download starts, for
          * links whose URL path is just an opaque id rather than the actual
@@ -414,19 +419,44 @@ class DownloadEngine(
                 return b
             }
 
-            val headName = runCatching {
-                client.newCall(createBuilder().head().build()).execute().use { resp ->
-                    if (resp.isSuccessful) filenameFromContentDisposition(resp.header("Content-Disposition")) else null
-                }
-            }.getOrNull()
-            if (headName != null) return headName
+            nameProbeCache[url]?.let { return it }
 
-            return runCatching {
-                val rangeRequest = createBuilder().header("Range", "bytes=0-0").build()
-                client.newCall(rangeRequest).execute().use { resp ->
-                    filenameFromContentDisposition(resp.header("Content-Disposition"))
+            // HEAD and the 0-byte ranged GET used to run strictly one after the other (up to 2 x the client
+            // timeout when the server ignores HEAD). Now the GET overlaps with a slow HEAD; first real name wins.
+            val headCall = client.newCall(createBuilder().head().build())
+            val getCall = client.newCall(createBuilder().header("Range", "bytes=0-0").build())
+            fun nameFrom(call: okhttp3.Call, requireSuccess: Boolean): String? = runCatching {
+                call.execute().use { resp ->
+                    if (requireSuccess && !resp.isSuccessful) null
+                    else filenameFromContentDisposition(resp.header("Content-Disposition"))
                 }
             }.getOrNull()
+
+            val ecs = java.util.concurrent.ExecutorCompletionService<String?>(nameProbePool)
+            val headDone = java.util.concurrent.atomic.AtomicBoolean(false)
+            val headName = java.util.concurrent.atomic.AtomicReference<String?>(null)
+            ecs.submit {
+                try { nameFrom(headCall, requireSuccess = true).also { headName.set(it) } } finally { headDone.set(true) }
+            }
+            // The ranged GET is only a backup: it goes out if HEAD is still silent after ~700 ms, or HEAD ended
+            // without a name. Servers where HEAD works never see the extra request.
+            ecs.submit {
+                val deadline = System.currentTimeMillis() + RANGE_GET_DELAY_MS
+                while (System.currentTimeMillis() < deadline && !headDone.get()) Thread.sleep(25)
+                if (headDone.get() && headName.get() != null) null
+                else nameFrom(getCall, requireSuccess = false)
+            }
+            var result: String? = null
+            repeat(2) {
+                if (result == null) result = runCatching { ecs.take().get() }.getOrNull()
+            }
+            headCall.cancel()
+            getCall.cancel()
+            result?.let {
+                if (nameProbeCache.size > 200) nameProbeCache.clear()
+                nameProbeCache[url] = it
+            }
+            return result
         }
 
         /**

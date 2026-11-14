@@ -3,6 +3,47 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [1.1.0] - 2026-11-13
+
+☁️ **GitHub & Sync, smarter downloads, and a refreshed About screen.**
+
+### ✨ Highlights
+- ☁️ New **GitHub & Sync** screen — auto-backup, backup history with one-tap restore, and "Send to phone" links between your devices.
+- 📥 Downloads: real filenames resolved safely, instant cancel, a safe Clear flow, and full cleanup of leftover part/yt-dlp/torrent files.
+- 💳 Scanning a UPI/payment QR now opens your payment app instead of a web search.
+- 🎨 About header redesigned with an animated sweep background; Settings hero chips follow your theme.
+- 🌐 Sharper, Chrome-style favicons and faster swipe-to-close on tabs.
+
+<details>
+<summary>See all changes since v1.0.0</summary>
+
+### ✨ Added
+- ☁️ **GitHub & Sync screen** (Settings) with account sign-in and a Gist-backed store using one file per device, so devices never overwrite each other.
+- 🔄 **Auto-backup** — a daily backup plus a ~60 s debounced backup after you change settings; everything stops when signed out or the switch is off.
+- 🕘 **Backup history** — a collapsible card listing the last ~20 revisions with compact rows and restore.
+- 📲 **Send to phone** — share any link or magnet from another app to your other device via the share sheet, with a device picker; the receiving device checks its inbox on app open and every 15 minutes.
+- 💳 **UPI / payment QR handling** — `upi://`, `tez`, `phonepe`, `paytm`, `gpay`, `bhim` and similar codes open the payment app chooser, with a toast if no payment app is installed.
+- 🎨 **Animated About header** with a glowing light-sweep and twinkling dots; Aurora keeps its fixed blue/violet, other themes tint from their own colours. The app logo is shown transparent, without its icon plate.
+- 🔠 **Download name probing** — while the real filename is still being fetched, the item gets renamed automatically a few seconds after you start the download.
+- 🗑️ **Clear confirmation for running downloads** — tapping Clear on an active download asks "this will delete and clear", then cancels, deletes and clears.
+
+### 🛠 Fixed
+- 🔐 Crash when using passkeys inside the in-app browser (WebAuthn origin permission).
+- ⏱️ Cancel now responds instantly, and clearing a running download no longer leaves it downloading invisibly in the background.
+- 🧹 Clearing a cancelled or failed item now also deletes its part files, resume files, yt-dlp cache and torrent leftovers.
+- 🔖 Favicons: updated after a redirect, sharper quality, shown as-is like Chrome (no preset clipping), correct sizing, and a proper GitHub icon plate on dark icons.
+- 🏠 Speed-dial no longer overlaps a stale page after switching tabs (all WebViews are hidden when it shows).
+- ⭕ The Status Saver top-bar icon is now a full circle instead of a speech bubble with a cut corner.
+
+### 🎨 Changed
+- 🗂️ Swipe-to-close on tabs is faster (140 ms animation, lower close threshold, fling support).
+- 📜 Download history cards redesigned.
+- 🧩 Settings hero quick chips (Status Saver, Storage) follow the active theme; Aurora keeps its navy look.
+
+</details>
+
+---
+
 ## [1.0.0] - 2026-09-22
 
 🎉 **First stable release** — out of beta.

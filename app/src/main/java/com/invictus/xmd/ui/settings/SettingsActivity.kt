@@ -121,12 +121,15 @@ class SettingsActivity : ComponentActivity() {
 
     private var appliedEdgeToEdgeDarkMode: Boolean? = null
 
+    private var appliedEdgeToEdgeAmoled: Boolean? = null
+
     private fun applyEdgeToEdge(isDarkMode: Boolean) {
-        if (appliedEdgeToEdgeDarkMode == isDarkMode) return
+        val amoledNow = com.invictus.xmd.preferences.Settings.isAmoledMode()
+        if (appliedEdgeToEdgeDarkMode == isDarkMode && appliedEdgeToEdgeAmoled == amoledNow) return
 
         val synchronizedBarStyle = SystemBarStyle.auto(
             lightScrim = Color(0xFFF4F6F9).toArgb(),
-            darkScrim = Color(0xFF0E1521).toArgb(),
+            darkScrim = (if (com.invictus.xmd.preferences.Settings.isAmoledMode()) Color.Black else Color(0xFF0E1521)).toArgb(),
         ) { isDarkMode }
         enableEdgeToEdge(
             statusBarStyle = synchronizedBarStyle,
@@ -136,6 +139,7 @@ class SettingsActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
         appliedEdgeToEdgeDarkMode = isDarkMode
+        appliedEdgeToEdgeAmoled = amoledNow
     }
 
     override fun onResume() {

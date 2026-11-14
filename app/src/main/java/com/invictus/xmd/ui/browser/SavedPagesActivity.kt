@@ -47,7 +47,7 @@ abstract class SavedPagesActivity : ComponentActivity() {
     private fun applyEdgeToEdge(isDarkMode: Boolean) {
         val barStyle = SystemBarStyle.auto(
             lightScrim = Color(0xFFF4F6F9).toArgb(),
-            darkScrim = Color(0xFF0E1521).toArgb(),
+            darkScrim = (if (com.invictus.xmd.preferences.Settings.isAmoledMode()) Color.Black else Color(0xFF0E1521)).toArgb(),
         ) { isDarkMode }
         enableEdgeToEdge(statusBarStyle = barStyle, navigationBarStyle = barStyle)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
