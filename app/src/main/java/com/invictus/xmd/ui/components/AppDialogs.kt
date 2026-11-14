@@ -366,9 +366,11 @@ internal fun ExpiredLinkDialog(
     onRetry: () -> Unit,
     onFetchFromBrowser: () -> Unit,
     onCancel: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     XmdAlertDialog(
-        onDismissRequest = onCancel,
+        // Tap outside / back only closes the dialog; the Clear button (onCancel) is what removes the item.
+        onDismissRequest = onDismiss,
         modifier = Modifier.compactDialogWidth(),
         properties = WideDialogProperties,
         compact = true,

@@ -986,6 +986,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         onRetry = { expiredLinkDialogState = null; state.onRetry() },
                         onFetchFromBrowser = { expiredLinkDialogState = null; state.onFetchFromBrowser() },
                         onCancel = { expiredLinkDialogState = null; state.onCancel() },
+                        onDismiss = { expiredLinkDialogState = null },
                     )
                 }
             }
@@ -1803,7 +1804,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
      * expired/unavailable link: "Retry" tries the normal (non-browser)
      * re-fetch again, "Fetch from Browser" re-opens the source page in a
      * WebView for a fresh link (only offered when [QueueItem.pageUrl] is
-     * known), and "Cancel" drops the item from the queue.
+     * known), "Clear" drops the item from the queue, and tapping outside / back just closes the dialog (the failed item stays).
      */
     private fun showExpiredLinkDialog(item: QueueItem) {
         expiredLinkDialogState = ExpiredLinkDialogState(

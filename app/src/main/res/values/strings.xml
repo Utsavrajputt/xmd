@@ -365,7 +365,7 @@
     <string name="settings_toolbar_position_bottom">Bottom</string>
     <string name="settings_toolbar_summary">Address bar: %1$s</string>
     <string name="settings_force_dark">Force dark mode</string>
-    <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own. Some pages may look off.</string>
+    <string name="settings_force_dark_hint">Darken web pages that have no dark theme of their own.</string>
     <string name="browser_bottom_back">Back</string>
     <string name="browser_bottom_forward">Forward</string>
     <string name="browser_bottom_home">Home</string>
