@@ -397,6 +397,9 @@ class DownloadEngine(
             return sanitize(decoded).ifBlank { null }
         }
 
+        /** A name already found by an earlier lookup of this URL (e.g. the Add Download dialog's), or null. */
+        fun cachedFilename(url: String): String? = nameProbeCache[url]
+
         private const val RANGE_GET_DELAY_MS = 700L
         private val nameProbeCache = java.util.concurrent.ConcurrentHashMap<String, String>()
         private val nameProbePool: java.util.concurrent.ExecutorService =

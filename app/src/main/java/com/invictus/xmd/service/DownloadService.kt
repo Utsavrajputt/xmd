@@ -1199,10 +1199,18 @@ class DownloadService : LifecycleService() {
             try {
                 val directUrl = directUrlAtClaim ?: throw RuntimeException("No resolved URL")
 
-                val customName = currentItem?.fileName?.takeUnless { it.isBlank() }
-                val realName = if (customName != null) customName else withContext(Dispatchers.IO) {
-                    DownloadEngine.probeRealFilename(client, directUrl, currentItem?.pageUrl)
-                }
+                // The queue stores the URL-derived guess (often a hash) in fileName when no name was given.
+                // That is a placeholder, not a user's choice: treat it as "no name yet" so the real one can
+                // be found and applied while the download runs.
+                val urlGuesses = setOf(
+                    DownloadEngine.filenameFromLink(sourceUrl).ifBlank { DownloadEngine.filenameFromUrl(sourceUrl) },
+                    DownloadEngine.filenameFromLink(directUrl).ifBlank { DownloadEngine.filenameFromUrl(directUrl) },
+                )
+                val storedName = currentItem?.fileName?.takeUnless { it.isBlank() }
+                val customName = storedName?.takeUnless { it in urlGuesses }
+                // Never hold the download back for the name lookup: use a name an earlier lookup already cached,
+                // otherwise start right away and let the lookup (below) rename the item while it downloads.
+                val realName = customName ?: DownloadEngine.cachedFilename(directUrl)
                 // A name picked in the browser's video sheet (page title + extension) survives when the server
                 // gives no usable name of its own.
                 val sniffedName = com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(sourceUrl)
@@ -1211,6 +1219,7 @@ class DownloadService : LifecycleService() {
                 val fileName = customName
                     ?: realName.takeIf { realOk }
                     ?: sniffedName
+                    ?: storedName
                     ?: DownloadEngine.filenameFromLink(sourceUrl).ifBlank { DownloadEngine.filenameFromUrl(directUrl) }
 
                 // The source URL alone (e.g. a FuckingFast share link) often has no visible
@@ -1230,12 +1239,22 @@ class DownloadService : LifecycleService() {
                 // (folder validation + EmptyFileCreator space reserve) runs
                 // inside downloadAuto.
                 val customDir = currentItem?.customSaveDirPath
-                val targetDir = FileNameUtils.resolveDestinationFolder(customDir, category, fileName, sourceUrl)
-                val realTemp = File(targetDir, fileName)
+                val plannedDir = FileNameUtils.resolveDestinationFolder(customDir, category, fileName, sourceUrl)
                 val partId = (itemId.hashCode().toLong() and 0xffffffffL).let {
                     if (it == 0L) 1L else it
                 }
-                val tempFile = IncompleteFileUtil.addIncompleteIndicator(realTemp, partId)
+                // A download whose name was learned mid-way (item renamed, maybe re-categorised) keeps its
+                // partial file under the OLD name: find it by its per-item id so Resume continues from there.
+                val existingPart = withContext(Dispatchers.IO) {
+                    (listOf(plannedDir) + DownloadCategory.values().mapNotNull { c ->
+                        runCatching { FileNameUtils.resolveDestinationFolder(customDir, c, fileName, sourceUrl) }.getOrNull()
+                    }).distinct().firstNotNullOfOrNull { dir ->
+                        dir.listFiles { f -> f.name.endsWith(".dl-$partId.xmd.part") }?.firstOrNull()
+                    }
+                }
+                val targetDir = existingPart?.parentFile ?: plannedDir
+                val realTemp = File(targetDir, fileName)
+                val tempFile = existingPart ?: IncompleteFileUtil.addIncompleteIndicator(realTemp, partId)
                 withContext(Dispatchers.IO) {
                     targetDir.mkdirs()
                     // Resume state left by older versions that downloaded into
@@ -1264,9 +1283,12 @@ class DownloadService : LifecycleService() {
                 // on HEAD): take it from the real response the moment it arrives -- the item is renamed
                 // in the list right away and the finished file gets the real name.
                 val resolvedName = java.util.concurrent.atomic.AtomicReference<String?>(null)
+                var nameJob: kotlinx.coroutines.Job? = null
                 if (customName == null && realName == null && sniffedName == null) {
-                    engine.onServerFileName = { serverName ->
-                        if (serverName != fileName && resolvedName.compareAndSet(null, serverName)) {
+                    val applyLateName: (String) -> Unit = { serverName ->
+                        if (engines.containsKey(itemId) && serverName != fileName &&
+                            resolvedName.compareAndSet(null, serverName)
+                        ) {
                             var c = CategoryDetector.detect(directUrl, hint = serverName)
                                 .takeIf { it != DownloadCategory.default() } ?: category
                             if (ShowDetector.isEpisode(serverName)) c = DownloadCategory.SHOWS
@@ -1274,12 +1296,21 @@ class DownloadService : LifecycleService() {
                             QueueRepository.updateDownloadMetadata(itemId, serverName, c)
                         }
                     }
+                    // Two sources, first one wins: the real download response, and a background name lookup.
+                    engine.onServerFileName = applyLateName
+                    nameJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                        DownloadEngine.probeRealFilename(client, directUrl, currentItem?.pageUrl)?.let(applyLateName)
+                    }
                 }
 
                 // Pause (engine.pause()) blocks in-place inside downloadAuto and never throws here --
                 // the engine stays registered in `engines` so Resume can call engine.resume() on the
                 // very same in-flight connection. Only a genuine Cancel throws, ending this coroutine.
-                engine.downloadAuto(directUrl, tempFile)
+                try {
+                    engine.downloadAuto(directUrl, tempFile)
+                } finally {
+                    nameJob?.cancel()
+                }
 
                 // downloadAuto can return normally without throwing even when the
                 // server truncates the stream early (connection reset mid-body,
