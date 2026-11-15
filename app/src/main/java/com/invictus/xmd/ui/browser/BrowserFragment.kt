@@ -1039,6 +1039,79 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     private var bgServiceActive = false
     private var bgStopJob: Job? = null
 
+    // Passkey requests are answered by PasskeyHookScript; this offers to continue in a browser that can do them.
+    private val passkeyPromptedHosts = mutableSetOf<String>()
+
+    private inner class PasskeyBridge {
+        @JavascriptInterface
+        fun requested() {
+            view?.post { offerPasskeyInOtherBrowser() }
+        }
+    }
+
+    private fun offerPasskeyInOtherBrowser() {
+        if (!isAdded) return
+        val url = tabs.getOrNull(currentTabIndex)?.url?.takeIf { it.startsWith("http", ignoreCase = true) } ?: return
+        val host = runCatching { android.net.Uri.parse(url).host }.getOrNull().orEmpty()
+        if (!passkeyPromptedHosts.add(host)) return
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.passkey_prompt_title)
+            .setMessage(R.string.passkey_prompt_message)
+            .setPositiveButton(R.string.passkey_open_in_browser) { _, _ -> openInPasskeyBrowser(url) }
+            .setNegativeButton(R.string.passkey_not_now, null)
+            .show()
+    }
+
+    private fun openInPasskeyBrowser(url: String) {
+        val ctx = context ?: return
+        val pm = ctx.packageManager
+        val candidates = pm.queryIntentActivities(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://example.com")),
+            android.content.pm.PackageManager.MATCH_ALL,
+        ).map { it.activityInfo.packageName }.filter { it != ctx.packageName }.distinct()
+        val target = candidates.firstOrNull { it == "com.android.chrome" } ?: candidates.firstOrNull()
+        if (target == null) {
+            android.widget.Toast.makeText(ctx, R.string.passkey_no_browser, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        runCatching {
+            startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).setPackage(target)
+            )
+        }.onFailure {
+            android.widget.Toast.makeText(ctx, R.string.passkey_no_browser, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Not registered in private tabs. See AutofillAssistScript.
+    private var autofillHintShown = false
+
+    private inner class AutofillBridge {
+        @JavascriptInterface
+        fun loginFieldFocused() {
+            view?.post { maybeExplainAutofill() }
+        }
+
+        @JavascriptInterface
+        fun loginSubmitted() {
+            // Single-page logins never reload: finish the autofill session ourselves so the service can offer
+            // to save the password. A normal page load already does this; a second commit is harmless.
+            view?.postDelayed({
+                runCatching {
+                    context?.getSystemService(android.view.autofill.AutofillManager::class.java)?.takeIf { it.isEnabled }?.commit()
+                }
+            }, 150)
+        }
+    }
+
+    private fun maybeExplainAutofill() {
+        if (autofillHintShown || !isAdded) return
+        val am = context?.getSystemService(android.view.autofill.AutofillManager::class.java) ?: return
+        if (!am.isAutofillSupported || am.hasEnabledAutofillServices()) return
+        autofillHintShown = true
+        android.widget.Toast.makeText(requireContext(), R.string.autofill_no_service_hint, android.widget.Toast.LENGTH_LONG).show()
+    }
+
     private inner class MediaBridge(private val tabId: Long) {
         @JavascriptInterface
         fun enabled(): Boolean = BackgroundPlaybackScript.active()
@@ -1412,6 +1485,24 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
 
     private fun configureWebView(webView: WebView, tab: BrowserTab) {
         webView.addJavascriptInterface(MediaBridge(tab.id), "XmdMedia")
+        webView.addJavascriptInterface(PasskeyBridge(), "XmdPasskey")
+        runCatching {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                    webView, com.invictus.xmd.domain.browser.PasskeyHookScript.script(), setOf("*")
+                )
+            }
+        }
+        if (!tab.isPrivate) {
+            webView.addJavascriptInterface(AutofillBridge(), "XmdAutofill")
+            runCatching {
+                if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
+                        webView, com.invictus.xmd.domain.browser.AutofillAssistScript.script(), setOf("*")
+                    )
+                }
+            }
+        }
         // Background playback script at document start in every frame (embedded players live in iframes);
         // it switches itself off unless the setting is on. onPageStarted still injects it as a fallback.
         runCatching {

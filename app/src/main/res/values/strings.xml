@@ -316,6 +316,12 @@
     <string name="settings_shields_add_site_title">Add a whitelisted site</string>
     <string name="settings_shields_add_site_hint">example.com</string>
     <string name="settings_shields_add_site_invalid">Enter a valid domain, like example.com</string>
+    <string name="autofill_no_service_hint">No password manager is turned on. Choose one (Bitwarden, Proton Pass, Google...) in Android Settings → Passwords &amp; accounts → Autofill service.</string>
+    <string name="passkey_prompt_title">Passkey sign-in</string>
+    <string name="passkey_prompt_message">Passkeys can\'t be used inside Xmd yet. Open this page in another browser (like Chrome) to sign in with your passkey, or continue here with your password.</string>
+    <string name="passkey_open_in_browser">Open in browser</string>
+    <string name="passkey_not_now">Not now</string>
+    <string name="passkey_no_browser">No other browser found to open this page.</string>
     <string name="settings_pip">Picture-in-picture</string>
     <string name="settings_pip_hint">When a video is fullscreen and you leave the app, it keeps playing in a small floating window with play / pause, close and background-audio buttons.</string>
     <string name="pip_action_play">Play</string>
