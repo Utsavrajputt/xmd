@@ -77,8 +77,10 @@
 | **Daily data limit** | Optional total or mobile-only data cap for downloads, set from Settings |
 | **Link validation** | Links are checked in the Add Download dialog before a download starts, catching bad/unsupported links earlier |
 | **Home screen shortcuts** | Pin a download link to the device home screen for one-tap re-download, with an "Add to home screen" flow and a toggle to remove it later |
-| **Expired-link recovery** | A redesigned Link Expired dialog offers Retry, Fetch from Browser, or Cancel — retry tries a normal re-fetch first, falling back to the browser and finally a single-connection download only if needed |
-| **Duplicate detection** | Path-based detection catches a file already in the queue, with a resolution strategy instead of silently re-downloading it |
+| **Expired-link recovery** | A redesigned Link Expired dialog offers Retry, Fetch from Browser, **Resume with a new link**, or Cancel — retry tries a normal re-fetch first, falling back to the browser and finally a single-connection download only if needed. Tapping outside or going back only closes the dialog; the item is cleared only with Clear |
+| **Resume with a new link** | A failed *expired* download can continue from its partial file with a fresh link (also offered as "Resume existing" when adding a duplicate) |
+| **Real filenames, fast** | The Add Download dialog resolves the real file name with overlapping, cached lookups, and items are renamed automatically once the true name is known |
+| **Duplicate detection** | Path-based detection catches a file already in the queue, with a resolution strategy (numbered copy, override, or resume) instead of silently re-downloading it |
 | **Multi-selection** | Select multiple queue items at once for contextual bulk actions |
 | **Background downloads for shares** | Links shared from other apps or opened externally show a floating dialog and download in the background |
 | **Completion stats** | Duration (e.g. "Took 42s"), size, and localized date/time shown on completed downloads |
@@ -122,8 +124,10 @@
 | **Search engine selection** | Pick a default search engine or set a custom search URL |
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
 | **Swipe gestures** | Swipe to switch between browser tabs |
-| **Background playback** | Audio/video started in the browser keeps playing after leaving the browser |
-| **Media sniffing** | A `MediaSniffer` classifier detects HLS/DASH/direct media requests as pages load, surfacing a "videos found" chip and picker sheet for streamed media |
+| **Background playback** | Audio/video — including embedded (iframe) players — keeps playing after you leave the app or swipe it into Recents |
+| **Picture-in-picture** | Off by default. Leaving the app during a fullscreen video keeps it in a floating window with play / pause, background audio (headphones) and close buttons |
+| **Video detection** | Streams and direct files are found from URLs, response headers and the page's own player, then **verified** (status, content-type, size) before they show up in the "videos found" sheet — no ads, stubs or "0.0 MB" rows. Each card shows a real name (page title + correct extension), format, quality, duration and size, with a Download button; per-site opt-out in Settings |
+| **Force dark** | Prefers a site's own dark theme and only darkens pages that have none, with a dark WebView background to reduce white flashes |
 | **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |
 | **Desktop site & Find in page** | Per-tab desktop UA + wide-viewport toggle, and a Chrome-style find-in-page overlay with prev/next navigation and a live match count |
 | **Long-press menu** | Long-press a link or image for open-in-new-tab, download image, copy link address, or share link |
@@ -141,9 +145,24 @@
 | Feature | Description |
 |---|---|
 | **Material 3 Expressive UI** | Full Jetpack Compose UI, redesigned across dialogs, switches, buttons, and layouts using Material 3 Expressive components — filled icons and an expressive pill-shaped bottom nav |
-| **5 Built-in Themes** | Default, Aurora, Nord, Dracula, and Catppuccin — colors migrated to theme attributes for consistent dynamic theming |
-| **AMOLED dark mode** | True-black toggle for OLED screens |
+| **Built-in Themes** | Default, Aurora, Catppuccin, Cloudflare, Nord, Rosé Pine, Dracula and more — colours follow the theme everywhere; Aurora keeps its fixed blue/violet look |
+| **AMOLED dark mode** | Pure black backgrounds with softly tinted cards, clear text/icon contrast and visible separators on every screen, dialog and sheet |
+| **Light & dark heroes** | The Settings and About headers adapt: light, tinted in light themes and dark in dark themes, with an animated light-sweep on About |
 | **Polished assets** | Refreshed icons, tint work, a dedicated torrent magnet icon, and smoother celestial/placeholder styling throughout |
+
+</details>
+
+<details>
+<summary><b>☁️ Sync, Profile & Tools</b></summary>
+
+| Feature | Description |
+|---|---|
+| **GitHub & Sync** | Sign in with GitHub for auto-backup to one private Gist (one file per device), a restorable backup history, and **Send to phone** between your devices |
+| **Profile** | Name and circular-cropped photo shown in the Settings header |
+| **Status Saver** | Save WhatsApp and WhatsApp Business statuses |
+| **Storage screen** | See where Xmd's space goes, per category |
+| **QR scanner** | Offline scanner (CameraX + ML Kit); UPI / wallet codes open your payment app chooser |
+| **App icon picker** | Switch the launcher icon between background/logo combinations |
 
 </details>
 

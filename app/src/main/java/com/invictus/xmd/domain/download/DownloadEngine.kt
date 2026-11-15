@@ -61,6 +61,26 @@ class DownloadEngine(
     private val speedLimitBytesPerSec: Long = 0L,
     private val extraHeaders: Map<String, String> = emptyMap(),
 ) {
+    /**
+     * Called once, from a download thread, with the file name the server reveals in the real download
+     * response (Content-Disposition, or the redirect target's path) -- for links whose name could not be
+     * looked up before the download began. The caller renames the queue item / final file.
+     */
+    @Volatile var onServerFileName: ((String) -> Unit)? = null
+    private val serverNameReported = AtomicBoolean(false)
+
+    private fun reportServerName(response: okhttp3.Response) {
+        val cb = onServerFileName ?: return
+        if (serverNameReported.get()) return
+        val name = filenameFromContentDisposition(response.header("Content-Disposition"))
+            ?: response.request.url.pathSegments.lastOrNull()
+                ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+                ?.let { sanitize(it) }
+                ?.takeIf { it.matches(Regex(""".+\.[A-Za-z0-9]{2,5}""")) }
+            ?: return
+        if (serverNameReported.compareAndSet(false, true)) runCatching { cb(name) }
+    }
+
     private val paused    = AtomicBoolean(false)
     private val cancelled = AtomicBoolean(false)
     private val lastProgressEmitNanos = AtomicLong(0L)
@@ -637,6 +657,7 @@ class DownloadEngine(
         activeCalls.add(call)
         return try {
             call.execute().use { response ->
+                if (response.isSuccessful) reportServerName(response)
                 when (response.code) {
                     206 -> {
                         val contentRange = response.header("Content-Range").orEmpty()
@@ -909,6 +930,7 @@ class DownloadEngine(
         activeCalls.add(call)
         try {
             call.execute().use { response ->
+                if (response.isSuccessful) reportServerName(response)
                 if (response.code != 206 && response.code != 200) {
                     // Same tokenized/time-limited link expiry a single-connection
                     // download can hit mid-file (see EXPIRED_LINK_CODES in
@@ -984,6 +1006,7 @@ class DownloadEngine(
         activeCalls.add(call)
         try {
             call.execute().use { response ->
+                if (response.isSuccessful) reportServerName(response)
                 when (response.code) {
                     416 -> {
                         log("File already complete: ${destination.name}")

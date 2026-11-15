@@ -194,7 +194,15 @@ fun AddDownloadDialog(
     var nameManuallyEdited by remember { mutableStateOf(false) }
     // True while the server's real filename is still being looked up. Starting the download in that
     // window must not lock in the URL-derived placeholder (often an opaque hash), see onStart below.
-    var nameProbePending by remember { mutableStateOf(false) }
+    // Starts true for a plain link: the name field first holds the URL-derived guess (often a hash) and the
+    // lookup has not even begun when the dialog opens, so an immediate Start must not lock that guess in.
+    var nameProbePending by remember {
+        mutableStateOf(
+            initialLink.isNotBlank() && !LinkParser.isMagnetLink(initialLink) &&
+                !LinkParser.isYoutubeLink(initialLink) &&
+                com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(initialLink) == null
+        )
+    }
     var customSaveDir by remember { mutableStateOf<String?>(null) }
     var advancedExpanded by remember { mutableStateOf(false) }
     var audioFormatPreset by remember { mutableStateOf(Settings.presetAudioFormat()) }
@@ -442,13 +450,16 @@ fun AddDownloadDialog(
         if (nameManuallyEdited) return@LaunchedEffect
         if (link.isBlank()) {
             name = ""
+            nameProbePending = false
             return@LaunchedEffect
         }
         when {
             LinkParser.isMagnetLink(link) -> {
+                nameProbePending = false
                 magnetDisplayName(link)?.takeIf { it.isNotBlank() }?.let { name = it }
             }
             LinkParser.isYoutubeLink(link) -> {
+                nameProbePending = false
                 name = extractYoutubeFallbackName(link)
                 val probed = probeYoutubeTitle(link)
                 if (!nameManuallyEdited && !probed.isNullOrBlank()) name = probed
@@ -459,7 +470,9 @@ fun AddDownloadDialog(
                 val hint = com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(link)
                 val guessed = hint ?: DownloadEngine.filenameFromLink(link).ifBlank { DownloadEngine.filenameFromUrl(link) }
                 if (guessed.isNotBlank()) name = guessed
-                nameProbePending = true
+                // A browser-chosen name is already a good one: starting early must keep it, not hand the
+                // download back to the service to re-resolve (which would fall to "videoplayback").
+                nameProbePending = hint == null
                 val probed = try {
                     probeRealFilename(link)
                 } finally {

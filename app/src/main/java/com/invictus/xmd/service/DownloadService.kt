@@ -1203,8 +1203,14 @@ class DownloadService : LifecycleService() {
                 val realName = if (customName != null) customName else withContext(Dispatchers.IO) {
                     DownloadEngine.probeRealFilename(client, directUrl, currentItem?.pageUrl)
                 }
+                // A name picked in the browser's video sheet (page title + extension) survives when the server
+                // gives no usable name of its own.
+                val sniffedName = com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(sourceUrl)
+                    ?: com.invictus.xmd.domain.browser.MediaSniffer.nameHintFor(directUrl)
+                val realOk = realName != null && (sniffedName == null || realName.substringAfterLast('.', "").length in 2..4)
                 val fileName = customName
-                    ?: realName
+                    ?: realName.takeIf { realOk }
+                    ?: sniffedName
                     ?: DownloadEngine.filenameFromLink(sourceUrl).ifBlank { DownloadEngine.filenameFromUrl(directUrl) }
 
                 // The source URL alone (e.g. a FuckingFast share link) often has no visible
@@ -1254,6 +1260,22 @@ class DownloadService : LifecycleService() {
                 }
                 destinationFile = tempFile
 
+                // No name could be found before the download began (opaque id in the URL, server silent
+                // on HEAD): take it from the real response the moment it arrives -- the item is renamed
+                // in the list right away and the finished file gets the real name.
+                val resolvedName = java.util.concurrent.atomic.AtomicReference<String?>(null)
+                if (customName == null && realName == null && sniffedName == null) {
+                    engine.onServerFileName = { serverName ->
+                        if (serverName != fileName && resolvedName.compareAndSet(null, serverName)) {
+                            var c = CategoryDetector.detect(directUrl, hint = serverName)
+                                .takeIf { it != DownloadCategory.default() } ?: category
+                            if (ShowDetector.isEpisode(serverName)) c = DownloadCategory.SHOWS
+                            category = c
+                            QueueRepository.updateDownloadMetadata(itemId, serverName, c)
+                        }
+                    }
+                }
+
                 // Pause (engine.pause()) blocks in-place inside downloadAuto and never throws here --
                 // the engine stays registered in `engines` so Resume can call engine.resume() on the
                 // very same in-flight connection. Only a genuine Cancel throws, ending this coroutine.
@@ -1281,12 +1303,18 @@ class DownloadService : LifecycleService() {
 
                 // Part verified complete -- rename in place to the real name
                 // (ABDM's assemble step). Same folder, so this is instant.
+                // A name learned during the download replaces the placeholder; never overwrite an existing file.
+                val lateName = resolvedName.get()
+                val doneName = lateName?.let { File(targetDir, FileNameUtils.numberedNameIfExists(File(targetDir, it))) }?.name
+                    ?: fileName
+                if (lateName != null && doneName != lateName) QueueRepository.updateDownloadMetadata(itemId, doneName, category)
+                val doneTemp = if (lateName != null) File(targetDir, doneName) else realTemp
                 val completeFile = withContext(Dispatchers.IO) {
-                    if (realTemp.exists()) runCatching { realTemp.delete() }
-                    if (!tempFile.renameTo(realTemp)) moveToPublicStorage(tempFile, realTemp)
+                    if (lateName == null && doneTemp.exists()) runCatching { doneTemp.delete() }
+                    if (!tempFile.renameTo(doneTemp)) moveToPublicStorage(tempFile, doneTemp)
                     // Sidecar belongs to the part name -- drop it, download is done.
                     PartialFileCleaner.deleteSidecars(tempFile)
-                    realTemp
+                    doneTemp
                 }
 
                 // Direct/generic video links carry no duration metadata up front
@@ -1301,14 +1329,14 @@ class DownloadService : LifecycleService() {
                     }
                     if (MediaDurationUtils.isMovieLength(durationSeconds)) {
                         category = DownloadCategory.MOVIES
-                        QueueRepository.updateDownloadMetadata(itemId, fileName, category)
+                        QueueRepository.updateDownloadMetadata(itemId, doneName, category)
                     }
                 }
 
                 // Only a late category change (movie-length detection) moves the
                 // file, and that is a rename within the same storage volume.
-                val finalDir = FileNameUtils.resolveDestinationFolder(customDir, category, fileName, sourceUrl)
-                val finalFile = File(finalDir, fileName)
+                val finalDir = FileNameUtils.resolveDestinationFolder(customDir, category, doneName, sourceUrl)
+                val finalFile = File(finalDir, doneName)
                 if (finalFile.absoluteFile != completeFile.absoluteFile) {
                     QueueRepository.markSaving(itemId)
                     withContext(Dispatchers.IO) { moveToPublicStorage(completeFile, finalFile) }

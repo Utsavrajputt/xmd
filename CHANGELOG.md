@@ -35,6 +35,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Full cleanup on Clear / Delete** for cancelled and failed items: direct-download part files and resume sidecars, the yt-dlp cache folder, and torrent content (with a modified-time guard so a still-active file is never removed).
 - **Download history cards redesigned** for a cleaner look.
 - **Faster filename detection** in the Add Download dialog — the lookups now overlap and are cached, so the real name appears sooner.
+- **Name learned during the download** — if the real file name could not be found before starting (opaque link, silent server), it is read from the actual download response: the item is renamed in the list within a second and the finished file is saved under the real name, never overwriting an existing file.
 - **Resume with a new link** — for a failed *expired* download, the "Select a solution" dialog and the duplicate prompt now offer **Resume existing**: the new link continues from the partial file on disk instead of starting over.
 - **Expired-link dialog fixed** — tapping outside or pressing back only closes it and leaves the error as it was; the item is cleared only with the Clear button.
 
