@@ -1742,20 +1742,18 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 view: WebView, request: android.webkit.WebResourceRequest
             ): android.webkit.WebResourceResponse? {
                 // Cheapest possible check first, ahead of even the media
-                // sniff -- a Set lookup on the request's host (plus a
-                // short substring scan of the full URL for path-based ad
-                // requests, and at the AGGRESSIVE level a second host-set
-                // lookup -- see AdBlocker.isBlocked), no network, no
-                // DNS. Applies regardless of method or DNS mode: an ad
-                // request is an ad request whether it's a GET for an
-                // image or a POST beacon. isBlocked itself honors the
+                // sniff -- the filter engine's in-memory lookup (host
+                // index, URL tokens, request type, first/third party; see
+                // AdBlocker.interceptResponse), no network, no DNS.
+                // Applies regardless of method or DNS mode: an ad request
+                // is an ad request whether it's a GET for an image or a
+                // POST beacon. interceptResponse itself honors the
                 // per-site allowlist (shields down for this page), so
                 // that's not checked separately here. An empty 200
                 // (rather than returning null and letting it 404/timeout
                 // naturally) is what keeps pages from stalling on a
                 // blocked request or logging it as a load failure.
                 if (Settings.adblockEnabled()) {
-                    val pageHost = tab.url?.let { runCatching { android.net.Uri.parse(it).host }.getOrNull() }
                     if (request.isForMainFrame) {
                         // Only ever refuse a popup tab's landing page; normal
                         // top-level navigations are never blocked here.
@@ -1765,7 +1763,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                             )
                         }
                     } else {
-                        val stub = AdBlocker.interceptResponse(request.url, pageHost, false)
+                        val stub = AdBlocker.interceptResponse(request, tab.url)
                         if (stub != null) return stub
                     }
                 }

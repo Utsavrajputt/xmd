@@ -1018,45 +1018,62 @@ private fun BrowserRoute(
 private fun AdblockRoute() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    var adblockEnabled by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockEnabled())
-    }
-    var allowlistedSites by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted())
-    }
-    var listHostCount by remember {
-        mutableStateOf(com.invictus.xmd.domain.browser.AdBlocker.listedHostCount())
-    }
-    var listUpdatedAt by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.adblockListUpdatedAt())
-    }
+    val settings = com.invictus.xmd.preferences.Settings
+    var adblockEnabled by remember { mutableStateOf(settings.adblockEnabled()) }
+    var allowlistedSites by remember { mutableStateOf(settings.adblockAllowlistedSites().sorted()) }
+    var updateDays by remember { mutableStateOf(settings.adblockUpdateDays()) }
+    var wifiOnly by remember { mutableStateOf(settings.adblockUpdateWifiOnly()) }
     var listUpdating by remember { mutableStateOf(false) }
     var listUpdateResultRes by remember { mutableStateOf<Int?>(null) }
 
-    // The lists load off the main thread when the app starts, and a
-    // background refresh may still be running -- poll briefly instead of
-    // wiring a callback just for this subtitle.
-    LaunchedEffect(Unit) {
-        repeat(20) {
-            kotlinx.coroutines.delay(500)
-            val count = com.invictus.xmd.domain.browser.AdBlocker.listedHostCount()
-            if (count != listHostCount) listHostCount = count
-            val updated = com.invictus.xmd.preferences.Settings.adblockListUpdatedAt()
-            if (updated != listUpdatedAt) listUpdatedAt = updated
+    // AdBlocker bumps this whenever a list is toggled/downloaded or the engine rebuilds.
+    val changeTick by com.invictus.xmd.domain.browser.AdBlocker.changes.collectAsState()
+    val dateFormat = remember { android.text.format.DateFormat.getMediumDateFormat(context) }
+    val downloading = com.invictus.xmd.domain.browser.AdBlocker.downloading
+
+    val rows = remember(changeTick) {
+        com.invictus.xmd.domain.browser.adblock.FilterLists.all().map { info ->
+            val updated = settings.adblockListUpdatedAt(info.id)
+            AdblockListRow(
+                id = info.id,
+                title = info.title,
+                description = info.description,
+                groupRes = when (info.group) {
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.ADS -> R.string.adblock_group_ads
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.PRIVACY -> R.string.adblock_group_privacy
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.BRAVE -> R.string.adblock_group_brave
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.ANNOYANCES -> R.string.adblock_group_annoyances
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.SECURITY -> R.string.adblock_group_security
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.HOSTS -> R.string.adblock_group_hosts
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.REGIONAL -> R.string.adblock_group_regional
+                    com.invictus.xmd.domain.browser.adblock.FilterLists.Group.CUSTOM -> R.string.adblock_group_custom
+                },
+                enabled = com.invictus.xmd.domain.browser.adblock.FilterLists.isEnabled(info),
+                ruleCount = settings.adblockListRuleCount(info.id),
+                updatedText = if (updated > 0L) dateFormat.format(java.util.Date(updated)) else null,
+                error = settings.adblockListError(info.id),
+                downloading = info.id in downloading,
+                custom = info.custom,
+            )
         }
     }
+    val lastUpdated = rows.filter { it.enabled }.mapNotNull { r ->
+        settings.adblockListUpdatedAt(r.id).takeIf { it > 0L }
+    }.maxOrNull()
 
     SettingsAdblockScreen(
         adblockEnabled = adblockEnabled,
         allowlistedSites = allowlistedSites,
         onAdblockEnabledChanged = { enabled ->
             adblockEnabled = enabled
-            com.invictus.xmd.preferences.Settings.setAdblockEnabled(enabled)
+            com.invictus.xmd.domain.browser.AdBlocker.setEnabled(context, enabled)
         },
-        listHostCount = listHostCount,
-        listUpdatedText = if (listUpdatedAt > 0L) {
-            android.text.format.DateFormat.getMediumDateFormat(context).format(java.util.Date(listUpdatedAt))
-        } else null,
+        ruleCount = com.invictus.xmd.domain.browser.AdBlocker.ruleCount(),
+        building = com.invictus.xmd.domain.browser.AdBlocker.building,
+        listUpdatedText = lastUpdated?.let { dateFormat.format(java.util.Date(it)) },
+        lists = rows,
+        updateDays = updateDays,
+        wifiOnly = wifiOnly,
         listUpdating = listUpdating,
         listUpdateResultRes = listUpdateResultRes,
         onUpdateList = {
@@ -1067,20 +1084,35 @@ private fun AdblockRoute() {
                     val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         com.invictus.xmd.domain.browser.AdBlocker.updateNowBlocking(context)
                     }
-                    listHostCount = com.invictus.xmd.domain.browser.AdBlocker.listedHostCount()
-                    listUpdatedAt = com.invictus.xmd.preferences.Settings.adblockListUpdatedAt()
                     listUpdateResultRes = if (ok) R.string.settings_adblock_list_update_ok else R.string.settings_adblock_list_update_failed
                     listUpdating = false
                 }
             }
         },
+        onListToggled = { id, enabled ->
+            com.invictus.xmd.domain.browser.AdBlocker.setListEnabled(context, id, enabled)
+        },
+        onAddList = { name, url ->
+            com.invictus.xmd.domain.browser.AdBlocker.addCustomList(context, name, url)
+        },
+        onRemoveList = { id ->
+            com.invictus.xmd.domain.browser.AdBlocker.removeCustomList(context, id)
+        },
+        onUpdateDaysChanged = { days ->
+            updateDays = days
+            settings.setAdblockUpdateDays(days)
+        },
+        onWifiOnlyChanged = { value ->
+            wifiOnly = value
+            settings.setAdblockUpdateWifiOnly(value)
+        },
         onRemoveAllowlistedSite = { site ->
-            com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = false)
-            allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
+            settings.setAdblockAllowlisted(site, allowed = false)
+            allowlistedSites = settings.adblockAllowlistedSites().sorted()
         },
         onAddAllowlistedSite = { site ->
-            com.invictus.xmd.preferences.Settings.setAdblockAllowlisted(site, allowed = true)
-            allowlistedSites = com.invictus.xmd.preferences.Settings.adblockAllowlistedSites().sorted()
+            settings.setAdblockAllowlisted(site, allowed = true)
+            allowlistedSites = settings.adblockAllowlistedSites().sorted()
         },
     )
 }

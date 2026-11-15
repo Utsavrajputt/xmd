@@ -440,6 +440,77 @@ object Settings {
         prefs.edit().putLong(KEY_ADBLOCK_REMOTE_ATTEMPT_AT, value).apply()
     }
 
+    // Filter lists (see domain/browser/adblock/FilterLists). The on/off choice
+    // and the user's own lists are backed up; download state is device-local
+    // ("browser_adblock_remote_" prefix is excluded from backups).
+    private const val KEY_ADBLOCK_LIST_ON = "browser_adblock_list_on_"
+    private const val KEY_ADBLOCK_CUSTOM_LISTS = "browser_adblock_custom_lists"
+    private const val KEY_ADBLOCK_LIST_UPDATED = "browser_adblock_remote_list_updated_"
+    private const val KEY_ADBLOCK_LIST_COUNT = "browser_adblock_remote_list_count_"
+    private const val KEY_ADBLOCK_LIST_ETAG = "browser_adblock_remote_list_etag_"
+    private const val KEY_ADBLOCK_LIST_ERROR = "browser_adblock_remote_list_error_"
+    private const val KEY_ADBLOCK_UPDATE_DAYS = "browser_adblock_update_days"
+    private const val KEY_ADBLOCK_WIFI_ONLY = "browser_adblock_wifi_only"
+
+    fun adblockListEnabled(id: String, default: Boolean): Boolean =
+        prefs.getBoolean(KEY_ADBLOCK_LIST_ON + id, default)
+
+    fun setAdblockListEnabled(id: String, enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_ADBLOCK_LIST_ON + id, enabled).apply()
+    }
+
+    /** User-added lists, each stored as "id<TAB>title<TAB>url". */
+    fun adblockCustomLists(): Set<String> =
+        HashSet(prefs.getStringSet(KEY_ADBLOCK_CUSTOM_LISTS, emptySet()).orEmpty())
+
+    fun setAdblockCustomLists(value: Set<String>) {
+        prefs.edit().putStringSet(KEY_ADBLOCK_CUSTOM_LISTS, HashSet(value)).apply()
+    }
+
+    fun adblockListUpdatedAt(id: String): Long = prefs.getLong(KEY_ADBLOCK_LIST_UPDATED + id, 0L)
+    fun adblockListRuleCount(id: String): Int = prefs.getInt(KEY_ADBLOCK_LIST_COUNT + id, 0)
+    fun adblockListEtag(id: String): String? = prefs.getString(KEY_ADBLOCK_LIST_ETAG + id, null)
+    fun adblockListError(id: String): String? = prefs.getString(KEY_ADBLOCK_LIST_ERROR + id, null)
+
+    fun setAdblockListDownloaded(id: String, updatedAt: Long, etag: String?) {
+        prefs.edit()
+            .putLong(KEY_ADBLOCK_LIST_UPDATED + id, updatedAt)
+            .putString(KEY_ADBLOCK_LIST_ETAG + id, etag)
+            .remove(KEY_ADBLOCK_LIST_ERROR + id)
+            .apply()
+    }
+
+    fun setAdblockListRuleCount(id: String, count: Int) {
+        prefs.edit().putInt(KEY_ADBLOCK_LIST_COUNT + id, count).apply()
+    }
+
+    fun setAdblockListError(id: String, message: String?) {
+        prefs.edit().apply {
+            if (message == null) remove(KEY_ADBLOCK_LIST_ERROR + id) else putString(KEY_ADBLOCK_LIST_ERROR + id, message)
+        }.apply()
+    }
+
+    fun clearAdblockListState(id: String) {
+        prefs.edit()
+            .remove(KEY_ADBLOCK_LIST_ON + id)
+            .remove(KEY_ADBLOCK_LIST_UPDATED + id)
+            .remove(KEY_ADBLOCK_LIST_COUNT + id)
+            .remove(KEY_ADBLOCK_LIST_ETAG + id)
+            .remove(KEY_ADBLOCK_LIST_ERROR + id)
+            .apply()
+    }
+
+    /** Days between automatic list updates; 0 = manual only. */
+    fun adblockUpdateDays(): Int = prefs.getInt(KEY_ADBLOCK_UPDATE_DAYS, 3)
+    fun setAdblockUpdateDays(days: Int) {
+        prefs.edit().putInt(KEY_ADBLOCK_UPDATE_DAYS, days).apply()
+    }
+
+    fun adblockUpdateWifiOnly(): Boolean = prefs.getBoolean(KEY_ADBLOCK_WIFI_ONLY, true)
+    fun setAdblockUpdateWifiOnly(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ADBLOCK_WIFI_ONLY, value).apply()
+    }
+
     // Per-site allowlist -- sites where blocking is off
     // regardless of the global switch, toggled from the Browser's overflow
     // menu and manageable (view/remove) from the Settings screen. Keyed by

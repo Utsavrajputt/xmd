@@ -3,6 +3,13 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
+## [Unreleased]
+
+### 🌐 Browser
+- 🛡️ **New ad-blocking engine** — reads standard uBlock Origin / AdBlock Plus filter lists (the same syntax 1DM and Brave use): `||domain^`, wildcards, `$third-party`, `$script`/`$image`/… types, `$domain=`, `$important`, `$popup`, `@@` exceptions, `$badfilter`, regex rules, hosts files and plain domain lists. Requests are matched on URL, resource type, first/third party and the page they came from; blocked images become a 1×1 pixel so layouts don't break.
+- 📚 **Filter list manager** — EasyList, EasyPrivacy, uBlock filters (+ unbreak, quick fixes, privacy, badware), Brave lists, Bypass Paywalls Clean, AdGuard, Fanboy and more, each with its own switch, rule count and last-updated date. Add your own list by link; lists update every 3 days on Wi-Fi (configurable, with "Update now").
+- 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
+
 ## [1.1.0] - 2026-11-14
 
 ☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**

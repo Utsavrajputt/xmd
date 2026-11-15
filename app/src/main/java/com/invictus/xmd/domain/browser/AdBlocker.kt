@@ -4,143 +4,198 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.util.Base64
+import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import com.invictus.xmd.domain.browser.adblock.FilterEngine
+import com.invictus.xmd.domain.browser.adblock.FilterLists
+import com.invictus.xmd.domain.browser.adblock.RType
 import com.invictus.xmd.preferences.Settings
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Ad blocking for the in-app Browser, download-manager style: one ON/OFF
- * switch ([Settings.adblockEnabled]), an online host list and a popup
- * blocker -- no levels, no cosmetic/script injection.
+ * Ad blocking for the in-app Browser. A Kotlin filter engine (see the
+ * `adblock` package) reads standard uBlock/AdBlock Plus filter lists,
+ * hosts files and plain domain lists -- the same formats 1DM, Brave and
+ * uBlock Origin use -- and decides, per request, whether it is an ad or a
+ * tracker.
  *
- *  - Host-list blocking: sub-resource requests to a listed host get an empty
- *    response, see [interceptResponse]. Two lists feed it:
- *     - the bundled `assets/adblock_hosts.txt`: a short curated list of ad
- *       *domains*, matched against the host and every parent domain, so it
- *       works offline from the first launch;
- *     - two hosts-format lists downloaded from the internet (see [SOURCES]):
- *       Peter Lowe's ad server list and StevenBlack's unified hosts. These
- *       list individual *hostnames* (that is what the hosts-file format
- *       means), so they are matched exactly -- never as "any subdomain" --
- *       which keeps a listed `ads.example.com` from taking `example.com` or
- *       its siblings down with it.
- *  - Online updates: [init] loads whatever was downloaded last time, then
- *    refreshes in the background when the lists are over a week old (only on
- *    an unmetered connection); Settings can also refresh on demand
- *    ([updateNowBlocking]). Each source is replaced only by a download that
- *    parsed to a plausible size, so a bad response never wipes a good list.
- *  - Popup blocking: [isPopupBlocked] refuses popup tabs / script redirects
- *    that land on a listed host. (Gesture-less `window.open` is refused by
- *    the browser's onCreateWindow.)
+ *  - Lists: a catalog of well-known lists plus the user's own
+ *    ([FilterLists]); each can be switched on or off in Settings. Enabled
+ *    lists are downloaded, cached on disk and compiled into one
+ *    [FilterEngine] in the background; until it is ready nothing is blocked.
+ *  - Matching: sub-resource requests are matched on URL pattern, resource
+ *    type ([inferType]), first/third-party and the page they came from.
+ *    Exceptions (`@@`), `$important` and `$badfilter` follow uBlock semantics.
+ *    Blocked requests get an empty stand-in response.
+ *  - Updates: lists refresh in the background every few days (Settings: the
+ *    interval and Wi-Fi only), or on demand.
+ *  - Popups: [isPopupBlocked] refuses popup tabs / script redirects that the
+ *    engine blocks.
  *
- * A site in the per-site allowlist ([Settings.isAdblockAllowlisted]) is
- * never filtered. Called from WebView's own background threads, so lookups
- * read plain @Volatile sets and never block; until a list has loaded
- * nothing from it is blocked.
+ * A site in the per-site allowlist ([Settings.isAdblockAllowlisted]) is never
+ * filtered, nor a page that a list whitelists with `@@...$document`. Called
+ * from WebView's own threads, so lookups only read an immutable snapshot and
+ * never block.
  */
 object AdBlocker {
 
-    private const val ASSET_PATH = "adblock_hosts.txt"
-
-    private class Source(val id: String, val url: String, val minEntries: Int)
-
-    private val SOURCES = listOf(
-        Source(
-            "pgl",
-            "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
-            minEntries = 500,
-        ),
-        Source(
-            "stevenblack",
-            "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
-            minEntries = 5_000,
-        ),
-    )
-
-    private val REFRESH_INTERVAL_MS = TimeUnit.DAYS.toMillis(7)
+    private val DAY_MS = TimeUnit.DAYS.toMillis(1)
     private val RETRY_INTERVAL_MS = TimeUnit.HOURS.toMillis(6)
 
-    // Guards against a misbehaving source handing back something absurd.
-    private const val MAX_RESPONSE_BYTES = 30L * 1024 * 1024
+    @Volatile private var engine: FilterEngine? = null
+    private val started = AtomicBoolean(false)
+    private val pageAllowCache = ConcurrentHashMap<String, Boolean>()
 
-    private val client by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
+    /** Bumped whenever lists, counts or download state change; the Settings screen observes it. */
+    val changes = MutableStateFlow(0)
+
+    /** Ids of lists being downloaded right now. */
+    @Volatile var downloading: Set<String> = emptySet()
+        private set
+
+    /** True while the engine is compiling. */
+    @Volatile var building: Boolean = false
+        private set
+
+    private fun bump() {
+        changes.value = changes.value + 1
     }
 
-    /** Curated ad domains from the asset: matched against the host and its parent domains. */
-    @Volatile private var bundledDomains: Set<String> = emptySet()
-    /** Downloaded hostnames: matched exactly. */
-    @Volatile private var remoteHosts: Set<String> = emptySet()
-    private val started = AtomicBoolean(false)
-
-    /**
-     * Loads the lists off the main thread, then refreshes the online ones if
-     * they're due. Safe to call repeatedly.
-     */
+    /** Loads what is on disk off the main thread, then refreshes lists that are due. Safe to call repeatedly. */
     fun init(context: Context) {
         if (!started.compareAndSet(false, true)) return
         val appContext = context.applicationContext
         Thread {
-            removeLegacyFiles(appContext)
-            reload(appContext)
-            updateIfDue(appContext)
+            migrateLegacy(appContext)
+            if (Settings.adblockEnabled()) {
+                rebuildBlocking(appContext)
+                updateIfDue(appContext)
+            }
         }.apply { name = "adblock-init"; isDaemon = true }.start()
     }
 
-    /** Number of hosts/domains currently loaded (0 until the first load finishes). */
-    fun listedHostCount(): Int = bundledDomains.size + remoteHosts.size
-
-    // ── Lists on disk ────────────────────────────────────────────────
-
-    private fun cacheFile(context: Context, source: Source) =
-        File(context.filesDir, "adblock_remote_${source.id}.txt")
-
-    /** Older builds cached their downloaded filter lists under other names. */
-    private fun removeLegacyFiles(context: Context) {
-        runCatching {
-            context.filesDir.listFiles()
-                ?.filter { it.name == "adblock_hosts_cache.txt" || it.name.startsWith("adblock_list_") }
-                ?.forEach { it.delete() }
+    /** Switches blocking on or off; turning it on loads (and, for missing lists, downloads) the enabled lists. */
+    fun setEnabled(context: Context, enabled: Boolean) {
+        Settings.setAdblockEnabled(enabled)
+        val appContext = context.applicationContext
+        if (!enabled) {
+            engine = null
+            pageAllowCache.clear()
+            bump()
+            return
         }
+        Thread {
+            downloadMissingBlocking(appContext)
+            rebuildBlocking(appContext)
+        }.apply { name = "adblock-enable"; isDaemon = true }.start()
     }
 
-    private fun reload(context: Context) {
-        bundledDomains = runCatching {
-            context.assets.open(ASSET_PATH).bufferedReader().useLines { lines ->
-                lines.map { it.trim().lowercase() }
-                    .filter { it.isNotEmpty() && !it.startsWith("#") }
-                    .toHashSet()
-            }
-        }.getOrDefault(emptySet())
-
-        val remote = HashSet<String>()
-        for (source in SOURCES) {
-            val file = cacheFile(context, source)
-            if (!file.exists()) continue
-            runCatching { file.bufferedReader().useLines { lines -> lines.forEach { if (it.isNotBlank()) remote.add(it) } } }
-        }
-        remoteHosts = remote
-    }
-
-    // ── Online updates ───────────────────────────────────────────────
-
-    /** Background refresh, throttled to once a week (retrying a failed one after 6 hours). */
-    private fun updateIfDue(context: Context) {
+    /** Enables / disables one list; enabling fetches it first if needed. */
+    fun setListEnabled(context: Context, id: String, enabled: Boolean) {
+        Settings.setAdblockListEnabled(id, enabled)
+        bump()
         if (!Settings.adblockEnabled()) return
+        val appContext = context.applicationContext
+        Thread {
+            val info = FilterLists.find(id)
+            if (enabled && info != null && !FilterLists.isDownloaded(appContext, info)) {
+                downloadList(appContext, info, force = true)
+            }
+            rebuildBlocking(appContext)
+        }.apply { name = "adblock-toggle"; isDaemon = true }.start()
+    }
+
+    /** Adds a user list from a URL (downloads it right away). Returns false for an invalid or duplicate URL. */
+    fun addCustomList(context: Context, title: String, url: String): Boolean {
+        val info = FilterLists.addCustom(title, url) ?: return false
+        bump()
+        if (Settings.adblockEnabled()) {
+            val appContext = context.applicationContext
+            Thread {
+                downloadList(appContext, info, force = true)
+                rebuildBlocking(appContext)
+            }.apply { name = "adblock-add"; isDaemon = true }.start()
+        }
+        return true
+    }
+
+    fun removeCustomList(context: Context, id: String) {
+        FilterLists.removeCustom(context.applicationContext, id)
+        bump()
+        if (Settings.adblockEnabled()) {
+            val appContext = context.applicationContext
+            Thread { rebuildBlocking(appContext) }.apply { name = "adblock-remove"; isDaemon = true }.start()
+        }
+    }
+
+    /** Number of rules currently loaded (0 until the first build finishes). */
+    fun ruleCount(): Int = engine?.ruleCount ?: 0
+
+    // ── Build / update ───────────────────────────────────────────────
+
+    @Synchronized
+    private fun rebuildBlocking(context: Context) {
+        building = true
+        bump()
+        try {
+            val built = FilterLists.buildEngine(context)
+            for ((id, count) in built.countsByList) {
+                if (id != "bundled") Settings.setAdblockListRuleCount(id, count)
+            }
+            pageAllowCache.clear()
+            if (Settings.adblockEnabled()) engine = built
+        } catch (e: Throwable) {
+            // A bad build keeps the previous engine.
+        } finally {
+            building = false
+            bump()
+        }
+    }
+
+    private fun downloadList(context: Context, info: FilterLists.Info, force: Boolean): FilterLists.Result {
+        downloading = downloading + info.id
+        bump()
+        try {
+            return FilterLists.download(context, info, force)
+        } finally {
+            downloading = downloading - info.id
+            bump()
+        }
+    }
+
+    /** Fetches enabled lists that have never been downloaded (an explicit user action, so any network). */
+    private fun downloadMissingBlocking(context: Context) {
+        for (info in FilterLists.all()) {
+            if (FilterLists.isEnabled(info) && !FilterLists.isDownloaded(context, info)) {
+                downloadList(context, info, force = true)
+            }
+        }
+    }
+
+    /** Background refresh of lists older than the user's interval (Wi-Fi only if so configured). */
+    private fun updateIfDue(context: Context) {
+        val days = Settings.adblockUpdateDays()
+        if (days <= 0) return
         val now = System.currentTimeMillis()
-        if (now - Settings.adblockListUpdatedAt() < REFRESH_INTERVAL_MS) return
         if (now - Settings.adblockListAttemptAt() < RETRY_INTERVAL_MS) return
-        // ~5 MB of lists: leave it to Wi-Fi unless the user asks from Settings.
-        if (!isUnmetered(context)) return
-        updateNowBlocking(context)
+        if (Settings.adblockUpdateWifiOnly() && !isUnmetered(context)) return
+        val due = FilterLists.all().filter {
+            FilterLists.isEnabled(it) &&
+                (!FilterLists.isDownloaded(context, it) || now - Settings.adblockListUpdatedAt(it.id) >= days * DAY_MS)
+        }
+        if (due.isEmpty()) return
+        Settings.setAdblockListAttemptAt(now)
+        var changed = false
+        for (info in due) {
+            if (downloadList(context, info, force = false) == FilterLists.Result.UPDATED) changed = true
+        }
+        if (changed) rebuildBlocking(context)
     }
 
     private fun isUnmetered(context: Context): Boolean = runCatching {
@@ -151,117 +206,146 @@ object AdBlocker {
     }.getOrDefault(false)
 
     /**
-     * Downloads every list now (blocking network I/O -- call off the main
-     * thread). Returns true if at least one list was refreshed; lists that
-     * fail keep their previous contents.
+     * "Update now": re-downloads every enabled list (blocking network I/O --
+     * call off the main thread). Returns true if at least one list was
+     * refreshed or confirmed current; lists that fail keep their old copy.
      */
     @Synchronized
     fun updateNowBlocking(context: Context): Boolean {
         val appContext = context.applicationContext
         Settings.setAdblockListAttemptAt(System.currentTimeMillis())
-        var refreshed = 0
-        for (source in SOURCES) {
-            if (runCatching { download(appContext, source) }.getOrDefault(false)) refreshed++
-        }
-        if (refreshed > 0) {
-            reload(appContext)
-            Settings.setAdblockListUpdatedAt(System.currentTimeMillis())
-        }
-        return refreshed > 0
-    }
-
-    private fun download(context: Context, source: Source): Boolean {
-        val request = Request.Builder()
-            .url(source.url)
-            .header("User-Agent", "XMD-Adblock/1.0")
-            .build()
-        val hosts = HashSet<String>()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return false
-            val body = response.body ?: return false
-            val declared = response.header("Content-Length")?.toLongOrNull()
-            if (declared != null && declared > MAX_RESPONSE_BYTES) return false
-            var bytesRead = 0L
-            for (line in body.byteStream().bufferedReader().lineSequence()) {
-                bytesRead += line.length + 1
-                if (bytesRead > MAX_RESPONSE_BYTES) return false
-                parseHostsLine(line, hosts)
+        var ok = 0
+        var changed = false
+        for (info in FilterLists.all()) {
+            if (!FilterLists.isEnabled(info)) continue
+            when (downloadList(appContext, info, force = false)) {
+                FilterLists.Result.UPDATED -> { ok++; changed = true }
+                FilterLists.Result.NOT_MODIFIED -> ok++
+                FilterLists.Result.FAILED -> {}
             }
         }
-        // An error page or truncated download parses to (almost) nothing:
-        // keep the list we already have instead of replacing it.
-        if (hosts.size < source.minEntries) return false
-
-        val target = cacheFile(context, source)
-        val tmp = File(context.filesDir, target.name + ".tmp")
-        tmp.bufferedWriter().use { out -> hosts.forEach { out.write(it); out.write("\n") } }
-        if (!tmp.renameTo(target)) {
-            target.delete()
-            if (!tmp.renameTo(target)) { tmp.delete(); return false }
-        }
-        return true
+        if (changed || engine == null) rebuildBlocking(appContext)
+        if (ok > 0) Settings.setAdblockListUpdatedAt(System.currentTimeMillis())
+        return ok > 0
     }
 
-    private val IGNORED_HOSTS = setOf(
-        "localhost", "localhost.localdomain", "local", "broadcasthost",
-        "ip6-localhost", "ip6-loopback", "ip6-localnet", "ip6-mcastprefix",
-        "ip6-allnodes", "ip6-allrouters", "ip6-allhosts", "0.0.0.0",
-    )
-    private val HOST_PATTERN = Regex("^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$")
-
-    /**
-     * One line of a hosts file ("0.0.0.0 ads.example.com", optional trailing
-     * comment, possibly several names). Only entries pointing at a null /
-     * loopback address are blocklist entries; everything else is skipped.
-     */
-    private fun parseHostsLine(rawLine: String, out: MutableSet<String>) {
-        val line = rawLine.substringBefore('#').trim()
-        if (line.isEmpty()) return
-        val parts = line.split(' ', '\t').filter { it.isNotEmpty() }
-        if (parts.size < 2) return
-        if (parts[0] != "0.0.0.0" && parts[0] != "127.0.0.1") return
-        for (i in 1 until parts.size) {
-            val host = parts[i].lowercase().trimEnd('.')
-            if (host in IGNORED_HOSTS || !host.contains('.')) continue
-            if (!HOST_PATTERN.matches(host)) continue
-            // A bare IP address is not a hostname.
-            if (host.all { it.isDigit() || it == '.' }) continue
-            out.add(host)
+    /** Older builds kept hosts lists under other names; keep their choice and drop the files. */
+    private fun migrateLegacy(context: Context) {
+        runCatching {
+            val files = context.filesDir.listFiles().orEmpty()
+            if (files.any { it.name == "adblock_remote_stevenblack.txt" }) {
+                Settings.setAdblockListEnabled("stevenblack", true)
+            }
+            files.filter {
+                it.name == "adblock_hosts_cache.txt" || it.name.startsWith("adblock_list_") ||
+                    it.name.startsWith("adblock_remote_")
+            }.forEach(File::delete)
         }
     }
 
     // ── Blocking ─────────────────────────────────────────────────────
 
-    /** True if a sub-resource request to [uri], made by a page on [pageHost], should be blocked. */
-    fun isBlocked(uri: Uri?, pageHost: String?): Boolean {
-        if (uri == null || !Settings.adblockEnabled()) return false
-        if (Settings.isAdblockAllowlisted(pageHost)) return false
-        val host = uri.host
-        if (isAuthHost(host)) return false
-        return isHostListed(host)
-    }
-
-    /** Empty stand-in response for a blocked sub-resource, or null to let it through. */
-    fun interceptResponse(uri: Uri?, pageHost: String?, isMainFrame: Boolean): WebResourceResponse? {
-        if (isMainFrame || !isBlocked(uri, pageHost)) return null
-        val mime = when (uri?.path.orEmpty().substringAfterLast('.', "").lowercase()) {
-            "js", "mjs" -> "application/javascript"
-            "css" -> "text/css"
-            "html", "htm" -> "text/html"
-            "gif" -> "image/gif"
-            "png" -> "image/png"
-            "jpg", "jpeg" -> "image/jpeg"
-            else -> "text/plain"
-        }
-        return WebResourceResponse(mime, "UTF-8", ByteArrayInputStream(ByteArray(0)))
+    /**
+     * Stand-in response for a blocked sub-resource of a page on [pageUrl],
+     * or null to let the request through.
+     */
+    fun interceptResponse(request: WebResourceRequest, pageUrl: String?): WebResourceResponse? {
+        if (request.isForMainFrame) return null
+        val eng = engine ?: return null
+        if (!Settings.adblockEnabled()) return null
+        val uri = request.url ?: return null
+        val scheme = uri.scheme ?: return null
+        if (scheme != "http" && scheme != "https" && scheme != "ws" && scheme != "wss") return null
+        val host = uri.host?.lowercase()?.trimEnd('.') ?: return null
+        if (isAuthHost(host)) return null
+        val pageHost = pageUrl?.let { hostOf(it) }
+        if (Settings.isAdblockAllowlisted(pageHost)) return null
+        if (pageUrl != null && pageHost != null && pageAllowed(eng, pageUrl, pageHost)) return null
+        val type = inferType(request)
+        if (!eng.shouldBlock(uri.toString(), host, pageHost, type)) return null
+        return stub(type, uri)
     }
 
     /** True if opening [url] as a popup / script redirect from a page on [openerHost] should be refused. */
     fun isPopupBlocked(url: String, openerHost: String?): Boolean {
         if (!Settings.adblockEnabled() || Settings.isAdblockAllowlisted(openerHost)) return false
-        val host = runCatching { Uri.parse(url).host }.getOrNull() ?: return false
+        val eng = engine ?: return false
+        val host = hostOf(url) ?: return false
         if (isAuthHost(host)) return false
-        return isHostListed(host)
+        return eng.shouldBlock(url, host, openerHost?.lowercase(), RType.POPUP)
+    }
+
+    private fun hostOf(url: String): String? =
+        runCatching { Uri.parse(url).host }.getOrNull()?.lowercase()?.trimEnd('.')
+
+    private fun pageAllowed(eng: FilterEngine, pageUrl: String, pageHost: String): Boolean {
+        pageAllowCache[pageHost]?.let { return it }
+        val allowed = eng.isPageAllowed(pageUrl, pageHost)
+        if (pageAllowCache.size > 500) pageAllowCache.clear()
+        pageAllowCache[pageHost] = allowed
+        return allowed
+    }
+
+    // WebView doesn't say what kind of request this is, so work it out from
+    // the headers Chromium sends and the file extension. Anything ambiguous
+    // gets several type bits at once ("some kind of script/fetch"), which
+    // rules then match by overlap.
+    private fun inferType(request: WebResourceRequest): Int {
+        val headers = request.requestHeaders
+        when (header(headers, "Sec-Fetch-Dest")?.lowercase()) {
+            "script", "worker", "sharedworker", "serviceworker" -> return RType.SCRIPT
+            "image" -> return RType.IMAGE
+            "style" -> return RType.STYLE
+            "font" -> return RType.FONT
+            "iframe", "frame", "fencedframe" -> return RType.SUBDOC
+            "audio", "video", "track" -> return RType.MEDIA
+            "object", "embed" -> return RType.OBJECT
+        }
+        if (header(headers, "X-Requested-With").equals("XMLHttpRequest", ignoreCase = true)) return RType.XHR
+        when (request.url.path.orEmpty().substringAfterLast('.', "").lowercase()) {
+            "js", "mjs" -> return RType.SCRIPT
+            "css" -> return RType.STYLE
+            "png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "ico", "bmp" -> return RType.IMAGE
+            "woff", "woff2", "ttf", "otf", "eot" -> return RType.FONT
+            "mp4", "webm", "m3u8", "mp3", "ogg", "m4a", "m4s", "ts" -> return RType.MEDIA
+            "html", "htm" -> return RType.SUBDOC
+        }
+        val accept = header(headers, "Accept")?.lowercase().orEmpty()
+        return when {
+            accept.startsWith("image/") || accept.contains("image/webp") || accept.contains("image/avif") -> RType.IMAGE
+            accept.contains("text/css") -> RType.STYLE
+            accept.contains("text/html") -> RType.SUBDOC
+            else -> RType.SCRIPT or RType.XHR or RType.OTHER or RType.PING
+        }
+    }
+
+    private fun header(headers: Map<String, String>?, name: String): String? {
+        if (headers == null) return null
+        for ((k, v) in headers) if (k.equals(name, ignoreCase = true)) return v
+        return null
+    }
+
+    private val GIF_1X1: ByteArray by lazy {
+        Base64.decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", Base64.DEFAULT)
+    }
+
+    private fun stub(type: Int, uri: Uri): WebResourceResponse {
+        if (type == RType.IMAGE) return WebResourceResponse("image/gif", null, ByteArrayInputStream(GIF_1X1))
+        val mime = when (type) {
+            RType.SCRIPT -> "application/javascript"
+            RType.STYLE -> "text/css"
+            RType.SUBDOC -> "text/html"
+            else -> when (uri.path.orEmpty().substringAfterLast('.', "").lowercase()) {
+                "js", "mjs" -> "application/javascript"
+                "css" -> "text/css"
+                "html", "htm" -> "text/html"
+                "gif" -> "image/gif"
+                "png" -> "image/png"
+                "jpg", "jpeg" -> "image/jpeg"
+                else -> "text/plain"
+            }
+        }
+        return WebResourceResponse(mime, "UTF-8", ByteArrayInputStream(ByteArray(0)))
     }
 
     // Sign-in infrastructure that must never be filtered (and that the
@@ -273,21 +357,13 @@ object AdBlocker {
         "github.com", "githubassets.com", "api.github.com",
     )
 
-    fun isAuthHost(host: String?): Boolean = matchesDomainOrParent(host, authHosts)
-
-    private fun isHostListed(host: String?): Boolean {
+    fun isAuthHost(host: String?): Boolean {
         if (host.isNullOrBlank()) return false
-        val lower = host.lowercase().trimEnd('.')
-        return matchesDomainOrParent(lower, bundledDomains) || remoteHosts.contains(lower)
-    }
-
-    private fun matchesDomainOrParent(host: String?, set: Set<String>): Boolean {
-        if (host.isNullOrBlank() || set.isEmpty()) return false
         val lower = host.lowercase()
-        if (set.contains(lower)) return true
+        if (authHosts.contains(lower)) return true
         var i = lower.indexOf('.')
         while (i >= 0) {
-            if (set.contains(lower.substring(i + 1))) return true
+            if (authHosts.contains(lower.substring(i + 1))) return true
             i = lower.indexOf('.', i + 1)
         }
         return false
