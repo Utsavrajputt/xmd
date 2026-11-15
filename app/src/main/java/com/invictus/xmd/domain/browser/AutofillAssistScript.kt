@@ -5,9 +5,8 @@ package com.invictus.xmd.domain.browser
  *
  *  - Gives password / username fields that have no `autocomplete` attribute a proper one, so the
  *    service recognises a login form (many sites ship fields with no hints at all).
- *  - Tells the app when a password field gets focus (to explain that no autofill service is turned on)
- *    and when a login form is submitted without a page load (single-page apps), so the app can finish the
- *    autofill session and the service can offer to save the password.
+ *  - Tells the app when a login form is submitted without a page load (single-page apps), so the app can
+ *    finish the autofill session and the service can offer to save the password.
  *
  * Injected at document start in every frame; not used in private tabs.
  */
@@ -48,7 +47,7 @@ object AutofillAssistScript {
             new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true });
           } catch (e) {}
           document.addEventListener('focusin', function(ev) {
-            if (isPw(ev.target)) { hintAll(); try { XmdAutofill.loginFieldFocused(); } catch (e) {} }
+            if (isPw(ev.target)) hintAll();
           }, true);
           var submitted = function(scope) {
             try {

@@ -93,8 +93,8 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Swipe-to-close on tabs is faster** — 140 ms animation, closes as soon as the row is mostly off-screen, 25 % drag threshold, and fling support.
 - **Speed Dial overlap fixed** — opening Speed Dial now hides every WebView, so a stale page from another tab can no longer show through.
 - **Background playback fixed for embedded players** — audio/video inside iframes (blog and embedded video players) is now detected, so the playback service starts and keeps playing after you go Home or swipe the app into Recents. The page-visibility override now loads at document start in every frame.
-- **Picture-in-picture** — leaving the app while a video is fullscreen now keeps it playing in a floating window, like YouTube, with **play / pause**, **background audio** (headphones) and the system **close** button. Controls reach embedded (iframe) players too. Off by default — turn it on in Settings → Browser → Picture-in-picture.
-- **Better password-manager autofill** — login fields get proper `autocomplete` hints so Bitwarden, Proton Pass and other autofill services recognise them; single-page logins now finish the autofill session so the "save password?" prompt can appear; and a hint appears if no autofill service is turned on. Not active in private tabs.
+- **Better password-manager autofill** — login fields get proper `autocomplete` hints so Bitwarden, Proton Pass and other autofill services recognise them; single-page logins now finish the autofill session so the "save password?" prompt can appear. Not active in private tabs.
+- **Passkey requests handled** — when a site asks for a passkey, which Android only allows system browsers to complete, Xmd answers so the site falls back to your password, and offers to open the page in Chrome (or another browser) where your passkey provider works.
 - **Passkey crash fixed** — using passkeys / WebAuthn in the in-app browser no longer crashes (the privileged origin permission is no longer requested).
 - The **Status Saver icon** in the top bar is now a full circle instead of a speech bubble with a cut corner.
 

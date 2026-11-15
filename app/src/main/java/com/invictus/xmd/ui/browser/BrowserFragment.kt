@@ -135,10 +135,6 @@ class BrowserFragment : Fragment() {
     companion object {
         /** How long playback must stay stopped, in the background, before the notification goes. */
         private const val MEDIA_STOP_GRACE_MS = 8_000L
-        private const val PIP_ACTION = "com.invictus.xmd.PIP_CONTROL"
-        private const val PIP_EXTRA_CMD = "cmd"
-        private const val PIP_CMD_TOGGLE = "toggle"
-        private const val PIP_CMD_BACKGROUND = "background"
         /** Max WebView instances kept alive across all tabs at once. Beyond
          *  this, the least-recently-used *non-current* tab's WebView is
          *  torn down (state saved first) to keep memory bounded, same
@@ -992,7 +988,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        registerPip()
         setupSpeedDial()
         updateTabsCount()
         view.post {
@@ -1019,7 +1014,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         CookieManager.getInstance().flush()
         // Keep the process alive so page audio/video continues in background -- but only when
         // something is actually playing, so an idle browser leaves no "background play" notification.
-        if (BackgroundPlaybackScript.active() && !speedDialVisible && !pipJustEntered &&
+        if (BackgroundPlaybackScript.active() && !speedDialVisible &&
             activity?.isChangingConfigurations != true && mediaPlayingCached
         ) {
             com.invictus.xmd.service.BackgroundPlaybackService.start(requireContext().applicationContext)
@@ -1084,14 +1079,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     }
 
     // Not registered in private tabs. See AutofillAssistScript.
-    private var autofillHintShown = false
-
     private inner class AutofillBridge {
-        @JavascriptInterface
-        fun loginFieldFocused() {
-            view?.post { maybeExplainAutofill() }
-        }
-
         @JavascriptInterface
         fun loginSubmitted() {
             // Single-page logins never reload: finish the autofill session ourselves so the service can offer
@@ -1102,14 +1090,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 }
             }, 150)
         }
-    }
-
-    private fun maybeExplainAutofill() {
-        if (autofillHintShown || !isAdded) return
-        val am = context?.getSystemService(android.view.autofill.AutofillManager::class.java) ?: return
-        if (!am.isAutofillSupported || am.hasEnabledAutofillServices()) return
-        autofillHintShown = true
-        android.widget.Toast.makeText(requireContext(), R.string.autofill_no_service_hint, android.widget.Toast.LENGTH_LONG).show()
     }
 
     private inner class MediaBridge(private val tabId: Long) {
@@ -1132,7 +1112,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
 
     private fun onMediaState() {
         mediaPlayingCached = playingFrames.isNotEmpty()
-        if (pipActive) updatePipActions()
         if (!bgServiceActive || view == null) return
         bgStopJob?.cancel()
         bgStopJob = null
@@ -1147,156 +1126,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         }
     }
 
-    // ── Picture-in-picture (YouTube style) ───────────────────────────────────
-    // Leaving the app (Home / Recents) while a video is fullscreen and playing shrinks the app into a
-    // floating window showing only the video. Its buttons: play/pause, "background" (headphones: keep the
-    // audio going without the window) and the system close (pauses). Play/pause is sent to every frame of
-    // the page through window.postMessage (see BackgroundPlaybackScript).
-
-    private var pipActive = false
-    private var pipJustEntered = false
-    private var pipReceiverRegistered = false
-    private var pipUserLeaveListener: Runnable? = null
-    private var pipModeListener: androidx.core.util.Consumer<androidx.core.app.PictureInPictureModeChangedInfo>? = null
-
-    private val pipReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
-            when (intent?.getStringExtra(PIP_EXTRA_CMD)) {
-                PIP_CMD_TOGGLE -> sendMediaCommand(if (mediaPlayingCached) "pause" else "play")
-                PIP_CMD_BACKGROUND -> pipToBackground()
-            }
-        }
-    }
-
-    private fun sendMediaCommand(cmd: String) {
-        webViewFor(tabs.getOrNull(currentTabIndex))
-            ?.evaluateJavascript("window.postMessage({xmdPip:'$cmd'},'*')", null)
-    }
-
-    // A fullscreen video on screen is what the user is watching: PiP does not also depend on our own
-    // "is it audibly playing" detection (that can miss on some players); the play/pause button still follows it.
-    private fun pipSituation(): Boolean =
-        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-            Settings.pipEnabled() && isAdded && fullscreenView != null
-
-    @android.annotation.SuppressLint("NewApi")
-    private fun pipParams(): android.app.PictureInPictureParams {
-        val ctx = requireContext()
-        fun action(icon: Int, title: String, cmd: String, code: Int) = android.app.RemoteAction(
-            android.graphics.drawable.Icon.createWithResource(ctx, icon), title, title,
-            android.app.PendingIntent.getBroadcast(
-                ctx, code,
-                android.content.Intent(PIP_ACTION).setPackage(ctx.packageName).putExtra(PIP_EXTRA_CMD, cmd),
-                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
-            ),
-        )
-        val playing = mediaPlayingCached
-        return android.app.PictureInPictureParams.Builder()
-            .setAspectRatio(android.util.Rational(16, 9))
-            .also {
-                // Android 12+: let the system enter PiP itself on the Home gesture / button while a video is
-                // fullscreen (more reliable than reacting to onUserLeaveHint alone).
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    it.setAutoEnterEnabled(pipSituation())
-                }
-            }
-            .setActions(
-                listOf(
-                    action(R.drawable.ic_pip_headphones, getString(R.string.pip_action_background), PIP_CMD_BACKGROUND, 1),
-                    action(
-                        if (playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
-                        getString(if (playing) R.string.pip_action_pause else R.string.pip_action_play),
-                        PIP_CMD_TOGGLE, 2,
-                    ),
-                )
-            )
-            .build()
-    }
-
-    @android.annotation.SuppressLint("NewApi")
-    private fun updatePipActions() {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O || !isAdded) return
-        runCatching { requireActivity().setPictureInPictureParams(pipParams()) }
-    }
-
-    @android.annotation.SuppressLint("NewApi")
-    private fun tryEnterPip() {
-        if (!pipSituation() || pipActive || requireActivity().isInPictureInPictureMode) return
-        val ctx = requireContext()
-        if (!ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
-            android.widget.Toast.makeText(ctx, R.string.pip_unsupported, android.widget.Toast.LENGTH_LONG).show()
-            return
-        }
-        val result = runCatching { requireActivity().enterPictureInPictureMode(pipParams()) }
-        if (result.getOrDefault(false)) {
-            pipJustEntered = true
-        } else {
-            // Say why, instead of silently doing nothing (e.g. PiP switched off for Xmd in Android settings).
-            val why = result.exceptionOrNull()?.message ?: getString(R.string.pip_refused)
-            android.widget.Toast.makeText(ctx, getString(R.string.pip_failed, why), android.widget.Toast.LENGTH_LONG).show()
-        }
-    }
-
-    /** Keeps the system's auto-enter flag in step with a fullscreen video being shown / closed. */
-    private fun syncPipAutoEnter() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) updatePipActions()
-    }
-
-    /** PiP "headphones" button: close the window and keep the audio running as background playback. */
-    private fun pipToBackground() {
-        val appContext = context?.applicationContext ?: return
-        BackgroundPlaybackScript.forced = true
-        sendMediaCommand("bgon")
-        com.invictus.xmd.service.BackgroundPlaybackService.start(appContext)
-        bgServiceActive = true
-        activity?.moveTaskToBack(true)
-    }
-
-    private fun onPipModeChanged(inPip: Boolean) {
-        pipActive = inPip
-        if (inPip) return
-        // Expanded back into the app -> we are resumed again. Closed with the X -> the app stops: pause.
-        view?.postDelayed({
-            if (isAdded && !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) &&
-                !BackgroundPlaybackScript.forced
-            ) {
-                sendMediaCommand("pause")
-            }
-        }, 300)
-    }
-
-    private fun registerPip() {
-        val act = activity as? androidx.activity.ComponentActivity ?: return
-        if (pipUserLeaveListener == null) {
-            pipUserLeaveListener = Runnable { tryEnterPip() }.also { act.addOnUserLeaveHintListener(it) }
-        }
-        if (pipModeListener == null) {
-            pipModeListener = androidx.core.util.Consumer<androidx.core.app.PictureInPictureModeChangedInfo> {
-                onPipModeChanged(it.isInPictureInPictureMode)
-            }.also { act.addOnPictureInPictureModeChangedListener(it) }
-        }
-        if (!pipReceiverRegistered) {
-            androidx.core.content.ContextCompat.registerReceiver(
-                act, pipReceiver, android.content.IntentFilter(PIP_ACTION),
-                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
-            pipReceiverRegistered = true
-        }
-    }
-
-    private fun unregisterPip() {
-        val act = activity as? androidx.activity.ComponentActivity
-        pipUserLeaveListener?.let { act?.removeOnUserLeaveHintListener(it) }
-        pipUserLeaveListener = null
-        pipModeListener?.let { act?.removeOnPictureInPictureModeChangedListener(it) }
-        pipModeListener = null
-        if (pipReceiverRegistered) {
-            runCatching { act?.unregisterReceiver(pipReceiver) }
-            pipReceiverRegistered = false
-        }
-        pipActive = false
-    }
-
     private fun clearBackgroundPlaybackState() {
         bgStopJob?.cancel()
         bgStopJob = null
@@ -1304,7 +1133,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     }
 
     override fun onDestroyView() {
-        unregisterPip()
         clearBackgroundPlaybackState()
         playingFrames.clear()
         mediaPlayingCached = false
@@ -2114,7 +1942,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 }
                 fullscreenView = view
                 fullscreenCallback = callback
-                syncPipAutoEnter()
                 val decor = requireActivity().window.decorView as ViewGroup
                 decor.addView(
                     view,
@@ -2127,7 +1954,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 val decor = requireActivity().window.decorView as ViewGroup
                 fullscreenView?.let { decor.removeView(it) }
                 fullscreenView = null
-                syncPipAutoEnter()
                 fullscreenCallback?.onCustomViewHidden()
                 fullscreenCallback = null
                 setImmersiveMode(false)
@@ -2715,8 +2541,6 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         navCanGoBack = !speedDialVisible && currentWebView?.canGoBack() == true
         navCanGoForward = !speedDialVisible && currentWebView?.canGoForward() == true
         clearBackgroundPlaybackState()
-        pipJustEntered = false
-        BackgroundPlaybackScript.forced = false
         com.invictus.xmd.service.BackgroundPlaybackService.stop(requireContext().applicationContext)
         updateHeaderInteractionState()
         (activity as? Callbacks)?.onBrowserWebpageVisibilityChanged(!speedDialVisible)

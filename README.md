@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **`v1.1.0`** — GitHub sync, smarter video detection, reworked AMOLED mode, picture-in-picture and more. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **`v1.1.0`** — GitHub sync, smarter video detection, reworked AMOLED mode and more. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
@@ -125,7 +125,6 @@
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
 | **Swipe gestures** | Swipe to switch between browser tabs |
 | **Background playback** | Audio/video — including embedded (iframe) players — keeps playing after you leave the app or swipe it into Recents |
-| **Picture-in-picture** | Off by default. Leaving the app during a fullscreen video keeps it in a floating window with play / pause, background audio (headphones) and close buttons |
 | **Video detection** | Streams and direct files are found from URLs, response headers and the page's own player, then **verified** (status, content-type, size) before they show up in the "videos found" sheet — no ads, stubs or "0.0 MB" rows. Each card shows a real name (page title + correct extension), format, quality, duration and size, with a Download button; per-site opt-out in Settings |
 | **Force dark** | Prefers a site's own dark theme and only darkens pages that have none, with a dark WebView background to reduce white flashes |
 | **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |

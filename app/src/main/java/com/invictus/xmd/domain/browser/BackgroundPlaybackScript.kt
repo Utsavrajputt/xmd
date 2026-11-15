@@ -27,11 +27,8 @@ import com.invictus.xmd.preferences.Settings
  * implementation of this without a dedicated playback service.
  */
 object BackgroundPlaybackScript {
-    /** Set when the user taps the PiP "background" button: acts like the setting being on until the app is shown again. */
-    @Volatile var forced: Boolean = false
-
     /** True when pages should believe they are visible and the window-hidden signal is swallowed. */
-    fun active(): Boolean = forced || Settings.backgroundPlaybackEnabled()
+    fun active(): Boolean = Settings.backgroundPlaybackEnabled()
 
     fun script(): String = """
         (function(){
@@ -41,8 +38,7 @@ object BackgroundPlaybackScript {
             if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
           };
           var installed = false;
-          // Page-visibility override (what stops sites pausing in the background). Applied right away when
-          // the setting is on, or later on request (PiP "background" button) through the message below.
+          // Page-visibility override (what stops sites pausing in the background), applied when the setting is on.
           var install = function() {
             if (installed) return;
             installed = true;
@@ -55,11 +51,10 @@ object BackgroundPlaybackScript {
           };
           try { if (XmdMedia.enabled()) install(); } catch (e) {}
 
-          // Playback reports + remote control (PiP buttons). Every frame has its own id, so an iframe player
+          // Playback reports. Every frame has its own id, so an iframe player
           // is tracked separately from the page around it.
           var last = null;
           var fid = Math.random().toString(36).slice(2);
-          var lastPlayed = null;
           var audible = function() {
             var m = document.querySelectorAll('video,audio');
             for (var i = 0; i < m.length; i++) {
@@ -77,29 +72,9 @@ object BackgroundPlaybackScript {
           ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange'].forEach(function(n) {
             document.addEventListener(n, report, true);
           });
-          document.addEventListener('play', function(e) { lastPlayed = e.target; }, true);
           window.addEventListener('pagehide', function() {
             last = false;
             try { XmdMedia.setPlayingFrame(fid, false); } catch (e) {}
-          });
-          // {xmdPip:'play'|'pause'|'bgon'} posted by the app to the top window; each frame acts and passes it on.
-          window.addEventListener('message', function(ev) {
-            var d = ev.data;
-            if (!d || typeof d !== 'object' || !d.xmdPip) return;
-            var c = d.xmdPip;
-            try {
-              if (c === 'bgon') install();
-              else if (c === 'pause') {
-                var m = document.querySelectorAll('video,audio');
-                for (var i = 0; i < m.length; i++) if (!m[i].paused) m[i].pause();
-              } else if (c === 'play') {
-                var v = lastPlayed || document.querySelector('video,audio');
-                if (v && v.paused && v.isConnected) v.play();
-              }
-            } catch (e) {}
-            try {
-              for (var j = 0; j < window.frames.length; j++) window.frames[j].postMessage(d, '*');
-            } catch (e) {}
           });
           report();
         })();

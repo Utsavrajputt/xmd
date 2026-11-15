@@ -905,9 +905,6 @@ private fun BrowserRoute(
     var sniffIgnoredCount by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.sniffIgnoredSites().size)
     }
-    var pipEnabled by remember {
-        mutableStateOf(com.invictus.xmd.preferences.Settings.pipEnabled())
-    }
     var backgroundPlaybackEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.backgroundPlaybackEnabled())
     }
@@ -983,11 +980,6 @@ private fun BrowserRoute(
             sniffIgnoredCount = 0
         },
         backgroundPlaybackEnabled = backgroundPlaybackEnabled,
-        pipEnabled = pipEnabled,
-        onPipChanged = { checked ->
-            pipEnabled = checked
-            com.invictus.xmd.preferences.Settings.setPipEnabled(checked)
-        },
         onBackgroundPlaybackChanged = { checked ->
             backgroundPlaybackEnabled = checked
             com.invictus.xmd.preferences.Settings.setBackgroundPlaybackEnabled(checked)

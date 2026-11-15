@@ -503,13 +503,6 @@ object Settings {
         prefs.edit().putBoolean(KEY_BACKGROUND_PLAYBACK_ENABLED, value).apply()
     }
 
-    // Picture-in-picture when leaving the app during a fullscreen video. Off by default.
-    private const val KEY_PIP_ENABLED = "browser_pip_enabled"
-    fun pipEnabled(): Boolean = prefs.getBoolean(KEY_PIP_ENABLED, false)
-    fun setPipEnabled(value: Boolean) {
-        prefs.edit().putBoolean(KEY_PIP_ENABLED, value).apply()
-    }
-
     // ── Browser: Bottom navigation bar (Back/Forward/Home/Bookmarks/Downloads) ──
     fun browserBottomBarEnabled(): Boolean =
         prefs.getBoolean(KEY_BROWSER_BOTTOM_BAR_ENABLED, false)
