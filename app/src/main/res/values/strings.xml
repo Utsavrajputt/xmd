@@ -324,6 +324,9 @@
     <string name="passkey_no_browser">No other browser found to open this page.</string>
     <string name="settings_pip">Picture-in-picture</string>
     <string name="settings_pip_hint">When a video is fullscreen and you leave the app, it keeps playing in a small floating window with play / pause, close and background-audio buttons.</string>
+    <string name="pip_unsupported">This device does not support picture-in-picture.</string>
+    <string name="pip_refused">Android refused. Check Settings → Apps → Special app access → Picture-in-picture → Xmd.</string>
+    <string name="pip_failed">Picture-in-picture failed: %1$s</string>
     <string name="pip_action_play">Play</string>
     <string name="pip_action_pause">Pause</string>
     <string name="pip_action_background">Play in background</string>

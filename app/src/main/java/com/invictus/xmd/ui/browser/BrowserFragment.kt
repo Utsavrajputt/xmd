@@ -1173,10 +1173,11 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
             ?.evaluateJavascript("window.postMessage({xmdPip:'$cmd'},'*')", null)
     }
 
-    private fun canEnterPip(): Boolean =
+    // A fullscreen video on screen is what the user is watching: PiP does not also depend on our own
+    // "is it audibly playing" detection (that can miss on some players); the play/pause button still follows it.
+    private fun pipSituation(): Boolean =
         android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-            Settings.pipEnabled() && isResumed && fullscreenView != null && mediaPlayingCached &&
-            requireContext().packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+            Settings.pipEnabled() && isAdded && fullscreenView != null
 
     @android.annotation.SuppressLint("NewApi")
     private fun pipParams(): android.app.PictureInPictureParams {
@@ -1192,6 +1193,13 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
         val playing = mediaPlayingCached
         return android.app.PictureInPictureParams.Builder()
             .setAspectRatio(android.util.Rational(16, 9))
+            .also {
+                // Android 12+: let the system enter PiP itself on the Home gesture / button while a video is
+                // fullscreen (more reliable than reacting to onUserLeaveHint alone).
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    it.setAutoEnterEnabled(pipSituation())
+                }
+            }
             .setActions(
                 listOf(
                     action(R.drawable.ic_pip_headphones, getString(R.string.pip_action_background), PIP_CMD_BACKGROUND, 1),
@@ -1213,9 +1221,25 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
 
     @android.annotation.SuppressLint("NewApi")
     private fun tryEnterPip() {
-        if (!canEnterPip()) return
-        val entered = runCatching { requireActivity().enterPictureInPictureMode(pipParams()) }.getOrDefault(false)
-        if (entered) pipJustEntered = true
+        if (!pipSituation() || pipActive || requireActivity().isInPictureInPictureMode) return
+        val ctx = requireContext()
+        if (!ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+            android.widget.Toast.makeText(ctx, R.string.pip_unsupported, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        val result = runCatching { requireActivity().enterPictureInPictureMode(pipParams()) }
+        if (result.getOrDefault(false)) {
+            pipJustEntered = true
+        } else {
+            // Say why, instead of silently doing nothing (e.g. PiP switched off for Xmd in Android settings).
+            val why = result.exceptionOrNull()?.message ?: getString(R.string.pip_refused)
+            android.widget.Toast.makeText(ctx, getString(R.string.pip_failed, why), android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Keeps the system's auto-enter flag in step with a fullscreen video being shown / closed. */
+    private fun syncPipAutoEnter() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) updatePipActions()
     }
 
     /** PiP "headphones" button: close the window and keep the audio running as background playback. */
@@ -2090,6 +2114,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 }
                 fullscreenView = view
                 fullscreenCallback = callback
+                syncPipAutoEnter()
                 val decor = requireActivity().window.decorView as ViewGroup
                 decor.addView(
                     view,
@@ -2102,6 +2127,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 val decor = requireActivity().window.decorView as ViewGroup
                 fullscreenView?.let { decor.removeView(it) }
                 fullscreenView = null
+                syncPipAutoEnter()
                 fullscreenCallback?.onCustomViewHidden()
                 fullscreenCallback = null
                 setImmersiveMode(false)
