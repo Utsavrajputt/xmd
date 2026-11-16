@@ -118,8 +118,9 @@ class BrowserViewModel : ViewModel() {
 
         synchronized(dohClientLock) {
             if (signature == dohClientSignature) return dohClient
+            val resolver = DnsOverHttpsResolver(dohUrl)
             val built = OkHttpClient.Builder()
-                .dns(DnsOverHttpsResolver(dohUrl))
+                .dns(resolver)
                 // 15s/20s let a single hung sub-resource stall that long
                 // before failing back -- WebView's own network stack times
                 // out far sooner than that, so a slow host used to look
@@ -150,6 +151,9 @@ class BrowserViewModel : ViewModel() {
                 .build()
             dohClient = built
             dohClientSignature = signature
+            // The first lookup otherwise pays system DNS + a TLS handshake to the provider
+            // while the page waits; do that now, in the background.
+            viewModelScope.launch(Dispatchers.IO) { resolver.warmUp() }
             return built
         }
     }

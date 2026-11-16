@@ -208,14 +208,6 @@ fun BrowserToolbarRow(
                     onNewTabTap = onNewTabTap,
                 )
                 if (!addressBarFocused) {
-                    if (homeVisible) {
-                        ToolbarIconButton(
-                            icon = Icons.Add,
-                            contentDescription = stringResource(R.string.action_new_tab),
-                            onClick = onNewTabTap,
-                            modifier = Modifier.padding(start = 2.dp),
-                        )
-                    }
                     TabsButton(
                         count = tabsCount,
                         contentDescription = stringResource(R.string.action_tabs),
@@ -550,7 +542,7 @@ private fun TabsButton(count: Int, contentDescription: String, onClick: () -> Un
     ) {
         Box(
             modifier = Modifier
-                .size(20.dp)
+                .size(22.dp)
                 .border(
                     width = 1.6.dp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -558,11 +550,23 @@ private fun TabsButton(count: Int, contentDescription: String, onClick: () -> Un
                 ),
             contentAlignment = Alignment.Center,
         ) {
+            val size = if (count > 9) 10.sp else 11.sp
             Text(
                 text = if (count > 99) ":D" else count.toString(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = if (count > 9) 10.sp else 11.sp,
-                fontWeight = FontWeight.Bold,
+                // Font padding and line-height slack push digits off-centre inside the square;
+                // trim both and match line height to the font size so they sit in the middle.
+                style = androidx.compose.ui.text.TextStyle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = size,
+                    lineHeight = size,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                        alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                        trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+                    ),
+                ),
             )
         }
     }

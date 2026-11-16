@@ -24,6 +24,9 @@ import com.invictus.xmd.ui.browser.BrowserFragment
  * same resolver class works for both the built-in AdGuard endpoint and
  * a user-supplied custom DoH URL.
  */
+/** The DoH provider answered 0.0.0.0 / :: for this host: it is blocked by the resolver (ad / tracker lists). */
+class DnsBlockedException(host: String) : UnknownHostException(host)
+
 class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
 
     companion object {
@@ -66,6 +69,15 @@ class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
     private val negativeCache = ConcurrentHashMap<String, Long>()
     private val negativeCacheTtlMs = 5_000L
 
+    // Hosts the provider blocks by answering 0.0.0.0 / ::. Remembered for the session so the
+    // many repeat requests a page makes to a blocked tracker fail instantly.
+    private val blockedHosts = ConcurrentHashMap.newKeySet<String>()
+
+    /** Opens the connection to the DoH provider (system DNS + TLS) ahead of the first real lookup. */
+    fun warmUp() {
+        runCatching { queryDoh("example.com", "A") }
+    }
+
     // De-dupes concurrent lookups for the same hostname -- a page loading
     // a dozen images/scripts off the same CDN host fires that many
     // shouldInterceptRequest calls at once, and without this each one
@@ -75,6 +87,7 @@ class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
 
     override fun lookup(hostname: String): List<InetAddress> {
         cache[hostname]?.let { return it }
+        if (hostname in blockedHosts) throw DnsBlockedException(hostname)
 
         val recentFailure = negativeCache[hostname]
         if (recentFailure != null) {
@@ -90,6 +103,7 @@ class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
                 // Another thread may have just finished resolving this host
                 // while we were waiting on the lock -- reuse its result.
                 cache[hostname]?.let { return it }
+                if (hostname in blockedHosts) throw DnsBlockedException(hostname)
 
                 val resolved = runCatching { queryDoh(hostname, type = "A") }.getOrDefault(emptyList())
                     .ifEmpty { runCatching { queryDoh(hostname, type = "AAAA") }.getOrDefault(emptyList()) }
@@ -101,6 +115,15 @@ class DnsOverHttpsResolver(private val dohUrl: String) : Dns {
                     // than failing the whole page load.
                     negativeCache[hostname] = System.currentTimeMillis()
                     return systemFallback(hostname)
+                }
+
+                // AdGuard / Cloudflare-security style blocking: the answer is 0.0.0.0 or ::.
+                // Connecting there only fails; surface it as "blocked" so the caller can answer
+                // at once instead of waiting for a refused connection and then letting the
+                // WebView retry the same host through system DNS (which would skip the block).
+                if (resolved.all { it.isAnyLocalAddress }) {
+                    blockedHosts.add(hostname)
+                    throw DnsBlockedException(hostname)
                 }
 
                 cache[hostname] = resolved

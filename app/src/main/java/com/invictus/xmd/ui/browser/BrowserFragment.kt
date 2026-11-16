@@ -1929,6 +1929,14 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                         responseHeaders, body.byteStream()
                     )
                 } catch (e: Exception) {
+                    // The DNS provider blocks this host (answered 0.0.0.0): answer right away with
+                    // an empty reply. Falling through to the WebView would retry it through system
+                    // DNS, doubling the wait and sidestepping the block.
+                    if (generateSequence<Throwable>(e) { it.cause }.any { it is com.invictus.xmd.network.DnsBlockedException }) {
+                        return android.webkit.WebResourceResponse(
+                            "text/plain", "UTF-8", 200, "OK", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)),
+                        )
+                    }
                     // DoH lookup/connection failed for this specific request --
                     // let WebView retry it through the normal system-DNS path
                     // rather than breaking the whole page load over one asset.
