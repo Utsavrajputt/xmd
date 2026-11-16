@@ -3,6 +3,7 @@ package com.invictus.xmd.ui.settings
 
 import com.invictus.xmd.ui.theme.XmdShapes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -296,7 +297,10 @@ private fun ProfileHeaderCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, bottom = 16.dp),
+                .padding(start = 14.dp, end = 14.dp, bottom = 16.dp)
+                // Both chips take the taller one's height, so a hint that wraps in one
+                // (e.g. storage on a tablet) doesn't leave the other shorter.
+                .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HeroChip(
@@ -306,7 +310,7 @@ private fun ProfileHeaderCard(
                 hint = stringResource(R.string.settings_chip_status_saver_hint),
                 selected = false,
                 onClick = onOpenStatusSaver,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             HeroChip(
                 icon = Icons.PieChart,
@@ -315,7 +319,7 @@ private fun ProfileHeaderCard(
                 hint = storageHint,
                 selected = storageSelected,
                 onClick = onOpenStorage,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
             )
         }
     }

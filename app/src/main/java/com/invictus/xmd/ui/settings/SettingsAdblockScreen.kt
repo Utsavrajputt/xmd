@@ -77,6 +77,12 @@ fun SettingsAdblockScreen(
     onRemoveList: (String) -> Unit,
     onUpdateDaysChanged: (Int) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
+    cosmeticEnabled: Boolean,
+    scriptletsEnabled: Boolean,
+    onCosmeticChanged: (Boolean) -> Unit,
+    onScriptletsChanged: (Boolean) -> Unit,
+    userRuleCount: Int,
+    onOpenRules: () -> Unit,
     onAddAllowlistedSite: (String) -> Unit,
     onRemoveAllowlistedSite: (String) -> Unit,
 ) {
@@ -139,6 +145,33 @@ fun SettingsAdblockScreen(
                         )
                     )
                 }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            SettingsSectionCard {
+                SwitchSettingRow(
+                    title = stringResource(R.string.settings_adblock_cosmetic_title),
+                    subtitle = stringResource(R.string.settings_adblock_cosmetic_subtitle),
+                    checked = cosmeticEnabled,
+                    onCheckedChange = onCosmeticChanged,
+                )
+                SettingsDivider()
+                SwitchSettingRow(
+                    title = stringResource(R.string.settings_adblock_scriptlets_title),
+                    subtitle = stringResource(R.string.settings_adblock_scriptlets_subtitle),
+                    checked = scriptletsEnabled,
+                    onCheckedChange = onScriptletsChanged,
+                )
+                SettingsDivider()
+                ClickableSettingRow(
+                    title = stringResource(R.string.settings_adblock_rules_title),
+                    subtitle = if (userRuleCount > 0) {
+                        stringResource(R.string.settings_adblock_rules_subtitle_count, userRuleCount)
+                    } else {
+                        stringResource(R.string.settings_adblock_rules_subtitle)
+                    },
+                    onClick = onOpenRules,
+                )
             }
 
             Spacer(Modifier.height(8.dp))

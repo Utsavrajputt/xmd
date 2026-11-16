@@ -8,6 +8,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 ### 🌐 Browser
 - 🛡️ **New ad-blocking engine** — reads standard uBlock Origin / AdBlock Plus filter lists (the same syntax 1DM and Brave use): `||domain^`, wildcards, `$third-party`, `$script`/`$image`/… types, `$domain=`, `$important`, `$popup`, `@@` exceptions, `$badfilter`, regex rules, hosts files and plain domain lists. Requests are matched on URL, resource type, first/third party and the page they came from; blocked images become a 1×1 pixel so layouts don't break.
 - 📚 **Filter list manager** — EasyList, EasyPrivacy, uBlock filters (+ unbreak, quick fixes, privacy, badware), Brave lists, Bypass Paywalls Clean, AdGuard, Fanboy and more, each with its own switch, rule count and last-updated date. Add your own list by link; lists update every 3 days on Wi-Fi (configurable, with "Update now").
+- 🧹 **Element hiding, scriptlets & redirects** — lists can now hide leftover ad boxes (`##.ad`, `:has-text`, `:upward`, `#$#` styles), run page fixes (`##+js(...)`: anti-adblock, paywall and popup defusers, `set-constant`, `json-prune`, …) and answer blocked scripts with harmless stand-ins (`$redirect=`), so pages like Google Analytics-dependent sites keep working. Switches under Settings → Ad blocker.
+- ✍️ **My rules** — write your own block / allow / hide rules in Settings → Ad blocker → My rules (same syntax as the lists; a bare domain also works). They are applied after every list and win over them, even over `$important` and `@@` exceptions. Lines the engine can't understand are flagged.
+- 🎯 **Hide element** — long-press a link or image, choose "Hide element", then tap / use Parent & Child to adjust, Preview, and Hide. It hides instantly, saves a `site##selector` rule to My rules and offers Undo.
 - 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
 
 ## [1.1.0] - 2026-11-14

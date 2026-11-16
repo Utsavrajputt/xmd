@@ -43,6 +43,8 @@ internal class NetRule(
     @JvmField val exclude: Array<String>?,
     @JvmField val isRegex: Boolean,
     @JvmField val domainOnly: Boolean,
+    /** `$redirect=` resource to serve instead of an empty response, if any. */
+    @JvmField val redirect: String? = null,
 ) {
     @Volatile private var compiled: Pattern? = null
     @Volatile private var compileFailed = false
@@ -335,32 +337,56 @@ class FilterEngine internal constructor(
     private val block: RuleSet,
     private val allow: RuleSet,
     private val docAllow: RuleSet,
+    private val redirects: RuleSet,
+    /** The user's own `@@` rules: they beat everything, `$important` blocks included. */
+    private val userAllow: RuleSet,
     private val hostExact: Set<String>,
+    internal val cosmetic: CosmeticStore,
     /** Rules per list id, for the manager UI. */
     val countsByList: Map<String, Int>,
 ) {
-    val ruleCount: Int = block.count + allow.count + docAllow.count + hostExact.size
+    val ruleCount: Int = block.count + allow.count + docAllow.count + userAllow.count + hostExact.size + cosmetic.count
 
-    /** True if [host] is listed as a whole (hosts-format entry or plain `||domain^` rule): used for popups. */
+    /** True if [host] is listed as a whole (hosts-format entry or plain `||domain^` rule). */
     fun isHostListed(host: String): Boolean =
         hostExact.contains(host) || block.domainListed(host)
 
     /** True if a request for [url] (to [host]) from a page on [pageHost] should be blocked. */
-    fun shouldBlock(url: String, host: String, pageHost: String?, type: Int): Boolean {
+    fun shouldBlock(url: String, host: String, pageHost: String?, type: Int): Boolean =
+        check(url, host, pageHost, type) != null
+
+    /**
+     * Verdict for a request: null = let it through, "" = block, any other
+     * value = block and answer with that `$redirect` resource instead.
+     */
+    fun check(url: String, host: String, pageHost: String?, type: Int): String? {
         val req = Req(url, host, pageHost, Domains.isThirdParty(host, pageHost), type)
+        if (userAllow.count > 0 && (userAllow.domainListed(host) || userAllow.find(req, false) != null)) return null
         var hit = hostExact.contains(host) || block.domainListed(host)
         var rule: NetRule? = null
         if (!hit) {
             rule = block.find(req, false)
             hit = rule != null
         }
-        if (!hit) return false
-        if (rule != null && rule.important) return true
-        val excepted = allow.domainListed(host) || allow.find(req, false) != null
-        if (!excepted) return true
-        // `$important` blocks beat exception rules.
-        return block.find(req, true) != null
+        if (!hit) return null
+        if (rule == null || !rule.important) {
+            val excepted = allow.domainListed(host) || allow.find(req, false) != null
+            if (excepted) {
+                // `$important` blocks beat exception rules.
+                rule = block.find(req, true) ?: return null
+            }
+        }
+        val named = rule?.redirect ?: redirects.find(req, false)?.redirect
+        return named ?: ""
     }
+
+    /** Cosmetic rules / scriptlets for a page (or frame) on [host]. */
+    fun cosmeticFor(host: String, hiding: Boolean, scripts: Boolean): CosmeticResult =
+        cosmetic.lookup(host, hiding, scripts)
+
+    /** Hide rules for the generic class / id selectors a page on [host] reports. */
+    fun cosmeticNamesCss(host: String, classes: List<String>, ids: List<String>): String =
+        cosmetic.namesCss(host, classes, ids)
 
     /** True if a page URL is whitelisted as a whole by an `@@...$document` rule. */
     fun isPageAllowed(pageUrl: String, pageHost: String): Boolean {

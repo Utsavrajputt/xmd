@@ -899,6 +899,14 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                                 },
                                 onCopyLinkAddress = ::copyLinkToClipboard,
                                 onShareLink = ::shareLink,
+                                onHideElement = if (AdBlocker.canPickElements(
+                                        runCatching { android.net.Uri.parse(tabs.getOrNull(currentTabIndex)?.url).host }.getOrNull(),
+                                    )
+                                ) {
+                                    { startElementPicker() }
+                                } else {
+                                    null
+                                },
                             )
                         }
                         addBookmarkDialogState?.let { state ->
@@ -1090,6 +1098,24 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 }
             }, 150)
         }
+    }
+
+    // Feeds the ad blocker's page agent (assets/adblock_agent.js); called on a WebView thread, lookups only.
+    private class CosmeticBridge(
+        private val context: android.content.Context,
+        private val tabHost: () -> String?,
+    ) {
+        @JavascriptInterface
+        fun forHost(host: String?): String = runCatching { AdBlocker.cosmeticJson(host) }.getOrDefault("")
+
+        /** The element picker saving (or undoing) a `host##selector` rule; needs the picker's one-time token. */
+        @JavascriptInterface
+        fun userRule(token: String?, host: String?, selector: String?, add: Boolean): Boolean =
+            runCatching { AdBlocker.pickerRule(context, token, tabHost(), host, selector, add) }.getOrDefault(false)
+
+        @JavascriptInterface
+        fun forNames(host: String?, classes: String?, ids: String?): String =
+            runCatching { AdBlocker.cosmeticNamesCss(host, classes, ids) }.getOrDefault("")
     }
 
     private inner class MediaBridge(private val tabId: Long) {
@@ -1338,6 +1364,21 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     private fun configureWebView(webView: WebView, tab: BrowserTab) {
         webView.addJavascriptInterface(MediaBridge(tab.id), "XmdMedia")
         webView.addJavascriptInterface(PasskeyBridge(), "XmdPasskey")
+        // Ad blocker page agent: element hiding, procedural rules and scriptlets, in every frame.
+        runCatching {
+            val agent = AdBlocker.agentScript(webView.context)
+            if (agent != null &&
+                androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)
+            ) {
+                webView.addJavascriptInterface(
+                    CosmeticBridge(webView.context.applicationContext) {
+                        runCatching { android.net.Uri.parse(tab.url).host }.getOrNull()
+                    },
+                    "XmdCosmetic",
+                )
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(webView, agent, setOf("*"))
+            }
+        }
         runCatching {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
@@ -3283,6 +3324,13 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
             imageUrl = imageUrl,
         )
         return true
+    }
+
+    /** Long-press menu -> "Hide element": starts the in-page picker on the element that was pressed. */
+    private fun startElementPicker() {
+        val view = webViewFor(tabs.getOrNull(currentTabIndex)) ?: return
+        val script = AdBlocker.pickerScript(requireContext()) ?: return
+        view.evaluateJavascript(script, null)
     }
 
     /** Opens [url] in a brand-new background... actually foreground tab,

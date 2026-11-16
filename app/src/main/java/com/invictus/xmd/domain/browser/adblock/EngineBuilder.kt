@@ -17,10 +17,24 @@ internal class EngineBuilder {
     private val block = RuleSet()
     private val allow = RuleSet()
     private val docAllow = RuleSet()
+    private val redirects = RuleSet()
+    private val userAllow = RuleSet()
+    private val cosmetic = CosmeticStore()
     private val hostExact = HashSet<String>()
     private val bad = HashSet<String>()
     private val counts = HashMap<String, Int>()
     private var listId: String = ""
+
+    /**
+     * True while the user's own rules are fed in (after every list): their blocks
+     * count as `$important` and their `@@` exceptions beat even `$important` rules,
+     * so "My rules" always wins over the lists.
+     */
+    var userMode = false
+        set(value) {
+            field = value
+            cosmetic.userMode = value
+        }
 
     /** Marks which list the following lines belong to (for per-list counts). */
     fun startList(id: String) {
@@ -31,6 +45,9 @@ internal class EngineBuilder {
     private fun counted() {
         counts[listId] = (counts[listId] ?: 0) + 1
     }
+
+    /** Rules accepted so far across all lists (used to tell whether a line was understood). */
+    fun ruleTotal(): Int = counts.values.sum()
 
     // ── Pass 1 ───────────────────────────────────────────────────────
 
@@ -85,9 +102,13 @@ internal class EngineBuilder {
     fun addAbpLine(raw: String) {
         var line = raw.trim()
         if (line.isEmpty()) return
+        if (userMode) line = userFriendly(line)
         val c0 = line[0]
         if (c0 == '!' || c0 == '[') return
-        if (isCosmetic(line)) return
+        if (isCosmetic(line)) {
+            if (cosmetic.addLine(line)) counted()
+            return
+        }
         if (bad.isNotEmpty() && bad.contains(line)) return
 
         var exception = false
@@ -99,7 +120,10 @@ internal class EngineBuilder {
         var types = 0
         var negTypes = 0
         var party = 0
-        var important = false
+        var important = userMode && !exception
+        var redirect: String? = null
+        var redirectRule = false
+        var hideOff = 0
         var include: ArrayList<String>? = null
         var exclude: ArrayList<String>? = null
         var pattern = line
@@ -122,6 +146,15 @@ internal class EngineBuilder {
                         "first-party", "1p" -> party = if (neg) 1 else 2
                         "important" -> important = true
                         "match-case" -> {}
+                        "redirect", "redirect-rule" -> {
+                            val name = value.substringBefore(':').trim().lowercase()
+                            if (name.isEmpty() || neg) return
+                            redirect = name
+                            redirectRule = key == "redirect-rule"
+                        }
+                        "elemhide", "ehide" -> hideOff = hideOff or CosmeticStore.OFF_ALL
+                        "generichide", "ghide" -> hideOff = hideOff or CosmeticStore.OFF_GENERIC
+                        "specifichide", "shide" -> hideOff = hideOff or CosmeticStore.OFF_SPECIFIC
                         "domain", "from" -> {
                             if (value.isEmpty()) return
                             for (entry in value.lowercase().split('|')) {
@@ -150,13 +183,28 @@ internal class EngineBuilder {
             }
         }
 
+        // `@@||site^$elemhide` / `$generichide` / `$specifichide`: switch cosmetic filtering off for a site.
+        if (hideOff != 0) {
+            if (!exception) return
+            val sites = ArrayList<String>()
+            val bare = pattern.lowercase().removePrefix("||").removePrefix("|").trimEnd('^', '/')
+            if (bare.isNotEmpty() && isPlainHost(bare)) sites.add(bare)
+            if (include != null) sites.addAll(include)
+            if (sites.isEmpty()) return
+            for (site in sites) cosmetic.addHideOff(site, hideOff)
+            counted()
+            if (types == 0 && negTypes == 0 && !important && party == 0) return
+        }
+        // An exception that names a redirect resource has no meaning here.
+        if (redirect != null && exception) return
+
         var t = if (types == 0) RType.DEFAULT else types
         if (negTypes != 0) t = t and negTypes.inv()
         if (t == 0) return
 
         // Page-level exceptions (`@@||site^$document`): whole page is not filtered.
         if (exception && (t and RType.DOCUMENT) != 0) {
-            val rule = buildRule(pattern, t and RType.DOCUMENT, party, important, include, exclude) ?: return
+            val rule = buildRule(pattern, t and RType.DOCUMENT, party, important, include, exclude, null) ?: return
             addRule(docAllow, rule, indexHost = false)
             counted()
             t = t and RType.DOCUMENT.inv()
@@ -168,13 +216,13 @@ internal class EngineBuilder {
             if (t == 0) return
         }
 
-        val plainOk = types == 0 && negTypes == 0 && party == 0 && !important && include == null && exclude == null
+        val plainOk = types == 0 && negTypes == 0 && party == 0 && !important && include == null && exclude == null && redirect == null
         if (plainOk && !pattern.startsWith("/")) {
             val p = pattern.lowercase()
             if (p.startsWith("||") && p.endsWith("^") && !p.endsWith("|^")) {
                 val dom = p.substring(2, p.length - 1)
                 if (isPlainHost(dom)) {
-                    val set = if (exception) allow else block
+                    val set = if (exception) (if (userMode) userAllow else allow) else block
                     if (!set.domainSet.contains(dom)) {
                         set.addPlainDomain(dom)
                         counted()
@@ -184,8 +232,14 @@ internal class EngineBuilder {
             }
         }
 
-        val rule = buildRule(pattern, t, party, important, include, exclude) ?: return
-        addRule(if (exception) allow else block, rule, indexHost = true)
+        val rule = buildRule(pattern, t, party, important, include, exclude, redirect) ?: return
+        // `$redirect-rule` only decides what a request blocked by another rule is answered with.
+        val target = when {
+            redirectRule -> redirects
+            exception -> if (userMode) userAllow else allow
+            else -> block
+        }
+        addRule(target, rule, indexHost = true)
         counted()
     }
 
@@ -196,6 +250,7 @@ internal class EngineBuilder {
         important: Boolean,
         include: List<String>?,
         exclude: List<String>?,
+        redirect: String?,
     ): NetRule? {
         var p = patternIn
         var anchor = 0
@@ -206,7 +261,7 @@ internal class EngineBuilder {
         if (p.length >= 2 && p.startsWith("/") && p.endsWith("/")) {
             val body = p.substring(1, p.length - 1)
             if (body.isEmpty()) return null
-            return NetRule(body, 0, false, types, party, important, inc, exc, isRegex = true, domainOnly = false)
+            return NetRule(body, 0, false, types, party, important, inc, exc, isRegex = true, domainOnly = false, redirect = redirect)
         }
         if (p.startsWith("||")) { anchor = 2; p = p.substring(2) }
         else if (p.startsWith("|")) { anchor = 1; p = p.substring(1) }
@@ -229,13 +284,13 @@ internal class EngineBuilder {
             if (key != null) {
                 val rest = p.substring(key.length)
                 domainOnly = rest == "^"
-                return NetRule(p, anchor, endAnchor, types, party, important, inc, exc, false, domainOnly).also {
+                return NetRule(p, anchor, endAnchor, types, party, important, inc, exc, false, domainOnly, redirect).also {
                     hostKeyed = key
                 }
             }
         }
         hostKeyed = null
-        return NetRule(p, anchor, endAnchor, types, party, important, inc, exc, false, false)
+        return NetRule(p, anchor, endAnchor, types, party, important, inc, exc, false, false, redirect)
     }
 
     // buildRule reports the host-index key it chose through this field (single-threaded builder).
@@ -255,7 +310,7 @@ internal class EngineBuilder {
         if (token != null) set.addTokenRule(token, rule) else set.addFallback(rule)
     }
 
-    fun build(): FilterEngine = FilterEngine(block, allow, docAllow, hostExact, HashMap(counts))
+    fun build(): FilterEngine = FilterEngine(block, allow, docAllow, redirects, userAllow, hostExact, cosmetic, HashMap(counts))
 
     // ── Helpers ──────────────────────────────────────────────────────
 
@@ -285,6 +340,20 @@ internal class EngineBuilder {
             i = j
         }
         return best
+    }
+
+    /** `ads.example.com` or `0.0.0.0 ads.example.com` typed into "My rules" means `||ads.example.com^`. */
+    private fun userFriendly(line: String): String {
+        if (line.startsWith("@@") || line.startsWith("!")) return line
+        val parts = line.split(' ', '\t').filter { it.isNotEmpty() }
+        if (parts.size == 2 && (parts[0] == "0.0.0.0" || parts[0] == "127.0.0.1") && isPlainHost(parts[1].lowercase())) {
+            return "||" + parts[1].lowercase() + "^"
+        }
+        if (parts.size == 1) {
+            val h = line.lowercase().trimEnd('.')
+            if (isPlainHost(h) && h !in IGNORED_HOSTS) return "||$h^"
+        }
+        return line
     }
 
     private fun isCosmetic(line: String): Boolean {

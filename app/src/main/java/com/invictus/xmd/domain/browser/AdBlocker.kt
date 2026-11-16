@@ -10,11 +10,16 @@ import android.webkit.WebResourceResponse
 import com.invictus.xmd.domain.browser.adblock.FilterEngine
 import com.invictus.xmd.domain.browser.adblock.FilterLists
 import com.invictus.xmd.domain.browser.adblock.RType
+import com.invictus.xmd.domain.browser.adblock.RedirectResources
+import com.invictus.xmd.domain.browser.adblock.UserRules
 import com.invictus.xmd.preferences.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -87,6 +92,7 @@ object AdBlocker {
         if (!enabled) {
             engine = null
             pageAllowCache.clear()
+            cosmeticCache.clear()
             bump()
             return
         }
@@ -137,6 +143,69 @@ object AdBlocker {
     /** Number of rules currently loaded (0 until the first build finishes). */
     fun ruleCount(): Int = engine?.ruleCount ?: 0
 
+    // ── My rules (user-written rules + the element picker) ───────────
+
+    private val rebuildExecutor: ScheduledExecutorService by lazy {
+        Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "adblock-rules").apply { isDaemon = true } }
+    }
+    private var pendingRebuild: ScheduledFuture<*>? = null
+
+    /** Recompiles soon; several quick edits (add, undo, add) share one rebuild. */
+    @Synchronized
+    private fun scheduleRebuild(context: Context, delayMs: Long) {
+        val appContext = context.applicationContext
+        pendingRebuild?.cancel(false)
+        pendingRebuild = rebuildExecutor.schedule({
+            if (Settings.adblockEnabled()) rebuildBlocking(appContext)
+        }, delayMs, TimeUnit.MILLISECONDS)
+        bump()
+    }
+
+    fun userRules(context: Context): String = UserRules.read(context.applicationContext)
+
+    fun userRuleCount(context: Context): Int = UserRules.count(userRules(context))
+
+    /** Replaces the whole "My rules" text (the editor's Save) and applies it. */
+    fun saveUserRules(context: Context, text: String) {
+        UserRules.write(context.applicationContext, text)
+        scheduleRebuild(context, 300)
+    }
+
+    /** One-time secret handed to the element picker running in a page; see [pickerRule]. */
+    @Volatile private var pickerToken: String? = null
+    @Volatile private var pickerExpiresAt = 0L
+
+    fun newPickerToken(): String {
+        val t = java.util.UUID.randomUUID().toString()
+        pickerToken = t
+        pickerExpiresAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10)
+        return t
+    }
+
+    /**
+     * The picker's way to add (or, for Undo, remove) a `host##selector` rule. A page's
+     * own scripts can reach the bridge too, so it needs the token the app gave the
+     * picker, the host must be the tab's own site, and the selector can't smuggle in
+     * a scriptlet or style block.
+     */
+    fun pickerRule(context: Context, token: String?, tabHost: String?, host: String?, selector: String?, add: Boolean): Boolean {
+        val t = pickerToken
+        if (t == null || token != t || System.currentTimeMillis() > pickerExpiresAt) return false
+        val h = host?.lowercase()?.trim().orEmpty()
+        val th = tabHost?.lowercase()?.trim().orEmpty()
+        if (h.isEmpty() || !h.matches(Regex("[a-z0-9.-]+")) || !(th == h || th.endsWith(".$h"))) return false
+        val sel = selector?.trim().orEmpty()
+        if (sel.isEmpty() || sel.length > 600 || sel.startsWith("+js") || sel.contains(":style(") || sel.contains("##")) return false
+        val rule = "$h##$sel"
+        if (add) {
+            if (!UserRules.add(context.applicationContext, rule)) return false
+        } else {
+            UserRules.remove(context.applicationContext, rule)
+        }
+        scheduleRebuild(context, 1500)
+        return true
+    }
+
     // ── Build / update ───────────────────────────────────────────────
 
     @Synchronized
@@ -149,6 +218,7 @@ object AdBlocker {
                 if (id != "bundled") Settings.setAdblockListRuleCount(id, count)
             }
             pageAllowCache.clear()
+            cosmeticCache.clear()
             if (Settings.adblockEnabled()) engine = built
         } catch (e: Throwable) {
             // A bad build keeps the previous engine.
@@ -262,8 +332,96 @@ object AdBlocker {
         if (Settings.isAdblockAllowlisted(pageHost)) return null
         if (pageUrl != null && pageHost != null && pageAllowed(eng, pageUrl, pageHost)) return null
         val type = inferType(request)
-        if (!eng.shouldBlock(uri.toString(), host, pageHost, type)) return null
+        val verdict = eng.check(uri.toString(), host, pageHost, type) ?: return null
+        if (verdict.isNotEmpty()) {
+            // `$redirect=` rule: answer with the named stand-in so the page's own code keeps working.
+            val res = RedirectResources.get(verdict)
+            if (res != null) {
+                return WebResourceResponse(res.mime, "UTF-8", ByteArrayInputStream(res.bytes))
+            }
+        }
         return stub(type, uri)
+    }
+
+    // ── Cosmetic filtering / scriptlets (see assets/adblock_agent.js) ─
+
+    private val cosmeticCache = ConcurrentHashMap<String, String>()
+    @Volatile private var agentSource: String? = null
+
+    /** The page agent, read once from assets; null if missing. */
+    fun agentScript(context: Context): String? {
+        agentSource?.let { return it }
+        val text = runCatching {
+            context.applicationContext.assets.open("adblock_agent.js").bufferedReader().use { it.readText() }
+        }.getOrNull()
+        agentSource = text
+        return text
+    }
+
+    /** The element picker for the page, with a fresh one-time token baked in; null if the asset is missing. */
+    fun pickerScript(context: Context): String? {
+        val src = runCatching {
+            context.applicationContext.assets.open("adblock_picker.js").bufferedReader().use { it.readText() }
+        }.getOrNull() ?: return null
+        return src.replace("__XMD_TOKEN__", newPickerToken())
+    }
+
+    /** Whether the long-press "Hide element" item makes sense for a page on [host]. */
+    fun canPickElements(host: String?): Boolean =
+        Settings.adblockEnabled() && Settings.adblockCosmetic() && !host.isNullOrEmpty() &&
+            !Settings.isAdblockAllowlisted(host.lowercase())
+
+    /**
+     * JSON for the page agent: CSS to inject, procedural rules, scriptlets
+     * (see [com.invictus.xmd.domain.browser.adblock.CosmeticResult.toJson]).
+     * Empty string when blocking is off, the site is allowlisted, or nothing applies.
+     */
+    fun cosmeticJson(host: String?): String {
+        val eng = engine ?: return ""
+        if (!Settings.adblockEnabled() || host.isNullOrEmpty() || host.length > 253) return ""
+        val h = host.lowercase().trimEnd('.')
+        if (Settings.isAdblockAllowlisted(h) || isAuthHost(h)) return ""
+        val hiding = Settings.adblockCosmetic()
+        val scripts = Settings.adblockScriptlets()
+        if (!hiding && !scripts) return ""
+        if (pageAllowed(eng, "https://$h/", h)) return ""
+        val key = "$h|${if (hiding) 1 else 0}${if (scripts) 1 else 0}"
+        cosmeticCache[key]?.let { return it }
+        val res = eng.cosmeticFor(h, hiding, scripts)
+        val json = if (res.isEmpty) "" else res.toJson()
+        if (cosmeticCache.size > 300) cosmeticCache.clear()
+        cosmeticCache[key] = json
+        return json
+    }
+
+    /** Hide-CSS for the generic class / id names a page reports (JSON arrays of strings). */
+    fun cosmeticNamesCss(host: String?, classesJson: String?, idsJson: String?): String {
+        val eng = engine ?: return ""
+        if (!Settings.adblockEnabled() || !Settings.adblockCosmetic() || host.isNullOrEmpty()) return ""
+        val h = host.lowercase().trimEnd('.')
+        if (Settings.isAdblockAllowlisted(h) || isAuthHost(h)) return ""
+        val classes = names(classesJson)
+        val ids = names(idsJson)
+        if (classes.isEmpty() && ids.isEmpty()) return ""
+        return eng.cosmeticNamesCss(h, classes, ids)
+    }
+
+    private fun names(json: String?): List<String> {
+        if (json.isNullOrEmpty() || json.length > 60_000) return emptyList()
+        return runCatching {
+            val arr = org.json.JSONArray(json)
+            val out = ArrayList<String>(arr.length())
+            for (i in 0 until minOf(arr.length(), 800)) {
+                val s = arr.optString(i, "")
+                if (s.isNotEmpty() && s.length <= 100) out.add(s)
+            }
+            out
+        }.getOrDefault(emptyList())
+    }
+
+    /** Drops cached per-host cosmetic results (after a rebuild or a settings change). */
+    fun clearCosmeticCache() {
+        cosmeticCache.clear()
     }
 
     /** True if opening [url] as a popup / script redirect from a page on [openerHost] should be refused. */

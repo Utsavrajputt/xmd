@@ -55,7 +55,7 @@ object FilterLists {
         Info("brave-android", "Brave Android specific", "Brave rules for mobile sites", listOf(BRAVE + "brave-android-specific.txt"), Format.ABP, false, Group.BRAVE, 1),
         Info(
             "bpc-paywall", "Bypass Paywalls Clean",
-            "Paywall bypass filters (may need cosmetic/script support to fully work)",
+            "Hides paywall overlays and runs bypass scripts on news sites",
             listOf(
                 "https://gitlab.com/magnolia1234/bypass-paywalls-clean-filters/-/raw/main/bpc-paywall-filter.txt",
                 "https://gitflic.ru/project/magnolia1234/bypass-paywalls-clean-filters/blob/raw?file=bpc-paywall-filter.txt",
@@ -236,6 +236,7 @@ object FilterLists {
             if (formats[info.id] != Format.ABP) continue
             runCatching { fileFor(context, info.id).bufferedReader().useLines { it.forEach(builder::collectBad) } }
         }
+        UserRules.collectBad(context, builder)
         // Pass 2: the rules themselves.
         for (info in active) {
             builder.startList(info.id)
@@ -250,6 +251,8 @@ object FilterLists {
                 }
             }
         }
+        // The user's own rules go last and win over every list.
+        UserRules.feed(context, builder)
         return builder.build()
     }
 

@@ -451,6 +451,8 @@ object Settings {
     private const val KEY_ADBLOCK_LIST_ERROR = "browser_adblock_remote_list_error_"
     private const val KEY_ADBLOCK_UPDATE_DAYS = "browser_adblock_update_days"
     private const val KEY_ADBLOCK_WIFI_ONLY = "browser_adblock_wifi_only"
+    private const val KEY_ADBLOCK_COSMETIC = "browser_adblock_cosmetic"
+    private const val KEY_ADBLOCK_SCRIPTLETS = "browser_adblock_scriptlets"
 
     fun adblockListEnabled(id: String, default: Boolean): Boolean =
         prefs.getBoolean(KEY_ADBLOCK_LIST_ON + id, default)
@@ -504,6 +506,18 @@ object Settings {
     fun adblockUpdateDays(): Int = prefs.getInt(KEY_ADBLOCK_UPDATE_DAYS, 3)
     fun setAdblockUpdateDays(days: Int) {
         prefs.edit().putInt(KEY_ADBLOCK_UPDATE_DAYS, days).apply()
+    }
+
+    /** Hide ad / annoyance elements on pages (cosmetic filters from the lists). */
+    fun adblockCosmetic(): Boolean = prefs.getBoolean(KEY_ADBLOCK_COSMETIC, true)
+    fun setAdblockCosmetic(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ADBLOCK_COSMETIC, value).apply()
+    }
+
+    /** Run list-supplied scriptlets (anti-adblock / paywall / popup defusers) in pages. */
+    fun adblockScriptlets(): Boolean = prefs.getBoolean(KEY_ADBLOCK_SCRIPTLETS, true)
+    fun setAdblockScriptlets(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ADBLOCK_SCRIPTLETS, value).apply()
     }
 
     fun adblockUpdateWifiOnly(): Boolean = prefs.getBoolean(KEY_ADBLOCK_WIFI_ONLY, true)

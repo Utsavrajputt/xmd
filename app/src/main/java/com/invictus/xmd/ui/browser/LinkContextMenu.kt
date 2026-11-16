@@ -49,6 +49,8 @@ fun LinkContextMenu(
     onDownloadImage: (String) -> Unit,
     onCopyLinkAddress: (String) -> Unit,
     onShareLink: (String) -> Unit,
+    /** Non-null shows "Hide element": starts the ad blocker's element picker. */
+    onHideElement: (() -> Unit)? = null,
 ) {
     Box(Modifier.fillMaxSize()) {
         Box(
@@ -96,6 +98,12 @@ fun LinkContextMenu(
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.link_menu_share_link)) },
                         onClick = { onShareLink(link); onDismiss() },
+                    )
+                }
+                if (onHideElement != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.link_menu_hide_element)) },
+                        onClick = { onHideElement(); onDismiss() },
                     )
                 }
             }

@@ -486,28 +486,28 @@ private fun DownloadsSelectionPill(
     val isExtraLargeScreen = screenWidthDp >= 840
 
     val buttonSize = when {
-        isExtraLargeScreen -> 52.dp
-        isLargeScreen -> 46.dp
-        else -> 38.dp
+        isExtraLargeScreen -> 62.dp
+        isLargeScreen -> 56.dp
+        else -> 48.dp
     }
     val iconSize = when {
-        isExtraLargeScreen -> 28.dp
-        isLargeScreen -> 24.dp
-        else -> 20.dp
+        isExtraLargeScreen -> 32.dp
+        isLargeScreen -> 28.dp
+        else -> 26.dp
     }
     val pillHorizontalPadding = when {
-        isExtraLargeScreen -> 20.dp
-        isLargeScreen -> 16.dp
-        else -> 10.dp
+        isExtraLargeScreen -> 24.dp
+        isLargeScreen -> 20.dp
+        else -> 14.dp
     }
     val pillVerticalPadding = when {
-        isLargeScreen -> 8.dp
-        else -> 4.dp
+        isLargeScreen -> 10.dp
+        else -> 6.dp
     }
     val actionSpacing = when {
-        isExtraLargeScreen -> 12.dp
-        isLargeScreen -> 8.dp
-        else -> 4.dp
+        isExtraLargeScreen -> 14.dp
+        isLargeScreen -> 10.dp
+        else -> 8.dp
     }
 
     Box(

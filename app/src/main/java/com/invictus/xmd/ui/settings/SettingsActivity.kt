@@ -268,7 +268,7 @@ class SettingsActivity : ComponentActivity() {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             SettingsRootScreen(
                                 showYoutubeRow = com.invictus.xmd.BuildConfig.HAS_YOUTUBE_SUPPORT,
-                                selectedRoute = when (selectedRoute) { Route.ADBLOCK -> Route.BROWSER; Route.GITHUB -> Route.PROFILE; else -> selectedRoute },
+                                selectedRoute = when (selectedRoute) { Route.ADBLOCK, Route.ADBLOCK_RULES -> Route.BROWSER; Route.GITHUB -> Route.PROFILE; else -> selectedRoute },
                                 showBatteryWarning = showBatteryWarning,
                                 onDismissBatteryWarning = { batteryWarningDismissed = true },
                                 onFixBatteryOptimization = { requestDisableBatteryOptimization(context) },
@@ -318,7 +318,8 @@ class SettingsActivity : ComponentActivity() {
                                     onExportWebsites = onExportWebsites,
                                     onOpenAdblock = { selectedRoute = Route.ADBLOCK },
                                 )
-                                Route.ADBLOCK -> AdblockRoute()
+                                Route.ADBLOCK -> AdblockRoute(onOpenRules = { selectedRoute = Route.ADBLOCK_RULES })
+                                Route.ADBLOCK_RULES -> AdblockRulesRoute()
                                 Route.YOUTUBE -> YoutubeRoute()
                                 Route.ABOUT -> AboutRoute(
                                     onLibrariesClick = { selectedRoute = Route.LIBRARIES },
@@ -396,7 +397,8 @@ class SettingsActivity : ComponentActivity() {
                                 onOpenAdblock = { navController.navigate(Route.ADBLOCK) },
                             )
                         }
-                        composable(Route.ADBLOCK) { AdblockRoute() }
+                        composable(Route.ADBLOCK) { AdblockRoute(onOpenRules = { navController.navigate(Route.ADBLOCK_RULES) }) }
+                        composable(Route.ADBLOCK_RULES) { AdblockRulesRoute() }
                         composable(Route.YOUTUBE) { YoutubeRoute() }
                         composable(Route.ABOUT) {
                             AboutRoute(
@@ -525,6 +527,7 @@ internal object Route {
     const val DOWNLOADS = "downloads"
     const val BROWSER = "browser"
     const val ADBLOCK = "adblock"
+    const val ADBLOCK_RULES = "adblock_rules"
     const val YOUTUBE = "youtube"
     const val ABOUT = "about"
     const val LIBRARIES = "libraries"
@@ -539,6 +542,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
     Route.CONNECTIONS to R.string.settings_category_connections,
     Route.BROWSER to R.string.settings_category_browser,
     Route.ADBLOCK to R.string.settings_adblock_title,
+    Route.ADBLOCK_RULES to R.string.settings_adblock_rules_title,
     Route.DOWNLOADS to R.string.settings_category_downloads,
     Route.YOUTUBE to R.string.settings_category_youtube,
     Route.ABOUT to R.string.settings_category_about,
@@ -1015,7 +1019,17 @@ private fun BrowserRoute(
 }
 
 @Composable
-private fun AdblockRoute() {
+private fun AdblockRulesRoute() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val initial = remember { com.invictus.xmd.domain.browser.AdBlocker.userRules(context) }
+    SettingsAdblockRulesScreen(
+        initialText = initial,
+        onSave = { text -> com.invictus.xmd.domain.browser.AdBlocker.saveUserRules(context, text) },
+    )
+}
+
+@Composable
+private fun AdblockRoute(onOpenRules: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val settings = com.invictus.xmd.preferences.Settings
@@ -1023,6 +1037,8 @@ private fun AdblockRoute() {
     var allowlistedSites by remember { mutableStateOf(settings.adblockAllowlistedSites().sorted()) }
     var updateDays by remember { mutableStateOf(settings.adblockUpdateDays()) }
     var wifiOnly by remember { mutableStateOf(settings.adblockUpdateWifiOnly()) }
+    var cosmeticEnabled by remember { mutableStateOf(settings.adblockCosmetic()) }
+    var scriptletsEnabled by remember { mutableStateOf(settings.adblockScriptlets()) }
     var listUpdating by remember { mutableStateOf(false) }
     var listUpdateResultRes by remember { mutableStateOf<Int?>(null) }
 
@@ -1106,6 +1122,20 @@ private fun AdblockRoute() {
             wifiOnly = value
             settings.setAdblockUpdateWifiOnly(value)
         },
+        cosmeticEnabled = cosmeticEnabled,
+        scriptletsEnabled = scriptletsEnabled,
+        onCosmeticChanged = { value ->
+            cosmeticEnabled = value
+            settings.setAdblockCosmetic(value)
+            com.invictus.xmd.domain.browser.AdBlocker.clearCosmeticCache()
+        },
+        onScriptletsChanged = { value ->
+            scriptletsEnabled = value
+            settings.setAdblockScriptlets(value)
+            com.invictus.xmd.domain.browser.AdBlocker.clearCosmeticCache()
+        },
+        userRuleCount = remember(changeTick) { com.invictus.xmd.domain.browser.AdBlocker.userRuleCount(context) },
+        onOpenRules = onOpenRules,
         onRemoveAllowlistedSite = { site ->
             settings.setAdblockAllowlisted(site, allowed = false)
             allowlistedSites = settings.adblockAllowlistedSites().sorted()
