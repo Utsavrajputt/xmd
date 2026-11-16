@@ -708,13 +708,16 @@
     <string name="download_view_layout">Layout</string>
     <string name="download_view_layout_comfortable">Comfortable</string>
     <string name="download_view_layout_compact">Compact</string>
-    <string name="download_view_fields">Show on each item</string>
+    <string name="download_view_fields">Item details</string>
+    <string name="download_view_tabs">Tabs to show</string>
+    <string name="download_view_dir_caption">%1$s · tap again to reverse</string>
     <string name="download_view_field_icon">File icon</string>
     <string name="download_view_field_badge">Type badge</string>
     <string name="download_view_field_size">Size</string>
     <string name="download_view_field_duration">Time taken</string>
     <string name="download_view_field_date">Date</string>
     <string name="download_view_field_actions">Actions</string>
+    <string name="download_view_field_full_name">Full file name</string>
     <string name="download_group_today">Today</string>
     <string name="download_group_yesterday">Yesterday</string>
     <string name="download_group_last_7">Last 7 days</string>

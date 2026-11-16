@@ -24,10 +24,14 @@ enum class DownloadField {
     SIZE,
     DURATION,
     DATE,
-    ACTIONS;
+    ACTIONS,
+    /** Show the whole file name (wrapping) instead of cutting it with an ellipsis. */
+    FULL_NAME;
 
     companion object {
         val ALL: Set<DownloadField> = entries.toSet()
+        /** Everything except FULL_NAME, which is opt-in. */
+        val DEFAULT: Set<DownloadField> = ALL - FULL_NAME
     }
 }
 
@@ -37,7 +41,9 @@ data class DownloadViewOptions(
     val ascending: Boolean = DownloadSortBy.DATE.defaultAscending,
     val groupBy: DownloadGroupBy = DownloadGroupBy.NONE,
     val compact: Boolean = false,
-    val fields: Set<DownloadField> = DownloadField.ALL,
+    val fields: Set<DownloadField> = DownloadField.DEFAULT,
+    /** Filter tabs hidden from the chip row: "ALL" and/or [DownloadTypeFilter] names. Active is never hidden. */
+    val hiddenTabs: Set<String> = emptySet(),
 ) {
     val isDefault: Boolean get() = this == DownloadViewOptions()
 
@@ -49,6 +55,7 @@ data class DownloadViewOptions(
             compact = compact,
             // Names joined by ",": an empty string means "every field hidden", null means "never customised".
             fields = fields.joinToString(",") { it.name },
+            hiddenTabs = hiddenTabs.joinToString(","),
         )
     }
 
@@ -62,13 +69,14 @@ data class DownloadViewOptions(
                 ?.split(',')
                 ?.mapNotNull { name -> DownloadField.entries.firstOrNull { it.name == name } }
                 ?.toSet()
-                ?: DownloadField.ALL
+                ?: DownloadField.DEFAULT
             return DownloadViewOptions(
                 sortBy = sortBy,
                 ascending = Settings.downloadsSortAscending(),
                 groupBy = groupBy,
                 compact = Settings.downloadsCompact(),
                 fields = fields,
+                hiddenTabs = Settings.downloadsHiddenTabs().split(',').filter { it.isNotBlank() }.toSet(),
             )
         }
     }

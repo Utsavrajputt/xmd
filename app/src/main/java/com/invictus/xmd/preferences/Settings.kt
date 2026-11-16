@@ -854,6 +854,7 @@ object Settings {
     private const val KEY_DL_GROUP_BY = "downloads_view_group_by"
     private const val KEY_DL_COMPACT = "downloads_view_compact"
     private const val KEY_DL_FIELDS = "downloads_view_fields"
+    private const val KEY_DL_HIDDEN_TABS = "downloads_view_hidden_tabs"
 
     fun downloadsSortBy(): String = prefs.getString(KEY_DL_SORT_BY, "DATE").orEmpty()
     fun downloadsSortAscending(): Boolean = prefs.getBoolean(KEY_DL_SORT_ASC, false)
@@ -862,13 +863,17 @@ object Settings {
     /** Comma-separated visible field names, or null when never customised (= all visible). */
     fun downloadsFields(): String? = prefs.getString(KEY_DL_FIELDS, null)
 
-    fun setDownloadsView(sortBy: String, ascending: Boolean, groupBy: String, compact: Boolean, fields: String) {
+    /** Comma-separated names of the filter tabs the user hid (ALL, Video, ...). Active can't be hidden. */
+    fun downloadsHiddenTabs(): String = prefs.getString(KEY_DL_HIDDEN_TABS, "").orEmpty()
+
+    fun setDownloadsView(sortBy: String, ascending: Boolean, groupBy: String, compact: Boolean, fields: String, hiddenTabs: String) {
         prefs.edit()
             .putString(KEY_DL_SORT_BY, sortBy)
             .putBoolean(KEY_DL_SORT_ASC, ascending)
             .putString(KEY_DL_GROUP_BY, groupBy)
             .putBoolean(KEY_DL_COMPACT, compact)
             .putString(KEY_DL_FIELDS, fields)
+            .putString(KEY_DL_HIDDEN_TABS, hiddenTabs)
             .apply()
     }
 

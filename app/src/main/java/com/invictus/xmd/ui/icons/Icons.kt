@@ -52,6 +52,22 @@ private fun whatsappIcon(): ImageVector = ImageVector.Builder(
     fill = SolidColor(Color.Black),
 ).build()
 
+/** "Sort & view": an up arrow and a down arrow side by side (swap-vertical look), stroke style. */
+private fun sortViewIcon(): ImageVector = ImageVector.Builder(
+    name = "SortView",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f,
+).addPath(
+    pathData = PathParser().parsePathString("M8,19 L8,5 M4,9 L8,5 L12,9 M16,5 L16,19 M12,15 L16,19 L20,15").toNodes(),
+    fill = null,
+    stroke = SolidColor(Color.Black),
+    strokeLineWidth = 2f,
+    strokeLineCap = StrokeCap.Round,
+    strokeLineJoin = StrokeJoin.Round,
+).build()
+
 /** Chrome-omnibox style "fill into address bar" arrow (up-left). Stroke
  *  glyph so it needs no extra symbol dependency; tinted by Icon(). */
 private fun fillArrowIcon(): ImageVector = ImageVector.Builder(
@@ -197,6 +213,7 @@ object Icons {
     val Logout by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Logout) }
     val Tune by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Tune) }
     val Sort by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Sort) }
+    val SortView by lazy(LazyThreadSafetyMode.NONE) { AppIcon(sortViewIcon()) }
     val Star by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Star) }
     val Stop by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Stop) }
     val Sync by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Sync) }

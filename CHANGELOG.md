@@ -14,7 +14,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
 
 ### 📥 Downloads
-- 🎛️ **Sort & view sheet** — the sort button is now a Tune icon that opens a bottom sheet: sort by Date / Name / Size / Type (each with a direction toggle), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and chips to show / hide the file icon, type badge, size, time taken, date and the Folder / Info buttons. Changes apply live, are remembered, and a Reset button restores the defaults.
+- 🎛️ **Sort & view dialog** — a new compact dialog from the sort button (new arrows icon): sort by Date / Name / Size / Type (tap the selected one again to reverse), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and which filter tabs to show (everything except Active). A collapsible "Item details" section toggles the file icon, type badge, size, time taken, date, Folder / Info buttons and a new "Full file name" option (no more cut-off names). Changes apply live, are remembered, and Reset restores the defaults.
 
 ## [1.1.0] - 2026-11-14
 

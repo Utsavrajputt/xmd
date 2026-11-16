@@ -225,19 +225,25 @@ fun DownloadsScreen(
 
     // The user's pick if it still has items; otherwise Active, else All.
     // showAll / selectedType both false/null with showActive false => nothing.
-    val chosenType = DownloadTypeFilter.entries.firstOrNull { it.name == chosenChipName }
+    // Tabs the user hid in Sort & view never get picked (Active can't be hidden).
+    val hiddenTabs = viewOptions.hiddenTabs
+    val allTabShown = DOWNLOAD_TAB_ALL !in hiddenTabs
+    val chosenType = DownloadTypeFilter.entries.firstOrNull { it.name == chosenChipName && it.name !in hiddenTabs }
+    val fallbackType = DownloadTypeFilter.entries.firstOrNull { it.name !in hiddenTabs && (typeCounts[it] ?: 0) > 0 }
     val finishedCount = finishedItems.size
     val showActive: Boolean
     val showAll: Boolean
     val selectedType: DownloadTypeFilter?
     if (chosenChipName == ACTIVE_CHIP && activeCount > 0) {
         showActive = true; showAll = false; selectedType = null
-    } else if (chosenChipName == ALL_CHIP && finishedCount > 0) {
+    } else if (chosenChipName == ALL_CHIP && allTabShown && finishedCount > 0) {
         showActive = false; showAll = true; selectedType = null
     } else if (chosenType != null && (typeCounts[chosenType] ?: 0) > 0) {
         showActive = false; showAll = false; selectedType = chosenType
     } else if (activeCount > 0) {
         showActive = true; showAll = false; selectedType = null
+    } else if (!allTabShown && fallbackType != null) {
+        showActive = false; showAll = false; selectedType = fallbackType
     } else {
         showActive = false; showAll = finishedCount > 0; selectedType = null
     }
@@ -432,7 +438,7 @@ fun DownloadsScreen(
                             onClick = { chosenChipName = ACTIVE_CHIP },
                         )
                     }
-                    if (activeCount > 0 && finishedCount > 0) {
+                    if (activeCount > 0 && finishedCount > 0 && (allTabShown || fallbackType != null)) {
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
@@ -440,7 +446,7 @@ fun DownloadsScreen(
                                 .background(MaterialTheme.colorScheme.outlineVariant),
                         )
                     }
-                    if (finishedCount > 0) {
+                    if (finishedCount > 0 && allTabShown) {
                         DownloadFilterChip(
                             label = stringResource(R.string.download_filter_all),
                             selected = showAll,
@@ -448,7 +454,7 @@ fun DownloadsScreen(
                         )
                     }
                     DownloadTypeFilter.entries.forEach { type ->
-                        if ((typeCounts[type] ?: 0) == 0) return@forEach
+                        if ((typeCounts[type] ?: 0) == 0 || type.name in hiddenTabs) return@forEach
                         DownloadFilterChip(
                             label = stringResource(type.labelRes),
                             selected = selectedType == type,
@@ -463,20 +469,16 @@ fun DownloadsScreen(
                 // everything else and left a lot of dead space below a
                 // short list).
                 if (list.isNotEmpty()) {
-                    // "Sort & view" button, just left of the 3-dot menu; tinted when anything differs from the default.
+                    // "Sort & view" button, just left of the 3-dot menu.
                     IconButton(
                         shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                         onClick = { showViewSheet = true },
                         modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Tune,
+                            imageVector = Icons.SortView,
                             contentDescription = stringResource(R.string.download_view_title),
-                            tint = if (!viewOptions.isDefault) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -623,7 +625,7 @@ fun DownloadsScreen(
     }
 
     if (showViewSheet) {
-        DownloadViewSheet(
+        DownloadViewDialog(
             options = viewOptions,
             groupingApplies = !showActive,
             onChange = { updated ->
@@ -1087,7 +1089,7 @@ fun QueueItemRow(
     item: QueueItem,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
-    fields: Set<DownloadField> = DownloadField.ALL,
+    fields: Set<DownloadField> = DownloadField.DEFAULT,
     compact: Boolean = false,
     modifier: Modifier = Modifier,
     onPauseResume: (QueueItem) -> Unit,
@@ -1348,7 +1350,7 @@ fun QueueItemRow(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
-                        maxLines = 1,
+                        maxLines = if (DownloadField.FULL_NAME in fields) Int.MAX_VALUE else 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
@@ -1839,7 +1841,7 @@ private fun statusText(
     item: QueueItem,
     speedEta: String?,
     splitSpeedEta: Boolean = false,
-    fields: Set<DownloadField> = DownloadField.ALL,
+    fields: Set<DownloadField> = DownloadField.DEFAULT,
 ): String {
     val context = LocalContext.current
     return when (item.status) {
