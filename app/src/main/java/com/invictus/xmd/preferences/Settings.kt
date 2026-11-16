@@ -848,6 +848,30 @@ object Settings {
         }
     }
 
+    // ── Downloads: "Sort & view" sheet (stored as plain strings; the enums live in ui/downloads) ──
+    private const val KEY_DL_SORT_BY = "downloads_view_sort_by"
+    private const val KEY_DL_SORT_ASC = "downloads_view_sort_asc"
+    private const val KEY_DL_GROUP_BY = "downloads_view_group_by"
+    private const val KEY_DL_COMPACT = "downloads_view_compact"
+    private const val KEY_DL_FIELDS = "downloads_view_fields"
+
+    fun downloadsSortBy(): String = prefs.getString(KEY_DL_SORT_BY, "DATE").orEmpty()
+    fun downloadsSortAscending(): Boolean = prefs.getBoolean(KEY_DL_SORT_ASC, false)
+    fun downloadsGroupBy(): String = prefs.getString(KEY_DL_GROUP_BY, "NONE").orEmpty()
+    fun downloadsCompact(): Boolean = prefs.getBoolean(KEY_DL_COMPACT, false)
+    /** Comma-separated visible field names, or null when never customised (= all visible). */
+    fun downloadsFields(): String? = prefs.getString(KEY_DL_FIELDS, null)
+
+    fun setDownloadsView(sortBy: String, ascending: Boolean, groupBy: String, compact: Boolean, fields: String) {
+        prefs.edit()
+            .putString(KEY_DL_SORT_BY, sortBy)
+            .putBoolean(KEY_DL_SORT_ASC, ascending)
+            .putString(KEY_DL_GROUP_BY, groupBy)
+            .putBoolean(KEY_DL_COMPACT, compact)
+            .putString(KEY_DL_FIELDS, fields)
+            .apply()
+    }
+
     // ── Browser: Private DNS (DNS-over-HTTPS for in-app browsing only) ────
     enum class DnsMode { ADGUARD, GOOGLE, CLOUDFLARE, CLOUDFLARE_ADBLOCK, OFF, CUSTOM }
 

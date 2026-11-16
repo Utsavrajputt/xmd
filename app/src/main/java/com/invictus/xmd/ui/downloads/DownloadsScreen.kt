@@ -213,8 +213,8 @@ fun DownloadsScreen(
     // (All = every type together). Exactly one
     // chip is selected at a time; empty chips are hidden.
     var chosenChipName by rememberSaveable { mutableStateOf<String?>(null) }
-    var sortName by rememberSaveable { mutableStateOf(DownloadSort.Newest.name) }
-    val sort = DownloadSort.entries.firstOrNull { it.name == sortName } ?: DownloadSort.Newest
+    // Sort / group / layout / visible fields: persisted, edited from the "Sort & view" sheet.
+    var viewOptions by remember { mutableStateOf(DownloadViewOptions.load()) }
 
     val activeItems = remember(queryMatches) { queryMatches.filter { it.status != ItemStatus.DONE } }
     val finishedItems = remember(queryMatches) { queryMatches.filter { it.status == ItemStatus.DONE } }
@@ -242,18 +242,24 @@ fun DownloadsScreen(
         showActive = false; showAll = finishedCount > 0; selectedType = null
     }
     // In-flight downloads stay on top of the Active list; the rest keep their order.
-    val list = remember(activeItems, finishedItems, showActive, showAll, selectedType, sort) {
+    // Sections: one header-less block normally, or Date / Type blocks when grouping is on
+    // (completed lists only -- the Active tab stays a single block).
+    val sections = remember(activeItems, finishedItems, showActive, showAll, selectedType, viewOptions) {
+        val sortBy = viewOptions.sortBy
+        val asc = viewOptions.ascending
         if (showActive) {
             val (inFlight, others) = activeItems.partition { isInFlight(it) }
-            sort.apply(inFlight) + sort.apply(others)
+            listOf(singleSection(sortDownloads(inFlight, sortBy, asc) + sortDownloads(others, sortBy, asc)))
         } else if (showAll) {
-            sort.apply(finishedItems)
+            groupDownloads(sortDownloads(finishedItems, sortBy, asc), viewOptions)
         } else if (selectedType != null) {
-            sort.apply(finishedItems.filter { selectedType.matches(it) })
+            groupDownloads(sortDownloads(finishedItems.filter { selectedType.matches(it) }, sortBy, asc), viewOptions)
         } else {
             emptyList()
         }
     }
+    // Flat, display-ordered list for everything that doesn't care about sections (select all, clear...).
+    val list = remember(sections) { sections.flatMap { it.items } }
 
     var selectedIds by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var renameTarget by remember { mutableStateOf<QueueItem?>(null) }
@@ -261,7 +267,7 @@ fun DownloadsScreen(
     var pendingClearRunning by remember { mutableStateOf<QueueItem?>(null) }
     var errorDetailsTarget by remember { mutableStateOf<QueueItem?>(null) }
     var overflowMenuExpanded by remember { mutableStateOf(false) }
-    var sortMenuExpanded by remember { mutableStateOf(false) }
+    var showViewSheet by remember { mutableStateOf(false) }
     var pendingCancelItem by remember { mutableStateOf<QueueItem?>(null) }
     var showCancelAllDialog by remember { mutableStateOf(false) }
 
@@ -457,45 +463,22 @@ fun DownloadsScreen(
                 // everything else and left a lot of dead space below a
                 // short list).
                 if (list.isNotEmpty()) {
-                    // Compact sort button, just left of the 3-dot menu.
-                    Box {
-                        IconButton(
-                            shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
-                            onClick = { sortMenuExpanded = true },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Sort,
-                                contentDescription = stringResource(R.string.action_sort),
-                                tint = if (sort != DownloadSort.Newest) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        DropdownMenu(
-                            shape = com.invictus.xmd.ui.theme.XmdShapes.M,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            expanded = sortMenuExpanded,
-                            onDismissRequest = { sortMenuExpanded = false },
-                        ) {
-                            DownloadSort.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(option.labelRes)) },
-                                    trailingIcon = if (option == sort) {
-                                        { Icon(imageVector = Icons.Check, contentDescription = null) }
-                                    } else {
-                                        null
-                                    },
-                                    onClick = {
-                                        sortName = option.name
-                                        sortMenuExpanded = false
-                                    },
-                                )
-                            }
-                        }
+                    // "Sort & view" button, just left of the 3-dot menu; tinted when anything differs from the default.
+                    IconButton(
+                        shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                        onClick = { showViewSheet = true },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Tune,
+                            contentDescription = stringResource(R.string.download_view_title),
+                            tint = if (!viewOptions.isDefault) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                     Box(modifier = Modifier.padding(end = 4.dp)) {
                         IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = { overflowMenuExpanded = true }) {
@@ -601,12 +584,20 @@ fun DownloadsScreen(
                     contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(list, key = { it.id }) { item ->
+                    sections.forEach { section ->
+                    if (section.hasHeader) {
+                        item(key = "hdr_${section.key}") {
+                            DownloadSectionHeader(section, modifier = Modifier.animateItem())
+                        }
+                    }
+                    items(section.items, key = { it.id }) { item ->
                         val isSelected = item.id in selectedIds
                         QueueItemRow(
                             item = item,
                             isSelected = isSelected,
                             isSelectionMode = selectedIds.isNotEmpty(),
+                            fields = viewOptions.fields,
+                            compact = viewOptions.compact,
                             modifier = Modifier.animateItem(),
                             onPauseResume = onPauseResume,
                             onCancel = { pendingCancelItem = it },
@@ -625,9 +616,22 @@ fun DownloadsScreen(
                             },
                         )
                     }
+                    }
                 }
             }
         }
+    }
+
+    if (showViewSheet) {
+        DownloadViewSheet(
+            options = viewOptions,
+            groupingApplies = !showActive,
+            onChange = { updated ->
+                viewOptions = updated
+                updated.save()
+            },
+            onDismiss = { showViewSheet = false },
+        )
     }
 
     // ── Rename dialog ─────────────────────────────────────────────────────
@@ -868,7 +872,7 @@ private fun isInFlight(item: QueueItem): Boolean = item.status in setOf(
     ItemStatus.SAVING,
 )
 
-private enum class DownloadTypeFilter(val labelRes: Int) {
+internal enum class DownloadTypeFilter(val labelRes: Int) {
     Video(R.string.download_type_video),
     Audio(R.string.download_type_audio),
     Documents(R.string.download_type_documents),
@@ -878,7 +882,7 @@ private enum class DownloadTypeFilter(val labelRes: Int) {
 }
 
 /** Same extension/category rules the row icon uses, folded into the four filter buckets. */
-private fun downloadType(item: QueueItem): DownloadTypeFilter {
+internal fun downloadType(item: QueueItem): DownloadTypeFilter {
     if (item.sourceUrl.startsWith("magnet:", ignoreCase = true)) return DownloadTypeFilter.Others
     if (item.platform == MediaPlatform.YOUTUBE) {
         val format = item.mediaFormatLabel?.trim()?.lowercase()
@@ -970,31 +974,45 @@ private fun Modifier.bottomNavBlur(
     }
 }
 
-private enum class DownloadSort(val labelRes: Int) {
-    Newest(R.string.download_sort_newest),
-    Oldest(R.string.download_sort_oldest),
-    NameAsc(R.string.download_sort_name_asc),
-    NameDesc(R.string.download_sort_name_desc),
-    SizeDesc(R.string.download_sort_size_desc),
-    SizeAsc(R.string.download_sort_size_asc);
-
-    fun apply(list: List<QueueItem>): List<QueueItem> = when (this) {
-        Newest -> list.sortedByDescending { timeKey(it) }
-        Oldest -> list.sortedBy { timeKey(it) }
-        NameAsc -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.fileName ?: it.sourceUrl })
-        NameDesc -> list.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.fileName ?: it.sourceUrl })
-        SizeDesc -> list.sortedByDescending { sizeKey(it) }
-        SizeAsc -> list.sortedBy { sizeKey(it) }
+/** "Today · 5" / "Video · 12" divider shown above each group when grouping is on. */
+@Composable
+private fun DownloadSectionHeader(section: DownloadSection, modifier: Modifier = Modifier) {
+    val title = when {
+        section.type != null -> stringResource(section.type.labelRes)
+        else -> when (section.bucket) {
+            DateBucket.TODAY -> stringResource(R.string.download_group_today)
+            DateBucket.YESTERDAY -> stringResource(R.string.download_group_yesterday)
+            DateBucket.LAST_7_DAYS -> stringResource(R.string.download_group_last_7)
+            DateBucket.LAST_30_DAYS -> stringResource(R.string.download_group_last_30)
+            DateBucket.MONTH -> remember(section.monthStartMs) {
+                java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault()).format(Date(section.monthStartMs))
+            }
+            null -> ""
+        }
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, end = 4.dp, top = 10.dp, bottom = 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = section.items.size.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape)
+                .padding(horizontal = 8.dp, vertical = 1.dp),
+        )
     }
 }
-
-// Finished time, else start time; items that haven't started yet were queued most recently.
-private fun timeKey(item: QueueItem): Long {
-    val t = maxOf(item.downloadFinishedAtMs, item.downloadStartedAtMs)
-    return if (t == 0L) Long.MAX_VALUE else t
-}
-
-private fun sizeKey(item: QueueItem): Long = maxOf(item.bytesTotal, item.bytesDone)
 
 @Composable
 private fun DownloadFilterChip(
@@ -1069,6 +1087,8 @@ fun QueueItemRow(
     item: QueueItem,
     isSelected: Boolean = false,
     isSelectionMode: Boolean = false,
+    fields: Set<DownloadField> = DownloadField.ALL,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
     onPauseResume: (QueueItem) -> Unit,
     onCancel: (QueueItem) -> Unit,
@@ -1201,7 +1221,7 @@ fun QueueItemRow(
                         snapTo(if (shouldReveal) -actionWidthPx else 0f)
                     },
                 )
-                .defaultMinSize(minHeight = 72.dp),
+                .defaultMinSize(minHeight = if (compact) 56.dp else 72.dp),
             colors = CardDefaults.cardColors(containerColor = cardContainerColor),
             shape = XmdShapes.M,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -1294,12 +1314,12 @@ fun QueueItemRow(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .defaultMinSize(minHeight = 72.dp)
+                    .defaultMinSize(minHeight = if (compact) 56.dp else 72.dp)
                     .padding(
                         start = if (isSelectionMode) 8.dp else 14.dp,
                         end = 14.dp,
-                        top = 11.dp,
-                        bottom = 11.dp,
+                        top = if (compact) 6.dp else 11.dp,
+                        bottom = if (compact) 6.dp else 11.dp,
                     ),
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -1314,13 +1334,15 @@ fun QueueItemRow(
                     val iconColor = remember(item.fileName, item.platform, item.category) {
                         fileTypeColor(item)
                     }
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(17.dp),
-                        tint = iconColor,
-                    )
-                    Spacer(Modifier.width(7.dp))
+                    if (DownloadField.ICON in fields) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp),
+                            tint = iconColor,
+                        )
+                        Spacer(Modifier.width(7.dp))
+                    }
                     Text(
                         text = item.fileName ?: item.sourceUrl,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -1330,8 +1352,10 @@ fun QueueItemRow(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    Spacer(Modifier.width(6.dp))
-                    FileTypeBubble(item)
+                    if (DownloadField.BADGE in fields) {
+                        Spacer(Modifier.width(6.dp))
+                        FileTypeBubble(item)
+                    }
                 }
 
                 // Progress bar above progress details
@@ -1341,12 +1365,12 @@ fun QueueItemRow(
                         progress = progressValue,
                         isDownloading = item.status == ItemStatus.DOWNLOADING,
                         isIndeterminate = indeterminate,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                        modifier = Modifier.padding(top = if (compact) 4.dp else 6.dp, bottom = 2.dp),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
                 } else {
-                    Spacer(Modifier.height(7.dp))
+                    Spacer(Modifier.height(if (compact) 4.dp else 7.dp))
                 }
 
                 // Status row: icon + unified status text + inline action buttons
@@ -1392,7 +1416,7 @@ fun QueueItemRow(
                         TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     )
                     var statusWidthPx by remember { mutableIntStateOf(0) }
-                    val singleLine = statusText(item, throttledSpeedEta)
+                    val singleLine = statusText(item, throttledSpeedEta, fields = fields)
                     val needsWrap = throttledSpeedEta != null && statusWidthPx > 0 &&
                         remember(singleLine, statusWidthPx, statusStyle) {
                             textMeasurer.measure(
@@ -1403,7 +1427,7 @@ fun QueueItemRow(
                             ).size.width > statusWidthPx
                         }
                     val shownText = if (needsWrap) {
-                        statusText(item, throttledSpeedEta, splitSpeedEta = true)
+                        statusText(item, throttledSpeedEta, splitSpeedEta = true, fields = fields)
                     } else singleLine
                     Text(
                         text = shownText,
@@ -1528,18 +1552,20 @@ fun QueueItemRow(
                                     )
                                 }
                                 ItemStatus.DONE -> {
-                                    CompactIconButton(
-                                        icon = Icons.Folder,
-                                        contentDescription = stringResource(R.string.action_open_file_location),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        onClick = { onOpenFileLocation(item) },
-                                    )
-                                    CompactIconButton(
-                                        icon = Icons.Info,
-                                        contentDescription = stringResource(R.string.action_details),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        onClick = { showInfo = true },
-                                    )
+                                    if (DownloadField.ACTIONS in fields) {
+                                        CompactIconButton(
+                                            icon = Icons.Folder,
+                                            contentDescription = stringResource(R.string.action_open_file_location),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            onClick = { onOpenFileLocation(item) },
+                                        )
+                                        CompactIconButton(
+                                            icon = Icons.Info,
+                                            contentDescription = stringResource(R.string.action_details),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            onClick = { showInfo = true },
+                                        )
+                                    }
                                 }
                                 else -> Unit
                             }
@@ -1809,7 +1835,12 @@ private fun progressFor(item: QueueItem): Pair<Float, Boolean> = when (item.stat
 }
 
 @Composable
-private fun statusText(item: QueueItem, speedEta: String?, splitSpeedEta: Boolean = false): String {
+private fun statusText(
+    item: QueueItem,
+    speedEta: String?,
+    splitSpeedEta: Boolean = false,
+    fields: Set<DownloadField> = DownloadField.ALL,
+): String {
     val context = LocalContext.current
     return when (item.status) {
     ItemStatus.PENDING -> "Queued"
@@ -1885,9 +1916,9 @@ private fun statusText(item: QueueItem, speedEta: String?, splitSpeedEta: Boolea
             finishedAt - item.downloadStartedAtMs
         } else 0L
         val parts = buildList {
-            if (bytes > 0) add(formatBytes(bytes))
-            if (durationMs > 500) add("Took ${formatElapsedDuration(durationMs)}")
-            if (finishedAt > 0) {
+            if (DownloadField.SIZE in fields && bytes > 0) add(formatBytes(bytes))
+            if (DownloadField.DURATION in fields && durationMs > 500) add("Took ${formatElapsedDuration(durationMs)}")
+            if (DownloadField.DATE in fields && finishedAt > 0) {
                 val finishedDate = Date(finishedAt)
                 val date = android.text.format.DateFormat.getMediumDateFormat(context).format(finishedDate)
                 val time = android.text.format.DateFormat.getTimeFormat(context).format(finishedDate)

@@ -13,6 +13,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 🎯 **Hide element** — long-press a link or image, choose "Hide element", then tap / use Parent & Child to adjust, Preview, and Hide. It hides instantly, saves a `site##selector` rule to My rules and offers Undo.
 - 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
 
+### 📥 Downloads
+- 🎛️ **Sort & view sheet** — the sort button is now a Tune icon that opens a bottom sheet: sort by Date / Name / Size / Type (each with a direction toggle), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and chips to show / hide the file icon, type badge, size, time taken, date and the Folder / Info buttons. Changes apply live, are remembered, and a Reset button restores the defaults.
+
 ## [1.1.0] - 2026-11-14
 
 ☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**
