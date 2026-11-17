@@ -209,14 +209,6 @@ fun BrowserToolbarRow(
                     onNewTabTap = onNewTabTap,
                 )
                 if (!addressBarFocused) {
-                    if (homeVisible) {
-                        ToolbarIconButton(
-                            icon = Icons.Add,
-                            contentDescription = stringResource(R.string.action_new_tab),
-                            onClick = onNewTabTap,
-                            modifier = Modifier.padding(start = 2.dp),
-                        )
-                    }
                     TabsButton(
                         count = tabsCount,
                         contentDescription = stringResource(R.string.action_tabs),

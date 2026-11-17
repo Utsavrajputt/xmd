@@ -3,29 +3,9 @@
 All notable changes to **Xmd** are documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and versioning follows [SemVer](https://semver.org/) with pre-release identifiers (`-beta.N`, `-rc.N`, ...) leading up to `1.0.0`.
 
-## [Unreleased]
+## [1.1.0] - 2026-11-17
 
-### 🌐 Browser
-- 🛡️ **New ad-blocking engine** — reads standard uBlock Origin / AdBlock Plus filter lists (the same syntax 1DM and Brave use): `||domain^`, wildcards, `$third-party`, `$script`/`$image`/… types, `$domain=`, `$important`, `$popup`, `@@` exceptions, `$badfilter`, regex rules, hosts files and plain domain lists. Requests are matched on URL, resource type, first/third party and the page they came from; blocked images become a 1×1 pixel so layouts don't break.
-- 📚 **Filter list manager** — EasyList, EasyPrivacy, uBlock filters (+ unbreak, quick fixes, privacy, badware), Brave lists, Bypass Paywalls Clean, AdGuard, Fanboy and more, each with its own switch, rule count and last-updated date. Add your own list by link; lists update every 3 days on Wi-Fi (configurable, with "Update now").
-- 🧹 **Element hiding, scriptlets & redirects** — lists can now hide leftover ad boxes (`##.ad`, `:has-text`, `:upward`, `#$#` styles), run page fixes (`##+js(...)`: anti-adblock, paywall and popup defusers, `set-constant`, `json-prune`, …) and answer blocked scripts with harmless stand-ins (`$redirect=`), so pages like Google Analytics-dependent sites keep working. Switches under Settings → Ad blocker.
-- ✍️ **My rules** — write your own block / allow / hide rules in Settings → Ad blocker → My rules (same syntax as the lists; a bare domain also works). They are applied after every list and win over them, even over `$important` and `@@` exceptions. Lines the engine can't understand are flagged.
-- 🎯 **Hide element** — long-press a link or image, choose "Hide element", then tap / use Parent & Child to adjust, Preview, and Hide. It hides instantly, saves a `site##selector` rule to My rules and offers Undo.
-- 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
-
-### 📥 Downloads
-- 🎛️ **Sort & view dialog** — a new compact dialog from the sort button (new arrows icon): sort by Date / Name / Size / Type (tap the selected one again to reverse), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and which filter tabs to show (everything except Active). A collapsible "Item details" section toggles the file icon, type badge, size, time taken, date, Folder / Info buttons and a new "Full file name" option (no more cut-off names). Changes apply live, are remembered, and Reset restores the defaults.
-
-### 🔄 Updates
-- 🐛 **Preview channel no longer offers an older build** — a build made by the regular "Android build" workflow (or locally) is now compared by commit with the newest preview, so you are only offered a preview that actually has newer changes than the app you are running (falls back to build time when GitHub can't compare the commits).
-
-### 🌐 Browser
-- 🔍 While you type in the address bar, the left button is now **Search** (runs what you typed) instead of New tab, and Home no longer stays next to it when the bottom bar is off.
-- 🔢 Tabs icon is 2dp smaller and its number is centred.
-
-## [1.1.0] - 2026-11-14
-
-☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**
+☁️ **GitHub sync, a new ad blocker, Sort & view for Downloads, a smarter download engine, a personal Settings hero, and a lot of polish.**
 
 ### ✨ Highlights
 - ☁️ **GitHub & Sync** — auto-backup, restorable backup history, and "Send to phone" between your devices.
@@ -37,6 +17,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - 🌑 **Reworked AMOLED mode** and 🌗 **light-theme heroes**, with a smarter **Force dark** for web pages.
 - 🔗 **Resume with a new link** when a download's link has expired.
 - 🌐 **Chrome-style favicons**, faster swipe-to-close tabs, and several browser fixes.
+- 🛡️ **New ad-blocking engine** with uBlock / AdBlock Plus filter lists, a list manager, element hiding, your own rules and a tap-to-hide picker.
+- 🎛️ **Sort & view** for Downloads — sort, group, compact rows, choose visible tabs and item details.
+- 🌐 **Faster Private DNS** and a cleaner address bar (Search button while typing).
+- 🔄 **Preview updates** no longer offer a build older than the one you run.
 
 <details>
 <summary>See all changes since v1.0.0</summary>
@@ -58,6 +42,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Names update while downloading** — Start no longer waits for the file-name lookup. If the real name is not known yet, the download begins at once and the item is renamed in the list as soon as the lookup (or the real download response) reveals it; the finished file is saved under the real name, never overwriting an existing file. Tapping Start before the name loads no longer locks in a hash-like name.
 - **Resume with a new link** — for a failed *expired* download, the "Select a solution" dialog and the duplicate prompt now offer **Resume existing**: the new link continues from the partial file on disk instead of starting over.
 - **Expired-link dialog fixed** — tapping outside or pressing back only closes it and leaves the error as it was; the item is cleared only with the Clear button.
+- 🎛️ **Sort & view dialog** — a new compact dialog from the sort button (new arrows icon): sort by Date / Name / Size / Type (tap the selected one again to reverse), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and which filter tabs to show (everything except Active). A collapsible "Item details" section toggles the file icon, type badge, size, time taken, date, Folder / Info buttons and a new "Full file name" option (no more cut-off names). Changes apply live, are remembered, and Reset restores the defaults.
 
 ### 🎬 Video detection
 **Fewer false results**
@@ -101,6 +86,7 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Animated header background** — a glowing light-sweep with faint parallel lines and twinkling dots on a deep dark base, tinted from the theme. Aurora uses a fixed blue/violet; every other theme uses its own primary and tertiary colours.
 - The **app logo** keeps the launcher icon's background with a soft glow behind it.
 - Version chip and the Libraries / GitHub buttons restyled to match the new header.
+- ⭕ **About logo** is now a circle with a gradient ring and a soft halo in the header's own colours.
 
 ### 🌑 Appearance
 - **AMOLED mode reworked** — pure black backgrounds with softly tinted cards (not grey and dull), brighter text and icon contrast, visible separator lines, and black on every screen, dialog and bottom sheet. System bar scrims are black too, and the edge-to-edge cache now accounts for AMOLED so switching modes updates them immediately.
@@ -117,6 +103,19 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 - **Passkey requests handled** — when a site asks for a passkey, which Android only allows system browsers to complete, Xmd answers so the site falls back to your password, and offers to open the page in Chrome (or another browser) where your passkey provider works.
 - **Passkey crash fixed** — using passkeys / WebAuthn in the in-app browser no longer crashes (the privileged origin permission is no longer requested).
 - The **Status Saver icon** in the top bar is now a full circle instead of a speech bubble with a cut corner.
+- 🛡️ **New ad-blocking engine** — reads standard uBlock Origin / AdBlock Plus filter lists (the same syntax 1DM and Brave use): `||domain^`, wildcards, `$third-party`, `$script`/`$image`/… types, `$domain=`, `$important`, `$popup`, `@@` exceptions, `$badfilter`, regex rules, hosts files and plain domain lists. Requests are matched on URL, resource type, first/third party and the page they came from; blocked images become a 1×1 pixel so layouts don't break.
+- 📚 **Filter list manager** — EasyList, EasyPrivacy, uBlock filters (+ unbreak, quick fixes, privacy, badware), Brave lists, Bypass Paywalls Clean, AdGuard, Fanboy and more, each with its own switch, rule count and last-updated date. Add your own list by link; lists update every 3 days on Wi-Fi (configurable, with "Update now").
+- 🧹 **Element hiding, scriptlets & redirects** — lists can now hide leftover ad boxes (`##.ad`, `:has-text`, `:upward`, `#$#` styles), run page fixes (`##+js(...)`: anti-adblock, paywall and popup defusers, `set-constant`, `json-prune`, …) and answer blocked scripts with harmless stand-ins (`$redirect=`), so pages like Google Analytics-dependent sites keep working. Switches under Settings → Ad blocker.
+- ✍️ **My rules** — write your own block / allow / hide rules in Settings → Ad blocker → My rules (same syntax as the lists; a bare domain also works). They are applied after every list and win over them, even over `$important` and `@@` exceptions. Lines the engine can't understand are flagged.
+- 🎯 **Hide element** — long-press a link or image, choose "Hide element", then tap / use Parent & Child to adjust, Preview, and Hide. It hides instantly, saves a `site##selector` rule to My rules and offers Undo.
+- 🔄 Existing hosts lists (Peter Lowe's, StevenBlack) keep working as list entries.
+- 🔍 While you type in the address bar, the left button is now **Search** (runs what you typed) instead of New tab, and Home no longer stays next to it when the bottom bar is off.
+- 🔢 Tabs icon is 2dp smaller and its number is centred.
+- ➕ The extra **New tab** button next to the tabs icon is gone (New tab is still in the tabs screen and the menu).
+- 🌐 **Private DNS is faster** — the first lookup no longer waits on a cold connection, and hosts your DNS provider blocks (AdGuard / Cloudflare filtering) now fail instantly instead of stalling the page.
+
+### 🔄 Updates
+- 🐛 **Preview channel no longer offers an older build** — a build made by the regular "Android build" workflow (or locally) is now compared by commit with the newest preview, so you are only offered a preview that actually has newer changes than the app you are running (falls back to build time when GitHub can't compare the commits).
 
 </details>
 

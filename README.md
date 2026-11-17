@@ -11,7 +11,7 @@
 </p>
 
 > [!IMPORTANT]
-> **`v1.1.0`** — GitHub sync, smarter video detection, reworked AMOLED mode and more. See [CHANGELOG.md](CHANGELOG.md) for what's new.
+> **`v1.1.0`** — GitHub sync, a new uBlock/ABP-compatible ad blocker, a Sort & view dialog for Downloads, faster Private DNS and more. See [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-brightgreen.svg" />
@@ -82,6 +82,7 @@
 | **Real filenames, fast** | The Add Download dialog resolves the real file name with overlapping, cached lookups, and items are renamed automatically once the true name is known |
 | **Duplicate detection** | Path-based detection catches a file already in the queue, with a resolution strategy (numbered copy, override, or resume) instead of silently re-downloading it |
 | **Multi-selection** | Select multiple queue items at once for contextual bulk actions |
+| **Sort & view** | One compact dialog from the Downloads sort button: sort by Date / Name / Size / Type (tap again to reverse), group by Date or Type, Comfortable or Compact rows, pick which filter tabs to show, and toggle item details (file icon, type badge, size, time taken, date, actions, full file name). Applied live, remembered, with Reset |
 | **Background downloads for shares** | Links shared from other apps or opened externally show a floating dialog and download in the background |
 | **Completion stats** | Duration (e.g. "Took 42s"), size, and localized date/time shown on completed downloads |
 
@@ -119,7 +120,7 @@
 | **Speed-dial bookmarks** | Real site favicons (24h on-disk cache), star-to-bookmark toggle, and website import — no default bookmarks cluttering a fresh install |
 | **Per-tab WebView pool** | Instant tab switching with no old-page flash, cross-tab back history, and stale history cleared on a fresh tab's first load |
 | **Grid tabs** | Live tab previews in a grid layout, a list-view switcher, and Clear All |
-| **Chrome-style toolbar** | Reworked toolbar (new tab / search / reload / tabs / overflow) that no longer reappears over content after a background-kill recreation |
+| **Chrome-style toolbar** | Reworked toolbar (home or new tab / address bar with Lens / tabs / overflow); while you type, the left button becomes Search. It no longer reappears over content after a background-kill recreation |
 | **Address bar suggestions** | Google-powered search suggestions merged with matching visited pages from history, each with a distinct icon |
 | **Search engine selection** | Pick a default search engine or set a custom search URL |
 | **Download interception** | Files opened in-app are caught and routed into the download queue automatically |
@@ -127,12 +128,13 @@
 | **Background playback** | Audio/video — including embedded (iframe) players — keeps playing after you leave the app or swipe it into Recents |
 | **Video detection** | Streams and direct files are found from URLs, response headers and the page's own player, then **verified** (status, content-type, size) before they show up in the "videos found" sheet — no ads, stubs or "0.0 MB" rows. Each card shows a real name (page title + correct extension), format, quality, duration and size, with a Download button; per-site opt-out in Settings |
 | **Force dark** | Prefers a site's own dark theme and only darkens pages that have none, with a dark WebView background to reduce white flashes |
-| **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution |
+| **Private DNS** | Off (default), AdGuard, Google DNS, or Cloudflare (plain + adblock) DNS-over-HTTPS, or a Custom DoH endpoint — each option shows its DoH address, with concurrency fixes for reliable resolution, a warmed-up connection for a fast first lookup, and instant failure for hosts the provider blocks |
 | **Desktop site & Find in page** | Per-tab desktop UA + wide-viewport toggle, and a Chrome-style find-in-page overlay with prev/next navigation and a live match count |
 | **Long-press menu** | Long-press a link or image for open-in-new-tab, download image, copy link address, or share link |
 | **History** | Full browsing history tab/overlay with search by title/URL |
 | **Custom home page** | Speed Dial, Google, DuckDuckGo, Brave, Bing, Yahoo, or a fully custom URL |
-| **Shields** | Brave-style ad/tracker blocking — Standard, Aggressive, or Off, with a per-site allowlist and a lifetime blocked-count counter, backed by a remote-updated hosts list, path/pattern blocking, and cosmetic hiding |
+| **Ad blocking** | A built-in engine that reads standard uBlock Origin / AdBlock Plus filter lists (network rules, element hiding, scriptlets, redirects) with a list manager (EasyList, EasyPrivacy, uBlock, Brave, Bypass Paywalls Clean, AdGuard, regional and your own lists), a per-site allowlist and a blocked-count counter |
+| **My rules & Hide element** | Write your own block / allow / hide rules (Settings → Ad blocking → My rules), or long-press a link or image → **Hide element** to tap-pick, preview and hide a leftover box on that site, with an Undo snackbar |
 | **Translate** | Translate the current page via Google's web-proxy translator, with a language picker, from the overflow menu |
 | **Media picker on YouTube** | A floating "videos found" action on YouTube watch/Shorts pages routes sniffed streams straight into the quality picker |
 
@@ -162,6 +164,7 @@
 | **Storage screen** | See where Xmd's space goes, per category |
 | **QR scanner** | Offline scanner (CameraX + ML Kit); UPI / wallet codes open your payment app chooser |
 | **App icon picker** | Switch the launcher icon between background/logo combinations |
+| **In-app updates** | Check from About (or automatically on start) on the **Stable** or **Preview** channel; Preview builds are only offered when they are newer than the app you run |
 
 </details>
 
@@ -241,9 +244,15 @@ You can also trigger either workflow manually from the **Actions** tab → **Mak
 
 ---
 
-## 👥 Credits
+## 🙏 Acknowledgements
 
-**[Abdm](https://github.com/amir1376/ab-download-manager)**
+Xmd is an independent project. A few ideas and small details in how it looks and behaves were inspired by the apps below. Thanks to their authors — the credit for those ideas is theirs, and none of them are affiliated with or endorsed by Xmd.
+
+- **[Abdm](https://github.com/amir1376/ab-download-manager)** (AB Download Manager)
+- **1DM** (1DM: Browser & Video Download)
+- **Morphe**
+
+If you like what Xmd does, have a look at them too.
 
 ---
 

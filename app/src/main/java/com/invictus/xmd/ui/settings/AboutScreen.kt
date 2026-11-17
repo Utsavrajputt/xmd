@@ -17,6 +17,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -136,17 +138,33 @@ fun AboutScreen(
                             .toBitmap()
                             .asImageBitmap()
                     }
-                    Box(contentAlignment = Alignment.Center) {
+                    // Circular logo with a gradient ring and a soft halo in the hero's own
+                    // colours, so it reads as part of the light-sweep header. The halo overflows
+                    // the 84dp slot (requiredSize) so it never pushes the title sideways.
+                    Box(modifier = Modifier.size(84.dp), contentAlignment = Alignment.Center) {
                         Box(
-                            Modifier.size(80.dp).background(
-                                Brush.radialGradient(listOf(heroPrimary.copy(alpha = 0.45f), Color.Transparent)),
+                            Modifier.requiredSize(120.dp).background(
+                                Brush.radialGradient(
+                                    0.55f to heroPrimary.copy(alpha = if (light) 0.30f else 0.50f),
+                                    1f to Color.Transparent,
+                                ),
                                 CircleShape,
                             ),
+                        )
+                        Box(
+                            Modifier
+                                .size(80.dp)
+                                .border(
+                                    width = 2.dp,
+                                    brush = Brush.sweepGradient(listOf(heroPrimary, heroTertiary, heroPrimary)),
+                                    shape = CircleShape,
+                                ),
                         )
                         Image(
                             bitmap = appIconBitmap,
                             contentDescription = stringResource(R.string.app_name),
-                            modifier = Modifier.size(64.dp),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(72.dp).clip(CircleShape),
                         )
                     }
 
