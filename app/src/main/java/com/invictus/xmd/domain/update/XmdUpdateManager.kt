@@ -89,7 +89,7 @@ class XmdUpdateManager(context: Context) {
         val newer = when (channel) {
             Settings.UpdateChannel.STABLE -> isVersionNewer(release.tagName, current)
             Settings.UpdateChannel.PREVIEW ->
-                isPreviewReleaseNewer(release, BuildConfig.PREVIEW_RUN, current)
+                isPreviewReleaseNewer(release, BuildConfig.PREVIEW_RUN, current) && !currentBuildCoversPreview(release)
         }
         if (!newer) return@withContext null
 
@@ -108,6 +108,54 @@ class XmdUpdateManager(context: Context) {
         }
         release
     }
+
+    /**
+     * True when this build is at or past the preview, i.e. offering the preview would be a downgrade.
+     *
+     * Builds that did not come from preview.yml (the "Android build" workflow, a local build) have
+     * PREVIEW_RUN == 0, so the run-number check alone calls *every* preview newer. For those builds:
+     *  1. ask GitHub how our commit relates to the preview's ("ahead"/"identical" = covered,
+     *     "behind" = the preview really is newer);
+     *  2. if that can't be answered (offline, rate limit, preview commit gone after a history rewrite,
+     *     "diverged"), fall back to time: a build compiled after the preview run finished is newer.
+     * Unknown on both counts keeps the old behaviour (offer the preview).
+     */
+    private fun currentBuildCoversPreview(release: XmdRelease): Boolean {
+        if (BuildConfig.PREVIEW_RUN > 0) return false
+        val previewSha = release.commitSha
+        val ownSha = BuildConfig.GIT_SHA.takeIf { it.isNotBlank() }
+        if (previewSha != null && ownSha != null) {
+            if (previewSha.equals(ownSha, ignoreCase = true)) return true
+            when (compareStatus(previewSha, ownSha)) {
+                "ahead", "identical" -> return true
+                "behind" -> return false
+                else -> Unit // diverged / unknown: decide by time below
+            }
+        }
+        val previewTime = parseIsoUtc(release.publishedAt) ?: return false
+        val covered = BuildConfig.BUILD_TIME_MS > previewTime
+        Log.i(Tag, "Preview ${release.tagName}: build time ${BuildConfig.BUILD_TIME_MS} vs preview $previewTime -> covered=$covered")
+        return covered
+    }
+
+    /** GitHub's `status` of [head] relative to [base] ("ahead", "behind", "identical", "diverged"); null if unavailable. */
+    private fun compareStatus(base: String, head: String): String? = try {
+        commitsClient.newCall(releaseRequest("https://api.github.com/repos/$Repo/compare/$base...$head"))
+            .execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                JSONObject(response.body?.string() ?: return@use null).optString("status").ifBlank { null }
+            }
+    } catch (e: Exception) {
+        Log.w(Tag, "Could not compare this build with the preview.", e)
+        null
+    }
+
+    /** `2026-11-14T12:34:56Z` -> epoch millis, or null. */
+    private fun parseIsoUtc(value: String): Long? = runCatching {
+        java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+            .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+            .parse(value)?.time
+    }.getOrNull()
 
     /**
      * Size of the APK for [release]: the feed's own size when it has one, else

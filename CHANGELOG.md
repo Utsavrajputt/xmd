@@ -16,6 +16,9 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 ### 📥 Downloads
 - 🎛️ **Sort & view dialog** — a new compact dialog from the sort button (new arrows icon): sort by Date / Name / Size / Type (tap the selected one again to reverse), group by None / Date / Type (Today, Yesterday, Last 7 days… or Video, Audio, …), Comfortable or Compact rows, and which filter tabs to show (everything except Active). A collapsible "Item details" section toggles the file icon, type badge, size, time taken, date, Folder / Info buttons and a new "Full file name" option (no more cut-off names). Changes apply live, are remembered, and Reset restores the defaults.
 
+### 🔄 Updates
+- 🐛 **Preview channel no longer offers an older build** — a build made by the regular "Android build" workflow (or locally) is now compared by commit with the newest preview, so you are only offered a preview that actually has newer changes than the app you are running (falls back to build time when GitHub can't compare the commits).
+
 ## [1.1.0] - 2026-11-14
 
 ☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**

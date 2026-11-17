@@ -24,6 +24,10 @@ android {
         // summarise what changed in the update sheet's "What's new".
         buildConfigField("String", "GIT_SHA", "\"${getCommitSha()}\"")
 
+        // When this APK was compiled. A non-preview build (PREVIEW_RUN == 0) compiled after a
+        // preview run finished is newer than that preview, even if the commit compare is unavailable.
+        buildConfigField("long", "BUILD_TIME_MS", "${System.currentTimeMillis()}L")
+
         // Run number of the preview.yml workflow run that built this APK (0 for
         // every other build). The Preview update channel compares it with the
         // newest successful run of that workflow.
