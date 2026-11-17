@@ -176,7 +176,8 @@ fun BrowserToolbarRow(
                         enabled = canGoForward,
                     )
                 }
-                if (homeVisible) {
+                // While typing, the left side is just the search pill (Home/New tab are noise there).
+                if (homeVisible && !addressBarFocused) {
                     ToolbarIconButton(
                         icon = Icons.Home,
                         contentDescription = stringResource(R.string.action_home),
@@ -193,7 +194,7 @@ fun BrowserToolbarRow(
                 AddressPill(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = if (homeVisible || !addressBarFocused) 4.dp else 0.dp),
+                        .padding(start = if (!addressBarFocused) 4.dp else 0.dp),
                     text = addressText,
                     onTextChange = onAddressTextChange,
                     onFocusChange = onAddressFocusChange,
@@ -208,6 +209,14 @@ fun BrowserToolbarRow(
                     onNewTabTap = onNewTabTap,
                 )
                 if (!addressBarFocused) {
+                    if (homeVisible) {
+                        ToolbarIconButton(
+                            icon = Icons.Add,
+                            contentDescription = stringResource(R.string.action_new_tab),
+                            onClick = onNewTabTap,
+                            modifier = Modifier.padding(start = 2.dp),
+                        )
+                    }
                     TabsButton(
                         count = tabsCount,
                         contentDescription = stringResource(R.string.action_tabs),
@@ -357,21 +366,17 @@ private fun AddressPill(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (fieldFocused) {
-                // Editing: Chrome's "+" on the left = new tab (same 24dp glyph as the Lens on the right).
+                // Editing: a search button on the left runs the typed query/URL (same 24dp glyph as the Lens on the right).
                 IconButton(
                     shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        onNewTabTap()
-                    },
+                    onClick = { onGo() },
                     modifier = Modifier
                         .padding(start = 4.dp)
                         .size(40.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Add,
-                        contentDescription = stringResource(R.string.action_new_tab),
+                        imageVector = Icons.Search,
+                        contentDescription = stringResource(R.string.action_search_go),
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp),
                     )
@@ -542,15 +547,15 @@ private fun TabsButton(count: Int, contentDescription: String, onClick: () -> Un
     ) {
         Box(
             modifier = Modifier
-                .size(22.dp)
+                .size(18.dp)
                 .border(
                     width = 1.6.dp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    shape = RoundedCornerShape(5.dp),
+                    shape = RoundedCornerShape(4.dp),
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            val size = if (count > 9) 10.sp else 11.sp
+            val size = if (count > 9) 9.sp else 10.sp
             Text(
                 text = if (count > 99) ":D" else count.toString(),
                 // Font padding and line-height slack push digits off-centre inside the square;

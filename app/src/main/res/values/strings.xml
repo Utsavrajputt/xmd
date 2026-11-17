@@ -416,6 +416,7 @@
     <string name="browser_bottom_home">Home</string>
     <string name="browser_bottom_bookmarks">Bookmarks</string>
     <string name="browser_bottom_downloads">Downloads</string>
+    <string name="action_search_go">Search</string>
     <string name="settings_search_engine">Search Engine</string>
     <string name="settings_search_engine_hint">Choose the default search engine used for address bar searches.</string>
     <string name="search_engine_custom">Custom</string>

@@ -19,6 +19,10 @@ The format loosely follows [Keep a Changelog](https://keepachangelog.com/), and 
 ### 🔄 Updates
 - 🐛 **Preview channel no longer offers an older build** — a build made by the regular "Android build" workflow (or locally) is now compared by commit with the newest preview, so you are only offered a preview that actually has newer changes than the app you are running (falls back to build time when GitHub can't compare the commits).
 
+### 🌐 Browser
+- 🔍 While you type in the address bar, the left button is now **Search** (runs what you typed) instead of New tab, and Home no longer stays next to it when the bottom bar is off.
+- 🔢 Tabs icon is 2dp smaller and its number is centred.
+
 ## [1.1.0] - 2026-11-14
 
 ☁️ **GitHub sync, a smarter download engine, a personal Settings hero, and a lot of polish.**
