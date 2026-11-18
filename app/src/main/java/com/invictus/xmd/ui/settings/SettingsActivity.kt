@@ -56,12 +56,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -313,21 +307,16 @@ class SettingsActivity : ComponentActivity() {
                             .fillMaxHeight(),
                     ) {
                         val detailTitleRes = routeTitles[selectedRoute] ?: R.string.settings_title
-                        // The wallpaper editor draws its own bar (back + Save).
-                        if (selectedRoute != Route.WALLPAPER_EDITOR) {
-                            XmdTopBar(
-                                title = {
-                                    SettingsHeaderTitle(stringResource(detailTitleRes), selectedRoute == Route.BROWSER)
-                                },
-                            )
-                        }
-                        BackHandler(enabled = selectedRoute == Route.WALLPAPER_EDITOR) { selectedRoute = Route.APPEARANCE }
+                        XmdTopBar(
+                            title = {
+                                SettingsHeaderTitle(stringResource(detailTitleRes), selectedRoute == Route.BROWSER)
+                            },
+                        )
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             when (selectedRoute) {
                                 Route.PROFILE -> SettingsProfileScreen(onOpenGithub = { selectedRoute = Route.GITHUB })
                                 Route.GITHUB -> SettingsGithubScreen()
-                                Route.APPEARANCE -> AppearanceRoute(onOpenWallpaper = { selectedRoute = Route.WALLPAPER_EDITOR })
-                                Route.WALLPAPER_EDITOR -> WallpaperEditorScreen(onClose = { selectedRoute = Route.APPEARANCE })
+                                Route.APPEARANCE -> AppearanceRoute()
                                 Route.CONNECTIONS -> ConnectionsRoute()
                                 Route.DOWNLOADS -> DownloadsRoute()
                                 Route.BROWSER -> BrowserRoute(
@@ -343,7 +332,7 @@ class SettingsActivity : ComponentActivity() {
                                 )
                                 Route.LIBRARIES -> LibrariesRoute()
                                 Route.STORAGE -> SettingsStorageScreen()
-                                else -> AppearanceRoute(onOpenWallpaper = { selectedRoute = Route.WALLPAPER_EDITOR })
+                                else -> AppearanceRoute()
                             }
                         }
                     }
@@ -363,20 +352,17 @@ class SettingsActivity : ComponentActivity() {
                         .fillMaxSize()
                         .navigationBarsPadding(),
                 ) {
-                    // The wallpaper editor draws its own bar (back + Save), so the shared one is skipped for it.
-                    if (currentRoute != Route.WALLPAPER_EDITOR) {
-                        XmdTopBar(
-                            title = { SettingsHeaderTitle(stringResource(titleRes), currentRoute == Route.BROWSER) },
-                            navigationIcon = {
-                                IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
-                                    Icon(
-                                        imageVector = Icons.ArrowBack,
-                                        contentDescription = stringResource(R.string.action_back),
-                                    )
-                                }
-                            },
-                        )
-                    }
+                    XmdTopBar(
+                        title = { SettingsHeaderTitle(stringResource(titleRes), currentRoute == Route.BROWSER) },
+                        navigationIcon = {
+                            IconButton(shapes = androidx.compose.material3.IconButtonDefaults.shapes(), onClick = onBack) {
+                                Icon(
+                                    imageVector = Icons.ArrowBack,
+                                    contentDescription = stringResource(R.string.action_back),
+                                )
+                            }
+                        },
+                    )
 
                     NavHost(
                         navController = navController,
@@ -407,35 +393,7 @@ class SettingsActivity : ComponentActivity() {
                         }
                         composable(Route.PROFILE) { SettingsProfileScreen(onOpenGithub = { navController.navigate(Route.GITHUB) }) }
                         composable(Route.GITHUB) { SettingsGithubScreen() }
-                        // Fade-through (outgoing screen is gone before the incoming one appears), same as
-                        // Replay: nothing ghosts or flickers while the editor opens and closes.
-                        composable(
-                            Route.APPEARANCE,
-                            exitTransition = {
-                                if (targetState.destination.route == Route.WALLPAPER_EDITOR) fadeOut(tween(WALLPAPER_NAV_EXIT_MS)) else null
-                            },
-                            popEnterTransition = {
-                                if (initialState.destination.route == Route.WALLPAPER_EDITOR) {
-                                    fadeIn(tween(WALLPAPER_NAV_ENTER_MS, delayMillis = WALLPAPER_NAV_EXIT_MS))
-                                } else null
-                            },
-                        ) {
-                            AppearanceRoute(onOpenWallpaper = { navController.navigate(Route.WALLPAPER_EDITOR) })
-                        }
-                        composable(
-                            Route.WALLPAPER_EDITOR,
-                            enterTransition = {
-                                fadeIn(tween(WALLPAPER_NAV_ENTER_MS, delayMillis = WALLPAPER_NAV_EXIT_MS)) +
-                                    slideInHorizontally(tween(WALLPAPER_NAV_ENTER_MS, delayMillis = WALLPAPER_NAV_EXIT_MS)) { it / 16 }
-                            },
-                            exitTransition = { fadeOut(tween(WALLPAPER_NAV_EXIT_MS)) },
-                            popEnterTransition = { fadeIn(tween(WALLPAPER_NAV_ENTER_MS, delayMillis = WALLPAPER_NAV_EXIT_MS)) },
-                            popExitTransition = {
-                                fadeOut(tween(WALLPAPER_NAV_EXIT_MS)) + slideOutHorizontally(tween(WALLPAPER_NAV_EXIT_MS)) { it / 16 }
-                            },
-                        ) {
-                            WallpaperEditorScreen(onClose = { navController.popBackStack() })
-                        }
+                        composable(Route.APPEARANCE) { AppearanceRoute() }
                         composable(Route.CONNECTIONS) { ConnectionsRoute() }
                         composable(Route.DOWNLOADS) { DownloadsRoute() }
                         composable(Route.BROWSER) {
@@ -566,15 +524,11 @@ class SettingsActivity : ComponentActivity() {
 }
 
 /** NavHost route strings, one per Settings category screen. */
-private const val WALLPAPER_NAV_EXIT_MS = 80
-private const val WALLPAPER_NAV_ENTER_MS = 180
-
 internal object Route {
     const val ROOT = "root"
     const val PROFILE = "profile"
     const val GITHUB = "github"
     const val APPEARANCE = "appearance"
-    const val WALLPAPER_EDITOR = "wallpaper_editor"
     const val CONNECTIONS = "connections"
     const val DOWNLOADS = "downloads"
     const val BROWSER = "browser"
@@ -591,7 +545,6 @@ internal val routeTitles: Map<String, Int> = mapOf(
     Route.PROFILE to R.string.settings_profile_title,
     Route.GITHUB to R.string.github_title,
     Route.APPEARANCE to R.string.settings_category_appearance,
-    Route.WALLPAPER_EDITOR to R.string.wallpaper_editor_title,
     Route.CONNECTIONS to R.string.settings_category_connections,
     Route.BROWSER to R.string.settings_category_browser,
     Route.ADBLOCK to R.string.settings_adblock_title,
@@ -611,7 +564,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
 // The *Screen.kt composables themselves are untouched -- same signatures.
 
 @Composable
-private fun AppearanceRoute(onOpenWallpaper: () -> Unit) {
+private fun AppearanceRoute() {
     val themeTransition = LocalThemeTransitionState.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -630,7 +583,6 @@ private fun AppearanceRoute(onOpenWallpaper: () -> Unit) {
     }
 
     SettingsAppearanceScreen(
-        onOpenWallpaper = onOpenWallpaper,
         currentTheme = currentTheme,
         isDark = isDark,
         isAmoled = isAmoled,

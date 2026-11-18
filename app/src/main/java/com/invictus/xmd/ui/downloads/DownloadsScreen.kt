@@ -142,7 +142,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.invictus.xmd.R
-import com.invictus.xmd.ui.theme.onWallpaper
 import java.util.Date
 import com.invictus.xmd.database.entities.QueueItem
 import com.invictus.xmd.domain.download.DownloadScheduler
@@ -1003,7 +1002,7 @@ private fun DownloadSectionHeader(section: DownloadSection, modifier: Modifier =
             text = title,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary.onWallpaper(),
+            color = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.width(8.dp))
         Text(
@@ -1074,7 +1073,7 @@ private fun EmptyState(showIcon: Boolean) {
         }
         Text(
             text = stringResource(if (showIcon) R.string.queue_empty_title else R.string.queue_search_empty),
-            color = MaterialTheme.colorScheme.onSurface.onWallpaper(),
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
         )

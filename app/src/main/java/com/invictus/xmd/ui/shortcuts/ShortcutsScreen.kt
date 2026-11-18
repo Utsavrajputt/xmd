@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.invictus.xmd.R
-import com.invictus.xmd.ui.theme.onWallpaper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.invictus.xmd.database.entities.Shortcut
@@ -114,14 +113,14 @@ fun ShortcutsScreen(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.label_shortcuts),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.onWallpaper(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
                 modifier = Modifier.weight(1f),
             )
             Text(
                 text = stringResource(if (reorderMode) R.string.action_done else R.string.action_reorder),
-                color = MaterialTheme.colorScheme.primary.onWallpaper(),
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
                 modifier = Modifier
@@ -395,7 +394,7 @@ private fun ShortcutTile(
         Spacer(Modifier.height(6.dp))
         Text(
             text = title,
-            color = MaterialTheme.colorScheme.onSurface.onWallpaper(),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 10.sp,
             lineHeight = 12.sp,
             fontWeight = FontWeight.Medium,
@@ -407,7 +406,7 @@ private fun ShortcutTile(
         if (showHost) {
             Text(
                 text = host,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.onWallpaper(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 8.sp,
                 lineHeight = 10.sp,
                 maxLines = 1,
@@ -444,7 +443,7 @@ private fun AddShortcutTile(onClick: (() -> Unit)?) {
         Spacer(Modifier.height(6.dp))
         Text(
             text = stringResource(R.string.action_add),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.onWallpaper(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
             maxLines = 1,
             modifier = Modifier.fillMaxWidth(),
