@@ -143,6 +143,8 @@ fun SettingsAppearanceScreen(
                 modifier = Modifier.padding(top = 16.dp),
             )
 
+            UiScaleCard(modifier = Modifier.padding(top = 16.dp))
+
             SettingsSectionCard(
                 modifier = Modifier.padding(top = 16.dp),
                 contentPadding = PaddingValues(16.dp),

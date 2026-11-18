@@ -43,6 +43,7 @@ object Settings {
     private const val KEY_APP_THEME = "app_theme"
     private const val KEY_DARK_MODE = "app_dark_mode"
     private const val KEY_AMOLED_MODE = "app_amoled_mode"
+    private const val KEY_APP_UI_SCALE = "app_ui_scale"
     private const val KEY_WALLPAPER_URI = "wallpaper_uri"
     private const val KEY_WALLPAPER_ZOOM = "wallpaper_zoom"
     private const val KEY_WALLPAPER_OFFSET_X = "wallpaper_offset_x"
@@ -137,6 +138,14 @@ object Settings {
     fun setAmoledMode(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AMOLED_MODE, enabled).apply()
         _amoledModeFlow.value = enabled
+    }
+
+    /** App-wide UI size multiplier, 0.75..1.30 (see AppUiScale); 1.0 = system size. */
+    fun appUiScale(): Float = com.invictus.xmd.utils.AppUiScale.snap(
+        prefs.getFloat(KEY_APP_UI_SCALE, com.invictus.xmd.utils.AppUiScale.DEFAULT),
+    )
+    fun setAppUiScale(scale: Float) {
+        prefs.edit().putFloat(KEY_APP_UI_SCALE, com.invictus.xmd.utils.AppUiScale.snap(scale)).apply()
     }
 
     /** Main-screen wallpaper: "" = none, "preset:<id>" or "file:<path>" plus its position/blur/alpha. */

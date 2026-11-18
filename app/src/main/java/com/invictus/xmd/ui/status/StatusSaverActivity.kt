@@ -34,6 +34,12 @@ class StatusSaverActivity : ComponentActivity() {
             viewModel.refresh()
         }
 
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        // Before super: the override configuration must be applied ahead of the base context.
+        com.invictus.xmd.utils.AppUiScale.attach(this, newBase)
+        super.attachBaseContext(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Before super.onCreate(), same as SettingsActivity -- see there.
         AppTheme.applyTo(this)

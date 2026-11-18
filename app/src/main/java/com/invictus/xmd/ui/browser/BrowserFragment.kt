@@ -1700,17 +1700,28 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                     intent.component = null
                     intent.selector = null
 
-                    val pm = requireContext().packageManager
-                    if (intent.resolveActivity(pm) != null) {
+                    // Launch directly instead of pre-checking resolveActivity(): on Android 11+
+                    // package visibility hides apps that XMD doesn't declare in <queries>, so
+                    // the pre-check wrongly reported "no app" for custom schemes such as
+                    // Morphe's "Open in Morphe" and silently did nothing (Chrome just launches).
+                    try {
                         startActivity(intent)
-                    } else {
+                    } catch (_: android.content.ActivityNotFoundException) {
                         // No app installed to catch it (e.g. FB app absent).
                         // `intent://` links commonly carry a
                         // S.browser_fallback_url extra for exactly this case
                         // -- follow it so the user lands on the web version
                         // instead of a dead "page not available" screen.
                         val fallbackUrl = intent.getStringExtra("browser_fallback_url")
-                        if (fallbackUrl != null) view.loadUrl(fallbackUrl)
+                        if (fallbackUrl != null) {
+                            view.loadUrl(fallbackUrl)
+                        } else {
+                            android.widget.Toast.makeText(
+                                requireContext(),
+                                R.string.external_app_not_found,
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
+                        }
                     }
                 } catch (e: Exception) {
                     // Malformed intent URI, or the resolved app rejected the

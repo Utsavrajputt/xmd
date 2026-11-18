@@ -46,6 +46,12 @@ class WebAppActivity : ComponentActivity() {
     private var webViewRef: WebView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        // Before super: the override configuration must be applied ahead of the base context.
+        com.invictus.xmd.utils.AppUiScale.attach(this, newBase)
+        super.attachBaseContext(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         com.invictus.xmd.ui.theme.AppTheme.applyTo(this)
         super.onCreate(savedInstanceState)
@@ -154,12 +160,20 @@ private fun webAppWebViewClient() = object : WebViewClient() {
             intent.selector = null
             intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 
-            val pm = view.context.packageManager
-            if (intent.resolveActivity(pm) != null) {
+            // Direct launch: resolveActivity() is filtered by Android 11+ package visibility.
+            try {
                 view.context.startActivity(intent)
-            } else {
+            } catch (_: android.content.ActivityNotFoundException) {
                 val fallbackUrl = intent.getStringExtra("browser_fallback_url")
-                if (fallbackUrl != null) view.loadUrl(fallbackUrl)
+                if (fallbackUrl != null) {
+                    view.loadUrl(fallbackUrl)
+                } else {
+                    android.widget.Toast.makeText(
+                        view.context,
+                        com.invictus.xmd.R.string.external_app_not_found,
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
             }
         } catch (e: Exception) {
             // Malformed intent URI, or the resolved app rejected the

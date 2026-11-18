@@ -153,6 +153,12 @@ class SettingsActivity : ComponentActivity() {
         batteryOptimizationDisabled = hasBatteryOptimizationDisabled(this)
     }
 
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        // Before super: the override configuration must be applied ahead of the base context.
+        com.invictus.xmd.utils.AppUiScale.attach(this, newBase)
+        super.attachBaseContext(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() -- Activity.setTheme() only
         // takes effect if called before the window/decor is created. Same

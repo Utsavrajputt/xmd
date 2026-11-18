@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_app_not_found">No app found to open this link</string>
+    <string name="settings_ui_scale_title">UI size</string>
+    <string name="settings_ui_scale_hint">Make the whole app larger or smaller</string>
+    <string name="settings_ui_scale_value">%1$d%%</string>
+    <string name="settings_ui_scale_apply">Apply</string>
+    <string name="settings_ui_scale_reset">Reset</string>
+    <string name="settings_ui_scale_preview">Aa  Sample text</string>
+</resources>

@@ -631,6 +631,12 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     // ── onCreate ──────────────────────────────────────────────────────────
 
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        // Before super: the override configuration must be applied ahead of the base context.
+        com.invictus.xmd.utils.AppUiScale.attach(this, newBase)
+        super.attachBaseContext(newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() -- Activity theme setup applies
         // before the window/decor is created.

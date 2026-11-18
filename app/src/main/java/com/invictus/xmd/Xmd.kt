@@ -90,7 +90,10 @@ class Xmd : Application(), Application.ActivityLifecycleCallbacks {
     }
 
     override fun onActivityStarted(activity: Activity) = Unit
-    override fun onActivityResumed(activity: Activity) = Unit
+    override fun onActivityResumed(activity: Activity) {
+        // The UI size changed in Settings while this screen was behind it: rebuild at the new size.
+        com.invictus.xmd.utils.AppUiScale.recreateIfStale(activity)
+    }
     override fun onActivityPaused(activity: Activity) = Unit
     override fun onActivityStopped(activity: Activity) = Unit
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
