@@ -567,23 +567,40 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
 
     private var appliedEdgeToEdgeAmoled: Boolean? = null
 
-    private fun applyEdgeToEdge(isDarkMode: Boolean) {
+    private var appliedLightStatusIcons: Boolean? = null
+
+    private var appliedLightNavIcons: Boolean? = null
+
+    /**
+     * [lightStatusIcons] / [lightNavIcons] force light bar icons over a dark wallpaper shown untouched
+     * in the light theme (where the normal light-theme dark icons would vanish into the image).
+     */
+    private fun applyEdgeToEdge(
+        isDarkMode: Boolean,
+        lightStatusIcons: Boolean = false,
+        lightNavIcons: Boolean = false,
+    ) {
         val amoledNow = com.invictus.xmd.preferences.Settings.isAmoledMode()
-        if (appliedEdgeToEdgeDarkMode == isDarkMode && appliedEdgeToEdgeAmoled == amoledNow) return
+        if (appliedEdgeToEdgeDarkMode == isDarkMode && appliedEdgeToEdgeAmoled == amoledNow &&
+            appliedLightStatusIcons == lightStatusIcons && appliedLightNavIcons == lightNavIcons
+        ) return
 
         val synchronizedBarStyle = SystemBarStyle.auto(
             lightScrim = Color(0xFFF4F6F9).toArgb(),
-            darkScrim = (if (com.invictus.xmd.preferences.Settings.isAmoledMode()) Color.Black else Color(0xFF0E1521)).toArgb(),
+            darkScrim = (if (amoledNow) Color.Black else Color(0xFF0E1521)).toArgb(),
         ) { isDarkMode }
+        val overWallpaperStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(
-            statusBarStyle = synchronizedBarStyle,
-            navigationBarStyle = synchronizedBarStyle,
+            statusBarStyle = if (lightStatusIcons) overWallpaperStyle else synchronizedBarStyle,
+            navigationBarStyle = if (lightNavIcons) overWallpaperStyle else synchronizedBarStyle,
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
         appliedEdgeToEdgeDarkMode = isDarkMode
         appliedEdgeToEdgeAmoled = amoledNow
+        appliedLightStatusIcons = lightStatusIcons
+        appliedLightNavIcons = lightNavIcons
     }
 
     // ── Exit from the Idle download notification ───────────────────────────
@@ -671,7 +688,14 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                 }
             }
 
-            LaunchedEffect(isDark) {
+            // Dark wallpaper in the light theme: bar icons turn light. The status bar only when no top
+            // bar covers it (Browser home); the navigation bar always, since the wallpaper sits under it.
+            val lightTextOnWallpaper by com.invictus.xmd.ui.theme.WallpaperState.lightTextOnWallpaper.collectAsState()
+            val wallpaperWebOpaque by com.invictus.xmd.ui.theme.WallpaperState.webOpaque.collectAsState()
+            val lightNavIcons = lightTextOnWallpaper && !wallpaperWebOpaque
+            val lightStatusIcons = lightNavIcons && mainDestination == MainDestination.Browser
+
+            LaunchedEffect(isDark, lightStatusIcons, lightNavIcons) {
                 if (themeTransitionState.isAnimating) {
                     snapshotFlow {
                         themeTransitionState.animationProgress.value to themeTransitionState.isAnimating
@@ -679,7 +703,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         !isAnimating || progress >= SYSTEM_BAR_THEME_SWITCH_PROGRESS
                     }
                 }
-                applyEdgeToEdge(isDark)
+                applyEdgeToEdge(isDark, lightStatusIcons, lightNavIcons)
             }
 
             com.invictus.xmd.ui.theme.XmdTheme(transitionState = themeTransitionState) {

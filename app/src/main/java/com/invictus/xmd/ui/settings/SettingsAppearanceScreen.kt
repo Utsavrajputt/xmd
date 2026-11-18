@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
@@ -75,6 +76,7 @@ import com.invictus.xmd.ui.shortcuts.ShortcutsScreen
  */
 @Composable
 fun SettingsAppearanceScreen(
+    onOpenWallpaper: () -> Unit,
     currentTheme: AppTheme,
     isDark: Boolean,
     isAmoled: Boolean,
@@ -134,17 +136,12 @@ fun SettingsAppearanceScreen(
                 AppIconDialog(onDismiss = { showAppIconDialog = false })
             }
 
-            var showWallpaperDialog by remember { mutableStateOf(false) }
-            SettingsSectionCard(modifier = Modifier.padding(top = 16.dp)) {
-                ClickableSettingRow(
-                    title = stringResource(R.string.settings_wallpaper_title),
-                    subtitle = stringResource(R.string.settings_wallpaper_hint),
-                    onClick = { showWallpaperDialog = true },
-                )
-            }
-            if (showWallpaperDialog) {
-                WallpaperDialog(onDismiss = { showWallpaperDialog = false })
-            }
+            val wallpaperConfig by com.invictus.xmd.preferences.Settings.wallpaperFlow.collectAsState()
+            WallpaperPreferenceCard(
+                wallpaperUri = wallpaperConfig.uri,
+                onClick = onOpenWallpaper,
+                modifier = Modifier.padding(top = 16.dp),
+            )
 
             SettingsSectionCard(
                 modifier = Modifier.padding(top = 16.dp),
