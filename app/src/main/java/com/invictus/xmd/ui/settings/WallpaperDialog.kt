@@ -4,7 +4,9 @@ package com.invictus.xmd.ui.settings
 import com.invictus.xmd.ui.theme.XmdShapes
 import android.graphics.Bitmap
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.invictus.xmd.ui.theme.WallpaperBitmapCache
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -105,10 +107,19 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
     val deviceRatio = minOf(screenConfig.screenWidthDp, screenConfig.screenHeightDp).toFloat() /
         maxOf(screenConfig.screenWidthDp, screenConfig.screenHeightDp).toFloat()
 
-    val loaded by produceState<Pair<String, Bitmap?>?>(initialValue = null, selectedSource) {
+    // Seeded from the shared cache, so the wallpaper already on screen is in the preview on the very
+    // first frame instead of popping in after a decode.
+    val loaded by produceState<Pair<String, Bitmap?>?>(
+        initialValue = WallpaperBitmapCache.peek(selectedSource)?.let { selectedSource to it },
+        selectedSource,
+    ) {
         val source = selectedSource
-        val bmp = if (source.isBlank()) null else withContext(Dispatchers.IO) {
-            runCatching { loadWallpaperBitmap(context, source) }.getOrNull()
+        val bmp = if (source.isBlank()) {
+            null
+        } else {
+            WallpaperBitmapCache.peek(source) ?: withContext(Dispatchers.IO) {
+                runCatching { WallpaperBitmapCache.load(context, source) }.getOrNull()
+            }
         }
         value = source to bmp
     }
@@ -162,10 +173,10 @@ internal fun WallpaperDialog(onDismiss: () -> Unit) {
         }
     }
 
-    Dialog(
-        onDismissRequest = { if (!isSaving) onDismiss() },
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = !isSaving),
-    ) {
+    // Not a platform Dialog any more: a Dialog window gets its insets a frame late and runs its own
+    // fade, which made the content jump and flash. Hosted in-window by SettingsActivity instead.
+    BackHandler(enabled = isSaving) { }
+    run {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
                 Row(

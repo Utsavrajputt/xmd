@@ -12,7 +12,15 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -233,9 +242,12 @@ class SettingsActivity : ComponentActivity() {
         val isTablet = configuration.smallestScreenWidthDp >= 600
 
         var batteryWarningDismissed by remember { mutableStateOf(false) }
+        // Wallpaper editor slides in over the whole screen, in-window (no Dialog window flash).
+        var showWallpaperEditor by rememberSaveable { mutableStateOf(false) }
 
         val showBatteryWarning = !batteryOptimizationDisabled && !batteryWarningDismissed
 
+        Box(modifier = Modifier.fillMaxSize()) {
         if (isTablet) {
             var selectedRoute by remember {
                 mutableStateOf(if (startRoute == Route.ROOT) Route.APPEARANCE else startRoute)
@@ -316,7 +328,7 @@ class SettingsActivity : ComponentActivity() {
                             when (selectedRoute) {
                                 Route.PROFILE -> SettingsProfileScreen(onOpenGithub = { selectedRoute = Route.GITHUB })
                                 Route.GITHUB -> SettingsGithubScreen()
-                                Route.APPEARANCE -> AppearanceRoute()
+                                Route.APPEARANCE -> AppearanceRoute(onOpenWallpaper = { showWallpaperEditor = true })
                                 Route.CONNECTIONS -> ConnectionsRoute()
                                 Route.DOWNLOADS -> DownloadsRoute()
                                 Route.BROWSER -> BrowserRoute(
@@ -332,7 +344,7 @@ class SettingsActivity : ComponentActivity() {
                                 )
                                 Route.LIBRARIES -> LibrariesRoute()
                                 Route.STORAGE -> SettingsStorageScreen()
-                                else -> AppearanceRoute()
+                                else -> AppearanceRoute(onOpenWallpaper = { showWallpaperEditor = true })
                             }
                         }
                     }
@@ -393,7 +405,7 @@ class SettingsActivity : ComponentActivity() {
                         }
                         composable(Route.PROFILE) { SettingsProfileScreen(onOpenGithub = { navController.navigate(Route.GITHUB) }) }
                         composable(Route.GITHUB) { SettingsGithubScreen() }
-                        composable(Route.APPEARANCE) { AppearanceRoute() }
+                        composable(Route.APPEARANCE) { AppearanceRoute(onOpenWallpaper = { showWallpaperEditor = true }) }
                         composable(Route.CONNECTIONS) { ConnectionsRoute() }
                         composable(Route.DOWNLOADS) { DownloadsRoute() }
                         composable(Route.BROWSER) {
@@ -416,6 +428,18 @@ class SettingsActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+
+        BackHandler(enabled = showWallpaperEditor) { showWallpaperEditor = false }
+        // Slide only, no fade: the editor stays fully opaque all the way, so its wallpaper preview never
+        // ghosts over the Appearance screen while it opens or closes.
+        AnimatedVisibility(
+            visible = showWallpaperEditor,
+            enter = slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { it },
+            exit = slideOutHorizontally(tween(200, easing = FastOutSlowInEasing)) { it },
+        ) {
+            WallpaperDialog(onDismiss = { showWallpaperEditor = false })
+        }
         }
     }
 
@@ -564,7 +588,7 @@ internal val routeTitles: Map<String, Int> = mapOf(
 // The *Screen.kt composables themselves are untouched -- same signatures.
 
 @Composable
-private fun AppearanceRoute() {
+private fun AppearanceRoute(onOpenWallpaper: () -> Unit) {
     val themeTransition = LocalThemeTransitionState.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -583,6 +607,7 @@ private fun AppearanceRoute() {
     }
 
     SettingsAppearanceScreen(
+        onOpenWallpaper = onOpenWallpaper,
         currentTheme = currentTheme,
         isDark = isDark,
         isAmoled = isAmoled,

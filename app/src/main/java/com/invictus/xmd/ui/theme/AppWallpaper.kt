@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -93,10 +97,17 @@ private const val PRESET_MAX_HEIGHT_PX = 2600f
 fun AppWallpaperHost(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val config by Settings.wallpaperFlow.collectAsState()
-    val bitmap by produceState<Bitmap?>(initialValue = null, config.uri) {
-        value = if (config.uri.isBlank()) null else withContext(Dispatchers.IO) {
-            runCatching { loadWallpaperBitmap(context, config.uri) }.getOrNull()
+    // Seeded from the cache and never reset while a new wallpaper decodes, so saving/leaving the
+    // editor keeps the current image on screen instead of dropping to the plain background.
+    var bitmap by remember { mutableStateOf(WallpaperBitmapCache.peek(config.uri)) }
+    LaunchedEffect(config.uri) {
+        val uri = config.uri
+        if (uri.isBlank()) {
+            bitmap = null
+            return@LaunchedEffect
         }
+        WallpaperBitmapCache.peek(uri)?.let { bitmap = it; return@LaunchedEffect }
+        bitmap = withContext(Dispatchers.IO) { runCatching { WallpaperBitmapCache.load(context, uri) }.getOrNull() }
     }
 
     androidx.compose.runtime.DisposableEffect(bitmap != null) {
@@ -219,6 +230,38 @@ private fun presetTargetSize(context: Context): Pair<Int, Int> {
 }
 
 /**
+ * Process-wide cache of decoded wallpapers, shared by the main window and the Settings editor so an
+ * image that is already on screen is never decoded (and the preview never blanked) again.
+ * Cached bitmaps are shared: nothing may recycle them.
+ */
+object WallpaperBitmapCache {
+    private val cache = object : LruCache<String, Bitmap>(
+        (Runtime.getRuntime().maxMemory() / 8L).coerceAtMost(96L * 1024 * 1024).toInt(),
+    ) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
+    }
+
+    fun peek(uri: String): Bitmap? = if (uri.isBlank()) null else cache.get(uri)
+
+    /** Decodes (or returns the cached) wallpaper. Call off the main thread. */
+    fun load(context: Context, uri: String): Bitmap? {
+        if (uri.isBlank()) return null
+        cache.get(uri)?.let { return it }
+        val bitmap = loadWallpaperBitmap(context, uri) ?: return null
+        cache.put(uri, bitmap)
+        return bitmap
+    }
+
+    fun alias(uri: String, bitmap: Bitmap) {
+        if (uri.isNotBlank()) cache.put(uri, bitmap)
+    }
+
+    fun evict(uri: String) {
+        if (uri.isNotBlank()) cache.remove(uri)
+    }
+}
+
+/**
  * Turns a picked image into a stored wallpaper. Presets are kept as their tiny "preset:<id>"
  * reference; a picked image is downscaled and copied to app storage as "file:<path>" (so it keeps
  * working after the picker's URI permission goes away). The previous copy is deleted.
@@ -231,20 +274,21 @@ suspend fun saveWallpaperCopy(context: Context, sourceUri: String, previousUri: 
         }
         // Already our own stored copy -- nothing to re-encode.
         if (sourceUri == previousUri && sourceUri.startsWith("file:")) return@withContext sourceUri
-        val bitmap = requireNotNull(loadWallpaperBitmap(context, sourceUri)) { "decode failed" }
-        try {
-            val dir = File(context.filesDir, "wallpaper").apply { mkdirs() }
-            val out = File(dir, "wallpaper_${System.currentTimeMillis()}.png")
-            out.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "compress failed" } }
-            deleteStoredWallpaper(previousUri)
-            Uri.fromFile(out).toString()
-        } finally {
-            bitmap.recycle()
-        }
+        // Shared through the cache, so never recycled; also registered under the stored copy's URI so
+        // the new wallpaper shows with no re-decode gap.
+        val bitmap = requireNotNull(WallpaperBitmapCache.load(context, sourceUri)) { "decode failed" }
+        val dir = File(context.filesDir, "wallpaper").apply { mkdirs() }
+        val out = File(dir, "wallpaper_${System.currentTimeMillis()}.png")
+        out.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) { "compress failed" } }
+        deleteStoredWallpaper(previousUri)
+        val storedUri = Uri.fromFile(out).toString()
+        WallpaperBitmapCache.alias(storedUri, bitmap)
+        storedUri
     }
 
 fun deleteStoredWallpaper(uri: String) {
     if (!uri.startsWith("file:")) return
+    WallpaperBitmapCache.evict(uri)
     runCatching { Uri.parse(uri).path?.let { File(it).delete() } }
 }
 

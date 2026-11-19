@@ -75,6 +75,7 @@ import com.invictus.xmd.ui.shortcuts.ShortcutsScreen
  */
 @Composable
 fun SettingsAppearanceScreen(
+    onOpenWallpaper: () -> Unit,
     currentTheme: AppTheme,
     isDark: Boolean,
     isAmoled: Boolean,
@@ -88,6 +89,14 @@ fun SettingsAppearanceScreen(
     onToggleTabVisible: (tabId: String, visible: Boolean) -> Unit,
     onDefaultTabSelected: (tabId: String) -> Unit,
 ) {
+    // Decode the current wallpaper ahead of time so the editor opens with it already cached.
+    val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val uri = com.invictus.xmd.preferences.Settings.wallpaper().uri
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { com.invictus.xmd.ui.theme.WallpaperBitmapCache.load(appContext, uri) }
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -134,16 +143,12 @@ fun SettingsAppearanceScreen(
                 AppIconDialog(onDismiss = { showAppIconDialog = false })
             }
 
-            var showWallpaperDialog by remember { mutableStateOf(false) }
             SettingsSectionCard(modifier = Modifier.padding(top = 16.dp)) {
                 ClickableSettingRow(
                     title = stringResource(R.string.settings_wallpaper_title),
                     subtitle = stringResource(R.string.settings_wallpaper_hint),
-                    onClick = { showWallpaperDialog = true },
+                    onClick = onOpenWallpaper,
                 )
-            }
-            if (showWallpaperDialog) {
-                WallpaperDialog(onDismiss = { showWallpaperDialog = false })
             }
 
             UiScaleCard(modifier = Modifier.padding(top = 16.dp))
