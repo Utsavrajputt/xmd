@@ -91,9 +91,21 @@ fun SniffedMediaSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             streams.forEachIndexed { index, stream ->
+                // YouTube streams only carry an id; look up the real title (falls back to the id label).
+                val isYoutube = com.invictus.xmd.utils.LinkParser.isYoutubeLink(stream.url)
+                val youtubeTitle by produceState<String?>(
+                    initialValue = if (isYoutube) com.invictus.xmd.domain.browser.YoutubeTitleResolver.cached(stream.url) else null,
+                    stream.url,
+                ) {
+                    if (isYoutube && value == null) {
+                        value = withContext(Dispatchers.IO) {
+                            com.invictus.xmd.domain.browser.YoutubeTitleResolver.title(stream.url)
+                        }
+                    }
+                }
                 SniffedMediaRow(
                     stream = stream,
-                    displayName = streamDisplayName(stream, index, streams.size, pageTitle),
+                    displayName = youtubeTitle ?: streamDisplayName(stream, index, streams.size, pageTitle),
                     onClick = {
                         onStreamSelected(stream)
                         closeSheet()

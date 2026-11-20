@@ -211,6 +211,10 @@ var s=t.currentSrc||t.src;if(s&&!/^(blob|data):/i.test(s))send(s,t.tagName==='VI
 if((n==='playing'||n==='play')&&t&&!t.muted)t.__xu=1;media(t)},true)});
 function scan(){try{var l=document.querySelectorAll('video,audio');for(var i=0;i<l.length;i++)media(l[i])}catch(e){}}
 document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2000)});
+function scanVisible(){try{var l=document.querySelectorAll('video,audio');for(var i=0;i<l.length;i++){var t=l[i];
+if(t.tagName==='VIDEO'){var r=t.getBoundingClientRect();if(r.width<=0||r.height<=0||r.bottom<=0||r.top>=innerHeight)continue}
+media(t)}}catch(e){}}
+window.__xmdSniffReset=function(){seen={};master=false;setTimeout(scanVisible,400);setTimeout(scanVisible,1800)};
 })();
 """
 
@@ -373,6 +377,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
     private var detectedLinkVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabVisible: Boolean by mutableStateOf(false)
     private var sniffedMediaFabText: String by mutableStateOf("")
+    private var sniffedMediaFabCount: Int by mutableStateOf(0)
     // True when the sniffed-media FAB is currently showing for "this
     // YouTube page has a video" rather than MediaSniffer's normal
     // sniffedMedia list -- see updateSniffedMediaFab()'s YouTube branch.
@@ -764,6 +769,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                         BrowserMediaFab(
                             visible = sniffedMediaFabVisible && !speedDialVisible && !addressBarFocused,
                             text = sniffedMediaFabText,
+                            count = sniffedMediaFabCount,
                             bottomBarShowing = !toolbarBottom && bottomBarEnabled && bottomBarScrollVisible,
                             toolbarAtBottom = toolbarBottom,
                             onClick = ::onSniffedMediaFabTapped,
@@ -1607,6 +1613,25 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                     clearDetectedLink()
                     updateSniffedMediaFab(tab)
                 }
+            }
+
+            /**
+             * Single-page sites (Instagram, X, YouTube-style feeds) change the page with history.pushState and
+             * never fire onPageStarted, so the detections of the previous video stayed on screen until a manual
+             * reload. A new URL here (full loads already reset in onPageStarted, which set tab.url first) means a
+             * new page: drop the old detections and let the in-page script report what is on screen now.
+             */
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                if (url == null || isReload) return
+                if (url.substringBefore('#') == tab.url?.substringBefore('#')) return
+                tab.url = url
+                tab.sniffedMedia.clear()
+                tab.sniffSeen.clear()
+                tab.sniffEpoch++
+                tab.sniffPending.set(0)
+                view.evaluateJavascript("window.__xmdSniffReset&&window.__xmdSniffReset()", null)
+                if (isCurrentTab(tab)) updateSniffedMediaFab(tab)
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
@@ -3170,6 +3195,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
                 url != null && com.invictus.xmd.utils.LinkParser.isYoutubeVideoPage(url)
             ) {
                 sniffedMediaFabText = getString(R.string.browser_fab_videos_one)
+                sniffedMediaFabCount = 1
                 sniffedMediaIsYoutubePage = true
                 sniffedMediaFabVisible = true
                 return
@@ -3177,6 +3203,7 @@ document.addEventListener('DOMContentLoaded',function(){scan();setTimeout(scan,2
             sniffedMediaFabVisible = false
             return
         }
+        sniffedMediaFabCount = count
         sniffedMediaFabText = if (count == 1) {
             getString(R.string.browser_fab_videos_one)
         } else {

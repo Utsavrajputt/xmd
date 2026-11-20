@@ -433,14 +433,30 @@ object MediaSniffer {
      * have no extension: use the page title plus the extension from Content-Type.
      */
     fun bestName(s: Sniffed, pageTitle: String?): String {
-        s.fileName?.takeIf { it.isNotBlank() && KNOWN_MEDIA_EXT.containsMatchIn(it) }?.let { return it }
+        val hasTitle = !pageTitle.isNullOrBlank()
+        // Machine-made CDN names ("AQOrPyh7-80JyK7v89XvYS-E_IK1lz6...") tell the user nothing: when the page
+        // has a title, that wins over them.
+        s.fileName?.takeIf { it.isNotBlank() && KNOWN_MEDIA_EXT.containsMatchIn(it) && !(hasTitle && looksOpaque(it)) }
+            ?.let { return it }
         val path = com.invictus.xmd.utils.UrlUtils.lenientUri(s.url)?.path.orEmpty().trimEnd('/')
         val seg = path.substringAfterLast('/')
-        if (KNOWN_MEDIA_EXT.containsMatchIn(seg)) return seg
+        if (KNOWN_MEDIA_EXT.containsMatchIn(seg) && !(hasTitle && looksOpaque(seg))) return seg
         val title = pageTitle?.replace(Regex("""[\\/:*?"<>|\p{Cntrl}]"""), " ")?.replace(Regex("""\s+"""), " ")
             ?.trim()?.take(80)?.trim('.', ' ')
         val base = if (!title.isNullOrBlank()) title else s.fileName?.takeIf { it.isNotBlank() } ?: seg.ifBlank { "video" }
         return "$base.${extFor(s.mime, s.kind)}"
+    }
+
+    /**
+     * True for random-looking base names (a long token mixing upper case, lower case and digits, e.g. Instagram
+     * / Facebook CDN files). Real titles have spaces or short words, so they stay as they are.
+     */
+    fun looksOpaque(fileName: String): Boolean {
+        val base = fileName.substringBeforeLast('.')
+        if (base.length < 16 || base.contains(' ')) return false
+        return base.split('-', '_').any { t ->
+            t.length >= 8 && t.any { it.isUpperCase() } && t.any { it.isLowerCase() } && t.any { it.isDigit() }
+        }
     }
 
     /** "1080p · 720p · 480p · ~45.2 MB" for a [MediaInfo], or null when nothing is known. */

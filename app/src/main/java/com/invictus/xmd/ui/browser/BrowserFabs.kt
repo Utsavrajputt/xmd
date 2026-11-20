@@ -11,7 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,23 +33,20 @@ import com.invictus.xmd.ui.icons.Icons
 import com.invictus.xmd.ui.theme.XmdShapes
 
 /**
- * Floating action button shown while the current page has detected videos
- * (sniffed streams, or a YouTube watch/shorts page). Label is the video
- * count ("1 video" / "3 videos"); tapping it opens the list dialog (or, for
- * a YouTube page, the quality picker) -- see BrowserFragment.onSniffedMediaFabTapped.
+ * Floating action button shown while the current page has detected videos (sniffed streams, or a
+ * YouTube watch/shorts page). A round 56dp button with the download icon and a green count badge on its
+ * top-right corner; while detections are still being verified a thin ring spins around it. Tapping opens
+ * the list sheet (or, for a YouTube page, the quality picker) -- see BrowserFragment.onSniffedMediaFabTapped.
  *
- * It sits just above the bottom nav bar while that bar is showing and glides
- * down to the screen edge when the bar auto-hides / hides on scroll, so it
- * never floats over empty space or covers the bar's buttons.
- *
- * Same colors/shape as Widget.Xmd.FloatingActionButton (primaryContainer,
- * 28dp "Expressive" corners). Meant to be hosted in BrowserScreen's
- * `floatingActions` slot (a fillMaxSize Box scope).
+ * It sits just above the bottom nav bar while that bar is showing and glides down to the screen edge when
+ * the bar auto-hides / hides on scroll, so it never floats over empty space or covers the bar's buttons.
+ * Meant to be hosted in BrowserScreen's `floatingActions` slot (a fillMaxSize Box scope).
  */
 @Composable
 fun BrowserMediaFab(
     visible: Boolean,
     text: String,
+    count: Int,
     bottomBarShowing: Boolean,
     toolbarAtBottom: Boolean,
     onClick: () -> Unit,
@@ -64,24 +70,45 @@ fun BrowserMediaFab(
             enter = fadeIn() + scaleIn(initialScale = 0.8f),
             exit = fadeOut() + scaleOut(targetScale = 0.8f),
         ) {
-            ExtendedFloatingActionButton(
-                onClick = onClick,
-                shape = XmdShapes.L,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = {
-                    if (checking) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            // Extra room around the 56dp circle so the badge can overhang its corner without clipping.
+            Box(modifier = Modifier.padding(top = 8.dp, end = 8.dp).semantics { contentDescription = text }) {
+                FloatingActionButton(
+                    onClick = onClick,
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    Icon(imageVector = Icons.Download, contentDescription = null)
+                }
+                if (checking) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(56.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                if (count > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 8.dp, y = (-8).dp)
+                            .defaultMinSize(minWidth = 22.dp, minHeight = 22.dp)
+                            .background(MaterialTheme.colorScheme.surface, CircleShape)
+                            .padding(2.dp)
+                            .background(Color(0xFF2E9E57), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (count > 99) "99+" else count.toString(),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 5.dp),
                         )
-                    } else {
-                        Icon(imageVector = Icons.Download, contentDescription = null)
                     }
-                },
-                text = { Text(text) },
-            )
+                }
+            }
         }
     }
 }
