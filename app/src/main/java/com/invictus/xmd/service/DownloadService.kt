@@ -34,6 +34,7 @@ import com.invictus.xmd.domain.download.DownloadCancelledException
 import com.invictus.xmd.domain.download.ExpiredLinkException
 import com.invictus.xmd.domain.download.DownloadCategory
 import com.invictus.xmd.domain.download.DownloadEngine
+import com.invictus.xmd.domain.download.DownloadPart
 import com.invictus.xmd.domain.download.DownloadValidationException
 import com.invictus.xmd.domain.download.IncompleteFileUtil
 import com.invictus.xmd.domain.download.PartialFileCleaner
@@ -215,6 +216,19 @@ class DownloadService : LifecycleService() {
         fun pauseForWifiOnly(context: Context) {
             context.startService(Intent(context, DownloadService::class.java).setAction(ACTION_WIFI_ONLY_ENABLED))
         }
+
+        /** Active engines keyed by queue item id, so per-item controls can target the right download. */
+        private val engines = ConcurrentHashMap<String, DownloadEngine>()
+
+        /** Same idea as [engines], for magnet/.torrent items running through TorrentEngine instead. */
+        private val torrentEngines = ConcurrentHashMap<String, TorrentEngine>()
+
+        /** Returns active download parts (segments or torrent files/pieces) for the given item. */
+        fun getActiveParts(itemId: String): List<DownloadPart> {
+            engines[itemId]?.getParts()?.let { if (it.isNotEmpty()) return it }
+            torrentEngines[itemId]?.getParts()?.let { if (it.isNotEmpty()) return it }
+            return emptyList()
+        }
     }
 
     private val client = OkHttpClient.Builder()
@@ -243,11 +257,6 @@ class DownloadService : LifecycleService() {
         .connectionPool(ConnectionPool(32, 5, TimeUnit.MINUTES))
         .build()
 
-    /** Active engines keyed by queue item id, so per-item controls can target the right download. */
-    private val engines = ConcurrentHashMap<String, DownloadEngine>()
-
-    /** Same idea as [engines], for magnet/.torrent items running through TorrentEngine instead. */
-    private val torrentEngines = ConcurrentHashMap<String, TorrentEngine>()
 
     private enum class YoutubeStopReason(val priority: Int) {
         SCHEDULE_WAIT(1),

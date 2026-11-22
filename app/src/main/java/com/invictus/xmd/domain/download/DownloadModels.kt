@@ -71,3 +71,22 @@ class DownloadCancelledException(message: String = "Download cancelled") : Excep
  */
 class ExpiredLinkException(val httpCode: Int) :
     Exception("This link has expired or is unavailable (HTTP $httpCode).")
+
+/**
+ * Real-time progress snapshot of an individual segment/part/thread of a multi-threaded
+ * HTTP download or an individual file/piece-group in a torrent download.
+ */
+data class DownloadPart(
+    val id: Int,
+    val name: String,
+    val bytesDone: Long,
+    val totalBytes: Long,
+    val isRunning: Boolean = false,
+    val statusText: String = "",
+) {
+    val percent: Int?
+        get() = if (totalBytes > 0) ((bytesDone.toDouble() / totalBytes.toDouble()) * 100.0).toInt().coerceIn(0, 100) else null
+
+    val progressFraction: Float
+        get() = if (totalBytes > 0) (bytesDone.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
+}

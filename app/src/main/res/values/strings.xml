@@ -133,6 +133,12 @@
     <string name="download_resume_supported">Supported</string>
     <string name="download_resume_unknown">Unknown</string>
     <string name="download_open_file">Open file</string>
+    <string name="download_parts_title">Parts (%1$d)</string>
+    <string name="download_parts_single">1 Part</string>
+    <string name="download_parts_connecting">Connecting</string>
+    <string name="download_parts_downloading">Downloading</string>
+    <string name="download_parts_done">Done</string>
+    <string name="download_parts_idle">Idle</string>
     <string name="share_no_link_found">No link found to download</string>
     <string name="share_unsupported_link">This link is not supported</string>
     <string name="share_full_build_required">This link needs the Full build of Xmd.</string>
@@ -307,6 +313,8 @@
     <string name="settings_show_name_folders_hint">Put each show\'s episodes in Shows/&lt;Show Name&gt;. Off keeps all episodes together in Shows.</string>
     <string name="settings_wifi_only">Download on Wi-Fi Only</string>
     <string name="settings_wifi_only_hint">Pause all downloads on cellular data and resume automatically when Wi-Fi is back.</string>
+    <string name="settings_show_download_progress_dialog">Show download progress dialog</string>
+    <string name="settings_show_download_progress_dialog_hint">Display a live progress dialog when a download starts.</string>
     <string name="settings_battery_optimization">Disable battery optimization</string>
     <string name="settings_battery_optimization_hint">Stops the system from killing downloads that run in the background too long.</string>
     <string name="settings_battery_optimization_settings_unavailable">Battery settings screen not found on this device</string>

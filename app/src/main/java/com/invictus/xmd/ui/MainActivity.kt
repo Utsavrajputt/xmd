@@ -1452,7 +1452,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             pageUrl = pageUrl,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        if (com.invictus.xmd.preferences.Settings.showDownloadProgressDialog()) {
+            activeDownloadProgressItemId = newItem.id
+        }
         showDownloadStartedSnackbar()
     }
 
@@ -1562,7 +1564,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             generatePlaylistFile = generatePlaylistFile,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        if (com.invictus.xmd.preferences.Settings.showDownloadProgressDialog()) {
+            activeDownloadProgressItemId = newItem.id
+        }
         showDownloadStartedSnackbar()
     }
 
@@ -1625,7 +1629,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        if (com.invictus.xmd.preferences.Settings.showDownloadProgressDialog()) {
+            activeDownloadProgressItemId = newItem.id
+        }
         showDownloadStartedSnackbar()
     }
 
@@ -1666,7 +1672,9 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        if (com.invictus.xmd.preferences.Settings.showDownloadProgressDialog()) {
+            activeDownloadProgressItemId = newItem.id
+        }
         showDownloadStartedSnackbar()
     }
 

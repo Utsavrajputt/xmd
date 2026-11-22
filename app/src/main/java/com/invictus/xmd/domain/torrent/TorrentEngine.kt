@@ -9,6 +9,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import com.invictus.xmd.domain.download.DownloadCancelledException
 import com.invictus.xmd.domain.download.DownloadEngine
+import com.invictus.xmd.domain.download.DownloadPart
 import com.invictus.xmd.domain.download.ProgressFn
 import com.invictus.xmd.domain.download.LogFn
 
@@ -60,6 +61,101 @@ class TorrentEngine(
     private val paused = AtomicBoolean(false)
 
     @Volatile private var handle: TorrentHandle? = null
+    @Volatile private var currentTorrentInfo: TorrentInfo? = null
+
+    fun getParts(): List<DownloadPart> {
+        val h = handle ?: return emptyList()
+        if (!runCatching { h.isValid }.getOrDefault(false)) return emptyList()
+        val ti = currentTorrentInfo ?: return emptyList()
+        val isPaused = paused.get()
+        val isCancelled = cancelled.get()
+        val status = runCatching { h.status(TorrentHandle.QUERY_PIECES) }.getOrNull()
+            ?: runCatching { h.status() }.getOrNull()
+        val isDownloading = !isPaused && !isCancelled &&
+            (status?.state() == TorrentStatus.State.DOWNLOADING || (status?.downloadRate() ?: 0) > 0)
+
+        if (ti.numFiles() > 1) {
+            val fp = runCatching { h.fileProgress(TorrentHandle.PIECE_GRANULARITY) }.getOrNull()
+                ?: runCatching { h.fileProgress() }.getOrNull()
+            val numFiles = ti.numFiles()
+            return (0 until numFiles).map { idx ->
+                val fileName = runCatching { ti.files().fileName(idx) }.getOrNull() ?: "File ${idx + 1}"
+                val fileSize = runCatching { ti.files().fileSize(idx) }.getOrNull() ?: 0L
+                val done = if (fp != null && idx < fp.size) fp[idx].coerceIn(0L, fileSize) else 0L
+                val isDone = fileSize > 0 && done >= fileSize
+                DownloadPart(
+                    id = idx + 1,
+                    name = fileName,
+                    bytesDone = done,
+                    totalBytes = fileSize,
+                    isRunning = !isDone && !isPaused && !isCancelled && isDownloading,
+                    statusText = when {
+                        isDone -> "Completed"
+                        isPaused -> "Paused"
+                        done > 0 -> "Receiving data"
+                        isDownloading -> "Downloading"
+                        else -> "Queued"
+                    }
+                )
+            }
+        } else {
+            val numPieces = ti.numPieces()
+            val pieceLen = ti.pieceLength()
+            val piecesBitfield = status?.pieces()
+            val totalSize = if (status != null && status.totalWanted() > 0) status.totalWanted() else ti.totalSize()
+            val totalDone = status?.totalDone() ?: 0L
+
+            val downloadQueue = runCatching { h.downloadQueue }.getOrNull()
+            val activePieceIndices = downloadQueue?.map { it.pieceIndex() }?.toSet().orEmpty()
+
+            val chunkCount = minOf(16, numPieces.coerceAtLeast(1))
+            val piecesPerChunk = (numPieces + chunkCount - 1) / chunkCount
+
+            return (0 until chunkCount).map { chunkIdx ->
+                val startPiece = chunkIdx * piecesPerChunk
+                val endPiece = minOf((chunkIdx + 1) * piecesPerChunk, numPieces)
+                val chunkPiecesCount = (endPiece - startPiece).coerceAtLeast(1)
+
+                var donePieces = 0
+                if (piecesBitfield != null && piecesBitfield.size() > 0) {
+                    for (p in startPiece until endPiece) {
+                        if (p < piecesBitfield.size() && piecesBitfield.getBit(p)) {
+                            donePieces++
+                        }
+                    }
+                }
+
+                val chunkTotalBytes = if (chunkIdx == chunkCount - 1) {
+                    totalSize - (chunkIdx.toLong() * piecesPerChunk * pieceLen)
+                } else {
+                    chunkPiecesCount.toLong() * pieceLen
+                }.coerceAtLeast(1L)
+
+                val chunkStartByte = chunkIdx.toLong() * piecesPerChunk * pieceLen
+                val pieceDoneBytes = (chunkTotalBytes * donePieces / chunkPiecesCount).coerceIn(0L, chunkTotalBytes)
+                val distributedDoneBytes = (totalDone - chunkStartByte).coerceIn(0L, chunkTotalBytes)
+                val chunkDoneBytes = if (donePieces > 0) pieceDoneBytes else maxOf(pieceDoneBytes, distributedDoneBytes)
+
+                val isDone = (donePieces == chunkPiecesCount && chunkPiecesCount > 0) || (chunkDoneBytes >= chunkTotalBytes && chunkTotalBytes > 0)
+                val hasActivePiece = (startPiece until endPiece).any { it in activePieceIndices }
+
+                DownloadPart(
+                    id = chunkIdx + 1,
+                    name = "Piece group ${chunkIdx + 1}",
+                    bytesDone = chunkDoneBytes,
+                    totalBytes = chunkTotalBytes,
+                    isRunning = !isDone && !isPaused && !isCancelled && isDownloading,
+                    statusText = when {
+                        isDone -> "Completed"
+                        isPaused -> "Paused"
+                        hasActivePiece || chunkDoneBytes > 0 -> "Receiving data"
+                        isDownloading -> "Downloading"
+                        else -> "Queued"
+                    }
+                )
+            }
+        }
+    }
 
     fun pause() {
         paused.set(true)
@@ -113,6 +209,7 @@ class TorrentEngine(
     }
 
     private fun startAndPoll(ti: TorrentInfo, saveDir: File, selectedFileIndices: String? = null): TorrentResult {
+        currentTorrentInfo = ti
         log("Downloading: ${ti.name()}")
 
         val selectedSet = selectedFileIndices?.split(",")
