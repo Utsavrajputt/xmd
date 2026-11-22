@@ -276,6 +276,7 @@ fun DownloadsScreen(
     var showViewSheet by remember { mutableStateOf(false) }
     var pendingCancelItem by remember { mutableStateOf<QueueItem?>(null) }
     var showCancelAllDialog by remember { mutableStateOf(false) }
+    var progressDialogItemId by remember { mutableStateOf<String?>(null) }
 
     BackHandler(enabled = selectedIds.isNotEmpty()) {
         selectedIds = emptySet()
@@ -608,6 +609,7 @@ fun DownloadsScreen(
                             onOpen = onOpen,
                             onOpenFileLocation = onOpenFileLocation,
                             onErrorDetails = { errorDetailsTarget = it },
+                            onOpenProgress = { progressDialogItemId = it.id },
                             onSwipeClear = onSwipeClearItem,
                             onToggleSelect = { toggled ->
                                 selectedIds = if (toggled.id in selectedIds) {
@@ -861,6 +863,21 @@ fun DownloadsScreen(
             },
         )
     }
+
+    // ── Download Progress Dialog (abdm-style) ─────────────────────────────
+    progressDialogItemId?.let { id ->
+        DownloadProgressDialog(
+            itemId = id,
+            onDismiss = { progressDialogItemId = null },
+            onPauseResume = onPauseResume,
+            onCancel = {
+                progressDialogItemId = null
+                onCancel(it)
+            },
+            onRetry = onRetry,
+            onOpen = onOpen,
+        )
+    }
 }
 
 private const val ACTIVE_CHIP = "ACTIVE"
@@ -1099,6 +1116,7 @@ fun QueueItemRow(
     onOpen: (QueueItem) -> Unit,
     onOpenFileLocation: (QueueItem) -> Unit = {},
     onErrorDetails: (QueueItem) -> Unit = {},
+    onOpenProgress: ((QueueItem) -> Unit)? = null,
     onSwipeClear: (QueueItem) -> Unit = onClear,
     onToggleSelect: (QueueItem) -> Unit = {},
 ) {
@@ -1473,6 +1491,12 @@ fun QueueItemRow(
                                             },
                                         )
                                     }
+                                    CompactIconButton(
+                                        icon = Icons.OpenInNew,
+                                        contentDescription = stringResource(R.string.action_view_progress),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        onClick = { onOpenProgress?.invoke(item) },
+                                    )
                                     CompactIconButton(
                                         icon = if (item.status == ItemStatus.PAUSED) Icons.Play else Icons.Pause,
                                         contentDescription = stringResource(

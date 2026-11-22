@@ -48,6 +48,8 @@ import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
 import com.invictus.xmd.ui.downloads.AddDownloadDialog
 import com.invictus.xmd.ui.downloads.AddTorrentDialog
+import com.invictus.xmd.ui.downloads.DownloadProgressDialog
+import com.invictus.xmd.ui.downloads.openDownloadedFile
 import com.invictus.xmd.ui.downloads.TorrentFileRow
 import com.invictus.xmd.ui.downloads.TorrentFilesUiState
 import com.invictus.xmd.utils.LinkParser
@@ -79,6 +81,7 @@ class ShareReceiverActivity : AppCompatActivity() {
     private var currentDownloadLink by mutableStateOf<String?>(null)
     private var currentInitialName by mutableStateOf<String?>(null)
     private var currentTorrentData by mutableStateOf<TorrentDialogData?>(null)
+    private var activeDownloadProgressItemId by mutableStateOf<String?>(null)
 
     private val clipboardManager by lazy { getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
 
@@ -275,6 +278,32 @@ class ShareReceiverActivity : AppCompatActivity() {
                         },
                     )
                 }
+
+                activeDownloadProgressItemId?.let { itemId ->
+                    DownloadProgressDialog(
+                        itemId = itemId,
+                        isExternalMode = true,
+                        onDismiss = {
+                            dismissAndFinish()
+                        },
+                        onOpenInApp = {
+                            openInApp(itemId)
+                        },
+                        onPauseResume = { item ->
+                            onItemPauseResume(item)
+                        },
+                        onCancel = { item ->
+                            DownloadService.cancelItem(this@ShareReceiverActivity, item.id)
+                            dismissAndFinish()
+                        },
+                        onRetry = { item ->
+                            onItemRetry(item)
+                        },
+                        onOpen = { item ->
+                            openDownloadedFile(this@ShareReceiverActivity, item)
+                        },
+                    )
+                }
             }
         }
 
@@ -393,7 +422,34 @@ class ShareReceiverActivity : AppCompatActivity() {
         torrentMetadataJob?.cancel()
         currentDownloadLink = null
         currentTorrentData = null
+        activeDownloadProgressItemId = null
         finish()
+    }
+
+    private fun openInApp(itemId: String) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_OPEN_DOWNLOADS, true)
+            putExtra(MainActivity.EXTRA_FOCUS_DOWNLOAD_ID, itemId)
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    private fun onItemPauseResume(item: QueueItem) {
+        when (item.status) {
+            ItemStatus.READY -> DownloadService.start(this)
+            ItemStatus.PAUSED -> DownloadService.resumeItem(this, item.id)
+            ItemStatus.DOWNLOADING, ItemStatus.RETRYING, ItemStatus.SAVING -> DownloadService.pauseItem(this, item.id)
+            else -> Unit
+        }
+    }
+
+    private fun onItemRetry(item: QueueItem) {
+        QueueRepository.resetForRetry(item.id, needsResolve = false)
+        DownloadService.start(this)
     }
 
     private fun defaultSavePath(): String = Settings.defaultSaveLocation()
@@ -552,8 +608,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
-        finish()
+        activeDownloadProgressItemId = newItem.id
     }
 
     private fun startYoutubeDownload(
@@ -636,8 +691,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             generatePlaylistFile = generatePlaylistFile,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
-        finish()
+        activeDownloadProgressItemId = newItem.id
     }
 
     private fun startTorrentMagnetDownload(
@@ -671,8 +725,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
-        finish()
+        activeDownloadProgressItemId = newItem.id
     }
 
     private fun startTorrentFileDownload(
@@ -707,8 +760,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
-        finish()
+        activeDownloadProgressItemId = newItem.id
     }
 
     private fun extractYoutubeFallbackName(url: String): String {
