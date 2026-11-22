@@ -96,6 +96,8 @@ import com.invictus.xmd.ui.components.AppMessageDialogState
 import com.invictus.xmd.ui.components.ExpiredLinkDialog
 import com.invictus.xmd.ui.components.ExpiredLinkDialogState
 import com.invictus.xmd.ui.downloads.AddDownloadDialog
+import com.invictus.xmd.ui.downloads.DownloadProgressDialog
+import com.invictus.xmd.ui.downloads.openDownloadedFile
 import com.invictus.xmd.ui.downloads.AddTorrentDialog
 import com.invictus.xmd.ui.downloads.DownloadsFragment
 import com.invictus.xmd.ui.downloads.DownloadsSelectionUiState
@@ -184,6 +186,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     )
 
     private var pendingYoutubeDownloadRequest: PendingYoutubeDownloadRequest? by mutableStateOf(null)
+    private var activeDownloadProgressItemId: String? by mutableStateOf(null)
     private var showYtDlpInstallPrompt: Boolean by mutableStateOf(false)
     private var showYtDlpInstallProgress: Boolean by mutableStateOf(false)
     private var ytDlpInstallError: String? by mutableStateOf(null)
@@ -995,6 +998,24 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
                         onDismiss = { expiredLinkDialogState = null },
                     )
                 }
+
+                activeDownloadProgressItemId?.let { id ->
+                    DownloadProgressDialog(
+                        itemId = id,
+                        onDismiss = { activeDownloadProgressItemId = null },
+                        onPauseResume = { onItemPauseResume(it) },
+                        onCancel = {
+                            activeDownloadProgressItemId = null
+                            DownloadService.cancelItem(this, it.id)
+                        },
+                        onRetry = { retryItem(it.id) },
+                        onOpen = { openDownloadedFile(this, it) },
+                        onOpenInApp = {
+                            activeDownloadProgressItemId = null
+                            selectMainDestination(MainDestination.Downloads)
+                        },
+                    )
+                }
             }
             // Android 11 and older have no system splash; this plays the chosen icon's one in-app.
             com.invictus.xmd.ui.components.AppLaunchSplash()
@@ -1087,6 +1108,15 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
     }
 
     private fun handleIncomingIntent(intent: Intent) {
+        if (intent.getBooleanExtra(EXTRA_OPEN_DOWNLOADS, false)) {
+            intent.removeExtra(EXTRA_OPEN_DOWNLOADS)
+            selectMainDestination(MainDestination.Downloads)
+            intent.getStringExtra(EXTRA_FOCUS_DOWNLOAD_ID)?.let { focusId ->
+                intent.removeExtra(EXTRA_FOCUS_DOWNLOAD_ID)
+                activeDownloadProgressItemId = focusId
+            }
+        }
+
         // Captured before the when-block below can still tell us -- needed
         // further down to gate the "open in Browser" branch to ACTION_VIEW
         // only (a Shared link should still always go to the download flow).
@@ -1422,6 +1452,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             pageUrl = pageUrl,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
+        activeDownloadProgressItemId = newItem.id
         showDownloadStartedSnackbar()
     }
 
@@ -1531,6 +1562,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             generatePlaylistFile = generatePlaylistFile,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
+        activeDownloadProgressItemId = newItem.id
         showDownloadStartedSnackbar()
     }
 
@@ -1593,6 +1625,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
+        activeDownloadProgressItemId = newItem.id
         showDownloadStartedSnackbar()
     }
 
@@ -1633,6 +1666,7 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
+        activeDownloadProgressItemId = newItem.id
         showDownloadStartedSnackbar()
     }
 
@@ -2118,10 +2152,20 @@ class MainActivity : AppCompatActivity(), DownloadsFragment.Callbacks, BrowserFr
         Settings.setDarkMode(nowDark)
     }
 
+    private fun onItemPauseResume(item: QueueItem) {
+        when (item.status) {
+            ItemStatus.READY -> DownloadService.start(this)
+            ItemStatus.PAUSED -> DownloadService.resumeItem(this, item.id)
+            ItemStatus.DOWNLOADING, ItemStatus.RETRYING, ItemStatus.SAVING -> DownloadService.pauseItem(this, item.id)
+            else -> Unit
+        }
+    }
 
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
+        const val EXTRA_OPEN_DOWNLOADS = "open_downloads"
+        const val EXTRA_FOCUS_DOWNLOAD_ID = "focus_download_id"
         private const val SYSTEM_BAR_THEME_SWITCH_PROGRESS = 0.55f
         private const val TAG_BROWSER   = "browser"
         private const val TAG_DOWNLOADS = "downloads"
