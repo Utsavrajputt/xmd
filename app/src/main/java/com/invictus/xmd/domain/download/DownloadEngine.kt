@@ -131,6 +131,29 @@ class DownloadEngine(
     // unresponsive to Cancel/Cancel All. Forcing the socket closed makes the
     // blocked read throw immediately.
     private val activeCalls = java.util.concurrent.ConcurrentHashMap.newKeySet<Call>()
+    @Volatile private var currentSegments: List<SegmentState>? = null
+
+    fun getParts(): List<DownloadPart> {
+        val segs = currentSegments ?: return emptyList()
+        return segs.mapIndexed { idx, seg ->
+            val len = (seg.end - seg.start + 1).coerceAtLeast(1)
+            val done = seg.done.coerceIn(0, len)
+            val isDone = done >= len
+            DownloadPart(
+                id = idx + 1,
+                name = "Part ${idx + 1}",
+                bytesDone = done,
+                totalBytes = len,
+                isRunning = !isDone && !paused.get() && !cancelled.get(),
+                statusText = when {
+                    isDone -> "Completed"
+                    paused.get() -> "Paused"
+                    done > 0 -> "Receiving data"
+                    else -> "Connecting"
+                }
+            )
+        }
+    }
 
     // ── Multi-connection segment resume metadata ────────────────────────
     /**
@@ -785,6 +808,7 @@ class DownloadEngine(
             throw PrepareDestinationFailedException(e)
         }
 
+        currentSegments = segments
         val alreadyDone = segments.sumOf { it.done }
         val doneCounter = AtomicLong(alreadyDone)
         // Seed the UI with real progress immediately on resume instead of a

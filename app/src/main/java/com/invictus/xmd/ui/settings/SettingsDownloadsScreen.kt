@@ -72,6 +72,7 @@ fun SettingsDownloadsScreen(
     categorizeIntoFolders: Boolean,
     showNameFolders: Boolean,
     wifiOnly: Boolean,
+    showProgressDialog: Boolean,
     dataLimitEnabled: Boolean,
     dataLimitBytes: Long,
     dataLimitScope: Settings.DataLimitScope,
@@ -86,6 +87,7 @@ fun SettingsDownloadsScreen(
     onCategorizeIntoFoldersChanged: (Boolean) -> Unit,
     onShowNameFoldersChanged: (Boolean) -> Unit,
     onWifiOnlyChanged: (Boolean) -> Unit,
+    onShowProgressDialogChanged: (Boolean) -> Unit,
     onDataLimitEnabledChanged: (Boolean) -> Unit,
     onDataLimitBytesChanged: (Long) -> Unit,
     onDataLimitScopeChanged: (Settings.DataLimitScope) -> Unit,
@@ -136,6 +138,13 @@ fun SettingsDownloadsScreen(
                 subtitle = stringResource(R.string.settings_wifi_only_hint),
                 checked = wifiOnly,
                 onCheckedChange = onWifiOnlyChanged,
+            )
+            SettingsDivider()
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_show_download_progress_dialog),
+                subtitle = stringResource(R.string.settings_show_download_progress_dialog_hint),
+                checked = showProgressDialog,
+                onCheckedChange = onShowProgressDialogChanged,
             )
         }
 

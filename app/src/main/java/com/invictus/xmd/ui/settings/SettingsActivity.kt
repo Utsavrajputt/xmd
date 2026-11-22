@@ -736,6 +736,9 @@ private fun DownloadsRoute() {
     var wifiOnly by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.wifiOnlyDownloads())
     }
+    var showProgressDialog by remember {
+        mutableStateOf(com.invictus.xmd.preferences.Settings.showDownloadProgressDialog())
+    }
     var dataLimitEnabled by remember {
         mutableStateOf(com.invictus.xmd.preferences.Settings.dataLimitEnabled())
     }
@@ -801,6 +804,7 @@ private fun DownloadsRoute() {
         categorizeIntoFolders = categorizeIntoFolders,
         showNameFolders = showNameFolders,
         wifiOnly = wifiOnly,
+        showProgressDialog = showProgressDialog,
         dataLimitEnabled = dataLimitEnabled,
         dataLimitBytes = dataLimitBytes,
         dataLimitScope = dataLimitScope,
@@ -840,6 +844,10 @@ private fun DownloadsRoute() {
                 // running on cellular until the next Wi-Fi drop/regain.
                 com.invictus.xmd.service.DownloadService.pauseForWifiOnly(context)
             }
+        },
+        onShowProgressDialogChanged = { checked ->
+            showProgressDialog = checked
+            com.invictus.xmd.preferences.Settings.setShowDownloadProgressDialog(checked)
         },
         onDataLimitEnabledChanged = { checked ->
             dataLimitEnabled = checked

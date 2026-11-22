@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -34,6 +35,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,10 +48,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -66,10 +73,12 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.invictus.xmd.R
 import com.invictus.xmd.database.entities.QueueItem
+import com.invictus.xmd.domain.download.DownloadPart
 import com.invictus.xmd.domain.download.ItemStatus
 import com.invictus.xmd.domain.download.MediaPlatform
 import com.invictus.xmd.preferences.Settings
 import com.invictus.xmd.repository.QueueRepository
+import com.invictus.xmd.service.DownloadService
 import com.invictus.xmd.ui.components.WideDialogProperties
 import com.invictus.xmd.ui.components.wideDialogWidth
 import com.invictus.xmd.ui.icons.Icon
@@ -78,6 +87,8 @@ import com.invictus.xmd.utils.formatBytes
 import com.invictus.xmd.utils.formatRemainingTimeChrome
 import com.invictus.xmd.utils.formatSpeed
 import java.io.File
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * Download progress dialog inspired by AB Download Manager (abdm),
@@ -110,6 +121,18 @@ fun DownloadProgressDialog(
     val colors = MaterialTheme.colorScheme
     val configuration = LocalConfiguration.current
     val maxHeight = (configuration.screenHeightDp.dp - 64.dp).coerceAtLeast(280.dp)
+
+    val parts by produceState(initialValue = emptyList<DownloadPart>(), key1 = itemId, key2 = item.status) {
+        if (item.status == ItemStatus.DOWNLOADING || item.status == ItemStatus.PAUSED || item.status == ItemStatus.SAVING) {
+            while (isActive) {
+                value = DownloadService.getActiveParts(itemId)
+                delay(350)
+            }
+        } else {
+            value = emptyList()
+        }
+    }
+    var showPartsDetails by rememberSaveable { mutableStateOf(false) }
 
     val (progressFrac, isIndeterminate) = remember(item.status, item.bytesDone, item.bytesTotal, item.progressPercent) {
         calcProgress(item)
@@ -264,14 +287,22 @@ fun DownloadProgressDialog(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Progress bar
-                    ProgressIndicatorBar(
-                        progress = animatedProgress,
-                        isIndeterminate = isIndeterminate,
-                        isDownloading = item.status == ItemStatus.DOWNLOADING,
-                        indicatorColor = statusColor,
-                        trackColor = colors.surfaceContainerHighest,
-                    )
+                    // Progress bar: only one progress bar displayed (segmented if parts active, otherwise standard indicator)
+                    if (parts.isNotEmpty()) {
+                        PartsProgressBar(
+                            parts = parts,
+                            overallProgress = animatedProgress,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        ProgressIndicatorBar(
+                            progress = animatedProgress,
+                            isIndeterminate = isIndeterminate,
+                            isDownloading = item.status == ItemStatus.DOWNLOADING,
+                            indicatorColor = statusColor,
+                            trackColor = colors.surfaceContainerHighest,
+                        )
+                    }
 
                     Spacer(Modifier.height(8.dp))
 
@@ -388,6 +419,16 @@ fun DownloadProgressDialog(
                                 },
                             )
                         }
+                    }
+
+                    // Parts and multi-connection progress details
+                    if (parts.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        PartsExpansionCard(
+                            parts = parts,
+                            expanded = showPartsDetails,
+                            onToggle = { showPartsDetails = !showPartsDetails },
+                        )
                     }
 
                     // Error warning if present
@@ -801,5 +842,255 @@ fun openDownloadedFile(context: Context, item: QueueItem) {
         context.startActivity(chooser)
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, R.string.open_file_no_app, Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Segmented progress bar inspired by AB Download Manager (abdm)'s RenderParts,
+ * rendering each part's portion proportional to its size and filling with progress.
+ */
+@Composable
+fun PartsProgressBar(
+    parts: List<DownloadPart>,
+    overallProgress: Float,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val totalBytesAll = remember(parts) { parts.sumOf { it.totalBytes.coerceAtLeast(0L) } }
+    val useEqualWeight = totalBytesAll <= 0L
+    val partsTotalDone = remember(parts) { parts.sumOf { it.bytesDone.coerceAtLeast(0L) } }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(12.dp)
+            .clip(RoundedCornerShape(6.dp)),
+        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+    ) {
+        parts.forEach { part ->
+            val weight = if (useEqualWeight) 1f else (part.totalBytes.coerceAtLeast(1L)).toFloat() / totalBytesAll.toFloat()
+            val progress = if (partsTotalDone > 0L) {
+                part.progressFraction.coerceIn(0f, 1f)
+            } else {
+                overallProgress.coerceIn(0f, 1f)
+            }
+            val partColor = when {
+                part.bytesDone >= part.totalBytes && part.totalBytes > 0 -> colors.primary
+                part.isRunning -> colors.primary
+                overallProgress > 0f -> colors.primary
+                else -> colors.tertiary
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(weight.coerceAtLeast(0.01f))
+                    .fillMaxHeight()
+                    .background(colors.surfaceContainerHighest),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .background(partColor),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Expandable card showing individual parts / segments / torrent pieces progress.
+ */
+@Composable
+private fun PartsExpansionCard(
+    parts: List<DownloadPart>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val activeCount = remember(parts) { parts.count { it.isRunning } }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "partsChevron",
+    )
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.surfaceContainer,
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.35f)),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header Row (Clickable)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onToggle),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Download,
+                        contentDescription = null,
+                        tint = colors.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.download_parts_title, parts.size),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.onSurface,
+                    )
+                    if (activeCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = colors.primaryContainer,
+                        ) {
+                            Text(
+                                text = "$activeCount active",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.onPrimaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.ChevronDown,
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(chevronRotation),
+                )
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                        .heightIn(max = 200.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    parts.forEachIndexed { index, part ->
+                        PartDetailRow(index = index + 1, part = part)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartDetailRow(
+    index: Int,
+    part: DownloadPart,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    val partProgress = part.progressFraction.coerceIn(0f, 1f)
+    val statusColor = when {
+        part.bytesDone >= part.totalBytes && part.totalBytes > 0 -> colors.primary
+        part.isRunning -> colors.primary
+        else -> colors.onSurfaceVariant
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.weight(1f, fill = false),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = colors.surfaceContainerHighest,
+                ) {
+                    Text(
+                        text = "#$index",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                    )
+                }
+
+                Text(
+                    text = part.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Text(
+                text = part.statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = statusColor,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        // Subtext: bytes / total + percentage
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            val bytesStr = if (part.bytesDone > 0) formatBytes(part.bytesDone) else "0 B"
+            val totalStr = if (part.totalBytes > 0) formatBytes(part.totalBytes) else "?"
+            Text(
+                text = "$bytesStr / $totalStr",
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceVariant,
+            )
+
+            val pct = (partProgress * 100).toInt()
+            Text(
+                text = "$pct%",
+                style = MaterialTheme.typography.labelSmall,
+                color = statusColor,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        // Mini progress bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(colors.surfaceContainerHighest),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .fillMaxWidth(partProgress)
+                    .background(statusColor),
+            )
+        }
     }
 }

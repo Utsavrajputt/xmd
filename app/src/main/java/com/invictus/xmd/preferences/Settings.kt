@@ -61,6 +61,7 @@ object Settings {
     private const val KEY_DISABLE_CATEGORIZATION = "disable_folder_categorization"
     private const val KEY_SHOW_NAME_FOLDERS = "show_name_folders"
     private const val KEY_WIFI_ONLY = "wifi_only_downloads"
+    private const val KEY_SHOW_DOWNLOAD_PROGRESS_DIALOG = "show_download_progress_dialog"
     // Legacy pre-merge keys (total + mobile were separate toggles) --
     // read-only now, only consulted by [migrateDataLimitIfNeeded] to carry
     // an existing user's setting forward into the merged key set below.
@@ -306,6 +307,11 @@ object Settings {
     fun wifiOnlyDownloads(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
     fun setWifiOnlyDownloads(value: Boolean) {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+    }
+
+    fun showDownloadProgressDialog(): Boolean = prefs.getBoolean(KEY_SHOW_DOWNLOAD_PROGRESS_DIALOG, true)
+    fun setShowDownloadProgressDialog(value: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_DOWNLOAD_PROGRESS_DIALOG, value).apply()
     }
 
     /** Sentinel [QueueItem.error] text marking a PAUSED item as auto-paused

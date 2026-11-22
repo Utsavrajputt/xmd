@@ -609,7 +609,7 @@ fun DownloadsScreen(
                             onOpen = onOpen,
                             onOpenFileLocation = onOpenFileLocation,
                             onErrorDetails = { errorDetailsTarget = it },
-                            onOpenProgress = { progressDialogItemId = it.id },
+                            onOpenProgress = if (com.invictus.xmd.preferences.Settings.showDownloadProgressDialog()) { { progressDialogItemId = it.id } } else null,
                             onSwipeClear = onSwipeClearItem,
                             onToggleSelect = { toggled ->
                                 selectedIds = if (toggled.id in selectedIds) {
@@ -1491,12 +1491,14 @@ fun QueueItemRow(
                                             },
                                         )
                                     }
-                                    CompactIconButton(
-                                        icon = Icons.OpenInNew,
-                                        contentDescription = stringResource(R.string.action_view_progress),
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        onClick = { onOpenProgress?.invoke(item) },
-                                    )
+                                    if (onOpenProgress != null) {
+                                        CompactIconButton(
+                                            icon = Icons.OpenInNew,
+                                            contentDescription = stringResource(R.string.action_view_progress),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            onClick = { onOpenProgress.invoke(item) },
+                                        )
+                                    }
                                     CompactIconButton(
                                         icon = if (item.status == ItemStatus.PAUSED) Icons.Play else Icons.Pause,
                                         contentDescription = stringResource(

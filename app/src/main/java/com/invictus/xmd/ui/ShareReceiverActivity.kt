@@ -426,6 +426,15 @@ class ShareReceiverActivity : AppCompatActivity() {
         finish()
     }
 
+    private fun showProgressOrFinish(itemId: String) {
+        if (Settings.showDownloadProgressDialog()) {
+            activeDownloadProgressItemId = itemId
+        } else {
+            Toast.makeText(this, R.string.download_started_confirmation, Toast.LENGTH_SHORT).show()
+            dismissAndFinish()
+        }
+    }
+
     private fun openInApp(itemId: String) {
         val intent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_MAIN
@@ -608,7 +617,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        showProgressOrFinish(newItem.id)
     }
 
     private fun startYoutubeDownload(
@@ -691,7 +700,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             generatePlaylistFile = generatePlaylistFile,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        showProgressOrFinish(newItem.id)
     }
 
     private fun startTorrentMagnetDownload(
@@ -725,7 +734,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        showProgressOrFinish(newItem.id)
     }
 
     private fun startTorrentFileDownload(
@@ -760,7 +769,7 @@ class ShareReceiverActivity : AppCompatActivity() {
             windowDaysMask = windowDaysMask,
         )
         if (!enqueueDownload(newItem, duplicateStrategy)) return
-        activeDownloadProgressItemId = newItem.id
+        showProgressOrFinish(newItem.id)
     }
 
     private fun extractYoutubeFallbackName(url: String): String {
